@@ -133,6 +133,8 @@ SIMBAD_CONE = (
     "FROM basic AS b WHERE CONTAINS(POINT('ICRS', b.ra, b.dec), CIRCLE('ICRS', {ra}, {dec}, {r})) = 1{known} ORDER BY dist"
 )
 SIMBAD_KNOWN = " AND (b.rvz_redshift IS NOT NULL OR b.rvz_radvel IS NOT NULL OR b.plx_value IS NOT NULL)"
+SIMBAD_VELOCITIES = "SELECT v.velvalue, v.veltype, v.bibcode FROM mesVelocities AS v WHERE v.oidref = {oid}"
+ODD_VELOCITY = 100.0  # km/s: a star listed as faster than this has its velocity compared with every published one
 SIMBAD_DISTANCES = "SELECT d.dist, d.unit, d.minus_err, d.plus_err, d.method, d.bibcode FROM mesDistance AS d WHERE d.oidref = {oid}"
 
 
@@ -205,6 +207,27 @@ def simbad_distances(client: httpx.Client, oid: str) -> dict | None:
             "count": len(values), "methods": sorted({m["method"] for m in found if m["method"]}),
             "newest": [{"mpc": round(m["mpc"], 4), "method": m["method"], "bibcode": m["bibcode"]} for m in newest],
             "source": "SIMBAD (CDS), distances collected from the literature"}
+
+
+def simbad_velocities(client: httpx.Client, oid: str) -> list[float]:
+    """Every radial velocity of an object that SIMBAD collects from the literature, in km/s."""
+    rows = _tap(client, SIMBAD_TAP_URLS, SIMBAD_VELOCITIES.format(oid=int(oid)))
+    found = [_f(row.get("velvalue")) for row in rows if (row.get("veltype") or "").strip().lower() == "v"]
+    return [v for v in found if v is not None]
+
+
+def settled_velocity(listed: float, published: list[float]) -> dict | None:
+    """The median of the published velocities of a star, where the one SIMBAD
+    lists first stands far from all the others (a misprint in a table happens:
+    tau Sco, a few km/s in fifteen papers, was listed at -650 km/s in 2026).
+    None where the listed one is in keeping with them, or they are too few to tell."""
+    if len(published) < 5:
+        return None
+    middle = statistics.median(published)
+    spread = max(5.0, 1.4826 * statistics.median(abs(v - middle) for v in published))
+    if abs(listed - middle) <= max(50.0, 10.0 * spread):
+        return None
+    return {"km_s": round(middle, 2), "count": len(published)}
 
 
 # ----------------------------------------------------------------------------- NED
@@ -443,6 +466,12 @@ def lookup(target: Target, client: httpx.Client | None = None) -> dict:
         if obj and kind == "star" and (obj["radvel"] is not None or obj["z"] is not None):
             v = obj["radvel"] if obj["radvel"] is not None else obj["z"] * C_KM_S
             out["radial_velocity"] = {"km_s": round(v, 2), "source": "SIMBAD (CDS)", "bibcode": obj["z_bibcode"]}
+            if abs(v) > ODD_VELOCITY and obj["oid"]:
+                published, _ = ask(simbad_velocities, obj["oid"])
+                settled = settled_velocity(v, published or [])
+                if settled:
+                    out["radial_velocity"] = {**settled, "source": "SIMBAD (CDS), median of the published measurements", "bibcode": "",
+                                              "listed": {"km_s": round(v, 2), "bibcode": obj["z_bibcode"]}}
 
         # A parallax: of a star.
         if not out["redshift"] and not far:

@@ -159,3 +159,22 @@ def test_the_list_of_the_redshift_layer_is_what_the_viewer_expects():
     far = [r for r in rows if r[2] >= 5]
     assert len(far) > 3000 and not any(r[4] is not None and r[4] < 15 for r in far)  # no pipeline misfit left in
     assert sum(1 for r in rows if not d["refs"][r[6]]) < len(rows) / 50
+
+
+def test_a_misprinted_velocity_gives_way_to_the_other_papers():
+    # tau Sco as SIMBAD held it on 2026-11-14: fifteen papers, one of them at -650 km/s, and that one listed first
+    tau_sco = [1.2, 3.7, -1.3, 3.0, 3.0, 4.0, 2.0, 2.0, 1.7, -0.7, 2.0, -650.47, -0.932, 1.4, -5.9]
+    assert distance.settled_velocity(-650.47, tau_sco) == {"km_s": 1.7, "count": 15}
+    # Barnard's star does move at 110 km/s: the papers agree, and its listed velocity stays
+    barnard = [-136.6, -111.4, -111.0, -110.6, -110.5, -110.4, -110.11, -108.0, -107.0, -106.8, -106.8, -106.6, -103.0, -0.4]
+    assert distance.settled_velocity(-110.11, barnard) is None
+    assert distance.settled_velocity(366.0, [366.0]) is None                 # one paper: nothing to compare with
+    assert distance.settled_velocity(250.0, [-240.0, -100.0, 0.0, 120.0, 250.0, 260.0]) is None      # a close pair of stars: no outlier
+
+
+def test_published_velocities_are_read_from_simbad():
+    def handler(request):
+        assert "mesVelocities" in dict(request.url.params)["QUERY"] and "oidref = 2406927" in dict(request.url.params)["QUERY"]
+        return httpx.Response(200, text='velvalue,veltype,bibcode\n2.0,"v  ","1979IAUS...30...57E"\n1.7,"V  ","2006AstL...32..759G"\n'
+                                        '-0.0022,"z  ","x"\n,"v  ","y"\n')
+    assert distance.simbad_velocities(httpx.Client(transport=httpx.MockTransport(handler)), "2406927") == [2.0, 1.7]
