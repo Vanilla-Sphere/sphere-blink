@@ -27,7 +27,9 @@ sphere-blink/
 ├── scripts/                maintenance and calibration tools
 ├── tests/                  unit tests (no network)
 ├── docs/                   this documentation
-├── render.yaml             hosting blueprint
+├── render.yaml             hosting blueprint of production
+├── render.dev.yaml         hosting blueprint of the dev site (see environments.md)
+├── .github/workflows/      checks on pull requests: tests, branch names
 ├── requirements.txt        Python dependencies
 ├── README.md
 └── LICENSE                 MIT
@@ -101,6 +103,7 @@ of HTML, CSS and JavaScript in the viewer.
 | `scripts/calibrate_wings.py` | Measure how halo brightness scales with flux on 2MASS calibrators and print the table for `wings.CALIBRATION` | `collect` then `fit`, with `scripts/wing_calibrators.csv` |
 | `scripts/wing_calibrators.csv` | The 81 isolated 2MASS stars used for the calibration | - |
 | `scripts/build_sky.py` | Build `web/data/sky.json` from d3-celestial data | `python scripts/build_sky.py path/to/d3-celestial/data` |
+| `scripts/build_dev_site.sh` | Lay `web/` out as the static dev site (see [environments](environments.md)) | `sh scripts/build_dev_site.sh [output dir]` |
 
 ## Database files
 
