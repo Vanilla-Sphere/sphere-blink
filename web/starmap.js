@@ -29,12 +29,7 @@ const SkyMap = (() => {
   let ATLAS_FROM = 1.1, ATLAS_SHOW = 0.85, photoOn = false;   // the sky photograph: from how many doublings of zoom it comes up, and how strongly
   let mwCv = null, mwCtx = null, MW_SOFT = 1, MW_GLOW = 1;   // the Milky Way's small canvas; how blurred and how bright it is
   let fx = null;                        // ambient.js, when it is loaded: it draws the aiming frame and follows every redraw
-  /* The line between the two celestial poles: "sky", "view" or "off" (see axisLine). Until its look is
-     approved it shows on the dev site only; ?axis=sky|view|off in the address tries it anywhere. */
-  let AXIS = (() => {
-    const asked = new URLSearchParams(location.search).get("axis");
-    return ["sky", "view", "off"].includes(asked) ? asked : location.hostname.startsWith("dev.") ? "sky" : "off";
-  })();
+  let AXIS = "sky";                     // the line between the two celestial poles: "sky", "view" or "off" (see axisLine)
 
   /* ---------------------------------------------------------------- geometry */
   const vec = (ra, dec) => { const a = ra * D, d = dec * D, c = Math.cos(d); return [c * Math.cos(a), c * Math.sin(a), Math.sin(d)]; };
