@@ -234,6 +234,25 @@ def save_db(result: dict) -> bool:
         return False
 
 
+def sync_db() -> int:
+    """Write the stored results the team database does not hold yet (measured
+    before the database was connected, or while it was away). Returns how
+    many were written."""
+    if not db_enabled():
+        return 0
+    n = 0
+    for key, payload in _conn().execute("SELECT key, payload FROM results").fetchall():
+        result = json.loads(payload)
+        if result.get("stats", {}).get("in_database"):
+            continue
+        if not save_db(result):
+            break  # the database refuses or is away: the next start tries again
+        result.setdefault("stats", {})["in_database"] = True
+        save_local(key, result)
+        n += 1
+    return n
+
+
 def near(ra: float, dec: float, radius_deg: float) -> list[dict]:
     """Sources within ``radius_deg`` with their fitted track and detections:
     everything in the team database, plus pipeline results it does not hold."""

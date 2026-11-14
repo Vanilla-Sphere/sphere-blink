@@ -212,3 +212,22 @@ def test_results_are_stored_and_served_like_the_team_database(tmp_path, monkeypa
     assert src["name"] == "mover" and len(src["detections"]) == 16 and src["track"]["n_detections"] == 16
     assert {"obs_id", "detector", "mjd", "ra", "dec", "used"} <= set(src["detections"][0])
     assert not measurements.save_db(result)  # no database configured
+
+
+def test_results_measured_without_a_database_are_written_once_it_is_there(tmp_path, monkeypatch):
+    from sphereblink import config
+
+    monkeypatch.setattr(config, "CACHE_DIR", tmp_path)
+    monkeypatch.setattr(config, "DB_URL", "")
+    for name, stored in (("a", False), ("b", True), ("c", False)):
+        measurements.save_local(name, {"name": name, "ra": 1.0, "dec": 2.0, "stats": {"in_database": stored}})
+    assert measurements.sync_db() == 0  # no database: nothing to do
+    written = []
+    monkeypatch.setattr(config, "DB_URL", "postgresql://example.invalid/db")
+    monkeypatch.setattr(measurements, "save_db", lambda result: written.append(result["name"]) or True)
+    assert measurements.sync_db() == 2 and sorted(written) == ["a", "c"]
+    assert all(r["stats"]["in_database"] for r in measurements.list_local())
+    assert measurements.sync_db() == 0 and len(written) == 2
+    monkeypatch.setattr(measurements, "save_db", lambda result: False)  # database away: keep the result for next time
+    measurements.save_local("d", {"name": "d", "ra": 1.0, "dec": 2.0, "stats": {}})
+    assert measurements.sync_db() == 0 and not measurements.load_local("d")["stats"].get("in_database")
