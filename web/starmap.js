@@ -14,7 +14,7 @@ const SkyMap = (() => {
   const view = {ra: 0, dec: 0, k: 1};
   let rot = null;                       // cos/sin of the centre, set once per frame
   let sky = null, stars = null, mw = null, cons = [], names = [], cells = null;
-  let pins = [], mark = null, hover = null, hoverPin = null, busyAt = null, labels = false;
+  let pins = [], mark = null, hover = null, hoverPin = null, busyAt = null, labels = false, wasZoomed = null;
   let dirty = false, shown = false;
 
   /* ---------------------------------------------------------------- geometry */
@@ -109,6 +109,8 @@ const SkyMap = (() => {
   function draw() {
     dirty = false;
     if (!cv || !W || !shown) return;
+    const zoomed = view.k > homeZoom() * 1.35;
+    if (zoomed !== wasZoomed) { wasZoomed = zoomed; if (opt.onView) opt.onView({zoomed}); }
     setRot();
     const s = s0 * view.k, p = [0, 0, 0], q = [0, 0, 0];
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -164,7 +166,8 @@ const SkyMap = (() => {
 
     // names: constellations once there is room, the brightest stars a little later
     const halo = (text, x, y, color) => { ctx.lineJoin = "round"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(8,6,4,.72)"; ctx.strokeText(text, x, y); ctx.fillStyle = color; ctx.fillText(text, x, y); };
-    if (labels || view.k >= 1.7) {
+    // (a phone opens zoomed in already, with little room: its names wait for a closer look)
+    if (labels || view.k >= (W < 700 ? 4.2 : 1.7)) {
       ctx.font = `500 10.5px ${C.sans}`; ctx.textAlign = "center";
       if ("letterSpacing" in ctx) ctx.letterSpacing = "0.08em";
       for (const c of cons) {
