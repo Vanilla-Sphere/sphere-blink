@@ -105,6 +105,27 @@ def test_fakes_go_where_they_are_told_and_nowhere_else():
     assert np.array_equal(np.nan_to_num(again), np.nan_to_num(cube))
 
 
+def test_a_frame_without_a_wavelength_gives_the_brightness_of_its_band():
+    """A frame that does not cover the centre of the field gives NaN for its wavelength (one in three of the real
+    ones). The fake is then as bright as in the middle of that detector's band, not as at 1 micron."""
+    cube, frames, grid = field(stars=0, orbits=3)
+    for f in frames[::2]:
+        f["wave_um"] = float("nan") if f["detector"] == 2 else None
+    before = cube.copy()
+    ra, dec = grid.wcs.pixel_to_world_values(40.0, 50.0)
+    fake = mc.Fake(ra0=float(ra), dec0=float(dec), mjd0=frames[0]["mjd"], v_east=-30.0, v_north=0.0, v_mag=16.0)
+    told = mc.inject(cube, frames, grid.wcs, grid.scale_arcsec, [fake], seed=5)
+    added = np.nan_to_num(cube - before)
+    to_mjy = (SCALE / movers.ARCSEC) ** 2 * 1e9
+    assert len(told[0]) == len(frames)
+    for s, f in zip(told[0], frames):
+        known = f["wave_um"] is not None and np.isfinite(f["wave_um"])
+        assert s["wave_um"] == (f["wave_um"] if known else mc.BAND_UM[f["detector"]])
+        assert added[s["frame"]].sum() * to_mjy == pytest.approx(mc.flux_mjy(16.0, s["wave_um"]), rel=0.12)
+    # in the long bands that is several times fainter than at 1 micron
+    assert mc.flux_mjy(16.0, mc.BAND_UM[5]) < 0.3 * mc.flux_mjy(16.0, 1.0)
+
+
 def test_a_bright_fake_is_found_and_a_faint_one_is_not():
     cube, frames, grid = field()
     wcs = grid.wcs

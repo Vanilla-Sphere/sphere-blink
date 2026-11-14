@@ -14,30 +14,30 @@ often it reports a path where nothing moves (its false alarms).
 
 ## Results
 
-Search version 4, measured on 2026-11-14: 240 rounds in three fields, 1,440 fake asteroids (983 of them could be seen at 8 exposure times or more and count) and 1,440 fake bodies without heat (938 count). The figures are about the asteroids unless a line says otherwise. Search version 5, which the site runs since the same night, finds the same: on the 36 rounds repeated on it (12 per field, 432 fakes) every fake comes out as on version 4, found or not, strong or not.
+Search version 5, measured on 2026-11-15: 240 rounds in three fields, 1,440 fake asteroids (983 of them could be seen at 8 exposure times or more and count) and 1,440 fake bodies without heat (938 count). The figures are about the asteroids unless a line says otherwise.
 
 | | Few stars | More stars | Crowded | The three together |
 | --- | --- | --- | --- | --- |
-| Bright fakes found (V < 17.5) | 85 % (138 of 163) | 88 % (136 of 154) | 59 % (86 of 146) | 78 % (360 of 463) |
-| Bright fakes strong (V < 17.5) | 75 % (122 of 163) | 81 % (125 of 154) | 49 % (71 of 146) | 69 % (318 of 463) |
+| Bright fakes found (V < 17.5) | 85 % (138 of 163) | 87 % (134 of 154) | 59 % (86 of 146) | 77 % (358 of 463) |
+| Bright fakes strong (V < 17.5) | 74 % (120 of 163) | 80 % (124 of 154) | 49 % (71 of 146) | 68 % (315 of 463) |
 | Magnitude where half are still found | V 18.1 | V 17.9 | V 17.1 | V 17.8 |
-| Magnitude where half are still strong | V 18.0 | V 17.8 | V 16.9 | V 17.7 |
-| 68 % range of that magnitude (found) | 18.05 to 18.22 | 17.75 to 18.02 | 16.97 to 17.27 | |
-| That magnitude as flux at 1.24 µm (found) | 0.26 mJy | 0.32 mJy | 0.64 mJy | 0.36 mJy |
+| Magnitude where half are still strong | V 18.0 | V 17.8 | V 16.8 | V 17.6 |
+| 68 % range of that magnitude (found) | 18.02 to 18.20 | 17.72 to 18.02 | 16.96 to 17.26 | |
+| That magnitude as flux at 1.24 µm (found) | 0.26 mJy | 0.33 mJy | 0.64 mJy | 0.37 mJy |
 | Bright fakes found, body without heat | 86 % | 82 % | 44 % | 71 % |
-| Half found, body without heat | V 18.3 | V 17.9 | - | V 18.1 |
+| Half found, body without heat | V 18.2 | V 17.9 | - | V 18.0 |
 | Fakes that count | 327 | 336 | 320 | 983 |
 | Exposures of the field | 553 | 713 | 518 | |
-| Paths of the search without fakes, kept | 80 of 80 | 616 of 640 | 80 of 80 | 776 of 800 |
+| Paths of the search without fakes, kept | 80 of 80 | 537 of 560 | 80 of 80 | 697 of 720 |
 
-**Found** is the evidence asked of an object a catalogue lists, **strong** the evidence asked of a path without a name. A found fake is placed to 0.38 arcsec (median) and its speed is right to 0.009 arcsec per hour (0.06 %).
+**Found** is the evidence asked of an object a catalogue lists, **strong** the evidence asked of a path without a name. A found fake is placed to 0.39 arcsec (median) and its speed is right to 0.01 arcsec per hour (0.06 %).
 
 The fields: **Few stars**: RA 167.1, Dec +5.22, Leo, 57° from the plane of the Milky Way; **More stars**: RA 248.34, Dec -16.98, Ophiuchus, 20° from the plane; **Crowded**: RA 269.46, Dec +4.74, around Barnard's star, 14° from the plane.
 
 ### What the numbers say
 
 - **Where stars are few or moderately many, six of seven bright asteroids are
-  found** (85 and 88 %). The seventh is not lost to noise: it crossed the
+  found** (85 and 87 %). The seventh is not lost to noise: it crossed the
   field in two visits, moved less than three pixels while it was watched, or
   passed in front of a star (table "Why bright fakes are missed").
 - **The limit is V 18.1 where stars are few**: 0.26 mJy at 1.24 µm, which puts
@@ -49,7 +49,7 @@ The fields: **Few stars**: RA 167.1, Dec +5.22, Leo, 57° from the plane of the 
 - **Where stars crowd, four of ten bright ones are lost** (59 % found, limit
   V 17.1). In the field around Barnard's star 267 of the 518 exposures hold
   more leftovers of stars than a frame may have (80) and are left out, and a
-  quarter of the field is masked: 44 of the 60 bright fakes lost there were
+  quarter of the field is masked: 45 of the 60 bright fakes lost there were
   bright enough and still not detected in half of their exposures. This is
   the largest loss the measurement found, and the way out is known. With a
   limit of 250 per frame and 5000 detections per pass the same 12 rounds
@@ -58,33 +58,33 @@ The fields: **Few stars**: RA 167.1, Dec +5.22, Leo, 57° from the plane of the 
   apart whose line passes a bright fast fake of the day before. Searches of
   the same field with the times shuffled gave a second one. The limit was
   therefore not raised. A rule that keeps both out (detections at six or
-  more exposure times for a path without a name; 743 of the 753 strong
+  more exposure times for a path without a name; 700 of the 708 strong
   fakes have them) would have been made to fit two cases, and was not taken
   ([what was tried](moving-objects.md#one-stray-detection-kept-astraea-in-two-version-5)).
-- **A path without a name is held to more, and that costs 7 to 10 points**
-  (75, 81 and 49 % strong). Version 4 asks for three visits with two
+- **A path without a name is held to more, and that costs 7 to 11 points**
+  (74, 80 and 49 % strong). The search asks for three visits with two
   sightings each, or four visits with any sighting. The second half of the
   rule came out of this measurement (see the versions below).
 - **Speed matters little between 2 and 100 arcsec per hour.** Faster objects
   cross the 50 arcmin field in a few hours and are seen in fewer visits:
   at 100 to 400 arcsec per hour 16 of the 25 brightest (V below 16.5) are
   found.
-- **Direction does not matter** where stars are few or moderately many (82
+- **Direction does not matter** where stars are few or moderately many (80
   to 95 %). In the crowded field the asteroids moving east or west are found
   less often than those moving north or south (48 % of 81 against 72 % of
   65), but this is the draw and not the search. The bodies without heat of
-  the same rounds show no difference (44 % of 73 and 44 % of 62). The
+  the same rounds show no difference (45 % of 73 and 42 % of 62). The
   east-west asteroids that count happened to have fewer exposures (18 times
-  against 22, median), and at an equal number of detections both directions
-  are found alike (8 to 11 detection times: 31 of 37 against 28 of 30, both
+  against 28, median), and at an equal number of detections both directions
+  are found alike (8 to 11 detection times: 32 of 35 against 28 of 29, both
   kinds of fake together). Over all 960 fakes of the field the number of
   exposure times does not depend on the direction (17.5 against 17.3,
   mean).
 - **A body without heat of its own gives nearly the same** where stars are
-  few (86 % of the bright ones, half at V 18.3, range 18.25 to 18.32). Where
+  few (86 % of the bright ones, half at V 18.2, range 18.23 to 18.27). Where
   they crowd the heat helps: 59 % of the asteroids against 44 % of the
   bodies without it, because the sky is emptier at 4 to 5 µm.
-- **Nothing false was shown.** In 240 rounds the search returned 42 paths that
+- **Nothing false was shown.** In 240 rounds the search returned 44 paths that
   are no fake. All are weak paths made of a few detections of one fake and
   something else; none has the evidence asked of a path without a name, so
   the site would show none of them unless a catalogue had an object there.
@@ -94,21 +94,25 @@ The fields: **Few stars**: RA 167.1, Dec +5.22, Leo, 57° from the plane of the 
 - **The real objects agree.** The 11 asteroids the search found in these
   fields (V 11.8 to 18.4, 10.8 to 57 arcsec per hour) lie where the curve says
   objects are found, the faintest on its falling part. The paths of the
-  search without fakes came back in 776 of 800 cases. The 24 misses are all
-  in the field with more stars, where four of the eight such paths are weak
+  search without fakes came back in 697 of 720 cases. The 23 misses are all
+  in the field with more stars, where four of the seven such paths are weak
   ones.
 
 ### Version by version
 
-The same measurement was made on every version of the search this evening,
-and each time it changed the next one.
+The same measurement was made on every version of the search in one night,
+and each time it changed the next one. Versions 2 to 4 were measured with
+fakes that were too bright in one sighting of twelve
+([the correction](#a-fake-in-a-frame-without-a-wavelength)); on version 5 the
+corrected fakes cost about one point, so the earlier rows read one point
+high.
 
 | Search | Bright fakes found (few stars, more stars, crowded) | Strong | What the measurement showed |
 | --- | --- | --- | --- |
 | Version 2, 120 rounds, bodies without heat only | 85, 85, 45 % | 81, 80, 43 % | Two false paths with the evidence then asked of a nameless one, both seen at 8 of 8 times. An earlier round had shown how: two fakes that hardly move, hours apart, joined into one fast path seen in two visits ([the static pair](moving-objects.md#the-static-pair-why-a-path-without-a-name-needs-three-visits)). |
 | Version 3, 240 rounds | 85, 87, 56 % | 72, 77, 44 % | No false path any more. But the three visits with two sightings each cost 10 to 13 points: where a visit gives one exposure time, a fake seen at 11 of 11 times in 9 visits failed the rule. And in the crowded field half of the bright ones are lost. |
-| Version 4, 240 rounds (this page; bodies without heat: 86, 82, 44 % found) | 85, 88, 59 % | 75, 81, 49 % | On the 36 rounds run on both versions with the same fakes: 7 more found and 12 more strong, none lost, no false path. The limit with more stars moved from V 17.6 to 17.9, because twice as many detections are linked per pass. |
-| Version 5, 36 of the rounds of version 4 | the same | the same | Version 5 joins two pieces of a curved path that a stray detection kept apart; what is found does not change. All 432 fakes of the 36 rounds come out as on version 4, and no path with the evidence of a nameless object appears. In the field with more stars the search without fakes now gives 7 paths where it gave 8: the two pieces of (5) Astraea are one path of 77 detections. |
+| Version 4, 240 rounds (bodies without heat: 86, 82, 44 % found) | 85, 88, 59 % | 75, 81, 49 % | On the 36 rounds run on both versions with the same fakes: 7 more found and 12 more strong, none lost, no false path. The limit with more stars moved from V 17.6 to 17.9, because twice as many detections are linked per pass. |
+| Version 5, 240 rounds, fakes corrected (this page; bodies without heat: 86, 82, 44 % found) | 85, 87, 59 % | 74, 80, 49 % | Version 5 joins two pieces of a curved path that a stray detection kept apart; what is found does not change: on 36 rounds run on versions 4 and 5 with the same fakes, all 432 come out the same. In the field with more stars the search without fakes gives 7 paths where it gave 8: the two pieces of (5) Astraea are one path of 77 detections. The difference to the row above is the correction of the fakes: of 1,440 asteroids and 1,440 bodies without heat, 848 are found where 860 were. |
 
 ![Share of the fake asteroids found, by brightness and field, and by brightness and speed](img/mover-completeness.png)
 
@@ -119,13 +123,13 @@ Share found (found / fakes that count), evidence asked of a known object.
 | V | Few stars | More stars | Crowded | Together |
 | --- | --- | --- | --- | --- |
 | 15.5 to 16.0 | 92 % (37/40) | 93 % (38/41) | 75 % (27/36) | 87 % (102/117) |
-| 16.0 to 16.5 | 85 % (44/52) | 93 % (43/46) | 61 % (25/41) | 81 % (112/139) |
+| 16.0 to 16.5 | 85 % (44/52) | 91 % (42/46) | 61 % (25/41) | 80 % (111/139) |
 | 16.5 to 17.0 | 81 % (29/36) | 86 % (32/37) | 64 % (18/28) | 78 % (79/101) |
 | 17.0 to 17.25 | 77 % (17/22) | 82 % (14/17) | 35 % (6/17) | 66 % (37/56) |
-| 17.25 to 17.5 | 85 % (11/13) | 69 % (9/13) | 42 % (10/24) | 60 % (30/50) |
+| 17.25 to 17.5 | 85 % (11/13) | 62 % (8/13) | 42 % (10/24) | 58 % (29/50) |
 | 17.5 to 17.75 | 79 % (19/24) | 67 % (12/18) | 32 % (6/19) | 61 % (37/61) |
 | 17.75 to 18.0 | 67 % (8/12) | 56 % (10/18) | 15 % (3/20) | 42 % (21/50) |
-| 18.0 to 18.25 | 54 % (13/24) | 41 % (9/22) | 6 % (1/17) | 37 % (23/63) |
+| 18.0 to 18.25 | 50 % (12/24) | 36 % (8/22) | 6 % (1/17) | 33 % (21/63) |
 | 18.25 to 18.5 | 12 % (2/16) | 0 % (0/15) | 4 % (1/23) | 6 % (3/54) |
 | 18.5 to 18.75 | 6 % (1/18) | 0 % (0/15) | 0 % (0/16) | 2 % (1/49) |
 | 18.75 to 19.0 | 0 % (0/19) | 0 % (0/24) | 0 % (0/17) | 0 % (0/60) |
@@ -139,10 +143,10 @@ Per cent found, the three fields together (a dot: fewer than 5 fakes).
 | arcsec per hour | V 15.5 to 16.5 | V 16.5 to 17.0 | V 17.0 to 17.5 | V 17.5 to 18.0 | V 18.0 to 18.5 | V 18.5 to 19.0 | V 19.0 to 19.8 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2 to 5 | 83 | 78 | 74 | 49 | 35 | 0 | 0 |
-| 5 to 10 | 92 | 73 | 60 | 67 | 25 | 0 | 0 |
+| 5 to 10 | 92 | 73 | 60 | 67 | 19 | 0 | 0 |
 | 10 to 20 | 91 | 79 | 86 | 65 | 24 | 0 | 0 |
-| 20 to 50 | 81 | 79 | 58 | 35 | 18 | 5 | 0 |
-| 50 to 100 | 80 | 100 | 46 | 54 | 13 | 0 | 0 |
+| 20 to 50 | 80 | 79 | 54 | 35 | 18 | 5 | 0 |
+| 50 to 100 | 80 | 100 | 46 | 54 | 7 | 0 | 0 |
 | 100 to 200 | 67 | 67 | · | 56 | 18 | 0 | 0 |
 | 200 to 400 | 60 | · | · | · | 0 | · | 0 |
 
@@ -153,27 +157,27 @@ Bright fakes found, by the direction they move in.
 | Field | North | East | South | West |
 | --- | --- | --- | --- | --- |
 | Few stars | 83 % (35/42) | 82 % (27/33) | 90 % (36/40) | 83 % (40/48) |
-| More stars | 95 % (41/43) | 83 % (25/30) | 90 % (34/38) | 84 % (36/43) |
+| More stars | 95 % (41/43) | 80 % (24/30) | 87 % (33/38) | 84 % (36/43) |
 | Crowded | 76 % (22/29) | 55 % (24/44) | 69 % (25/36) | 40 % (15/37) |
-| Together | 86 % (98/114) | 71 % (76/107) | 83 % (95/114) | 71 % (91/128) |
+| Together | 86 % (98/114) | 70 % (75/107) | 82 % (94/114) | 71 % (91/128) |
 
 ### Why bright fakes are missed
 
 | Field | Bright | Found | Path too short | Two visits or fewer | In front of stars | Other |
 | --- | --- | --- | --- | --- | --- | --- |
 | Few stars | 163 | 138 | 11 | 6 | 1 | 7 |
-| More stars | 154 | 136 | 0 | 1 | 4 | 13 |
-| Crowded | 146 | 86 | 0 | 7 | 44 | 9 |
-| Together | 463 | 360 | 11 | 14 | 49 | 29 |
+| More stars | 154 | 134 | 0 | 1 | 5 | 14 |
+| Crowded | 146 | 86 | 0 | 7 | 45 | 8 |
+| Together | 463 | 358 | 11 | 14 | 51 | 29 |
 
 ### False alarms
 
 | Field | Rounds | Paths that are no fake | of them strong | Shuffled searches | Paths, exposures shuffled | Candidates, visits shuffled |
 | --- | --- | --- | --- | --- | --- | --- |
-| Few stars | 80 | 6 | 0 | 32 | 1 | 0 |
-| More stars | 80 | 28 | 0 | 32 | 0 | 0 |
+| Few stars | 80 | 5 | 0 | 32 | 1 | 0 |
+| More stars | 80 | 31 | 0 | 32 | 0 | 0 |
 | Crowded | 80 | 8 | 0 | 32 | 0 | 0 |
-| Together | 240 | 42 | 0 | 96 | 1 | 0 |
+| Together | 240 | 44 | 0 | 96 | 1 | 0 |
 
 Seen in two visits only: 65 of the 983 fakes that count. Upper limit (95 %) on false candidates: 0.0312 per search.
 
@@ -203,6 +207,11 @@ data and counting how many their software finds. The same is done here.
    - **a body without heat of its own**: reflected sunlight only, which is
      what a distant object looks like. Its numbers are given beside the
      others.
+
+   The wavelength is the one the frame has at the centre of the field. A
+   frame that does not cover the centre gives none; the fake then gets the
+   brightness of the middle of that detector's band (0.93, 1.37, 2.03, 3.12,
+   4.12 and 4.71 µm).
 
    V 18.0 is 0.29 mJy at 1.24 µm for both. At 4.6 µm it is 0.20 mJy for the
    asteroid and 0.045 mJy for the body without heat.
@@ -275,6 +284,25 @@ That is why the fakes of the figures have heat too. The model is a cautious
 one: at 2.7 au it adds 0.8 magnitude at 4.2 µm and 1.6 at 4.6 µm, and the
 asteroids of the table show 1.0 to 2.7 over those bands. The faintest asteroid found, (15101) at V 18.4, has
 half of its sightings in those bands.
+
+### A fake in a frame without a wavelength
+
+One frame in three covers only a corner of the field and not its centre, and
+gives no wavelength (185 of 553, 252 of 713 and 156 of 518 frames in the three
+fields). 7 to 9 % of the places a fake is seen at lie in such frames. Up to
+the measurement of version 4, a fake there was given its brightness
+at 1.0 µm whatever the detector: right in the first two bands, 1.5 times too
+bright in the third, about 3 times in the fourth and fifth, and up to 7 times
+in the sixth for a body without heat. Since the measurement of version 5 the
+middle of the detector's band is used.
+
+What it changed, on the same 240 rounds: 848 fakes found where 860 were
+(asteroids and bodies without heat together), 708 with the evidence of a
+nameless object where 721 were. The bright asteroids found went from 360 to
+358 of 463. On the 36 rounds run both ways on version 5, 5 of 432 fakes
+changed, all for the worse, and none for the better. The same missing
+wavelength was found, by this measurement, to empty the maps of the shift
+and stack search; that was corrected before it was merged.
 
 ## What the measurement does not cover
 

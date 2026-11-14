@@ -242,9 +242,11 @@ track's own reference time.
 
 ### Time
 
-One to three minutes for a field on four cores (417 to 716 frames). When
-other work shares the processor and the budget of 300 s runs out, the
-four-day windows are the first to be skipped (`stats["skipped_windows"]`).
+One to three minutes for a field (417 to 716 frames), on one core: the
+search does not use more. Orcus's field took 51 s of wall time and 51 s of
+processor time. Past the budget (`budget_s`, 300 s by default) the four-day
+windows are the first to be skipped (`stats["skipped_windows"]`); the
+whole-pass search, which finds the distant bodies, always runs.
 
 ## Limits
 

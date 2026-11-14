@@ -860,8 +860,16 @@ itself when the field's frames are complete.
 | `ra`, `dec` or `tile_id` | - | The seed cell of the field, as for `/api/tiles` |
 | `levels` | `3` | Rings of the field (3 is 7 x 7 cells) |
 
-`status` is `not_loaded` (the field's frames are not complete), `queued`,
-`searching`, `ready` or `error`. Poll every few seconds until `ready`.
+`status` is `not_loaded` (the field's frames are not complete, or only an
+earlier version of the search has gone through it), `queued`, `searching`,
+`ready` or `error`. Poll every few seconds until `ready`.
+
+When the field is `ready`, a second search for faint and slow objects may
+still run ([moving-objects.md](moving-objects.md#the-second-search-faint-and-slow-objects)):
+`job.stack` is then `searching`, later `ready` or `error`, and `movers` grows
+when it ends. `stats.stack` is its record once it has run: `found`, `tracks`
+(shown), `unnamed_dropped`, `waiting`, `seconds`, `passes`, `candidates`,
+`rejected` (by reason), `skipped_windows`, `clear_share`, `version`, `movers`.
 
 ```json
 {
@@ -884,6 +892,14 @@ only paths with the evidence asked of one without a name.
 `stats.unnamed_dropped` counts paths no catalogue has an object on that were
 too weak to keep, `stats.waiting` those stored out of sight because no
 catalogue service answered.
+
+An object the second search found has `method: "stack"` and, in place of
+the linker's evidence: `stack_snr` (significance of all its frames together),
+`stack_strong` (7.5 sigma or more: shown without a name), `stack_frames`,
+`stack_distance` (`distance_au`, `distance_min_au`, `distance_max_au`, `from`),
+`stack_mag_ab` and `stack_flux_mjy` (at 1 micron), `stack_tier`. Its
+`times_seen` is small by nature: most single frames show nothing. All keys are
+in [shift-and-stack.md](shift-and-stack.md#interface).
 
 ### GET /api/movers/{id}
 

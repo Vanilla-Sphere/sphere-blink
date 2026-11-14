@@ -83,6 +83,10 @@ MATCH_RATE = 0.15  # with the motion within this share of the speed (or MATCH_RA
 MATCH_RATE_MIN = 3.0  # arcsec per hour
 NEAR_ARCSEC = 9.3  # a detection this close to the fake's place in its exposure is the fake's (1.5 pixels)
 EDGE = 4  # pixels from the border of the field in which a fake is not counted as observable
+# Middle of each detector's band, micron (0.75-1.11, 1.11-1.64, 1.64-2.42, 2.42-3.82, 3.82-4.42, 4.42-5.00). A frame
+# gives its wavelength at the centre of the field; where the frame does not cover the centre it gives none (one
+# frame in three, holding 7 to 9 % of the places a fake is seen at), and the fake is as bright as at this wavelength.
+BAND_UM = {1: 0.93, 2: 1.37, 3: 2.03, 4: 3.12, 5: 4.12, 6: 4.71}
 
 
 @dataclass
@@ -288,7 +292,7 @@ def inject(cube: np.ndarray, frames: list[dict], wcs, scale_arcsec: float, fakes
             f = frames[i]
             detector = int(f.get("detector") or 0)
             wave = f.get("wave_um")
-            wave = float(wave) if wave is not None and np.isfinite(wave) else None
+            wave = float(wave) if wave is not None and np.isfinite(wave) else BAND_UM.get(detector)
             flux = float(flux_mjy(fake.v_mag, wave if wave is not None else 1.0, fake.spectrum))
             angle, phase = _orientation(str(f["exposure"]), seed)
             share = stamp(cx + ox - float(x), cy + oy - float(y), PSF_SIGMA.get(detector, 0.46), angle, phase, ratio, trail)

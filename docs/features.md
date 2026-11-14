@@ -763,6 +763,15 @@ How much of what moves the search finds was measured with fake objects in
 real exposures: [how much the search finds](mover-completeness.md). The
 result is shown at the end of the Discoveries page (`web/completeness.js`).
 
+When the list of a field is there, a second search goes on for what no
+single exposure shows: faint and slow objects, found by adding the exposures
+up along every possible path (`mover_stack.py`,
+[shift-and-stack](shift-and-stack.md)). It takes one to three minutes more
+and adds what it finds to the same list and the same log; the card says that
+it is still looking. Such an object's row tells how many exposures were added
+up, at how many sigma they show it, and how far from the Sun the bend of its
+path puts it.
+
 In the viewer (Advanced, `web/movers.js`):
 
 - **"Moving objects" card** of a progressive field, under "Measured in this
