@@ -33,6 +33,9 @@ VOTES = ("real", "false")
 # browsers behind one address that may judge the same object: room for a team or a class on one network, not for a script
 MAX_VOTERS_PER_ADDRESS = int(os.environ.get("SPHEREX_MAX_VOTERS_PER_ADDRESS", "8"))
 
+# What the log shows: objects of the current search that are not waiting for the catalogues (see ``save_field``)
+_SHOWN = "version=? AND instr(payload, '\"pending\": true')=0"
+
 _SCHEMA = """
 PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS fields (
@@ -140,7 +143,7 @@ def _track(payload: dict) -> Track:
                                                  "wave_um")}) for d in payload["detections"]]
     return Track(detections=dets, mjd0=payload["mjd0"], ra0=payload["ra0"], dec0=payload["dec0"], v_east=payload["v_east"],
                  v_north=payload["v_north"], rms_arcsec=payload["rms_arcsec"], n_times=payload["n_times"],
-                 n_visits=payload["n_visits"])
+                 n_visits=payload["n_visits"], a_east=payload.get("a_east") or 0.0, a_north=payload.get("a_north") or 0.0)
 
 
 def _by_exposure(old: list[dict], new: list[dict]) -> list[dict]:
@@ -165,11 +168,15 @@ def _same(c: sqlite3.Connection, track: Track) -> list[tuple[str, dict]]:
     return out
 
 
-def save_field(key: str, ra: float, dec: float, fov: float, frames: int, result: dict, known: dict | None = None) -> list[str]:
+def save_field(key: str, ra: float, dec: float, fov: float, frames: int, result: dict, known: dict | None = None,
+               pending: set | None = None) -> list[str]:
     """Store what the search of one field found. Returns the ids of its objects.
 
     ``result`` is what ``movers.search`` gives; ``known`` maps a track's index
-    to the catalogue object it was identified with (see ``known.py``).
+    to the catalogue object it was identified with (see ``known_objects.py``).
+    The tracks whose index is in ``pending`` are stored but not shown: nobody
+    could say yet whether they are known objects, and on their own they are
+    too weak to be shown without a name (see ``settle``).
     """
     c = _conn()
     now = time.time()
@@ -197,6 +204,11 @@ def save_field(key: str, ra: float, dec: float, fov: float, frames: int, result:
                 # its age and its votes, the evidence is the new one alone
                 mid = same[0][0]
                 created = c.execute("SELECT created FROM movers WHERE id=?", (mid,)).fetchone()[0]
+                if not (payload.get("known") or {}).get("checked"):
+                    # no catalogue service answers now: the name they gave this object before still holds
+                    named = next((o["known"] for _, o in same if (o.get("known") or {}).get("name")), None)
+                    if named:
+                        payload["known"] = named
             elif same:
                 mid, old = same[0]
                 # the same object from an overlapping or a neighbouring field: one path, all its exposures
@@ -207,7 +219,8 @@ def save_field(key: str, ra: float, dec: float, fov: float, frames: int, result:
                 merged["points"] = _by_exposure(old.get("points", []), payload.get("points", []))
                 merged.update(movers.tally([d["mjd"] for d in merged["detections"]], merged["points"]))
                 merged["fields"] = sorted(set(old.get("fields", [])) | {key})
-                merged["known"] = payload.get("known") or old.get("known")
+                merged["known"] = max((payload.get("known"), old.get("known")), key=lambda k: (
+                    bool((k or {}).get("name")), bool((k or {}).get("checked")), k is not None))
                 payload, track = merged, joined
                 created = c.execute("SELECT created FROM movers WHERE id=?", (mid,)).fetchone()[0]
                 for other, _ in same[1:]:  # two stored pieces turn out to be one object
@@ -217,13 +230,60 @@ def save_field(key: str, ra: float, dec: float, fov: float, frames: int, result:
             else:
                 mid, created = _new_id(track), now
             payload["id"] = mid
+            payload.pop("pending", None)
+            if i in (pending or ()) and not (payload.get("known") or {}).get("checked") and not movers.strong(payload):
+                payload["pending"] = True
+            else:
+                ids.append(mid)
             c.execute("INSERT OR REPLACE INTO movers VALUES (?,?,?,?,?,?,?,?,?)",
                       (mid, track.ra0, track.dec0, track.mjd0, track.rate, created, now, movers.VERSION, json.dumps(payload)))
-            ids.append(mid)
         c.execute("INSERT OR REPLACE INTO fields VALUES (?,?,?,?,?,?,?,?,?)",
                   (key, ra, dec, fov, frames, movers.VERSION, now, json.dumps(cells),
                    json.dumps({**result["stats"], "movers": ids})))
     return ids
+
+
+def uncompared() -> list[tuple[str, Track, dict]]:
+    """Objects of the current search that no catalogue service has answered for yet: id, path, evidence."""
+    rows = _conn().execute("SELECT id, payload FROM movers WHERE version=? AND instr(payload, '\"checked\": false')>0",
+                           (movers.VERSION,)).fetchall()
+    out = []
+    for mid, text in rows:
+        payload = json.loads(text)
+        if (payload.get("known") or {}).get("checked") is False:
+            out.append((mid, _track(payload), payload))
+    return out
+
+
+def settle(mid: str, match: dict) -> str:
+    """Write down what the catalogues said about an object that waited for them.
+
+    A named object is shown. One without a name is shown when its evidence is
+    strong enough for a path without a name (``movers.strong``) and is taken
+    out otherwise: it was never shown. Returns "named", "candidate" or "dropped".
+    """
+    c = _conn()
+    with c:
+        row = c.execute("SELECT payload FROM movers WHERE id=? AND version=?", (mid, movers.VERSION)).fetchone()
+        if not row or not match.get("checked"):
+            return "waiting"
+        payload = json.loads(row[0])
+        if not match.get("name") and not movers.strong(payload):
+            c.execute("DELETE FROM votes WHERE mover=?", (mid,))
+            c.execute("DELETE FROM movers WHERE id=?", (mid,))
+            return "dropped"
+        payload.pop("pending", None)
+        payload["known"] = match
+        c.execute("UPDATE movers SET payload=?, updated=? WHERE id=?", (json.dumps(payload), time.time(), mid))
+    return "named" if match.get("name") else "candidate"
+
+
+def stale_fields() -> list[dict]:
+    """Fields an earlier version of the search went through, newest first: what they hold is not shown until the
+    current search has gone through them."""
+    rows = _conn().execute("SELECT key, ra, dec, fov, frames FROM fields WHERE version!=? ORDER BY searched DESC",
+                           (movers.VERSION,)).fetchall()
+    return [{"key": r[0], "ra": r[1], "dec": r[2], "fov": r[3], "frames": r[4]} for r in rows]
 
 
 def _tally(c: sqlite3.Connection, mid: str) -> dict:
@@ -241,7 +301,7 @@ def _summary(payload: dict) -> dict:
 
 def get(mid: str, voter: str = "") -> dict | None:
     c = _conn()
-    row = c.execute("SELECT payload, created, updated FROM movers WHERE id=? AND version=?", (mid, movers.VERSION)).fetchone()
+    row = c.execute(f"SELECT payload, created, updated FROM movers WHERE {_SHOWN} AND id=?", (movers.VERSION, mid)).fetchone()
     if not row:
         return None
     out = json.loads(row[0])
@@ -260,14 +320,14 @@ def listing(ra: float | None = None, dec: float | None = None, radius_deg: float
         rows = []
         for i in range(0, len(ids), 500):
             part = ids[i : i + 500]
-            rows += c.execute("SELECT id, payload, created, updated FROM movers WHERE version=? AND id IN (%s)"
+            rows += c.execute(f"SELECT id, payload, created, updated FROM movers WHERE {_SHOWN} AND id IN (%s)"
                               % ",".join("?" * len(part)), [movers.VERSION, *part]).fetchall()
     elif ra is not None and dec is not None and radius_deg is not None:
-        rows = c.execute("SELECT id, payload, created, updated FROM movers WHERE version=? AND dec BETWEEN ? AND ? "
+        rows = c.execute(f"SELECT id, payload, created, updated FROM movers WHERE {_SHOWN} AND dec BETWEEN ? AND ? "
                          "ORDER BY updated DESC", (movers.VERSION, dec - radius_deg, dec + radius_deg)).fetchall()
         rows = [r for r in rows if _sep_arcsec(ra, dec, json.loads(r[1])["ra0"], json.loads(r[1])["dec0"]) <= radius_deg * 3600.0]
     else:
-        rows = c.execute("SELECT id, payload, created, updated FROM movers WHERE version=? ORDER BY updated DESC LIMIT ?",
+        rows = c.execute(f"SELECT id, payload, created, updated FROM movers WHERE {_SHOWN} ORDER BY updated DESC LIMIT ?",
                          (movers.VERSION, limit)).fetchall()
     out = []
     for mid, text, created, updated in rows[:limit]:
@@ -276,7 +336,7 @@ def listing(ra: float | None = None, dec: float | None = None, radius_deg: float
 
 
 def count() -> int:
-    return _conn().execute("SELECT COUNT(*) FROM movers WHERE version=?", (movers.VERSION,)).fetchone()[0]
+    return _conn().execute(f"SELECT COUNT(*) FROM movers WHERE {_SHOWN}", (movers.VERSION,)).fetchone()[0]
 
 
 # ----------------------------------------------------------------------------- what visitors think

@@ -100,8 +100,10 @@ def test_four_detections_on_a_line_are_not_yet_an_object():
     assert movers.confirmed({"times_seen": 7, "times_covered": 9})
     assert not movers.confirmed({"times_seen": 7, "times_covered": 20})  # seen at too few of the times it could be
     # a path no catalogue has an object on must show more
-    assert movers.strong({"times_seen": 9, "times_covered": 10}) and not movers.strong({"times_seen": 7, "times_covered": 7})
-    assert not movers.strong({"times_seen": 9, "times_covered": 12})
+    three = {"times_seen": 9, "times_covered": 10, "visits_seen": 3}
+    assert movers.strong(three) and not movers.strong({**three, "times_seen": 7, "times_covered": 7})
+    assert not movers.strong({**three, "times_covered": 12})
+    assert not movers.strong({**three, "visits_seen": 2})
 
 
 def test_single_bright_pixels_along_a_path_are_not_sightings():
@@ -156,6 +158,80 @@ def test_pieces_of_one_path_are_joined():
     assert len(movers.merge([a, other])) == 2
 
 
+def bent(hours, acc=0.03, rate=16.0, tag="B"):
+    """Detections of an object whose motion changes steadily: ``rate`` arcsec per hour to the east at hour 0,
+    and ``acc`` arcsec per hour squared to the north."""
+    return [movers.Detection(exposure=f"{tag}{k:03d}:D2", mjd=61000.0 + h / 24.0,
+                             ra=150.0 + rate * h / 3600.0 / math.cos(math.radians(10.0)), dec=10.0 + 0.5 * acc * h * h / 3600.0,
+                             snr=10, flux_mjy=1, npix=3, detector=2) for k, h in enumerate(hours)]
+
+
+def test_a_path_followed_over_days_is_curved():
+    """Over a few hours an asteroid moves on a straight line. Over days its motion changes, and one object
+    came out as two pieces. A path seen in enough visits over a long enough time gets a second term."""
+    visits = [v * 1.6 + k * 0.04 for v in range(80) for k in range(2)]  # 128 hours
+    whole = movers._track_of(bent(visits))
+    assert whole.curved and whole.rms_arcsec < 0.5
+    assert math.hypot(whole.a_east, whole.a_north) == pytest.approx(0.03, rel=0.05)
+    ra, dec = whole.at(61000.0 + 100.0 / 24.0)  # where it says the object was is where it was put
+    assert (float(dec) - 10.0) * 3600.0 == pytest.approx(0.5 * 0.03 * 100.0**2, abs=1.0)
+    ve, vn = whole.velocity(61000.0 + 100.0 / 24.0)
+    assert vn - whole.velocity(61000.0)[1] == pytest.approx(3.0, abs=0.1)
+    assert movers._track_of(bent(visits[:12])).curved is False  # a few hours say nothing about a curve
+    assert movers._track_of(bent(visits, acc=0.0)).curved is False  # and a straight path stays straight
+    # two pieces of the path, a day apart: no straight line holds both, the curved path does
+    first, second = movers._track_of(bent(visits[:50])), movers._track_of(bent(visits[80:], tag="C"))
+    assert len(movers.merge([first, second], curved=False)) == 2
+    (one,) = movers.merge([first, second])
+    assert one.curved and len(one.detections) == 130 and one.rms_arcsec < 0.5
+    far = movers._track_of(bent([h + 400.0 for h in visits[:50]], tag="D"))  # two weeks later: not joined on a guess
+    assert movers.joined(first, far) is None
+    # the store gives the path back as it was
+    back = mover_store._track(one.to_dict())
+    assert back.curved and np.allclose(back.at(61004.0), one.at(61004.0), atol=1e-6)
+
+
+def test_two_leftovers_of_stars_in_two_visits_are_not_a_candidate():
+    """What passed for an object in the plane of the Milky Way: something that stays at one place through the
+    exposures of a visit, something else that does the same in the next visit, and a line through the two.
+    Every exposure along that line "sees" it. A path nobody has a name for must show itself in three visits."""
+    cube, frames, grid = field(stars=10, seed=5)
+    yy, xx = np.mgrid[0:121, 0:121]
+    blob = lambda x, y: 12.0 * np.exp(-((xx - x) ** 2 + (yy - y) ** 2) / (2 * 0.8**2))
+    ts = sorted({f["mjd"] for f in frames})
+    for i, f in enumerate(frames):
+        visit = int(round((f["mjd"] - ts[0]) * 1440.0 / 96.0))
+        if visit == 2:
+            cube[i] += blob(40.0, 60.0)
+        if visit == 3:
+            cube[i] += blob(64.0, 60.0)  # 24 pixels on, one orbit later: 92 arcsec per hour
+    out = movers.search(cube, frames, grid.wcs, grid.scale_arcsec)
+    assert len(out["tracks"]) == 1
+    c = out["tracks"][0].extra
+    assert movers.confirmed(c) and c["times_seen"] == 8 == c["times_covered"]  # by the old rules: an object
+    assert c["visits_seen"] == 2 and not movers.strong(c)
+    # an object that moves shows itself in every visit
+    cube, frames, grid = field(mover=(15.0, 30.0, 10.0, 4.0, 14.0))
+    (real,) = movers.search(cube, frames, grid.wcs, grid.scale_arcsec)["tracks"]
+    assert real.extra["visits_seen"] >= 4 and movers.strong(real.extra)
+
+
+def test_visits_change_places_whole():
+    frames = [{"mjd": t} for t in times(passes=((61000.0, 6), (61010.0, 4)))]
+    rng = np.random.default_rng(2)
+    swap = movers._shuffled_times(frames, rng, visits=True)
+    old = sorted(swap)
+    for a, b in zip(old[:-1], old[1:]):
+        if (b - a) * 1440.0 < 10:  # two exposures of one visit stay as far apart as they were
+            assert swap[b] - swap[a] == pytest.approx(b - a, abs=1e-9)
+    starts = lambda ts: sorted(round(t, 6) for t in ts if not any(0 < (t - o) * 1440.0 < 10 for o in ts))
+    assert starts(swap.values()) == starts(old)  # the visits take each other's times
+    assert any(abs(swap[t] - t) > 0.01 for t in old)
+    assert all((t < 61005.0) == (swap[t] < 61005.0) for t in old)  # within a pass of the telescope
+    single = movers._shuffled_times(frames, rng, visits=False)
+    assert sorted(single.values()) == old
+
+
 @pytest.fixture
 def store(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "CACHE_DIR", tmp_path)
@@ -208,9 +284,80 @@ def test_what_an_earlier_search_found_is_shown_again_only_when_the_new_search_fi
     assert store.save_field("fieldA", 150.0, 10.0, 50.4, 100, found(shift_h=0.0)) == [real]  # found again: the same object
     again = store.get(real)
     assert again["n_detections"] == 8 and again["fields"] == ["fieldA"] and again["votes"]["real"] == 1
+    # a name the catalogues gave before is kept when they do not answer during the new search
+    monkeypatch.setattr(movers, "VERSION", movers.VERSION - 1)
+    (named,) = store.save_field("fieldC", 250.0, 10.0, 50.4, 100, found(grid_ra=250.0), {0: {"checked": True, "name": "159 Aemilia"}})
+    monkeypatch.setattr(movers, "VERSION", movers.VERSION + 1)
+    assert store.save_field("fieldC", 250.0, 10.0, 50.4, 100, found(grid_ra=250.0), {0: {"checked": False}}, pending={0}) == [named]
+    assert store.get(named)["known"]["name"] == "159 Aemilia"
     empty = {"detections": [], "tracks": [], "stats": {"frames": 100, "detections": 0, "tracks": 0}, "version": movers.VERSION}
     assert store.save_field("fieldB", 200.0, 10.0, 50.4, 100, empty) == []  # not found again: it stays out of the log
-    assert store.get(chance) is None and [m["id"] for m in store.listing()] == [real]
+    assert store.get(chance) is None and {m["id"] for m in store.listing()} == {real, named}
+
+
+def test_a_weak_path_nobody_could_name_waits_out_of_sight(store):
+    """When no catalogue service answers, a path cannot be called known or unknown. With strong evidence it is
+    shown as "not compared"; with weaker evidence it waits, unseen, until a service has answered."""
+    weak, strong = found(shift_h=0.0), found(grid_ra=200.0)
+    strong["tracks"][0].extra.update(visits_seen=4)
+    assert not movers.strong(weak["tracks"][0].to_dict()) and movers.strong(strong["tracks"][0].to_dict())
+    assert store.save_field("fieldA", 150.0, 10.0, 50.4, 100, weak, {0: {"checked": False}}, pending={0}) == []
+    (shown,) = store.save_field("fieldB", 200.0, 10.0, 50.4, 100, strong, {0: {"checked": False}}, pending={0})
+    assert store.count() == 1 and [m["id"] for m in store.listing()] == [shown]
+    assert store.listing(150.0, 10.0, 1.0) == [] and store.field("fieldA")["stats"]["movers"] == []
+    waiting = store.uncompared()
+    assert len(waiting) == 2  # both are asked about again
+    hidden = next(mid for mid, _, _ in waiting if mid != shown)
+    assert store.get(hidden) is None and store.listing(ids=[hidden]) == []
+    assert store.settle(hidden, {"checked": False}) == "waiting" and store.get(hidden) is None
+    # the catalogue has an object there: it is shown, under its name
+    assert store.settle(hidden, {"checked": True, "by": "SkyBoT", "name": "412 Elisabetha"}) == "named"
+    assert store.get(hidden)["known"]["name"] == "412 Elisabetha" and store.count() == 2
+    # no object there, strong evidence: a candidate
+    assert store.settle(shown, {"checked": True, "by": "SkyBoT", "name": None}) == "candidate"
+    assert store.get(shown)["known"]["checked"] is True and store.uncompared() == []
+    # no object there, weak evidence: it is taken out without ever having been shown
+    (gone,) = [mid for mid, _, _ in _waiting(store, found(grid_ra=250.0), "fieldC", 250.0)]
+    assert store.settle(gone, {"checked": True, "by": "SkyBoT", "name": None}) == "dropped"
+    assert store.count() == 2 and store.uncompared() == []
+
+
+def _waiting(store, result, key, ra):
+    store.save_field(key, ra, 10.0, 50.4, 100, result, {0: {"checked": False}}, pending={0})
+    return store.uncompared()
+
+
+def test_fields_of_an_earlier_search_are_listed_for_another_search(store, monkeypatch):
+    store.save_field("fieldA", 150.0, 10.0, 50.4, 100, found())
+    assert store.stale_fields() == []
+    monkeypatch.setattr(movers, "VERSION", movers.VERSION + 1)
+    assert [f["key"] for f in store.stale_fields()] == ["fieldA"]
+
+
+def test_the_catalogues_are_asked_again_and_old_fields_searched_again(store, monkeypatch):
+    from sphereblink import movers_api
+
+    store.save_field("fieldA", 150.0, 10.0, 50.4, 100, found(), {0: {"checked": False}}, pending={0})
+    assert store.count() == 0
+    asked = []
+
+    def identify(tracks):
+        asked.append(len(tracks))
+        return {0: {"checked": True, "by": "SkyBoT", "name": "412 Elisabetha", "kind": "asteroid"}}
+
+    monkeypatch.setattr(known_objects, "identify", identify)
+    monkeypatch.setattr(movers_api, "_rechecked", 0.0)
+    assert movers_api.settle_uncompared() == {"named": 1} and store.count() == 1
+    assert movers_api.settle_uncompared() == {} and asked == [1]  # not again within ten minutes, and nothing waits now
+    # a field the current search went through is left alone; one of an earlier search is searched again
+    grid = Grid.from_fov(200.0, 10.0, 50.4)
+    monkeypatch.setattr(movers, "VERSION", movers.VERSION - 1)
+    store.save_field(grid.key(), grid.ra, grid.dec, grid.fov_arcmin, 100, found(grid_ra=200.0))
+    monkeypatch.setattr(movers, "VERSION", movers.VERSION + 1)
+    started = []
+    monkeypatch.setattr(movers_api, "start", lambda g, min_cached=0.0: started.append((g.key(), min_cached)) or {"status": "ready"})
+    assert movers_api.refresh_stale(wait_s=0.0) == 1
+    assert started == [(grid.key(), movers_api.REFRESH_MIN_CACHED)]  # only from frames that are still in the cache
 
 
 def test_one_voice_per_browser_and_a_few_per_address(store, monkeypatch):
