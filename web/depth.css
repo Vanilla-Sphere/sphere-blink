@@ -34,7 +34,7 @@
 /* the heading of the map makes way for what the layer shows */
 .mapscreen.zlayer .maptag .more{width:264px}
 @media (max-width:759.98px){
-  .zfilter{top:auto;bottom:256px}
+  .zfilter{top:auto;bottom:301px}
   .zfilter.open{left:0;right:0;bottom:0;z-index:6;align-items:stretch}
   .zfilter.open .zpanel{width:auto;max-width:none;border-width:1px 0 0;background:var(--color-paper);padding-bottom:calc(14px + env(safe-area-inset-bottom, 0px))}
   [data-mapfull] .zfilter:not(.open){bottom:calc(188px + env(safe-area-inset-bottom, 0px))}

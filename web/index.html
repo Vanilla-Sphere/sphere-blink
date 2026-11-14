@@ -11,19 +11,19 @@
 <meta property="og:title" content="Vanilla Sphere - watch the infrared sky change">
 <meta property="og:description" content="Pick any spot on the sky map and watch NASA SPHEREx images of it play as a movie.">
 <meta property="og:url" content="https://vanillasphere.com/">
-<meta property="og:image" content="https://vanillasphere.com/static/og.png?v=46">
+<meta property="og:image" content="https://vanillasphere.com/static/og.png?v=47">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Vanilla Sphere - watch the infrared sky change">
 <meta name="twitter:description" content="Pick any spot on the sky map and watch NASA SPHEREx images of it play as a movie.">
-<meta name="twitter:image" content="https://vanillasphere.com/static/og.png?v=46">
-<link rel="icon" href="/static/favicon.svg?v=46" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=46">
+<meta name="twitter:image" content="https://vanillasphere.com/static/og.png?v=47">
+<link rel="icon" href="/static/favicon.svg?v=47" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=47">
 <link rel="preload" href="/static/fonts/HankenGrotesk.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/GeistMono.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/static/style.css?v=46">
-<link rel="stylesheet" href="/static/depth.css?v=46">
+<link rel="stylesheet" href="/static/style.css?v=47">
+<link rel="stylesheet" href="/static/depth.css?v=47">
 </head>
 <body>
 <header class="bar">
@@ -68,6 +68,17 @@
   <section class="mapstart" aria-labelledby="mapstart-h">
     <h2 id="mapstart-h"><span class="simple">Start here</span><span class="adv">Featured targets</span></h2>
     <div id="mapfeatured" class="targets"></div>
+  </section>
+  <section class="mapdo" aria-labelledby="mapdo-h" data-hint-side="top">
+    <h2 id="mapdo-h">What you can do here</h2>
+    <div class="dolist" id="dolist">
+      <button type="button" class="do" data-do="blink" data-hint="do.blink.t"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h9v9H1z" opacity=".45"/><path d="M6 6h9v9H6z"/></svg><span class="nm">Blink the sky</span><span class="nt">Barnard's Star</span></button>
+      <button type="button" class="do" data-do="movers" data-hint="do.movers.t"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.500 14.500 8 8" fill="none" stroke="currentColor" stroke-width="1.500" stroke-dasharray="2 1.500"/><circle cx="11" cy="5" r="3.500"/></svg><span class="nm">Catch what moves</span><span class="nt">Asteroids found blind</span></button>
+      <button type="button" class="do" data-do="spectrum" data-hint="do.spectrum.t"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13.500 4 6l3 5 3-8.500 2.500 7L15 7" fill="none" stroke="currentColor" stroke-width="1.500"/></svg><span class="nm">Read a spectrum</span><span class="nt">Epsilon Indi B</span></button>
+      <button type="button" class="do" data-do="time" data-hint="do.time.t"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 15V1h1.500v12.500H15V15z" opacity=".45"/><circle cx="5" cy="10" r="1.600"/><circle cx="8.500" cy="6" r="1.600"/><circle cx="12.500" cy="9" r="1.600"/></svg><span class="nm">Watch it change</span><span class="nt">R Draconis</span></button>
+      <button type="button" class="do" data-do="depth" data-hint="do.depth.t"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.500 14.500 8 8 14.500 1.500 8z" fill="none" stroke="currentColor" stroke-width="1.500"/><circle cx="8" cy="8" r="1.700"/></svg><span class="nm">See how far</span><span class="nt">Galaxies by redshift</span></button>
+      <button type="button" class="do" data-do="data" data-hint="do.data.t"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 1h2v7l3-3 1.500 1.500L8 12 2.500 6.500 4 5l3 3zM2 13h12v2H2z"/></svg><span class="nm">Take the data</span><span class="nt">CSV, PNG, FITS</span></button>
+    </div>
   </section>
   <div class="mapfoot measure"><span id="mapread"></span><span class="hint">Drag to turn · scroll to zoom · click a star or any spot · hold Alt to point between stars</span></div>
   <div class="mapzoom">
@@ -366,19 +377,20 @@
   </div>
 </div>
 
-<script src="/static/i18n.js?v=46"></script>
-<script src="/static/lore.js?v=46"></script>
-<script src="/static/hints.js?v=46"></script>
-<script src="/static/atlas.js?v=46"></script>
-<script src="/static/starmap.js?v=46"></script>
-<script src="/static/ambient.js?v=46"></script>
-<script src="/static/overtime.js?v=46"></script>
-<script src="/static/exports.js?v=46"></script>
-<script src="/static/movers.js?v=46"></script>
-<script src="/static/linelist.js?v=46"></script>
-<script src="/static/insight.js?v=46"></script>
-<script src="/static/depth.js?v=46"></script>
-<script src="/static/app.js?v=46"></script>
+<script src="/static/i18n.js?v=47"></script>
+<script src="/static/lore.js?v=47"></script>
+<script src="/static/hints.js?v=47"></script>
+<script src="/static/atlas.js?v=47"></script>
+<script src="/static/starmap.js?v=47"></script>
+<script src="/static/ambient.js?v=47"></script>
+<script src="/static/overtime.js?v=47"></script>
+<script src="/static/exports.js?v=47"></script>
+<script src="/static/movers.js?v=47"></script>
+<script src="/static/linelist.js?v=47"></script>
+<script src="/static/insight.js?v=47"></script>
+<script src="/static/depth.js?v=47"></script>
+<script src="/static/showcase.js?v=47"></script>
+<script src="/static/app.js?v=47"></script>
 <p id="netnote" class="netnote" role="status" hidden>Updating the site, back in a moment…</p>
 </body>
 </html>

@@ -82,6 +82,26 @@ sky as one oval with the featured targets marked.
 Returning from a view to the map centres the map on the position just viewed
 and marks it.
 
+### What you can do here
+
+Under the map, between the start list and the zoom buttons, a strip of six
+cards says what the product does, and each card opens a live example instead
+of describing one (added 2026-11-14 on a teammate's request to list the
+features on the first screen):
+
+| Card | Opens |
+|---|---|
+| Blink the sky | Barnard's Star, in the mode the reader is in |
+| Catch what moves | the Discoveries log of the blind search |
+| Read a spectrum | Epsilon Indi B in Advanced, on the spectrum and its reading |
+| Watch it change | R Draconis in Advanced, on the plot over time |
+| See how far | the redshift layer of the map, from z > 1 |
+| Take the data | the "About the data" page |
+
+The strip fades when the map is zoomed in and is hidden in full screen. On a
+phone it is a row of its own above the start list, scrolled sideways, with the
+titles only. The code is `web/showcase.js`.
+
 ## 2. Search by coordinates or object name
 
 The search box accepts three kinds of input, resolved by
