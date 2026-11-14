@@ -40,7 +40,8 @@ from dataclasses import asdict, dataclass, field
 import numpy as np
 from scipy import ndimage as ndi
 
-VERSION = 3  # 2: a sighting must be a compact source; 3: curved paths, and three visits for a path without a name
+VERSION = 4  # 2: a sighting must be a compact source; 3: curved paths, and three visits for a path without a name;
+# 4: four visits of any size count too, and twice as many detections per pass take part in the linking
 
 MIN_SNR = 5.0  # peak of a detection, in units of the local noise
 GROW_SNR = 2.5  # pixels joined to a peak
@@ -66,7 +67,8 @@ TOL = 7.5  # arcsec a detection may lie from the line (1.2 native pixels)
 TOL_RATE = 0.15  # arcsec per hour the tolerance grows with: real paths are slightly curved
 TOL_MAX = 15.0
 RECUR = 6.2  # arcsec: detections this close are at the same place of the sky
-MAX_PASS_DETECTIONS = 1500  # brightest kept per pass when a field has more
+MAX_PASS_DETECTIONS = 3000  # brightest kept per pass when a field has more (with 1500 the faint asteroids of a
+# rich field lost a third to a half of their detections here: the cut was at 7 to 8 sigma instead of 5)
 PROPOSALS = 6  # motions kept per starting detection
 SEEN_SNR = 3.5  # level that counts as seen when a track is confirmed in the pixels
 CORE_SNR = 3.0  # and the level of the brightest pixel together with its eight neighbours: light of a real object is
@@ -81,6 +83,9 @@ CANDIDATE_SEEN = 0.8  # at this share of the times it was covered (of 542 chance
 CANDIDATE_VISITS = 3  # and in this many separate visits,
 VISIT_TIMES = 2  # at this many exposure times in each. Two visits cannot test a path: two leftovers of stars, each
 # seen through the exposures of one visit, lie on a line at a constant speed whatever they are. A third visit can.
+CANDIDATE_SINGLE_VISITS = 4  # Or in this many visits, however often in each: where the telescope gives one exposure
+# per visit, a real object is seen once in each of many visits (injected objects: 7 to 9 visits of one), and no
+# chance path of 288 shuffled searches was seen in four.
 CURVE_SPAN_H = 20.0  # a path is fitted with a curve (constant acceleration) from this time span on,
 CURVE_TIMES = 6  # this many exposure times
 CURVE_VISITS = 3  # in this many visits: below that a straight line is all the measurements can tell
@@ -348,7 +353,7 @@ def detect_frame(image: np.ndarray, ref: np.ndarray, static: np.ndarray, min_snr
 
 
 def detect(cube: np.ndarray, frames: list[dict], wcs, scale_arcsec: float, sky: StaticSky | None = None,
-           max_per_frame: int = MAX_PER_FRAME, **kw) -> tuple[list[Detection], StaticSky, dict]:
+           max_per_frame: int = MAX_PER_FRAME, bad_per_frame: int | None = None, **kw) -> tuple[list[Detection], StaticSky, dict]:
     """Detections of every frame of a field.
 
     ``frames`` gives for each image its ``exposure`` id, ``mjd``, ``detector``
@@ -363,15 +368,22 @@ def detect(cube: np.ndarray, frames: list[dict], wcs, scale_arcsec: float, sky: 
     kw.setdefault("max_pixels", int(round(MAX_PIXELS * native)))
     to_mjy = (scale_arcsec / ARCSEC) ** 2 * 1e9  # MJy/sr summed over pixels -> mJy
     dets: list[Detection] = []
-    bad = 0
+    bad = thinned = 0
+    counts = []
+    if bad_per_frame is None:
+        bad_per_frame = max_per_frame
     for i, f in enumerate(frames):
         ref, mask = sky.of(detectors[i])
         found = detect_frame(cube[i], ref, mask, **kw)
-        if len(found) > max_per_frame:
+        counts.append(len(found))
+        if len(found) > bad_per_frame:
             bad += 1
             continue
         if not found:
             continue
+        if len(found) > max_per_frame:  # a crowded frame: its brightest detections
+            found = sorted(found, key=lambda v: -v[2])[:max_per_frame]
+            thinned += 1
         xs = np.array([v[0] for v in found])
         ys = np.array([v[1] for v in found])
         ra, dec = wcs.pixel_to_world_values(xs, ys)
@@ -381,6 +393,7 @@ def detect(cube: np.ndarray, frames: list[dict], wcs, scale_arcsec: float, sky: 
                                   flux_mjy=flux * to_mjy, npix=npix, detector=detectors[i],
                                   wave_um=float(w) if w is not None and np.isfinite(w) else None, x=x, y=y, frame=i))
     stats = {"frames": len(frames), "bad_frames": bad, "detections": len(dets),
+             "per_frame_median": int(np.median(counts)) if counts else 0, **({"thinned_frames": thinned} if thinned else {}),
              "masked_fraction": round(float(sky.mask[0].mean()), 3)}
     return dets, sky, stats
 
@@ -438,6 +451,7 @@ def _link_pass(t, e, n, snr, min_times, min_visits, tol, tol_rate, min_rate, max
     if starts.size < min_times:
         return []
     cands = []
+    t32, e32, n32 = t.astype(np.float32), e.astype(np.float32), n.astype(np.float32)
     for a in range(m):
         b = np.flatnonzero((t > t[a] + 1e-4) & (t <= t[a] + max_gap_h))
         if b.size == 0:
@@ -450,11 +464,18 @@ def _link_pass(t, e, n, snr, min_times, min_visits, tol, tol_rate, min_rate, max
             continue
         b, dt = b[sel], dt[sel]
         ve, vn = de[sel] / dt, dn[sel] / dt
-        # every proposal against every detection of the pass
-        dta = t - t[a]
+        # every proposal against every detection of the pass (single precision: this is where the time goes,
+        # and a hundredth of an arcsec does not matter against a tolerance of several)
+        dta = t32 - t32[a]
         lim = _tolerance(dta, tol, tol_rate)
-        hit = ((e[a] + ve[:, None] * dta[None, :] - e[None, :]) ** 2
-               + (n[a] + vn[:, None] * dta[None, :] - n[None, :]) ** 2) <= (lim * lim)[None, :]
+        de_all = ve.astype(np.float32)[:, None] * dta[None, :]
+        de_all -= (e32 - e32[a])[None, :]
+        np.square(de_all, out=de_all)
+        dn_all = vn.astype(np.float32)[:, None] * dta[None, :]
+        dn_all -= (n32 - n32[a])[None, :]
+        np.square(dn_all, out=dn_all)
+        de_all += dn_all
+        hit = de_all <= (lim * lim)[None, :]
         support = np.logical_or.reduceat(hit, starts, axis=1).sum(axis=1)
         good = np.flatnonzero(support >= min_times)
         if good.size == 0:
@@ -764,7 +785,7 @@ def tally(detected_mjd: list[float], points: list[dict]) -> dict:
         last = m
     return {"covered": len(counted), "seen": seen, "seen_fraction": round(seen / len(counted), 3) if counted else None,
             "times_seen": len(times_seen), "times_covered": len(own | measured),
-            "visits_seen": sum(1 for v in visits if v >= VISIT_TIMES)}
+            "visits_seen": sum(1 for v in visits if v >= VISIT_TIMES), "seen_by_visit": visits}
 
 
 def confirmed(c: dict, min_times: int = MIN_SEEN_TIMES, min_seen: float = MIN_SEEN) -> bool:
@@ -782,7 +803,8 @@ def strong(c: dict) -> bool:
     far more often chance than a new object, and has to show more."""
     if c.get("strong_piece"):  # a path joined from pieces, one of which shows this much on its own
         return True
-    return confirmed(c, min_times=CANDIDATE_TIMES, min_seen=CANDIDATE_SEEN) and c.get("visits_seen", 0) >= CANDIDATE_VISITS
+    visits = c.get("visits_seen", 0) >= CANDIDATE_VISITS or len(c.get("seen_by_visit") or ()) >= CANDIDATE_SINGLE_VISITS
+    return confirmed(c, min_times=CANDIDATE_TIMES, min_seen=CANDIDATE_SEEN) and visits
 
 
 # ----------------------------------------------------------------------------- the whole search of a field
