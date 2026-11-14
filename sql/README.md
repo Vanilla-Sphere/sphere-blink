@@ -22,8 +22,33 @@ to them under a different `method`.
 ## Files
 
 - `schema.sql`: tables, indexes, cone-search function, row level security.
-- `roles.sql`: `blink_loader` (read + write) and `blink_web` (read only).
+- `settings.sql`: the table `settings` (below), with the values of production.
+- `roles.sql`: `blink_loader` (read + write), `blink_web` (read only) and
+  `blink_service` (the web service: read + write on the three tables, read
+  only on `settings`).
 - `example_insert.sql`: copy-paste upserts for the three tables.
+
+## Settings
+
+One more table is not a measurement: `settings` holds the limits of the web
+service that are changed while it runs (how many views and measurements at a
+time, memory for frames, allowances per caller). The service reads it every
+30 seconds and only reads it; the owner of the database changes it:
+
+    update settings set value = 6 where key = 'active_views';
+
+| column | meaning |
+|--------|---------|
+| `key` | the setting (`active_views`, `active_mb`, `measure_procs`, ...) |
+| `value` | a number; 0 or 1 for a switch |
+| `min_value`, `max_value` | the range the service accepts; the table refuses a value outside it |
+| `description` | what the setting limits |
+| `updated_at` | set by the database at every change |
+
+Deleting a row puts the setting back to the value of the service's
+environment. What is in force: `GET /api/settings`. The rules (ranges, the
+memory rule, what happens without the database) are in
+[docs/deployment.md](../docs/deployment.md#settings-in-the-database).
 
 ## Loading data
 

@@ -95,6 +95,7 @@ Errors are JSON of the form `{"detail": "message"}`.
 | Endpoint | Returns | Purpose |
 | --- | --- | --- |
 | [`/api/health`](#get-apihealth) | JSON | Liveness and instance identity |
+| [`/api/settings`](#get-apisettings) | JSON | The limits in force and where each comes from |
 | [`/api/featured`](#get-apifeatured) | JSON | The featured targets |
 | [`/api/resolve`](#get-apiresolve) | JSON | Name or coordinates to a position |
 | [`/api/exposures`](#get-apiexposures) | JSON | Every exposure covering a position |
@@ -130,6 +131,39 @@ Errors are JSON of the form `{"detail": "message"}`.
 `instance` identifies the web process (process id and start time). It must be
 identical on successive calls; differing values mean more than one web process
 is running, which the service does not support.
+
+### GET /api/settings
+
+The limits in force: how many views and measurements the pipeline works on at
+a time, and how much one caller may ask for. They are rows of the table
+`settings` of the team database and can be changed while the server runs
+([deployment](deployment.md#settings-in-the-database)); this endpoint is how
+to see that a change arrived. No parameters; never cached.
+
+```json
+{
+  "database": true, "read_seconds_ago": 12.4, "problem": null, "refresh_s": 30.0, "memory_cap_mb": 4900.0,
+  "settings": {
+    "active_views": {"value": 6, "from": "database", "default": 4, "min": 1, "max": 8, "note": null,
+                     "what": "Views whose exposures are cut at the same time; the next ones wait in the queue"},
+    "ram_budget_mb": {"value": 1500.0, "from": "corrected", "default": 2000.0, "min": 300.0, "max": 4000.0,
+                      "note": "lowered to 1500: the frames kept, the frames being gathered and 250 MB for each measuring process may take 4900 MB together",
+                      "what": "Memory (MB) for the frames of views already gathered; above it the views opened longest ago are reloaded from disk"}
+  },
+  "unknown_rows": []
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `database` | Whether the service has a database to read the table from |
+| `read_seconds_ago` | When the table was read last; `null` if never since the start. It is read every `refresh_s` seconds |
+| `problem` | Why the last reading failed (the kind of error only), or `null`. The values read last stay in force meanwhile |
+| `memory_cap_mb` | What `ram_budget_mb`, `active_mb` and 250 MB for each of `measure_procs` may come to together |
+| `settings.*.value` | The value in force |
+| `settings.*.from` | `database`: the row as written; `corrected`: the row was outside its range or the memory rule lowered it (`note` says which); `default`: no row, the value of the service's environment |
+| `settings.*.default`, `min`, `max` | The value without a row, and the range a row may set |
+| `unknown_rows` | Rows of the table whose key the service does not know (a misspelt key) |
 
 ### GET /api/featured
 
@@ -635,7 +669,7 @@ is returned at once.
 
 The example above shows the shape of a response while the job runs. `status`
 is `queued`, `searching`, `measuring`, `ready` or `error` (with `job.error`).
-A fixed number of objects is measured at a time (`SPHEREX_MEASURE_PROCS`).
+A fixed number of objects is measured at a time (the setting `measure_procs`).
 While others are ahead, `status` is `queued` and `job.queue` is
 `{"position": 2, "waiting": 3}` (position 1 is next); otherwise `job.queue`
 is `null`. Keep asking: the time in the queue does not count against the job.

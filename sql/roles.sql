@@ -29,3 +29,9 @@ grant execute on function sources_near(double precision, double precision, doubl
 create policy service_all on sources    for all to blink_service using (true) with check (true);
 create policy service_all on detections for all to blink_service using (true) with check (true);
 create policy service_all on tracks     for all to blink_service using (true) with check (true);
+
+-- The limits the service reads while it runs (settings.sql). It only reads
+-- them: they are changed by the database owner, in the table editor or with
+-- an update.
+grant select on settings to blink_service;
+create policy service_read on settings for select to blink_service using (true);

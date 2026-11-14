@@ -95,6 +95,7 @@ function writeUrl(push) {
   $("sgif").href = $("s-gif").value;
   $("sgif").download = `${String(S.target || "sky").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "sky"}-vanilla-sphere.gif`;
   $("s-api").value = base + "/api/spectrum?" + viewParams({wait: 60}).toString();
+  ApiList.update();   // the same view at every other endpoint (apilist.js)
 }
 
 /* ------------------------------------------------------------------ loading */
@@ -1447,7 +1448,13 @@ function init() {
   new ResizeObserver(fitCanvas).observe($("sky"));
   new ResizeObserver(() => { if (S.spectrum) drawPlot(); }).observe($("plot"));
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { draw(); if (S.spectrum) drawPlot(); });
-  for (const b of document.querySelectorAll("[data-copy]")) b.addEventListener("click", () => { const inp = $(b.dataset.copy); inp.select(); navigator.clipboard && navigator.clipboard.writeText(inp.value); b.textContent = tr("copied"); setTimeout(() => (b.textContent = tr("copy")), 1200); });
+  document.addEventListener("click", (ev) => {   // one listener, so the rows a script adds later (apilist.js) copy as well
+    const b = ev.target.closest ? ev.target.closest("[data-copy]") : null;
+    if (!b) return;
+    const from = $(b.dataset.copy), text = from.href || from.value;   // a field, or a link whose text is only the end of its address
+    if (from.select) from.select();
+    navigator.clipboard && navigator.clipboard.writeText(text); b.textContent = tr("copied"); setTimeout(() => (b.textContent = tr("copy")), 1200);
+  });
   const cv = $("sky");
   const pos = (ev) => { const r = cv.getBoundingClientRect(); return [(ev.clientX - r.left) * cv.width / r.width, (ev.clientY - r.top) * cv.height / r.height]; };
   cv.addEventListener("mousemove", (ev) => { if (!S.meta) return; const [ra, dec] = toSky(...pos(ev), cv); $("cursor").classList.remove("hint"); $("cursor").textContent = `${ra.toFixed(5)}° ${dec >= 0 ? "+" : "−"}${Math.abs(dec).toFixed(5)}°` + (S.field ? ` · ${cellAt(ra, dec)}` : ""); });

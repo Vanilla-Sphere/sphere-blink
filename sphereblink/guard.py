@@ -28,7 +28,7 @@ import threading
 import time
 from contextvars import ContextVar
 
-from . import config
+from . import config, settings
 
 log = logging.getLogger("uvicorn.error")  # the server's own log, which the host keeps
 _client: ContextVar[str] = ContextVar("sphereblink_client", default="")
@@ -137,6 +137,25 @@ atlas = Buckets(config.RATE_ATLAS_PER_MIN / 60.0, config.RATE_ATLAS_PER_MIN)  # 
 TILES = "/api/atlas/2mass/"
 
 
+def _rates_changed() -> None:
+    """The allowances are settings that can change while the server runs
+    (``settings.py``): a caller keeps what is left in the bucket, under the
+    new numbers."""
+    g = settings.get
+    for bucket, per_second, burst in (
+        (requests, g("rate_requests_per_s"), g("rate_requests_burst")),
+        (names, g("rate_names_per_min") / 60.0, g("rate_names_per_min")),
+        (measures, g("rate_measures_per_hour") / 3600.0, g("rate_measures_burst")),
+        (catalogs, g("rate_catalogs_per_min") / 60.0, g("rate_catalogs_per_min")),
+        (sky_tiles, g("rate_tiles_per_s"), g("rate_tiles_burst")),
+        (atlas, g("rate_atlas_per_min") / 60.0, g("rate_atlas_per_min")),
+    ):
+        bucket.rate, bucket.burst = float(per_second), float(burst)
+
+
+settings.on_change(_rates_changed)
+
+
 def charge(bucket: Buckets, what: str, cost: float = 1.0) -> None:
     """Charge the caller of this request for an expensive action; raises Busy when the bucket is empty."""
     wait = bucket.take(current(), cost)
@@ -176,13 +195,27 @@ ALWAYS = [
 ]
 
 
-def security_headers(path: str, content_type: bytes) -> list[tuple[bytes, bytes]]:
+# No other site may show a page of this one inside a frame of its own (a
+# hidden frame under a decoy is how a visitor's click is stolen). Two headers
+# say it: ``frame-ancestors`` in the policies above, which every current
+# browser obeys, and this one, which older ones know. Only pages carry them:
+# a picture or data may be shown anywhere.
+FRAMING = (b"x-frame-options", b"SAMEORIGIN")
+
+
+def security_headers(path: str, content_type: bytes, status: int = 200) -> list[tuple[bytes, bytes]]:
     out = list(ALWAYS)
-    if content_type.startswith(b"text/html"):
+    if status == 304:
+        # "Not modified" has no body and no type, so what it answers for is
+        # unknown here, and a browser lays its headers over the ones it kept:
+        # sent with the policy of data, it would take the page's policy (and
+        # with it frame-ancestors) away. The kept answer's headers stand.
+        return out
+    if content_type.startswith((b"text/html", b"application/xhtml+xml")):
         docs = path in ("/docs", "/redoc") or path.startswith("/docs/")
         out += [
             (b"content-security-policy", (CSP_DOCS if docs else CSP).encode()),
-            (b"x-frame-options", b"SAMEORIGIN"),
+            FRAMING,
             (b"cross-origin-opener-policy", b"same-origin"),
         ]
     else:
@@ -210,7 +243,7 @@ class Guard:
                 headers = list(message.get("headers") or [])
                 have = {k.lower() for k, _ in headers}
                 ctype = next((v for k, v in headers if k.lower() == b"content-type"), b"")
-                headers += [(k, v) for k, v in security_headers(path, ctype) if k not in have]
+                headers += [(k, v) for k, v in security_headers(path, ctype, message.get("status", 200)) if k not in have]
                 message = {**message, "headers": headers}
             await send(message)
 
@@ -237,7 +270,7 @@ class Guard:
                     return await _refuse(send_with_headers, Busy("too many requests from your address; slow down", wait))
                 with _open_lock:
                     n = _open.get(client, 0)
-                    if n >= config.MAX_OPEN_REQUESTS:
+                    if n >= settings.get("max_open_requests"):
                         busy = Busy("too many requests open at once from your address", 2.0)
                     else:
                         _open[client], counted, busy = n + 1, True, None

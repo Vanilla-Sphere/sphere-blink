@@ -75,8 +75,7 @@ function cpChart(d, host) {
   svg.appendChild(cpEl("text", {x: (L + W - R) / 2, y: H - 4, "text-anchor": "middle", class: "cp-axis"}, "Visual magnitude V of the fake object · fainter to the right"));
   const real = (d.real || []).filter((r) => r.v >= v0 && r.v <= v1);
   for (const r of real) {
-    const t = cpEl("line", {x1: X(r.v), x2: X(r.v), y1: T - 12, y2: T - 3, class: "cp-real"});
-    t.appendChild(cpEl("title", null, `${r.name}: V ${r.v}, ${r.rate} arcsec per hour`));
+    const t = cpEl("line", {x1: X(r.v), x2: X(r.v), y1: T - 12, y2: T - 3, class: "cp-real", "data-hint-text": `${r.name}: V ${r.v}, ${r.rate} arcsec per hour`});
     svg.appendChild(t);
   }
   const mids = [];
@@ -144,7 +143,7 @@ function cpTables(d, host) {
   d.all[CP.level].grid.forEach((row, i) => {
     const tr = cpEl("tr");
     tr.appendChild(cpEl("td", null, `${d.rate_edges[i]}–${d.rate_edges[i + 1]}`));
-    for (const c of row) { const td = cpEl("td", null, c.n >= 5 ? String(Math.round(c.share * 100)) : "·"); if (c.n >= 5) td.style.setProperty("--cp-v", c.share.toFixed(2)); td.title = `${c.found} of ${c.n} fakes`; tr.appendChild(td); }
+    for (const c of row) { const td = cpEl("td", null, c.n >= 5 ? String(Math.round(c.share * 100)) : "·"); if (c.n >= 5) td.style.setProperty("--cp-v", c.share.toFixed(2)); td.dataset.hintText = `${c.found} of ${c.n} fakes`; tr.appendChild(td); }
     t2.appendChild(tr);
   });
   host.appendChild(cpEl("p", {class: "cp-cap"}, "Per cent found by speed and brightness, the three fields together"));
@@ -171,7 +170,7 @@ function cpRender(host) {
     seg.appendChild(b);
   }
   const legend = cpEl("div", {class: "cp-legend"});
-  CP_FIELDS.forEach((n, k) => { const f = d.fields[n]; if (!f) return; const s = cpEl("span", {title: `${f.where}; ${f.exposures} exposures`}); s.appendChild(cpEl("i", {class: "cp-sw cp-s" + (k + 1)})); s.appendChild(document.createTextNode(f.label)); legend.appendChild(s); });
+  CP_FIELDS.forEach((n, k) => { const f = d.fields[n]; if (!f) return; const s = cpEl("span", {"data-hint-text": `${f.where}; ${f.exposures} exposures`}); s.appendChild(cpEl("i", {class: "cp-sw cp-s" + (k + 1)})); s.appendChild(document.createTextNode(f.label)); legend.appendChild(s); });
   bar.appendChild(legend); bar.appendChild(seg);
   host.appendChild(bar);
   const chart = cpEl("div", {class: "cp-chart"});
@@ -182,7 +181,7 @@ function cpRender(host) {
   det.appendChild(cpEl("summary", null, "The numbers as tables"));
   cpTables(d, det);
   host.appendChild(det);
-  host.appendChild(cpEl("p", {class: "muted note"}, `Measured ${d.made} on search version ${d.version}; method and every number in the documentation of the project (mover-completeness).`));
+  host.appendChild(cpEl("p", {class: "muted note"}, `Measured ${d.made} on search version ${d.version}${d.same_on ? ` (version ${d.same_on.version} finds the same fakes in the ${d.same_on.rounds} rounds repeated on it)` : ""}; method and every number in the documentation of the project (mover-completeness).`));
 }
 
 function initCompleteness() {

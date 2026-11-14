@@ -71,7 +71,11 @@ already put in the disk cache.
    leaves less than 70 % of the line's scatter, at least 1 arcsec less, and
    needs no more than 0.2 arcsec per hour squared (measured: 0.03 for Astraea,
    0.04 for Nha). Two confirmed pieces up to 48 hours apart are one object
-   when one such curve holds both within 7.5 arcsec rms. Pieces are joined
+   when one such curve holds both within 7.5 arcsec rms and every detection
+   within 15 arcsec. A detection further off, of which a straight piece
+   takes one up now and then, is left out of the common path instead of
+   keeping the pieces apart, as long as there are no more of them than 3 %
+   of the detections (one at least). Pieces are joined
    only after the pixels have confirmed each of them: the long path of a
    faint object crosses visits in which it is too faint to be seen and would
    fail step 4 as a whole (Nha: 20 of 29 times, although it lies within 5
@@ -280,6 +284,38 @@ path with the evidence of step 8 per six visit shuffles, and the fields rich
 in asteroids lose real ones (Elisabetha, 1989 UW2, Maury), because the extra
 detections push the faint real ones out of the 3000 that are linked.
 
+### One stray detection kept Astraea in two (version 5)
+
+Version 4 went to production at 22:48 on 2026-11-14 and brought back the
+same seven named objects, but (5) Astraea with 39 detections where version
+3 had 77. Replayed on the frames of the server: the two pieces of its path
+(39 detections each, 47 and 104 hours) fitted one curve with 4.7 arcsec rms,
+and one of the 78 detections lay 15.8 arcsec from it, 0.8 more than a
+detection may. With twice as many detections in the linking, one piece had
+taken up a detection beside the path. The pieces stayed apart, and the
+store then lost one of them: an id is made from a path's first detection,
+the first piece was stored under the id the object had before, and that was
+the id the second piece made for itself.
+
+- A stray detection is now left out of the common path (step 5). On the
+  frames of the server Astraea is one path again: 77 detections, seen at 52
+  of 52 times.
+- Two paths of one search never get the same id
+  (`mover_store._new_id(track, taken)`).
+
+The wider frame limit was measured again the same night, now only where it
+could help: 250 detections per frame and 5000 per pass on the nine fields
+outside the Milky Way. Barnard's field found 33 of 44 bright artificial
+objects where it finds 22 now (the completeness test), and nothing real was
+lost. But 144 shuffled searches gave one chance path with the evidence of
+step 8 (Barnard's field, 5 detections, seen at 12 of 13 times), the
+injection rounds one more (4 detections in 3 visits), and the linking and
+the look at the pixels took 22 to 32 seconds per search in the fields with
+many stars where they take 3 to 8, which makes about three minutes per
+field with its four shuffled searches instead of one. Asking a path without
+a name for detections at 6 or more times would have stopped both, a rule
+made to fit two cases. It was not taken.
+
 Limits found in the same test:
 
 - 3I/ATLAS at 8.7 arcsec per hour and V about 15.2 (field 3, March 2026) was
@@ -318,7 +354,8 @@ field is loaded and has not been searched.
   in place of the old. Version 2 (2026-11-14) is the compact source test,
   version 3 (same day) curved paths and three visits for a path without a
   name, version 4 (same day) four visits of any size and 3000 detections
-  per pass.
+  per pass, version 5 (same day) a stray detection no longer keeps a curved
+  path in two.
 - 90 seconds after a start of the server, the fields an earlier version went
   through are searched again by themselves, one at a time, newest first,
   when 95 % or more of their frames are still in the disk cache

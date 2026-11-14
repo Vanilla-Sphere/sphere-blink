@@ -41,6 +41,13 @@ never limited. The code is `sphereblink/guard.py`.
 | Measurements waiting or running | 12 in total | `SPHEREX_MAX_MEASURE_QUEUE` | 503 |
 | Votes on moving objects | 20 per minute per caller; 8 browser ids per address and object | `SPHEREX_RATE_VOTES_PER_MIN`, `SPHEREX_MAX_VOTERS_PER_ADDRESS` | 429 |
 
+Every limit of this table, except `SPHEREX_ATLAS_FETCHES` and the two for
+votes, can be changed while the server runs: it is a row of the table
+`settings` of the team database (`rate_requests_per_s` for `SPHEREX_RATE_REQUESTS_PER_S`, and so
+on), and the environment variable is its value without a row. A row can
+neither remove a limit nor set it outside the range written in the code; see
+[deployment](deployment.md#settings-in-the-database).
+
 The numbers are far above what a person needs, and above what a classroom
 behind one address needs; they exist to stop a script. Only work that really
 starts is counted: a view that exists, a name already resolved, a catalogue
@@ -71,6 +78,34 @@ Added to every response by `guard.Guard`:
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | Other sites do not learn which view was open |
 | `Permissions-Policy` | camera, microphone, geolocation, payment, USB off | The viewer needs none of them |
 | `Cross-Origin-Resource-Policy` (data, pictures) | `cross-origin` | Pictures and data may be embedded elsewhere, as intended |
+
+### Framing by other sites
+
+A page shown inside a frame of another site can be covered with a decoy, so
+that a visitor who clicks the decoy clicks the page (clickjacking). No page
+of this site may be framed by another site:
+
+- every answer that is a page (`/`, `/static/index.html`, `/docs`, `/redoc`)
+  carries `frame-ancestors 'self'` in its policy and `X-Frame-Options:
+  SAMEORIGIN`. Current browsers obey the first, older ones the second;
+- pictures and data carry neither. A GIF, PNG or JSON answer of `/api/` is
+  made to be used elsewhere, in an `<img>` or by `fetch`; the two headers
+  that allow this are `Cross-Origin-Resource-Policy: cross-origin` and the
+  open CORS below. To show a view on another page, embed its GIF or PNG and
+  link to the view; the viewer itself cannot be put in an `<iframe>` there;
+- a `304 Not Modified` answer gets neither policy. It has no content type,
+  and a browser lays its headers over the ones it kept: with the policy of
+  data it would take the page's policy, and `frame-ancestors` with it, away;
+- the dev site is static, so `render.dev.yaml` sets the same: `X-Frame-Options`
+  on every path, the page's policy on `/` and `/index.html` (a static site
+  answers both with the page).
+
+The viewer has no frame of its own, so `'self'` is not used today; it is
+there so that a page of the site may show another one if that is ever wanted.
+
+Tests: `test_no_other_site_can_frame_a_page_and_pictures_stay_free`,
+`test_not_modified_does_not_replace_the_policy_of_the_page` and the dev site
+test in `tests/test_guard.py`.
 
 Inline style attributes are allowed because the viewer draws colour swatches
 with them; there is no inline script. The interactive API pages (`/docs`,
@@ -111,6 +146,13 @@ endpoint is `GET`; nothing else is accepted.
   the Supabase security advisor reports no finding.
 - The web service connects as `blink_service` (read and write on the three
   tables, no other rights). All statements are parameterised.
+- The table `settings` (the limits changed while the server runs) has row
+  level security too and one policy: `blink_service` may read it. The service
+  cannot write it, so nothing that reaches the service can change a limit;
+  only the owner of the database can. What a row may set is bounded in the
+  code whatever the table says
+  ([deployment](deployment.md#settings-in-the-database)), and
+  `/api/settings` shows the values, never the address of the database.
 - The password exists only in the host's `DATABASE_URL`. A scan of the whole
   git history (68 commits) on 2026-11-14 found no secret, and the client
   contains no key.

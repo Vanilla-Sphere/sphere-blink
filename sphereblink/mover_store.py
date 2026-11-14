@@ -129,13 +129,18 @@ def detections_around(ra: float, dec: float, radius_deg: float, not_field: str =
 
 
 # ----------------------------------------------------------------------------- moving objects
-def _new_id(track: Track) -> str:
-    first = min(track.detections, key=lambda d: d.mjd)
-    raw = f"{first.exposure}|{first.ra:.5f}|{first.dec:.5f}".encode()
-    code = int(hashlib.sha1(raw).hexdigest()[:10], 16)
-    letters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-    tail = "".join(letters[(code >> (5 * k)) & 31] for k in range(4))
-    return f"VS-{int(first.mjd)}-{tail}"
+def _new_id(track: Track, taken=()) -> str:
+    """An id made from the first detection of the track; from a later one when that id is ``taken``."""
+    mid = ""
+    for first in sorted(track.detections, key=lambda d: d.mjd):
+        raw = f"{first.exposure}|{first.ra:.5f}|{first.dec:.5f}".encode()
+        code = int(hashlib.sha1(raw).hexdigest()[:10], 16)
+        letters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+        tail = "".join(letters[(code >> (5 * k)) & 31] for k in range(4))
+        mid = f"VS-{int(first.mjd)}-{tail}"
+        if mid not in taken:
+            break
+    return mid
 
 
 def _track(payload: dict) -> Track:
@@ -187,6 +192,7 @@ def save_field(key: str, ra: float, dec: float, fov: float, frames: int, result:
                     for dx in range(-int(half / tiles.STEP) - 1, int(half / tiles.STEP) + 2)
                     if abs(dx * tiles.STEP) <= half and abs(dy * tiles.STEP) <= half})
     ids = []
+    given: set[str] = set()
     with c:
         c.execute("DELETE FROM detections WHERE field=?", (key,))
         c.executemany("INSERT INTO detections VALUES (?,?,?,?,?,?,?,?,?,?,?)", [
@@ -228,7 +234,10 @@ def save_field(key: str, ra: float, dec: float, fov: float, frames: int, result:
                     c.execute("DELETE FROM votes WHERE mover=?", (other,))
                     c.execute("DELETE FROM movers WHERE id=?", (other,))
             else:
-                mid, created = _new_id(track), now
+                # Not an id this search has just given: an object that came out as two pieces was stored under
+                # the id of the first, and the second one, whose own id that was, took its place.
+                mid, created = _new_id(track, given), now
+            given.add(mid)
             payload["id"] = mid
             payload.pop("pending", None)
             if i in (pending or ()) and not (payload.get("known") or {}).get("checked") and not movers.strong(payload):

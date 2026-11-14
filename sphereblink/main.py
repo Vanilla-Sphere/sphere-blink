@@ -27,7 +27,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import atlas, catalogs, config, distance, guard, measure_api, measurements, movers_api, render, tiles, wings
+from . import atlas, catalogs, config, distance, guard, measure_api, measurements, movers_api, render, settings, tiles, wings
 from . import resolve as resolver
 from .cutout import Grid
 from .resolve import FEATURED, NameNotFound, ResolverUnavailable, Target, resolve
@@ -68,6 +68,11 @@ async def _warm_up() -> None:
     # Requests are answered in threads that mostly wait (for the archive, a
     # name service, a view being gathered): allow many more than the default 40.
     anyio.to_thread.current_default_thread_limiter().total_tokens = config.REQUEST_THREADS
+    # The limits of the pipeline and of the callers are read from the team
+    # database from now on, twice a minute (settings.py).
+    settings.on_change(svc.settings_changed)
+    if "pytest" not in sys.modules:
+        settings.start(_closing)
 
     def warm() -> None:
         svc.warm_up()
@@ -359,6 +364,17 @@ INSTANCE = f"{os.getpid()}-{int(time.time())}"
 @app.get("/api/health")
 async def health():
     return {"ok": True, "collections": config.COLLECTIONS, "instance": INSTANCE}
+
+
+@app.get("/api/settings")
+async def api_settings():
+    """The limits in force: how many jobs the pipeline works on at a time and
+    how much one caller may ask for. Each with where its value comes from
+    (the table ``settings`` of the team database, or the default), the range
+    the table may set and, for a row that was not taken as written, why.
+    ``read_seconds_ago`` says when the table was read last; a change to it is
+    in force within ``refresh_s`` seconds."""
+    return JSONResponse(settings.status(), headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/featured")

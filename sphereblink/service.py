@@ -18,7 +18,7 @@ from typing import Callable
 import httpx
 import numpy as np
 
-from . import config, guard, worker
+from . import config, guard, settings, worker
 from .cutout import Frame, Grid, cache_key, mirror_url, wave_map_from_file
 from .sia import Exposure, find_exposures_at
 
@@ -203,10 +203,12 @@ class Scheduler:
     """Shares the fetch processes between the views being gathered.
 
     Every view hands in its exposures as chunks. A limited number of views
-    is worked on at a time: ``config.ACTIVE_VIEWS`` of them, holding together
-    no more than ``config.ACTIVE_MB`` of frames (which is what keeps several
-    wide mosaics from filling the memory). The others wait in a queue, and
-    :meth:`place` tells each one its position:
+    is worked on at a time: ``active_views`` of them, holding together no
+    more than ``active_mb`` of frames (which is what keeps several wide
+    mosaics from filling the memory). Both are settings that can change
+    while the server runs (``settings.py``); :meth:`recheck` puts a change
+    in force. The others wait in a queue, and :meth:`place` tells each one
+    its position:
 
     * the queue is first come, first served, with the callers taking turns
       (the first view of every caller comes before anybody's second one), so
@@ -214,7 +216,7 @@ class Scheduler:
     * a view too heavy for the memory that is left waits for a heavy one to
       finish, and lighter views behind it go ahead meanwhile;
     * a view in the queue still gets its first few exposures (one small
-      chunk) unless ``config.QUEUE_PREVIEW`` is off, so there is a picture
+      chunk) unless the setting ``queue_preview`` is off, so there is a picture
       on screen while it waits;
     * among the views being worked on, the one with the least left to do
       goes first and every fourth chunk goes to the one that started first.
@@ -283,16 +285,24 @@ class Scheduler:
 
     def _admit(self) -> None:
         """Give the free places to the first views of the queue that fit (lock held)."""
-        limit = config.ACTIVE_VIEWS if config.ACTIVE_VIEWS > 0 else len(self._views)
+        views, room = settings.get("active_views"), settings.get("active_mb")
+        limit = views if views > 0 else len(self._views)
         active = [v for v in self._views.values() if v["active"]]
         n, mb = len(active), sum(v["mb"] for v in active)
         for v in self._queue():
             if n >= limit:
                 break
-            if n and config.ACTIVE_MB > 0 and mb + v["mb"] > config.ACTIVE_MB:
+            if n and room > 0 and mb + v["mb"] > room:
                 continue  # too heavy for the memory that is left: it waits, lighter ones behind it may go
             v["active"] = True
             n, mb = n + 1, mb + v["mb"]
+
+    def recheck(self) -> None:
+        """The limits changed: views that fit now have their turn. (A view
+        being worked on keeps its place when the limits went down.)"""
+        with self._lock:
+            self._admit()
+        self._wake.set()
 
     def place(self, job_id: str) -> tuple[int, int]:
         """(position in the queue, views waiting); position 0: being worked on."""
@@ -305,7 +315,7 @@ class Scheduler:
 
     def _next(self) -> "dict | None":
         active = [v for v in self._views.values() if v["active"] and v["pending"]]
-        ahead = self._queue() if config.QUEUE_PREVIEW else []
+        ahead = self._queue() if settings.get("queue_preview") else []
         fresh = [v for v in active + ahead if v["sent"] == 0 and v["pending"]]
         if not active and not fresh:
             return None
@@ -398,6 +408,7 @@ class Service:
         self._procs: ProcessPoolExecutor | None = None
         # a couple more chunks than processes are handed over, so no process waits for the next one
         self._sched = Scheduler(self._pool, config.FETCH_PROCS + 2)
+        self.settings_changed = self._sched.recheck  # for settings.on_change
         self.pinned: set[str] = set()  # views the disk cache never drops (the featured targets)
 
     # ------------------------------------------------------------------ search
@@ -474,9 +485,9 @@ class Service:
                 job = None
                 if capped and client and not guard.internal(client):
                     active = [j for j in self.jobs.values() if j.status not in ("ready", "error")]
-                    if sum(1 for j in active if j.client == client) >= config.MAX_JOBS_PER_CLIENT:
+                    if sum(1 for j in active if j.client == client) >= settings.get("max_jobs_per_client"):
                         raise guard.Busy("too many views are being gathered for your address; wait for them to finish", 10.0)
-                    if len(active) >= config.MAX_JOBS:
+                    if len(active) >= settings.get("max_jobs"):
                         raise guard.Busy("the server is gathering as many views as it can; try again in a moment", 10.0, 503)
                 new = Job(id=uuid.uuid4().hex[:12], client=client or "")
                 self.jobs[new.id] = new
@@ -501,7 +512,7 @@ class Service:
             size = lambda j: sum(f.image.nbytes for f in j.frames)  # noqa: E731
             total = sum(size(j) for j in self.jobs.values())
             for old in done:
-                if total <= config.RAM_BUDGET_MB * 1e6 and len(self.jobs) <= 500:
+                if total <= settings.get("ram_budget_mb") * 1e6 and len(self.jobs) <= 500:
                     break
                 if old is keep:
                     continue
