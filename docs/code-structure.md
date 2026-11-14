@@ -47,6 +47,7 @@ of HTML, CSS and JavaScript in the viewer.
 | `cutout.py` | 455 | The view grid; four-request FITS reader; Rice decoding of flags; masking; sky plane; resampling; aperture flux; wavelength maps | `Grid`, `Frame`, `cut_async`, `detector_coords`, `aperture_flux`, `wave_map_from_file`, `cache_key` |
 | `worker.py` | 77 | Code executed inside worker processes: per-process event loop and HTTP client, chunk cutting with retries, traffic metering | `init`, `cut_chunk`, `cut_one`, `Meter` |
 | `service.py` | 408 | SQLite store; job lifecycle; exposure search with locks and stale fallback; process pool; memory and disk budgets | `Store`, `Job`, `Service` |
+| `atlas.py` | 378 | The photograph behind the sky map: tiles of the 2MASS atlas fetched from the archive once and kept on disk; one fetch per tile whoever asks; kept orders and their filling after a start; least-recently-asked eviction; leaving a silent archive alone | `Atlas`, `NotThere`, `Away`, `address`, `tiles_in` |
 | `tiles.py` | 202 | Cell arithmetic and identifiers; block and stage geometry; field lifecycle | `cell_of`, `tile_id`, `block`, `stage_grid`, `Field`, `Fields` |
 | `render.py` | 393 | Grouping into epochs; colour composition with provenance; shared limits; asinh rendering; binning; cube, PNG and GIF encoding | `Epoch`, `build_epochs`, `build_color_epochs`, `difference`, `shared_limits`, `encode_cube` |
 | `resolve.py` | 277 | Parse coordinates; featured targets and aliases; Sesame and SIMBAD lookups with mirrors; proper-motion propagation | `Target`, `resolve`, `FEATURED`, `NameNotFound`, `ResolverUnavailable` |
@@ -116,13 +117,14 @@ of HTML, CSS and JavaScript in the viewer.
 
 ## Tests
 
-81 unit tests in four files, run with `pytest`. They use synthetic data and
+92 unit tests in five files, run with `pytest`. They use synthetic data and
 stubbed HTTP clients, need no network, and finish in about three seconds.
 
 | File | Tests | Covers |
 | --- | --- | --- |
 | `tests/test_guard.py` | 22 | Caller identity; token buckets; security headers and CORS; refusal of non-positions; the measurement name rule; job and queue caps; the pipeline queue (views worked on at a time, positions, callers taking turns, the first exposures of a waiting view, the memory budget for wide fields, two measurements at a time); disk cache eviction and pinning; name cache; second source for files; stale exposure lists |
 | `tests/test_offline.py` | 29 | Coordinate parsing; proper-motion propagation of the featured targets; grid geometry; FITS header scanning; aperture photometry; sky plane; epoch grouping; median difference; cube round trip; PNG and GIF rendering; colour borrowing and white balance; disk and memory eviction; cell grid and stages; exactness of the coarse-lattice pixel mapping; binning; half-precision storage; SIA CSV parsing; wing photometry |
+| `tests/test_atlas.py` | 10 | The sky photograph kept on disk: one fetch then disk; addresses outside the atlas; answers that are not pictures; shared fetches; a silent archive; eviction that spares the kept orders; filling after a start; a nearly full disk; the two endpoints, their headers and allowances; the page's two sources |
 | `tests/test_measure.py` | 18 | Parallax factors; PSF fit accuracy; neighbour handling; wing fallback; track recovery with parallax; stacks for faint movers; light curve; storage and database synchronisation; saturated stars |
 | `tests/test_resolve_names.py` | 12 | Name resolution paths: Sesame, mirrors, redirects, SIMBAD fallback, spellings, "not found" against "unavailable", no network for built-in targets |
 
