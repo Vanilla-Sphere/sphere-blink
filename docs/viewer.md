@@ -224,6 +224,15 @@ coordinates.
   built by `scripts/build_sky.py` from d3-celestial data and Astropy's
   constellation boundaries.
 - **Level of detail.** Fainter stars appear as the map is zoomed.
+- **How the Milky Way is drawn.** As a soft glow along the galactic plane,
+  from the same grid of cells (1.25 degrees apart, five brightness levels).
+  Each frame the cells are painted on a small black canvas (about one pixel
+  per cell), each as a patch as bright as its level, the brighter of two
+  overlapping patches winning; the small canvas is then stretched over the
+  map and added as light, and the stretch blurs the patches into one cloud.
+  It used to be a halftone of grey squares, which read as unexplained
+  blotches once the map was zoomed in. `SkyMap.milky(soft, glow)` sets how
+  blurred and how bright it is.
 - **How a star is drawn.** Its colour comes from its measured colour index
   (B-V): the index gives a temperature (Ballesteros 2012) and the temperature
   the colour of a black body, from blue-white through white and yellow to

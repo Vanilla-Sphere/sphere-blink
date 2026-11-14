@@ -39,7 +39,7 @@ The product opens on a drawn map of the whole sky, the same for both modes.
   an undistorted local chart.
 - **Content.** Stars to magnitude 6 (fainter stars appear as the map is
   zoomed), proper names of stars to magnitude 3, constellation figures and
-  names, and the Milky Way as a dot field. Each star has the colour of its
+  names, and the Milky Way as a soft glow. Each star has the colour of its
   measured colour index and, when the map is zoomed in, looks like a star in
   a photograph: a bright core, a soft glow and, for the brightest, thin
   spikes.
