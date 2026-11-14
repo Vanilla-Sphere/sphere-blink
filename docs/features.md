@@ -807,6 +807,13 @@ The rules, the sources and the checks are in
   otherwise nothing is shown.
 - With no published redshift, Simple says it in one sentence that ends "Our
   own reading, not a published value."
+- Where a quality 4 estimate and the published redshift disagree by more than
+  2 % in (1 + z), the page does not go on computing with a value it doubts:
+  the published redshift keeps its row and source, marked as disagreeing, and
+  the light-travel time, the age of the universe then and the distance are
+  computed at the estimate, with the published figure beside it. The
+  preliminary reading (feature 9) looks for lines at the estimate too. Example:
+  SDSS J152846.73+363751.5, listed at z = 4.344, read at z = 2.406.
 - Stars never get one. Blazars, faint objects and spectra with a single line
   get none either.
 
