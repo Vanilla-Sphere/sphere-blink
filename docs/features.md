@@ -351,9 +351,12 @@ Under the plot the viewer writes what the curve shows, in sentences, with the
 numbers behind each one (`web/insight.js`, run in the browser on the points of
 `/api/spectrum`). It is labelled "Preliminary reading" and carries a
 confidence level (low, moderate or good) and the limits that apply. Every
-statement is a fixed test on the measured points: no language model, no
-catalogue and no training set is involved, so the same curve always gives the
-same reading and each sentence can be checked against the plot.
+statement is a fixed test on the measured points: no language model and no
+training set is involved, so the same curve always gives the same reading and
+each sentence can be checked against the plot. The wavelengths it looks at
+are not its own: they come from a catalogue of reference wavelengths
+(`web/linelist.js`, described below), and every name on the plot can be
+traced to its source there.
 
 The tests, in order:
 
@@ -371,21 +374,35 @@ The tests, in order:
 4. **Continuum.** Where the binned curve peaks, its slope in log-log (the
    whole range, below 1.7 µm, above 2.3 µm), and the blackbody closest to it
    with the range of temperatures that fit nearly as well.
-5. **Bands and lines at rest wavelengths.** Water vapour at 1.4, 1.9 and
-   2.7 µm, methane at 3.3 µm, water ice at 3.0 µm, carbon dioxide at 4.27 µm;
-   in emission, hydrogen Paschen α and β, Brackett α and γ, helium 1.083 µm,
-   [S III] 0.953 µm and the 3.3 µm PAH band. A band is the flux inside a
+5. **Bands and lines at the wavelengths of the catalogue.** Water vapour at
+   1.4, 1.9 and 2.7 µm, methane at 3.3 µm, water ice at 3.0 µm, carbon
+   dioxide at 4.27 µm; in emission, the hydrogen lines of the Paschen,
+   Brackett and Pfund series, helium, [S III], [Fe II] and the 3.3 µm PAH
+   band (18 lines between 0.9 and 4.7 µm). A band is the flux inside a
    window against a continuum drawn between a window on each side; a line is
    the points whose passband holds the wavelength against the points just
    outside. The noise is taken from the differences of neighbouring points.
    A feature counts at 4σ and above; names of the detected ones are drawn
    along the top of the plot, with a question mark when they are not firm.
+   Lines closer than 1.3 channels are one measurement at this resolution
+   (He I 1.083 µm and Paschen γ, the PAH band and Pfund δ): it is given to
+   the line that is usually the stronger and the other is named with it. A
+   weak member of a series (Paschen δ, Pfund γ, the second line of a
+   doublet) is only named when the strong lines are there: alone it is
+   listed as a bump.
+6. **With a published redshift.** When the catalogues give the object a
+   redshift of 0.01 or more (feature 18), the lines are looked for at
+   rest wavelength × (1 + z). That brings Lyman α, C IV, C III], Mg II,
+   H β, [O III] and H α into range, and the bands of cool stars and of ices
+   are left out. The redshift is the published one and the reading says so:
+   it uses the redshift, it never measures it.
 
 The reading then names the kinds of object that give such a curve:
 
 | Reading | Rests on |
 | --- | --- |
-| Emission lines of ionised gas | Two lines or more, one of them hydrogen |
+| Emission lines of ionised gas | Two strong hydrogen lines, or one with another strong line beside it or standing 1.6 times above the continuum |
+| Emission lines at the published redshift | Two strong lines where the redshift puts them, or one standing 1.6 times above the continuum |
 | Ice absorption | The 3.0 µm band deepest at 3.0 µm, or carbon dioxide on a rising curve |
 | Brown dwarf atmosphere | Methane at 3.3 µm together with water vapour |
 | Cool star with water vapour | Two water bands or more |
@@ -396,9 +413,10 @@ The reading then names the kinds of object that give such a curve:
 | Flat spectrum | No slope and no peak |
 | Too bright, only part readable, no source | More than half the points above the calibrated range of the halo method; less than 45 % of the range sampled; nothing above the noise |
 
-What it does not do: it does not classify the object, measure a redshift, or
-look for lines away from their rest wavelengths (a single line is reported as
-possible, "or another line moved there by redshift"). Between deep molecular
+What it does not do: it does not classify the object or measure a redshift,
+and without a published redshift it does not look for lines away from their
+rest wavelengths (a single line is reported as possible, "or another line
+moved there by redshift"). Between deep molecular
 bands the continuum stands up in narrow peaks that this resolution cannot
 tell from emission lines, so with such bands no line is claimed. Confidence
 drops with saturation, noise, gaps in the curve, changes between passes and
@@ -409,11 +427,50 @@ Checked on 14 real spectra (`tests/data/spectra/`): Epsilon Indi B (water and
 methane), Elias 16 and Elias 29 (water and carbon dioxide ice), NGC 7027
 (hydrogen lines, PAH), G191-B2B (hot tail), WISE 0855 (a background star plus
 the cold dwarf's light beyond 4 µm), Barnard's Star (3,000 to 3,700 K;
-catalogue 3,200 K), 3C 273 (red, a possible line at 2.17 µm where its
-redshifted Paschen α falls), RW Aurigae (red), R Draconis (water bands, low
-confidence), Vega (too bright), NGC 3379 and Sgr A* (only part readable), an
-empty field (no source). On 14,400 made-up featureless spectra with noise,
-with and without a 30 % change between passes, no firm band or line appeared.
+catalogue 3,200 K), 3C 273 (red, a possible line at 2.17 µm), RW Aurigae
+(red), R Draconis (water bands, low confidence), Vega (too bright), NGC 3379
+and Sgr A* (only part readable), an empty field (no source). On 14,400
+made-up featureless spectra with noise, with and without a 30 % change
+between passes, no firm band or line appeared, at rest and at seven
+redshifts from 0.16 to 6.3.
+
+Checked with published redshifts on four quasars (three more spectra in
+`tests/data/spectra/`). Read at rest wavelengths, each is "a red source, no
+band or line". Read at its redshift:
+
+| Quasar | z | Lines found where the redshift puts them |
+| --- | --- | --- |
+| 3C 273 | 0.158 | He I 1.083 µm with Paschen γ at 1.25 µm (×1.4, 6.9σ), Paschen α at 2.17 µm (×1.2, 4.5σ): the "possible line at 2.17 µm" of the reading at rest |
+| PG 1634+706 | 1.337 | H α at 1.53 µm (×3.1, 96σ), H β with [O III] at 1.14 µm (11σ), He I at 2.53 µm (20σ), Paschen α at 4.38 µm (11σ) |
+| APM 08279+5255 | 3.911 | H α at 3.22 µm (×2.5, 98σ), H β at 2.39 µm (11σ), C IV at 0.76 µm (6.6σ), C III] at 0.94 µm (5.3σ) |
+| SDSS J0100+2802 | 6.327 | H α at 4.81 µm (×2.1, 4.4σ), the only line, so the confidence is moderate |
+
+#### Reference wavelengths
+
+`web/linelist.js` holds every wavelength the reading looks at, with the
+source of each, and nothing else in the reading uses a wavelength. Under the
+reading, "Reference wavelengths" opens a table with one row per band or
+line: its name, species and transition, the reference wavelength (and where
+the redshift puts it), what the curve shows there (found with its strength
+and significance, possible, not seen, not separated from a neighbour, no
+usable points), and the source. The full references follow the table.
+
+| Kind | Entries | Source |
+| --- | --- | --- |
+| Atomic lines (25: H I Lyman α, Balmer α and β, Paschen α to δ, Brackett α to δ, Pfund β to δ; He I 1.0833 and 2.0587 µm; [S III] 0.9071 and 0.9533 µm; [Fe II] 1.2570 and 1.6440 µm; [O III] 0.4960 and 0.5008 µm; Mg II, C III], C IV) | Vacuum wavelengths, Ritz values where given, to 0.01 nm | NIST Atomic Spectra Database, version 5.12 (Kramida, Ralchenko, Reader and NIST ASD Team 2024, doi:10.18434/T4W30F), read on 2026-11-14 |
+| Water vapour bands (1.38, 1.88, 2.7 µm), methane ν₃ (3.31 µm) | Band positions | HITRAN2020 (Gordon et al. 2022, JQSRT 277, 107949); the bands in M, L and T dwarfs: Cushing, Rayner and Vacca 2005, ApJ 623, 1115 |
+| Water ice (3.05 µm), carbon dioxide (4.27 µm) | Band positions | Boogert, Gerakines and Whittet 2015, ARA&A 53, 541; Gibb et al. 2004, ApJS 151, 35 |
+| PAH band (3.29 µm) | Band position | Tielens 2008, ARA&A 46, 289 |
+
+The atomic wavelengths were read from the NIST database on the date given
+and the hydrogen lines are checked in the tests against the Rydberg formula
+(they agree to 0.002 %). A band seen at a resolving power of 40 has no single
+wavelength: the catalogue gives the position the literature quotes to
+0.01 µm, and the windows in which the band and its continuum are measured,
+which are ours. The bibliographic details of the five papers were checked
+against Crossref on 2026-11-14. The air wavelengths familiar from optical
+spectra (H α 6563 Å, [O III] 5007 Å) are not used: SPHEREx wavelengths are
+in vacuum (H α 0.65646 µm, [O III] 0.50082 µm).
 
 In Simple mode one plain sentence of the reading is shown beside the
 pictures ("What its light says"), and only when the reading names something
