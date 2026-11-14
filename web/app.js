@@ -335,6 +335,66 @@ function loadCatalogs() {
   ovStatus();
 }
 
+/* A motion on the sky from its two parts (mas/yr, east and north) and their errors: speed, direction as
+   the position angle (from north through east), and how far the speed stands above zero. Below 3σ
+   the motion is not told from none, and it has no direction. */
+function motionOf(pmra, pmdec, eRa, eDec) {
+  const pm = Math.hypot(pmra, pmdec), known = eRa != null && eDec != null && pm > 0;
+  const err = known ? Math.hypot(pmra * eRa, pmdec * eDec) / pm : null;
+  const snr = err ? pm / err : null;
+  return {pm, err, snr, pa: (Math.atan2(pmra, pmdec) * 180 / Math.PI + 360) % 360,
+          paErr: known ? Math.hypot(pmdec * eRa, pmra * eDec) / (pm * pm) * 180 / Math.PI : null, real: snr == null || snr >= 3};
+}
+const angle = (deg, err) => `${deg.toFixed(err != null && err < 1 ? 1 : 0)}°`;
+const compass = (pa) => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(pa / 45) % 8];
+/* (i) notes: shown on hover and focus; a tap toggles them where there is no hover */
+const closeTips = () => { for (const t of document.querySelectorAll(".tip.open")) t.classList.remove("open"); };
+function wireTip(t) {
+  t.querySelector(".tipbtn").addEventListener("click", (ev) => {
+    ev.stopPropagation(); const open = t.classList.contains("open"); closeTips();
+    if (open) ev.currentTarget.blur(); else t.classList.add("open");
+  });
+}
+/* The (i) of a measured object: where its light was centred in each exposure, as a small chart of the
+   sky (north up, east left, arcsec from the middle of the fitted track; early positions faint, late
+   ones bright), with the fitted motion as an arrow and the catalogue's as a dashed one. */
+function trackTip(s) {
+  const fit = s.track, m = s.motion, dets = s.detections, cosd = Math.cos(fit.dec * Math.PI / 180);
+  const yrs = dets.map((d) => yearOf(d.mjd)), t0 = Math.min(...yrs), t1 = Math.max(...yrs), half = (t1 - t0) / 2;
+  const [ra0, dec0] = moved(fit, t0 + half);
+  const off = (ra, dec) => [((ra - ra0 + 540) % 360 - 180) * cosd * 3600, (dec - dec0) * 3600];
+  const pts = dets.map((d, i) => [...off(d.ra, d.dec), half ? (yrs[i] - t0) / (t1 - t0) : 1]);
+  const a = off(...moved(fit, t0)), b = off(...moved(fit, t1));
+  const c = s.pmra != null && s.pmdec != null ? [s.pmra / 1000 * half, s.pmdec / 1000 * half] : null;
+  // the chart holds 97 % of the positions and both arrows; a stray position does not shrink the rest
+  const far = pts.map((p) => Math.hypot(p[0], p[1])).sort((x, y) => x - y);
+  const R = Math.max(0.5, far[Math.floor(0.97 * (far.length - 1))], m.real ? Math.hypot(...a) : 0, c ? Math.hypot(...c) : 0) * 1.2;
+  const N = 220, k = (N / 2 - 14) / R, X = (e) => (N / 2 - e * k).toFixed(1), Y = (n) => (N / 2 - n * k).toFixed(1);
+  const arrow = (p, q, cls) => {
+    const dx = (p[0] - q[0]) * k, dy = (p[1] - q[1]) * k, len = Math.hypot(dx, dy);
+    if (len < 6) return "";
+    const ux = dx / len, uy = dy / len, hx = +X(q[0]), hy = +Y(q[1]), w = 4, l = 8;
+    return `<line class="${cls}" x1="${X(p[0])}" y1="${Y(p[1])}" x2="${(hx - ux * l * 0.6).toFixed(1)}" y2="${(hy - uy * l * 0.6).toFixed(1)}"/>` +
+      `<path class="${cls} head" d="M${hx} ${hy}L${(hx - ux * l - uy * w).toFixed(1)} ${(hy - uy * l + ux * w).toFixed(1)}L${(hx - ux * l + uy * w).toFixed(1)} ${(hy - uy * l - ux * w).toFixed(1)}Z"/>`;
+  };
+  const bar = [50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1].find((v) => v <= R * 0.6) || 0.1;
+  const svg = `<svg class="trackplot" viewBox="0 0 ${N} ${N}" width="${N}" height="${N}" role="img">` +
+    `<path class="axis" d="M${N / 2} 12V${N - 12}M12 ${N / 2}H${N - 12}"/>` +
+    pts.filter((p) => Math.hypot(p[0], p[1]) <= R).map((p) => `<circle class="dot" cx="${X(p[0])}" cy="${Y(p[1])}" r="2" fill-opacity="${(0.25 + 0.75 * p[2]).toFixed(2)}"/>`).join("") +
+    (c ? arrow([-c[0], -c[1]], c, "cat") : "") + (m.real ? arrow(a, b, "fit") : "") +
+    `<text x="${N / 2}" y="10" text-anchor="middle">N</text><text x="3" y="${N / 2 + 4}">E</text>` +
+    `<path class="bar" d="M12 ${N - 8}h${(bar * k).toFixed(1)}"/><text x="${(16 + bar * k).toFixed(1)}" y="${N - 4}">${bar}″</text></svg>`;
+  const tip = document.createElement("div"), btn = document.createElement("button"), body = document.createElement("div");
+  tip.className = "tip"; btn.type = "button"; btn.className = "tipbtn"; btn.setAttribute("aria-label", tr("track.plot", {name: s.name}));
+  btn.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg>';
+  body.className = "tipbody"; body.setAttribute("role", "tooltip");
+  body.innerHTML = svg;
+  body.firstChild.setAttribute("aria-label", tr("track.plot", {name: s.name}));
+  const drawn = [m.real ? "track.plot.fit" : "track.plot.nofit", ...(c && body.querySelector(".cat") ? ["track.plot.cat"] : [])].map((key) => tr(key)).join(" ");
+  for (const line of [tr("track.plot.a") + " " + drawn, tr("track.plot.b")]) { const p = document.createElement("p"); p.textContent = line; body.appendChild(p); }
+  tip.append(btn, body); wireTip(tip);
+  return tip;
+}
 /* Objects the team has measured in this field (optional: the server may have no database). */
 async function loadTracks() {
   const id = S.loadId;
@@ -351,18 +411,34 @@ async function loadTracks() {
     $("tracklist").innerHTML = "";
     for (const s of d.sources) {
       const dt = document.createElement("dt"), dd = document.createElement("dd"), fit = s.track;  // not "tr": that is the translator
-      dt.textContent = s.name;
+      dt.className = "headtip"; dt.append(s.name);
       const sum = (fit && fit.summary) || {}, lc = sum.light_curve || {}, more = sum.track || {};
       const rows = [[s.kind.replace(/_/g, " "), tr(s.detections.length === 1 ? "track.pos" : "track.poss", {n: s.detections.length}) + (more.span_years ? tr("track.span", {y: more.span_years.toFixed(1)}) : "")]];
       if (fit) {
-        const pm = Math.hypot(fit.pmra, fit.pmdec), cat = s.pmra != null && s.pmdec != null ? Math.hypot(s.pmra, s.pmdec) : null;
-        const err = fit.pmra_err != null && fit.pmdec_err != null && pm ? Math.hypot(fit.pmra * fit.pmra_err, fit.pmdec * fit.pmdec_err) / pm : null;
-        rows.push([tr("track.motion"), `${(pm / 1000).toFixed(2)}${err != null ? " ± " + (err / 1000).toFixed(2) : ""}″/yr`]);
-        if (cat != null) rows.push([tr("track.cat"), `${(cat / 1000).toFixed(2)}″/yr`]);
+        const m = s.motion = motionOf(fit.pmra, fit.pmdec, fit.pmra_err, fit.pmdec_err), as = (v, e) => (v / 1000).toFixed(e != null && e < 50 ? 3 : 2);
+        const part = (v, e) => `${v < 0 ? "−" : "+"}${as(Math.abs(v), e)}${e != null ? " ± " + as(e, e) : ""}″/yr`;
+        if (m.real) {
+          rows.push([tr("track.motion"), `${as(m.pm, m.err)}${m.err != null ? ` ± ${as(m.err, m.err)}″/yr (${m.snr.toFixed(m.snr < 10 ? 1 : 0)}σ)` : "″/yr"}`, "track.motion.t"]);
+          rows.push([tr("track.dir"), `PA ${angle(m.pa, m.paErr)}${m.paErr != null ? " ± " + angle(m.paErr, m.paErr) : ""} · ${compass(m.pa)}`, "track.dir.t"]);
+        } else {
+          rows.push([tr("track.motion"), tr("track.nomotion"), "track.motion.t"]);
+          rows.push([tr("track.limit"), tr("track.below", {v: as(m.pm + 3 * m.err, m.err)}), "track.limit.t"]);
+        }
+        rows.push(["μα*", part(fit.pmra, fit.pmra_err), "track.pmra.t", !m.real], ["μδ", part(fit.pmdec, fit.pmdec_err), "track.pmdec.t", !m.real]);
+        if (s.pmra != null && s.pmdec != null) {
+          const c = motionOf(s.pmra, s.pmdec);
+          rows.push([tr("track.cat"), `${as(c.pm, m.err)}″/yr` + (c.pm > 0 ? ` · PA ${angle(c.pa, m.real ? m.paErr : null)} · ${compass(c.pa)}` : ""), "track.cat.t"]);
+        }
         if (fit.rms_arcsec != null) rows.push([tr("track.scatter"), `rms ${fit.rms_arcsec.toFixed(2)}″`]);
+        if (s.detections.length > 1) dt.appendChild(trackTip(s));
       } else if (!s.detections.length) rows.push(["", tr("track.none")]);
       if (lc.amplitude != null) rows.push([tr("track.light"), tr(lc.variable ? "track.varies" : "track.steady", {a: lc.amplitude.toFixed(2), s: lc.significance.toFixed(1)})]);
-      for (const [k, v] of rows) { const p = document.createElement("span"), b = document.createElement("b"); b.textContent = k; p.append(b, v); dd.appendChild(p); }
+      for (const [k, v, note, dim] of rows) {
+        const p = document.createElement("span"), b = document.createElement("b"); b.textContent = k; p.append(b, v);
+        if (note) p.dataset.hint = note;
+        if (dim) p.className = "dim";
+        dd.appendChild(p);
+      }
       $("tracklist").append(dt, dd);
     }
     // nothing measured at the target yet: offer to measure it
@@ -647,6 +723,17 @@ function drawOverlays(ctx, cv) {
       const [x, y] = toPixel(...moved(model, yr), cv);
       if (!inside(x, y)) continue;
       if (!now.length) line(M, 1, () => diamond(x, y, 4 * u));
+      if (s.track && s.motion && s.motion.real) {
+        // where it is heading: an arrow from the object, along the fitted motion as it lies on this image
+        const [ra, dec] = moved(model, yr), q = 30 / 3600 / s.motion.pm;
+        const [px, py] = toPixel(ra + s.track.pmra * q / Math.cos(dec * Math.PI / 180), dec + s.track.pmdec * q, cv);
+        const n = Math.hypot(px - x, py - y) || 1, ux = (px - x) / n, uy = (py - y) / n, r0 = 12 * u, r1 = 40 * u, h = 7 * u;
+        line(M, 1.5, () => {
+          ctx.moveTo(x + ux * r0, y + uy * r0); ctx.lineTo(x + ux * r1, y + uy * r1);
+          ctx.moveTo(x + ux * (r1 - h) - uy * h * 0.6, y + uy * (r1 - h) + ux * h * 0.6); ctx.lineTo(x + ux * r1, y + uy * r1);
+          ctx.lineTo(x + ux * (r1 - h) + uy * h * 0.6, y + uy * (r1 - h) - ux * h * 0.6);
+        });
+      }
       text(s.name, x + 11 * u, y + 16 * u, M);
     }
   }
@@ -1100,12 +1187,7 @@ function init() {
   cv.addEventListener("mousemove", (ev) => { if (!S.meta) return; const [ra, dec] = toSky(...pos(ev), cv); $("cursor").classList.remove("hint"); $("cursor").textContent = `${ra.toFixed(5)}° ${dec >= 0 ? "+" : "−"}${Math.abs(dec).toFixed(5)}°` + (S.field ? ` · ${cellAt(ra, dec)}` : ""); });
   cv.addEventListener("mouseleave", hint);
   cv.addEventListener("dblclick", (ev) => { if (!S.meta) return; const [ra, dec] = toSky(...pos(ev), cv); $("q").value = `${ra.toFixed(5)} ${dec >= 0 ? "+" : ""}${dec.toFixed(5)}`; if (S.levels) $("fov").value = 8; load({ra, dec, byCoords: true, target: null, ...(S.levels ? {levels: 0, fov: 8} : {})}); });
-  // (i) notes: shown on hover and focus; a tap toggles them where there is no hover
-  const closeTips = () => { for (const t of document.querySelectorAll(".tip.open")) t.classList.remove("open"); };
-  for (const t of document.querySelectorAll(".tip")) t.querySelector(".tipbtn").addEventListener("click", (ev) => {
-    ev.stopPropagation(); const open = t.classList.contains("open"); closeTips();
-    if (open) ev.currentTarget.blur(); else t.classList.add("open");
-  });
+  for (const t of document.querySelectorAll(".tip")) wireTip(t);
   document.addEventListener("click", closeTips);
   document.addEventListener("click", (ev) => { if (!$("searcherr").hidden && !ev.target.closest("#search")) searchError(""); });
   document.addEventListener("keydown", (ev) => {
