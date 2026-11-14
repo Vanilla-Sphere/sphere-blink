@@ -174,3 +174,37 @@ def test_the_numbers():
     assert [c["n"] > 0 for c in cells] == [True] * 3 and cells[0]["share"] == pytest.approx(0.9, abs=0.04)
     assert cells[2]["share"] < 0.05 and cells[0]["low"] < cells[0]["share"] < cells[0]["high"]
     assert mc.half_point(rows[:10]) is None
+
+
+def test_the_result_file_of_the_viewer_holds_together():
+    import json
+    from pathlib import Path
+
+    web = Path(__file__).resolve().parent.parent / "web"
+    page = (web / "index.html").read_text()
+    assert "completeness.js" in page and "completeness.css" in page and "data-completeness" in page
+    d = json.loads((web / "data" / "mover-completeness.json").read_text())
+    assert d["all"]["fakes"] >= 1000 and set(d["fields"]) == {"sparse", "medium", "crowded"}
+    for part in [d["all"], *d["fields"].values()]:
+        assert part["observable"] <= part["fakes"]
+        for level in ("found", "strong"):
+            for c in part[level]["curve"]:
+                assert 0 <= c["found"] <= c["n"] and (c["share"] is None or c["low"] <= c["share"] <= c["high"])
+            assert len(part[level]["grid"]) == len(d["rate_edges"]) - 1
+            assert all(len(row) == len(d["v_coarse"]) - 1 for row in part[level]["grid"])
+        # the stronger evidence is never met more often than the weaker
+        assert sum(c["found"] for c in part["strong"]["curve"]) <= sum(c["found"] for c in part["found"]["curve"])
+    # bright fakes are mostly found, the faintest are not: the measurement spans the limit
+    curve = d["all"]["found"]["curve"]
+    assert curve[0]["share"] > 0.7 and curve[-1]["share"] < 0.05
+
+
+def test_an_asteroid_glows_where_the_long_bands_look():
+    # below 3 micron an asteroid of the main belt is reflected sunlight; at 4.6 micron its own heat is most of it
+    assert mc.heat_share(1.2) < 1e-6 and mc.heat_share(3.0) < 0.02
+    assert 2.0 < mc.heat_share(4.6) < 6.0 and mc.heat_share(5.0) > mc.heat_share(4.6) > mc.heat_share(4.0) > 0.2
+    assert mc.flux_mjy(18.0, 1.2, "asteroid") == pytest.approx(mc.flux_mjy(18.0, 1.2, "sun"), rel=1e-5)
+    assert mc.flux_mjy(18.0, 4.6, "asteroid") / mc.flux_mjy(18.0, 4.6, "sun") == pytest.approx(1 + mc.heat_share(4.6))
+    # closer to the Sun it is warmer, and a dark body reflects less: both give heat a larger share
+    assert mc.heat_share(4.6, r_au=2.2) > mc.heat_share(4.6) > mc.heat_share(4.6, r_au=3.2)
+    assert mc.heat_share(4.6, albedo=0.05) > mc.heat_share(4.6)

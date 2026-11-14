@@ -17,6 +17,8 @@ as static files.
 | `data/quasar-template.json` | 18 KB | The mean quasar spectrum from 0.1 to 3.5 µm at rest (Selsing et al. 2016, Glikman et al. 2006), loaded with the first spectrum that is read for lines |
 | `data/redshift.json` | 600 KB | 10 037 galaxies and quasars with a spectroscopic redshift (SIMBAD), loaded when the redshift layer is first used |
 | `movers.js` | about 240 lines | Moving objects found by the blind search: the card of a field, the paths on the image, votes, follow, and the "Discoveries" list |
+| `completeness.js`, `completeness.css` | about 150 and 40 lines | "How much the search finds" at the end of the Discoveries page: three figures, a chart of the share of fake objects found against brightness (one line per test field, hover for the numbers), and the same numbers as tables. Reads `data/mover-completeness.json`; asks the server for nothing else |
+| `data/mover-completeness.json` | 30 KB | The result of the injection test of the blind search (`scripts/mover_completeness.py report`, [how much the search finds](mover-completeness.md)) |
 | `exports.js` | about 230 lines | What a researcher takes away: the plot's points as CSV, the plot as PNG with the credit, the "Source files" panel listing the Level 2 exposures with their IRSA links, its download script, URL list and table, and the "About the data" page |
 | `showcase.js` | about 20 lines | The strip "What you can do here" of the first screen: six cards (`.do`, markup in `index.html`), each opening a live example through functions the other files already have (`openFeatured`, `setLog`, `setDepthPanel`, `setAbout`); it also sets the class `moving` on the map screen while the map is dragged or zoomed, which hides the strip until the visitor stops |
 | `linelist.js` | about 110 lines | `LINE_CATALOG`: the reference wavelengths of the reading, 25 atomic lines (vacuum, NIST ASD 5.12) and 7 bands of molecules, ices and dust, each with its source, and the full references. Data only |
@@ -28,7 +30,7 @@ as static files.
 | `data/sky.json` | - | Compact star chart: stars, names, constellations, Milky Way, boundary grid |
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
-Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `linelist.js`, `insight.js`, `redshift.js`, `depth.js`, `showcase.js`, `app.js`.
+Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `completeness.js`, `linelist.js`, `insight.js`, `redshift.js`, `depth.js`, `showcase.js`, `app.js`.
 Asset URLs carry a version query (`?v=53`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a

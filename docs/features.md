@@ -712,6 +712,9 @@ asteroid or comet. Visitors can say whether a path looks real
 (`POST /api/movers/{id}/vote`), without an account. The algorithm, its
 validation on 3I/ATLAS and twelve asteroid tracks, and its limits are in
 [moving objects](moving-objects.md).
+How much of what moves the search finds was measured with fake objects in
+real exposures: [how much the search finds](mover-completeness.md). The
+result is shown at the end of the Discoveries page (`web/completeness.js`).
 
 In the viewer (Advanced, `web/movers.js`):
 

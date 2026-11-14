@@ -53,10 +53,15 @@ def load(name: str, root: Path) -> dict:
 
 
 def searcher(kind: str):
-    """The search under test: ``movers`` (the one on the site), ``stack`` (shift and stack alone) or
-    ``both`` (the paths of the two, as the site would list them)."""
+    """The search under test: ``movers`` (the one on the site), ``stack`` (shift and stack alone),
+    ``both`` (the paths of the two, as the site would list them) or ``module:function``."""
     if kind == "movers":
         return lambda cube, frames, wcs, scale: movers.search(cube, frames, wcs, scale, trials=0)
+    if ":" in kind:  # any other function with that input, as module:function (a variant of the search under study)
+        import importlib
+
+        module, name = kind.split(":", 1)
+        return getattr(importlib.import_module(module), name)
     from sphereblink import mover_stack
 
     if kind == "stack":
@@ -102,7 +107,11 @@ def _round(job: tuple) -> dict:
     seed = zlib.crc32(f"{f['name']}:{index}".encode())
     rng = np.random.default_rng(seed)
     grid = f["grid"]
-    fakes = mc.draw(f["frames"], grid.wcs, grid.npix, count, rng, v_mag=v_mag, rate=rate, spectrum=spectrum)
+    fakes = mc.draw(f["frames"], grid.wcs, grid.npix, count, rng, v_mag=v_mag, rate=rate,
+                    spectrum="asteroid" if spectrum == "mixed" else spectrum)
+    if spectrum == "mixed":  # every second fake is a body without heat of its own
+        for fake in fakes[1::2]:
+            fake.spectrum = "sun"
     t0 = time.time()
     out = mc.trial(f["cube"], f["frames"], grid.wcs, grid.scale_arcsec, fakes, search=searcher(kind), seed=seed,
                    noise=f.get("noise"), baseline=f.get("baseline"))
@@ -171,8 +180,9 @@ def main() -> None:
     s.add_argument("--fakes", type=int, default=12, help="fakes per round")
     s.add_argument("--vmag", type=float, nargs=2, default=(15.5, 19.8))
     s.add_argument("--rate", type=float, nargs=2, default=(2.0, 400.0), help="arcsec per hour")
-    s.add_argument("--spectrum", default="sun", choices=("sun", "flat"))
-    s.add_argument("--search", default="movers", choices=("movers", "stack", "both"))
+    s.add_argument("--spectrum", default="mixed", choices=("mixed", "asteroid", "sun", "flat"),
+                   help="mixed: asteroids (sunlight and their own heat) and bodies without heat, half and half")
+    s.add_argument("--search", default="movers", help="movers, stack, both, or module:function of another search")
     s.add_argument("--tag", default="", help="name of the result file when it is not the search's")
     s.add_argument("--procs", type=int, default=min(4, os.cpu_count() or 1))
     s = sub.add_parser("shuffle")
@@ -180,7 +190,7 @@ def main() -> None:
     s.add_argument("--trials", type=int, default=50)
     s = sub.add_parser("report")
     s.add_argument("fields", nargs="+")
-    s.add_argument("--search", default="movers")
+    s.add_argument("--search", default="movers", help="the search, or the tag, of the result files to read")
     s.add_argument("--out", type=Path, default=Path("web/data/mover-completeness.json"))
     s.add_argument("--plot", type=Path, default=None)
     s.add_argument("--made", default=time.strftime("%Y-%m-%d"), help="date of the measurement")

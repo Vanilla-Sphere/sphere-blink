@@ -26,7 +26,7 @@ MIN_TIMES = movers.CANDIDATE_TIMES
 # The fields of the measurement: what a visitor would call them, and where they are.
 FIELDS = {
     "sparse": {"label": "Few stars", "where": "Leo, 57° from the plane of the Milky Way"},
-    "medium": {"label": "More stars", "where": "Ophiuchus, 21° from the plane"},
+    "medium": {"label": "More stars", "where": "Ophiuchus, 20° from the plane"},
     "crowded": {"label": "Crowded", "where": "around Barnard's star, 14° from the plane"},
 }
 
@@ -61,6 +61,7 @@ def _limits(rows: list[dict], level: str) -> dict:
     # where the curve has fallen to half of its plateau, and to nine tenths of it
     out["half_of_plateau"] = round(fit["mid"], 2)
     out["nine_tenths_of_plateau"] = round(fit["mid"] - fit["width"] * math.log(9.0), 2)
+    out["half_mjy"] = round(float(mc.flux_mjy(fit["mid"], 1.24, "sun")), 3)  # that magnitude as flux at 1.24 micron
     return out
 
 
@@ -83,8 +84,8 @@ def _lost(rows: list[dict], level: str = "found") -> dict:
     return out
 
 
-def summarise(rounds: list[dict]) -> dict:
-    rows = [r for t in rounds for r in t["fakes"]]
+def summarise(rounds: list[dict], spectrum: str | None = None) -> dict:
+    rows = [r for t in rounds for r in t["fakes"] if spectrum is None or r.get("spectrum", "sun") == spectrum]
     use = [r for r in rows if r["times"] >= MIN_TIMES]
     out = {"rounds": len(rounds), "fakes": len(rows), "observable": len(use),
            "seen_too_briefly": len(rows) - len(use),
@@ -122,31 +123,44 @@ def summarise(rounds: list[dict]) -> dict:
 
 
 def build(args) -> None:
-    fields, every = {}, []
+    fields, cold_fields, every = {}, {}, []
     shuffled = {"searches": 0, "paths": 0}
-    for name in args.fields:
-        rounds = _rounds(args.dir / f"{name}.{args.search}.jsonl")
+    loaded = {name: _rounds(args.dir / f"{name}.{args.search}.jsonl") for name in args.fields}
+    kinds = {r.get("spectrum", "sun") for rounds in loaded.values() for t in rounds for r in t["fakes"]}
+    main = "asteroid" if "asteroid" in kinds else "sun"  # what the figures are about; bodies without heat come second
+    for name, rounds in loaded.items():
         if not rounds:
             continue
         every += rounds
         meta = json.loads((args.dir / f"{name}.json").read_text())
         f = {**FIELDS.get(name, {"label": name, "where": ""}), "ra": round(meta["grid"]["ra"], 3), "dec": round(meta["grid"]["dec"], 3),
-             "exposures": len(meta["frames"]), **summarise(rounds)}
+             "exposures": len(meta["frames"]), **summarise(rounds, main)}
         stats = rounds[0].get("stats", {})
         f["masked_fraction"] = stats.get("masked_fraction")
         sh = _rounds(args.dir / f"{name}.shuffle.jsonl")
-        f["shuffled"] = {"searches": len(sh), "paths": int(sum(s["tracks"] for s in sh))}
+        f["shuffled"] = {"searches": len(sh), "paths": int(sum(s["tracks"] for s in sh)),
+                         "candidates": int(sum(s.get("candidates", 0) for s in sh))}
         shuffled["searches"] += len(sh)
         shuffled["paths"] += f["shuffled"]["paths"]
         fields[name] = f
+        if main != "sun" and "sun" in kinds:
+            c = summarise(rounds, "sun")
+            cold_fields[name] = {"fakes": c["fakes"], "observable": c["observable"],
+                                 **{level: {"curve": c[level]["curve"], "limits": c[level]["limits"]} for level in ("found", "strong")}}
     out = {
         "search": args.search, "version": movers.VERSION, "made": args.made,
-        "fake": {"spectrum": "sun", "v_mag": [V_EDGES[0], V_EDGES[-1]], "rate_arcsec_h": [RATE_EDGES[0], RATE_EDGES[-1]],
-                 "min_times": MIN_TIMES, "bright_below": BRIGHT},
+        "fake": {"spectrum": main, "v_mag": [V_EDGES[0], V_EDGES[-1]], "rate_arcsec_h": [RATE_EDGES[0], RATE_EDGES[-1]],
+                 "min_times": MIN_TIMES, "bright_below": BRIGHT, "asteroid": mc.ASTEROID},
         "v_edges": V_EDGES, "v_coarse": V_COARSE, "rate_edges": RATE_EDGES,
-        "all": summarise(every), "fields": fields, "real": REAL,
+        "all": summarise(every, main), "fields": fields, "real": REAL,
         "shuffled": {**shuffled, "limit_95": round(mc.upper_limit(shuffled["paths"], shuffled["searches"]), 4) if shuffled["searches"] else None},
     }
+    if cold_fields:
+        c = summarise(every, "sun")
+        out["cold"] = {"all": {"fakes": c["fakes"], "observable": c["observable"],
+                               **{level: {"curve": c[level]["curve"], "limits": c[level]["limits"], "grid": c[level]["grid"]}
+                                  for level in ("found", "strong")}},
+                       "fields": cold_fields}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(out, separators=(",", ":")) + "\n")
     a = out["all"]
@@ -156,6 +170,8 @@ def build(args) -> None:
     for name, f in fields.items():
         print(f"  {name}: found {f['found']['limits']}  strong {f['strong']['limits']}  others {f['other_paths']}  shuffled {f['shuffled']}")
     print(f"  shuffled: {out['shuffled']}  accuracy: {a.get('accuracy')}")
+    if "cold" in out:
+        print(f"  without heat: found {out['cold']['all']['found']['limits']}  strong {out['cold']['all']['strong']['limits']}")
     if args.plot:
         from mover_completeness_plot import draw
 

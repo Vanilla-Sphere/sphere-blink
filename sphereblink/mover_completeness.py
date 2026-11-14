@@ -45,6 +45,7 @@ from __future__ import annotations
 import math
 import zlib
 from dataclasses import asdict, dataclass
+from functools import lru_cache
 
 import numpy as np
 from scipy.special import erf
@@ -67,6 +68,15 @@ STAMP = 4  # pixels on each side of the object's place that a fake may reach
 SUN_COLOUR = ((0.55, 0.0), (0.75, -0.26), (0.90, -0.28), (1.24, -0.26), (1.65, -0.14), (2.16, 0.28), (3.37, 1.12),
               (4.62, 1.77), (5.20, 1.98))
 AB_ZERO_MJY = 3631.0e3
+SUN_V_AB = -26.77  # apparent magnitude of the Sun in V (AB), from its absolute magnitude 4.80 (same table)
+
+# An asteroid also glows with its own heat, and beyond 3.5 micron that is most of what SPHEREx sees of it. The
+# spectrum ``asteroid`` adds the heat of a typical body of the main belt to the reflected sunlight, with the
+# standard model for it (NEATM, Harris 1998): distance from the Sun, visual albedo, beaming parameter, emissivity
+# and the slope parameter G of the phase curve. SPHEREx looks 90 degrees away from the Sun, which fixes the phase
+# angle (sin = 1 / distance). Checked on the asteroids the search found (docs/mover-completeness.md).
+ASTEROID = {"r_au": 2.7, "albedo": 0.15, "eta": 1.0, "emissivity": 0.9, "slope_g": 0.15}
+SOLAR_CONSTANT = 1361.0  # W / m2 at 1 au
 
 MATCH_ARCSEC = 20.0  # a returned path this close to the fake's place, at the path's own reference time,
 MATCH_RATE = 0.15  # with the motion within this share of the speed (or MATCH_RATE_MIN), is the fake
@@ -102,16 +112,62 @@ class Fake:
 
 
 # ----------------------------------------------------------------------------- brightness
-def flux_mjy(v_mag: float, wave_um, spectrum: str = "sun") -> np.ndarray:
-    """Flux density, in mJy, of an object of visual magnitude ``v_mag`` at a wavelength."""
+def _sun_colour(wave_um) -> np.ndarray:
     w = np.asarray(wave_um, dtype=float)
-    colour = np.zeros_like(w)
-    if spectrum == "sun":
-        lw = np.log([p[0] for p in SUN_COLOUR])
-        colour = np.interp(np.log(np.clip(w, SUN_COLOUR[0][0], SUN_COLOUR[-1][0])), lw, [p[1] for p in SUN_COLOUR])
-    elif spectrum != "flat":
-        raise ValueError("spectrum is 'sun' or 'flat'")
-    return AB_ZERO_MJY * 10.0 ** (-0.4 * (v_mag + colour))
+    lw = np.log([p[0] for p in SUN_COLOUR])
+    return np.interp(np.log(np.clip(w, SUN_COLOUR[0][0], SUN_COLOUR[-1][0])), lw, [p[1] for p in SUN_COLOUR])
+
+
+@lru_cache(maxsize=8)
+def _heat_table(r_au: float, albedo: float, eta: float, emissivity: float, slope_g: float) -> tuple:
+    """Heat over reflected sunlight, on a grid of wavelengths, for an asteroid seen 90 degrees from the Sun."""
+    h, c, k, sigma = 6.62607e-34, 2.99792e8, 1.38065e-23, 5.67037e-8
+    alpha = math.asin(min(1.0, 1.0 / r_au))  # phase angle
+    bond = (0.290 + 0.684 * slope_g) * albedo
+    t_ss = ((1.0 - bond) * SOLAR_CONSTANT / (eta * emissivity * sigma * r_au**2)) ** 0.25  # temperature under the Sun
+    # the sphere: the Sun along x, the observer turned from it by the phase angle
+    lat = (np.arange(90) + 0.5) / 90.0 * math.pi - math.pi / 2
+    lon = (np.arange(180) + 0.5) / 180.0 * 2 * math.pi
+    la, lo = np.meshgrid(lat, lon, indexing="ij")
+    area = np.cos(la) * (math.pi / 90.0) * (2 * math.pi / 180.0)
+    mu_sun = np.cos(la) * np.cos(lo)
+    mu_obs = np.cos(la) * np.cos(lo - alpha)
+    lit = (mu_sun > 0) & (mu_obs > 0)
+    temp = t_ss * mu_sun[lit] ** 0.25
+    waves = np.exp(np.linspace(math.log(0.6), math.log(5.6), 48))
+    ratio = np.empty_like(waves)
+    half = math.tan(alpha / 2.0)
+    phase = (1 - slope_g) * math.exp(-3.33 * half**0.63) + slope_g * math.exp(-1.87 * half**1.22)  # H, G phase curve
+    sun_v = 3631.0 * 1e-26 * 10.0 ** (-0.4 * SUN_V_AB)  # W / m2 / Hz at 1 au, in V
+    for i, w in enumerate(waves):
+        nu = c / (w * 1e-6)
+        planck = 2 * h * nu**3 / c**2 / np.expm1(np.minimum(h * nu / (k * temp), 700.0))
+        heat = emissivity * float(np.sum(planck * mu_obs[lit] * area[lit]))  # per (radius / distance) squared
+        mirror = albedo * phase * sun_v * 10.0 ** (-0.4 * float(_sun_colour(w))) / r_au**2
+        ratio[i] = heat / mirror
+    return tuple(np.log(waves)), tuple(ratio)
+
+
+def heat_share(wave_um, **body) -> np.ndarray:
+    """An asteroid's own heat at a wavelength, as a multiple of the sunlight it reflects there."""
+    lw, ratio = _heat_table(**{**ASTEROID, **body})
+    return np.interp(np.log(np.asarray(wave_um, dtype=float)), lw, ratio)
+
+
+def flux_mjy(v_mag: float, wave_um, spectrum: str = "sun") -> np.ndarray:
+    """Flux density, in mJy, of an object of visual magnitude ``v_mag`` at a wavelength.
+
+    ``sun``: reflected sunlight alone (a cold or distant body). ``asteroid``:
+    reflected sunlight and the heat of a body of the main belt. ``flat``:
+    the same flux density at every wavelength.
+    """
+    w = np.asarray(wave_um, dtype=float)
+    if spectrum == "flat":
+        return AB_ZERO_MJY * 10.0 ** (-0.4 * (v_mag + np.zeros_like(w)))
+    if spectrum not in ("sun", "asteroid"):
+        raise ValueError("spectrum is 'sun', 'asteroid' or 'flat'")
+    flux = AB_ZERO_MJY * 10.0 ** (-0.4 * (v_mag + _sun_colour(w)))
+    return flux * (1.0 + heat_share(w)) if spectrum == "asteroid" else flux
 
 
 # ----------------------------------------------------------------------------- what a point source looks like in a frame

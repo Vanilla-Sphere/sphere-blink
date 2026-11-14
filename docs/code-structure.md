@@ -25,6 +25,7 @@ sphere-blink/
 │   ├── mover_store.py      detections, moving objects and votes (local SQLite)
 │   ├── movers_api.py       search jobs and the /api/movers endpoints
 │   ├── known_objects.py    names of known asteroids and comets (SkyBoT, JPL)
+│   ├── mover_completeness.py  fake moving objects in real frames: what the search finds
 │   ├── distance.py         distance of a star, redshift of a galaxy, from catalogues
 │   └── main.py             FastAPI application: endpoints and static files
 ├── web/                    the viewer (static; see viewer.md)
@@ -68,6 +69,7 @@ of HTML, CSS and JavaScript in the viewer.
 | `movers_api.py` | 330 | Search jobs in a process of their own, started when a field completes; the four mover endpoints | `router`, `attach`, `start`, `run`, `free_mb` |
 | `distance.py` | 490 | What lies at a position and how far it is: SIMBAD, NED and Gaia lookups with fallbacks, the choice of the object, the Planck 2018 cosmology; no HTTP endpoint of its own | `lookup`, `simbad_cone`, `pick`, `ned_redshift`, `gaia_star`, `parallax_distance`, `cosmology` |
 | `known_objects.py` | 215 | Asks SkyBoT, then JPL, for the known objects of a field and matches tracks to them | `identify`, `match`, `parse_skybot`, `parse_jpl` |
+| `mover_completeness.py` | 330 | The injection test of the blind search: fake objects (path, brightness per wavelength, shape through detector pixels and resampling), their recovery, and the statistics; no HTTP, no storage; not used by the server | `Fake`, `flux_mjy`, `stamp`, `inject`, `draw`, `recover`, `trial`, `noise_maps`, `wilson`, `half_point` |
 | `main.py` | 397 | Application object, middleware, parameter handling, all other endpoints, epoch cache, static mount | `app`, `svc`, `fields` |
 
 ## Dependency rules
@@ -117,6 +119,7 @@ of HTML, CSS and JavaScript in the viewer.
 | `scripts/build_redshift.py` | Build `web/data/redshift.json`, the galaxies and quasars of the redshift layer, from SIMBAD (about 4 minutes) | `python scripts/build_redshift.py` |
 | `scripts/build_quasar_template.py` | Build `web/data/quasar-template.json`, the mean quasar spectrum the redshift estimate is compared with, from two composites in VizieR | `python scripts/build_quasar_template.py` |
 | `scripts/validate_redshift.py` | Check the redshift estimate (`web/redshift.js`) against published redshifts on bright quasars, and on stars and nearby galaxies, with a local engine | `python scripts/validate_redshift.py --keep DIR` |
+| `scripts/mover_completeness.py` (with `mover_completeness_report.py`, `mover_completeness_plot.py`) | Measure the completeness of the blind search with fake objects in real fields and write `web/data/mover-completeness.json` (hours of computing; see [how much the search finds](mover-completeness.md)) | `fetch`, `prepare`, `run`, `shuffle`, `report` |
 | `scripts/build_dev_site.sh` | Lay `web/` out as the static dev site (see [environments](environments.md)) | `sh scripts/build_dev_site.sh [output dir]` |
 | `scripts/wait_for_deploy.sh` | Wait until a site serves the viewer of the checkout, and on production until the engine has restarted; used by the UI tests after a merge (see [environments](environments.md#ui-tests-after-every-merge)) | `sh scripts/wait_for_deploy.sh https://site [engine]` |
 
@@ -144,6 +147,7 @@ stubbed HTTP clients, need no network, and finish in about three seconds.
 | `tests/test_resolve_names.py` | 12 | Name resolution paths: Sesame, mirrors, redirects, SIMBAD fallback, spellings, "not found" against "unavailable", no network for built-in targets |
 | `tests/test_redshift.py` | 38 | The redshift from the lines (`web/redshift.js`, run under Node by `tests/redshift_runner.js`): 13 real quasar spectra kept in `tests/data/redshift/` (eight with lines from z = 0.16 to 6.5 give their published redshift, four blazars and one with a single line give none), the star spectra of `tests/data/spectra/` give none, and made-up spectra (lines at five redshifts, bare continuum, one line, a flare at one visit, noise, flagged points) |
 | `tests/test_insight.py` | 24 | The preliminary reading of a spectrum (`web/insight.js`, run under Node by `tests/insight_runner.js`) and its reference wavelengths (`web/linelist.js`: every entry names a source, hydrogen lines agree with the Rydberg formula, every feature of a reading comes from the catalogue); four quasars read with their published redshift, a made-up redshifted source read with the right and a wrong redshift; 17 real spectra kept in `tests/data/spectra/` (brown dwarf, ices, planetary nebula, white dwarf, cold neighbour, cool star, quasar, extended galaxy, saturated stars, empty sky) and made-up curves (blackbodies, a power law, ice bands, emission lines, noise); no band or line from noise; nothing claimed from too few points. Skipped where Node is not installed |
+| `tests/test_mover_completeness.py` | 9 | The injection test: brightness by magnitude and spectrum; a fake holds its light and has the shape of a star; trails; fakes land where told and only in their pass; a bright fake is found and a faint one is not; any search with the same input is measured; the statistics; the result file the viewer reads |
 
 ```bash
 pip install -r requirements.txt pytest
