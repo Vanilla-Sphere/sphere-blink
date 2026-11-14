@@ -1077,6 +1077,7 @@ function mapHover(h) {
   const con = h.con ? h.con.la : "";
   $("mapread").innerHTML = `${h.ra.toFixed(2)}° ${h.dec >= 0 ? "+" : "−"}${Math.abs(h.dec).toFixed(2)}°` + (con ? ` · <i>${esc(con)}</i>` : "");
   if (h.pin) mapTag(h.x, h.y, `<b>${esc(h.pin.name)}</b><span>${esc(tr("kind." + h.pin.key))}</span>`);
+  else if (h.pole) mapTag(h.x, h.y, `<b>${esc(tr("map.pole." + h.pole))}</b><span class="more">${esc(tr("map.pole." + h.pole + ".more"))}</span>`);
   else if (h.star && (h.star.name || h.star.id)) {   // a star with a name or a designation; any other star keeps the note of its constellation
     const about = LORE.star[h.star.name], kind = h.star.mag <= 3 ? "map.star" : "map.star.faint";
     mapTag(h.x, h.y, `<b>${esc(h.star.name || h.star.id)}</b><span>${esc(con ? tr(kind, {con}) : tr(kind + ".none"))}</span>` + (about ? `<span class="more">${esc(about)}</span>` : ""));

@@ -76,6 +76,8 @@ const STR = {
     "map.aria": "Map of the whole sky. Drag to turn it, scroll to zoom, select a point to open it.",
     "map.star": "Bright star in {con}", "map.star.none": "Bright star",
     "map.star.faint": "Star in {con}", "map.star.faint.none": "Star",
+    "map.pole.n": "North celestial pole", "map.pole.n.more": "The whole sky turns around this point, right beside Polaris. The dashed line runs from here to the south pole.",
+    "map.pole.s": "South celestial pole", "map.pole.s.more": "The whole sky turns around this point. No bright star marks it. The dashed line runs from here to the north pole.",
     "map.open": "Opening…", "s.share": "Share",
     "map.in": "Zoom in", "map.out": "Zoom out", "map.reset": "Show the whole sky",
     "map.full": "Full screen: the map alone", "map.full.exit": "Leave full screen",
