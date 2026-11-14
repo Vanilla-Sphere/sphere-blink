@@ -5,7 +5,12 @@ services:
     region: virginia   # next to the SPHEREx bucket in AWS us-east-1
     plan: pro plus   # 4 CPU, 8 GB
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn sphereblink.main:app --host 0.0.0.0 --port $PORT
+    # One web process, always: views and progressive fields are tracked in
+    # its memory, and it starts SPHEREX_FETCH_PROCS processes of its own for
+    # the heavy work. Render sets WEB_CONCURRENCY to the CPU count, which
+    # uvicorn would read as "run 4 servers" - each then loads every view
+    # again and they answer the progress polls with different states.
+    startCommand: uvicorn sphereblink.main:app --host 0.0.0.0 --port $PORT --workers 1
     healthCheckPath: /api/health
     domains:
       - vanillasphere.com
@@ -13,6 +18,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
+      - key: WEB_CONCURRENCY
+        value: "1"
       - key: SPHEREX_CACHE_DIR
         value: /var/data/sphereblink
       # Read-only connection string of the measurement database (role

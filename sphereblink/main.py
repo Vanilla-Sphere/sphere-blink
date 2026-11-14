@@ -9,6 +9,7 @@ embedded elsewhere, e.g.
 from __future__ import annotations
 
 import json
+import os
 import struct
 import threading
 import time
@@ -142,9 +143,15 @@ BAND = Query(None, description="same as det, spelled RGB or D1..D6")
 
 
 # --------------------------------------------------------------------------- API
+# Views in progress live in this process, so the app must run as exactly one
+# web process. The id lets a deploy check that: it has to be the same on
+# every answer.
+INSTANCE = f"{os.getpid()}-{int(time.time())}"
+
+
 @app.get("/api/health")
 def health():
-    return {"ok": True, "collections": config.COLLECTIONS}
+    return {"ok": True, "collections": config.COLLECTIONS, "instance": INSTANCE}
 
 
 @app.get("/api/featured")
