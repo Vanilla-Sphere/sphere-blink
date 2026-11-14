@@ -88,8 +88,9 @@ noted.
 | `SPHEREX_KEEP_FEATURED` | `1` | default | After start, fetch the 8 arcmin views of the featured targets if they are not on disk; they are never evicted |
 | `SPHEREX_REQUEST_THREADS` | `160` | default | Threads that answer requests |
 | `SPHEREX_NAME_TTL_DAYS` | `30` | default | How long a resolved object name is kept on disk |
-| `SPHEREX_RATE_*`, `SPHEREX_MAX_*` | see [security](security.md#request-limits) | default | Request limits per caller |
-| `SPHEREX_ACTIVE_VIEWS` | `SPHEREX_FETCH_PROCS` | `4` | Views whose exposures are cut at the same time; the next ones wait in a queue. `0` removes the limit. Sized to the machine: see [performance](performance.md#how-many-jobs-at-once) |
+| `SPHEREX_RATE_*`, `SPHEREX_MAX_*` | see [security](security.md#request-limits) | default | Request limits per caller. The value without a row in the table `settings`: see [settings in the database](#settings-in-the-database) |
+| `SPHEREX_SETTINGS_REFRESH_S` | `30` | default | How often the table `settings` of the database is read, in seconds (5 at least) |
+| `SPHEREX_ACTIVE_VIEWS` | `SPHEREX_FETCH_PROCS` | `4` | Views whose exposures are cut at the same time; the next ones wait in a queue. `0` removes the limit. Sized to the machine: see [performance](performance.md#how-many-jobs-at-once). This one, the three below and `SPHEREX_RAM_BUDGET_MB` are the values without a row in the table `settings` |
 | `SPHEREX_ACTIVE_MB` | `1200` | `2400` | Frames (MB) the views being cut may hold in memory together; a wide field that does not fit waits for another to finish. `0` removes the limit |
 | `SPHEREX_QUEUE_PREVIEW` | `1` | default | A view in the queue gets its first four exposures at once; `0`: nothing before its turn |
 | `SPHEREX_MEASURE_PROCS` | `2` | `2` | Measurements running at the same time, each in a process of its own; the next ones wait in a queue |
@@ -109,6 +110,89 @@ noted.
 | `WEB_CONCURRENCY` | - | `1` | Must be 1 |
 | `PYTHON_VERSION` | - | `3.12.7` | Runtime version for the platform |
 
+### Settings in the database
+
+The limits somebody may want to turn during a busy hour are rows of the table
+`settings` in the team database: how many views and measurements the pipeline
+works on at a time, the memory their frames may take, how much may wait, and
+how much one caller may ask for. The server reads the table every 30 seconds
+(`sphereblink/settings.py`), so a changed value is in force within the minute,
+**without a deploy and without a restart** (a deploy takes the site down for
+about half a minute and forgets the views being gathered).
+
+To change a value, either
+
+- open the table `settings` in the Supabase table editor, change the cell
+  `value` of the row and save; or
+- run one statement in the SQL editor:
+
+  ```sql
+  update settings set value = 6 where key = 'active_views';
+  ```
+
+Then open [`/api/settings`](api-reference.md#get-apisettings): it lists every
+setting with the value in force, where it comes from and when the table was
+read last. The server's log has a line for every change
+(`settings: active_views is now 6 (was 4)`).
+
+| Row | Production | Range | What it limits |
+| --- | --- | --- | --- |
+| `active_views` | 4 | 1 to 8 | Views whose exposures are cut at the same time; the next ones wait in the queue |
+| `active_mb` | 2400 | 300 to 4000 | Memory (MB) the views being cut may fill with frames together |
+| `measure_procs` | 2 | 1 to 4 | Measurements running at the same time |
+| `queue_preview` | 1 | 0 or 1 | A view in the queue gets its first four exposures at once |
+| `ram_budget_mb` | 2000 | 300 to 4000 | Memory (MB) for the frames of views already gathered |
+| `max_jobs`, `max_jobs_per_client` | 96, 24 | 8 to 400, 4 to 96 | Views gathered or waiting at once: in all, and for one caller |
+| `max_fields_per_client` | 8 | 1 to 32 | Wide fields loading at once for one caller |
+| `max_measure_queue` | 12 | 2 to 48 | Measurements waiting or running |
+| `max_open_requests` | 32 | 8 to 128 | API calls being answered at once for one caller |
+| `rate_requests_per_s`, `rate_requests_burst` | 40, 1200 | 5 to 400, 100 to 12000 | API calls of one caller: sustained, and at once |
+| `rate_names_per_min` | 40 | 5 to 600 | Names one caller may send to the name services |
+| `rate_catalogs_per_min` | 60 | 5 to 600 | Catalogue and archive queries that go out for one caller |
+| `rate_tiles_per_s`, `rate_tiles_burst` | 100, 3000 | 10 to 1000, 200 to 30000 | Tiles of the sky photograph for one caller |
+| `rate_atlas_per_min` | 1200 | 60 to 6000 | Sky tiles the server fetches from the archive for one caller |
+| `rate_measures_per_hour`, `rate_measures_burst` | 30, 6 | 1 to 600, 1 to 60 | New measurements of one caller |
+
+What the table cannot do is take the server down:
+
+- **A value is only taken inside its range.** The ranges are written in the
+  code (`settings.SETTINGS`), next to the meaning of each row. The table
+  carries the same numbers in `min_value` and `max_value` and refuses a value
+  outside them at once, so whoever types it sees it; if that check is ever
+  removed or the range columns are edited, the server still moves the value
+  to the nearest end of its own range. A value that is not a number is
+  ignored. No row can remove a limit (0 is outside every range).
+- **The memory is held together.** `ram_budget_mb` + `active_mb` + 250 MB for
+  each of `measure_procs` never come to more than the same sum of the
+  environment variables, which is what the machine was sized for (4900 MB in
+  production, the worst case of 7.0 of 8 GB in
+  [performance](performance.md#how-many-jobs-at-once)). The table can move
+  memory between the three, not add any: when the sum is above it,
+  `ram_budget_mb` is lowered first (a view forgotten is only read from disk
+  again), then `active_mb`, and `/api/settings` says so in `note`.
+- **A row that is missing has the value of the environment variable** of the
+  same name (`SPHEREX_ACTIVE_VIEWS` for `active_views`, and so on), or its
+  default in `config.py`. Deleting a row is how a setting goes back to it.
+- **The database is not needed.** The table is read in a thread of its own
+  and no request ever waits for it. When the database does not answer, the
+  values read last stay in force; after a start without the database, those
+  of the environment. `/api/settings` then shows `problem` and how long ago
+  the table was read.
+- **The web service only reads the table** (role `blink_service`: `select`).
+  It is changed by the owner of the database.
+
+A change to a limit takes effect on what comes next. Raising `active_views`
+gives the first views of the queue their turn at once; lowering it takes
+nobody's place away, and the next ones wait until enough have finished.
+Measuring processes started for a higher `measure_procs` are let go the next
+time nothing is being measured.
+
+Settings that are read once at a start stay environment variables: the
+number of worker processes, the request threads, the disk budgets, the
+addresses of the archives. A new machine size is still a change to
+`render.yaml` ([changing capacity](#changing-capacity)); raise the ranges in
+`settings.SETTINGS` and the rows of `sql/settings.sql` with it.
+
 ### Secrets
 
 `DATABASE_URL` is the only secret. It is entered in the hosting dashboard
@@ -124,6 +208,7 @@ On a fresh Postgres 15+ database, once:
 
 ```bash
 psql "$OWNER_URL" -f sql/schema.sql    # tables, indexes, sources_near, row level security
+psql "$OWNER_URL" -f sql/settings.sql  # the limits changed while the server runs, with the values of production
 psql "$OWNER_URL" -f sql/roles.sql     # roles blink_service, blink_loader, blink_web and policies
 ```
 
@@ -132,8 +217,8 @@ Then set a password for each role that will be used (`alter role ... password
 columns (`create table if not exists`, `add column if not exists`).
 
 The service does not need the database to run. Without `DATABASE_URL`,
-measurements are kept in the local SQLite store and `/api/tracks` serves them
-from there. When a database is connected later, results stored locally are
+the limits are those of the environment, measurements are kept in the local
+SQLite store and `/api/tracks` serves them from there. When a database is connected later, results stored locally are
 written to it at the next start.
 
 ## Release process
@@ -257,7 +342,9 @@ SPHEREX_AUTO_MEASURE=0 pytest -q
 | Name search answers 503 | CDS name services unreachable | Coordinates and featured targets still work; add a mirror in `resolve.SESAME_URLS` if an outage persists |
 | Overlays do not load | IRSA TAP slow or down | The viewer retries three times; untick and tick the overlay to retry |
 | `/api/measured` shows `database: false` or results with `in_database: false` | `DATABASE_URL` missing, wrong, or the role cannot write | Fix the variable; results are written at the next start |
-| Memory pressure | Frame budget too high for the plan | Lower `SPHEREX_RAM_BUDGET_MB`; views are reloaded from disk when needed |
+| Memory pressure | Frame budget too high for the plan | Lower `ram_budget_mb` or `active_mb` in the table `settings` (in force within a minute); views are reloaded from disk when needed |
+| Visitors wait in the queue while the machine has room, or a classroom behind one address is refused with 429 | A limit too low for the hour | Raise the row in the table `settings` ([settings in the database](#settings-in-the-database)); no deploy |
+| A changed row of `settings` has no effect | Outside its range, the memory rule, or the database does not answer | `/api/settings`: `note` of the row, `problem`, `read_seconds_ago` |
 | Disk full | The two disk budgets together above the disk size, or other files on the disk | Lower `SPHEREX_DISK_BUDGET_GB` or `SPHEREX_ATLAS_BUDGET_GB`; each cache trims itself after its next fetch. `/api/atlas` reports the free space; below 1 GB no new sky tile is stored |
 | Stored measurements look outdated after a method change | Pipeline version not raised | Raise `measure_api.VERSION` and deploy |
 | A view shows stale pixels after a change to the cutout code | Frame cache key not versioned | Raise the version tag in `cutout.cache_key` and deploy |
@@ -266,7 +353,8 @@ SPHEREX_AUTO_MEASURE=0 pytest -q
 
 | Change | Steps |
 | --- | --- |
-| Larger plan | Change `plan` in `render.yaml`; set `SPHEREX_FETCH_PROCS` to the new CPU count and raise `SPHEREX_RAM_BUDGET_MB` accordingly |
+| Larger plan | Change `plan` in `render.yaml`; set `SPHEREX_FETCH_PROCS` to the new CPU count and raise `SPHEREX_RAM_BUDGET_MB` and `SPHEREX_ACTIVE_MB` accordingly (their sum is the memory the table `settings` may hand out), then the rows of the table |
+| More or fewer jobs at a time on the same machine | Change the row in the table `settings`: [settings in the database](#settings-in-the-database) |
 | Larger disk | Change `sizeGB`; raise `SPHEREX_DISK_BUDGET_GB` and `SPHEREX_ATLAS_BUDGET_GB` to about 85 % of it together |
 | New data release | Add the collection name at the front of `SPHEREX_COLLECTIONS`; exposure lists refresh within 24 hours |
 

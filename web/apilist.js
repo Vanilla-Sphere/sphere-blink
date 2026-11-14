@@ -32,6 +32,7 @@ const ApiList = (() => {
     ["/api/featured", "Featured", "The featured targets (JSON)."],
     ["/api/atlas/2mass/…", "Sky tile", "The 2MASS photograph behind the sky map: the tile that holds this position (JPEG)."],
     ["/api/atlas", "Atlas", "What the server keeps of the sky photograph (JSON)."],
+    ["/api/settings", "Limits", "The limits in force: how many views and measurements the server works on at a time, and how much one caller may ask for (JSON)."],
     ["/api/health", "Health", "Whether the service is up (JSON)."],
     ["/docs", "Docs", "The interactive documentation: every endpoint with its parameters, to try in the page."],
     ["/openapi.json", "OpenAPI", "The description of the API for programs (OpenAPI, JSON)."],
@@ -96,7 +97,7 @@ const ApiList = (() => {
       "/api/movers/field": q(new URLSearchParams({ra, dec, levels})),
       "/api/movers/{id}": moverId() || null,
       "/api/atlas/2mass/…": Atlas.tileAt(TILE_ORDER, S.ra, S.dec),
-      "/api/measured": "", "/api/featured": "", "/api/atlas": "", "/api/health": "", "/docs": "", "/openapi.json": "",
+      "/api/measured": "", "/api/featured": "", "/api/atlas": "", "/api/settings": "", "/api/health": "", "/docs": "", "/openapi.json": "",
     };
   }
 

@@ -125,7 +125,12 @@ configured, to Postgres. The browser polls the same URL until `status` is
   a view that has not been served yet, then for the active view with the
   least left to do, and every fourth chunk for the one that started first.
   The numbers are chosen from measurements of the production machine's size;
-  see [performance](performance.md#how-many-jobs-at-once).
+  see [performance](performance.md#how-many-jobs-at-once). They, and the
+  limits per caller, can be changed while the server runs: they are rows of
+  the table `settings` of the team database, read twice a minute by
+  `settings.py`, inside ranges fixed in the code and with the environment
+  variables as the values without a row
+  ([deployment](deployment.md#settings-in-the-database)).
 - **Requests wait in threads, the page does not.** Endpoints that wait (for
   the archive, a name service, a view being gathered) run in a pool of 160
   threads (`SPHEREX_REQUEST_THREADS`). The page, the health check and the
@@ -180,6 +185,7 @@ Details:
 | Cutout cache | SQLite, WAL, `synchronous=NORMAL` | `$SPHEREX_CACHE_DIR/cache.sqlite` | `exposure_lists`, `frames`, `wave_maps`, `catalogs` |
 | Local measurements | SQLite, WAL | `$SPHEREX_CACHE_DIR/measurements.sqlite` | `results` |
 | Shared measurements | Postgres 15+ (Supabase) | `DATABASE_URL` | `sources`, `detections`, `tracks`, function `sources_near` |
+| Limits changed while the server runs | the same database | `DATABASE_URL` | `settings` (read only by the service, every 30 s) |
 
 Schemas are in [data and sources](data-sources.md#data-model). The shared
 database is optional: without `DATABASE_URL` the product works fully from the
@@ -195,7 +201,7 @@ local store.
 | Catalogue service (IRSA TAP) fails | `/api/catalog` answers 502; the viewer retries three times and reports that the overlay did not load |
 | Name services unreachable | Second Sesame host, then SIMBAD TAP on two hosts; if all fail, 503 with a message that distinguishes this from an unknown name |
 | Gaia unreachable during a measurement | ESA archive first, IRSA second; if both fail the measurement proceeds without neighbour stars and records `gaia: false` |
-| Postgres unreachable or read-only | The result stays in the local store and is served from there; it is written to Postgres at the next start (`sync_db`) |
+| Postgres unreachable or read-only | The result stays in the local store and is served from there; it is written to Postgres at the next start (`sync_db`). The limits read last from the table `settings` stay in force (after a start without it: those of the environment); no request waits for the database |
 | Service restart or deploy | In-memory jobs are lost; cached frames remain on disk and views resume from them; a measurement in progress is abandoned and can be requested again |
 
 ## Security and privacy

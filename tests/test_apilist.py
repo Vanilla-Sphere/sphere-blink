@@ -33,7 +33,7 @@ def test_every_endpoint_that_reads_is_in_the_panel_and_none_that_writes():
 
 def test_the_rows_are_one_per_address_and_the_page_counts_them():
     rows = listed()
-    assert len(rows) == len(set(rows)) == 21
+    assert len(rows) == len(set(rows)) == 22
     page = (WEB / "index.html").read_text()
     assert '<details class="apilist" id="apilist">' in page and "/api/measure" in page  # the note says what is left out
     assert page.index("/static/atlas.js") < page.index("/static/apilist.js") < page.index("/static/app.js")

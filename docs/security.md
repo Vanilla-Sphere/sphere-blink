@@ -41,6 +41,13 @@ never limited. The code is `sphereblink/guard.py`.
 | Measurements waiting or running | 12 in total | `SPHEREX_MAX_MEASURE_QUEUE` | 503 |
 | Votes on moving objects | 20 per minute per caller; 8 browser ids per address and object | `SPHEREX_RATE_VOTES_PER_MIN`, `SPHEREX_MAX_VOTERS_PER_ADDRESS` | 429 |
 
+Every limit of this table, except `SPHEREX_ATLAS_FETCHES` and the two for
+votes, can be changed while the server runs: it is a row of the table
+`settings` of the team database (`rate_requests_per_s` for `SPHEREX_RATE_REQUESTS_PER_S`, and so
+on), and the environment variable is its value without a row. A row can
+neither remove a limit nor set it outside the range written in the code; see
+[deployment](deployment.md#settings-in-the-database).
+
 The numbers are far above what a person needs, and above what a classroom
 behind one address needs; they exist to stop a script. Only work that really
 starts is counted: a view that exists, a name already resolved, a catalogue
@@ -139,6 +146,13 @@ endpoint is `GET`; nothing else is accepted.
   the Supabase security advisor reports no finding.
 - The web service connects as `blink_service` (read and write on the three
   tables, no other rights). All statements are parameterised.
+- The table `settings` (the limits changed while the server runs) has row
+  level security too and one policy: `blink_service` may read it. The service
+  cannot write it, so nothing that reaches the service can change a limit;
+  only the owner of the database can. What a row may set is bounded in the
+  code whatever the table says
+  ([deployment](deployment.md#settings-in-the-database)), and
+  `/api/settings` shows the values, never the address of the database.
 - The password exists only in the host's `DATABASE_URL`. A scan of the whole
   git history (68 commits) on 2026-11-14 found no secret, and the client
   contains no key.
