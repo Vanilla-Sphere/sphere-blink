@@ -26,6 +26,7 @@ implements it. Implementation detail is in [imaging engine](imaging-engine.md),
 | 15 | Share links, embeddable GIF and PNG, data API | Simple, Advanced | `main.py`, `web/app.js` (`writeUrl`) |
 | 16 | Featured targets | Simple, Advanced | `resolve.FEATURED`, `refcat.TARGETS` |
 | 17 | Blind search for moving objects, with a log ("Discoveries"), names, follow and votes | Advanced | `movers.py`, `mover_store.py`, `movers_api.py`, `known_objects.py`, `web/movers.js` |
+| 18 | Distance and redshift: the object of a view, the sky map by redshift, comparing spectra in the rest frame | Simple, Advanced | `distance.py`, `/api/object`, `scripts/build_redshift.py`, `web/depth.js` |
 
 ## 1. Sky map start screen
 
@@ -304,7 +305,15 @@ spectral data product.
   by a double stroke (`groupedAxis` in `web/overtime.js`; groups are separated
   by gaps of more than 20 days). Since each exposure samples a different
   wavelength, the spread inside a group is the object's spectrum; a change of
-  the object shows as one colour shifting from group to group.
+  the object shows as one colour shifting from group to group. Inside each
+  group a line joins the points of one detector in order of time (Duy's idea),
+  so a colour can be followed; no line crosses the months cut out.
+- **One group at a time.** A click on a group of days enlarges it to the whole
+  width of the plot, at the same flux scale; a second click brings all groups
+  back. The row under the plot (`#otnav`: previous, next, "All groups") steps
+  through the groups and names the one on screen with its dates (`showGroups`,
+  `stepGroup`, `plotClick` in `web/app.js`; the enlarged group is `S.otZoom`,
+  forgotten when a new view is loaded). The PNG export saves what is on screen.
 - **Did it change?** A line under the Over time plot answers in words
   (`brightnessChange` in `web/overtime.js`, the method of the pipeline's
   [light curve](measurement-pipeline.md#6-light-curve) applied to the points of
@@ -319,7 +328,12 @@ spectral data product.
   open. On 2026-11-14: R Draconis about x1.9 between 2025-06 and 2026-06
   (3.8 sigma); Barnard's Star, Vega and Epsilon Indi B steady within 4-7 %;
   RW Aurigae 23 % (1.2 sigma, not significant).
-- **Quality marks.** Points with flagged pixels in the aperture are drawn hollow.
+- **Quality marks.** Points with flagged pixels in the aperture are left out of
+  the plot by default, on the advice of an outside researcher (2026-11-14). A
+  button in the legend ("Show N flagged") brings them back, drawn
+  hollow. If a plot has no other points they are shown anyway. The CSV always
+  holds every point with its flags; the PNG shows what is on screen and says
+  how many points were left out.
 - **Saturated stars.** Where the core saturates the detector, the flux is
   measured from the star's halo instead (see
   [bright-star photometry](measurement-pipeline.md#bright-star-photometry)).
@@ -342,9 +356,12 @@ Under the plot the viewer writes what the curve shows, in sentences, with the
 numbers behind each one (`web/insight.js`, run in the browser on the points of
 `/api/spectrum`). It is labelled "Preliminary reading" and carries a
 confidence level (low, moderate or good) and the limits that apply. Every
-statement is a fixed test on the measured points: no language model, no
-catalogue and no training set is involved, so the same curve always gives the
-same reading and each sentence can be checked against the plot.
+statement is a fixed test on the measured points: no language model and no
+training set is involved, so the same curve always gives the same reading and
+each sentence can be checked against the plot. The wavelengths it looks at
+are not its own: they come from a catalogue of reference wavelengths
+(`web/linelist.js`, described below), and every name on the plot can be
+traced to its source there.
 
 The tests, in order:
 
@@ -362,21 +379,35 @@ The tests, in order:
 4. **Continuum.** Where the binned curve peaks, its slope in log-log (the
    whole range, below 1.7 µm, above 2.3 µm), and the blackbody closest to it
    with the range of temperatures that fit nearly as well.
-5. **Bands and lines at rest wavelengths.** Water vapour at 1.4, 1.9 and
-   2.7 µm, methane at 3.3 µm, water ice at 3.0 µm, carbon dioxide at 4.27 µm;
-   in emission, hydrogen Paschen α and β, Brackett α and γ, helium 1.083 µm,
-   [S III] 0.953 µm and the 3.3 µm PAH band. A band is the flux inside a
+5. **Bands and lines at the wavelengths of the catalogue.** Water vapour at
+   1.4, 1.9 and 2.7 µm, methane at 3.3 µm, water ice at 3.0 µm, carbon
+   dioxide at 4.27 µm; in emission, the hydrogen lines of the Paschen,
+   Brackett and Pfund series, helium, [S III], [Fe II] and the 3.3 µm PAH
+   band (18 lines between 0.9 and 4.7 µm). A band is the flux inside a
    window against a continuum drawn between a window on each side; a line is
    the points whose passband holds the wavelength against the points just
    outside. The noise is taken from the differences of neighbouring points.
    A feature counts at 4σ and above; names of the detected ones are drawn
    along the top of the plot, with a question mark when they are not firm.
+   Lines closer than 1.3 channels are one measurement at this resolution
+   (He I 1.083 µm and Paschen γ, the PAH band and Pfund δ): it is given to
+   the line that is usually the stronger and the other is named with it. A
+   weak member of a series (Paschen δ, Pfund γ, the second line of a
+   doublet) is only named when the strong lines are there: alone it is
+   listed as a bump.
+6. **With a published redshift.** When the catalogues give the object a
+   redshift of 0.01 or more (feature 18), the lines are looked for at
+   rest wavelength × (1 + z). That brings Lyman α, C IV, C III], Mg II,
+   H β, [O III] and H α into range, and the bands of cool stars and of ices
+   are left out. The redshift is the published one and the reading says so:
+   it uses the redshift, it never measures it.
 
 The reading then names the kinds of object that give such a curve:
 
 | Reading | Rests on |
 | --- | --- |
-| Emission lines of ionised gas | Two lines or more, one of them hydrogen |
+| Emission lines of ionised gas | Two strong hydrogen lines, or one with another strong line beside it or standing 1.6 times above the continuum |
+| Emission lines at the published redshift | Two strong lines where the redshift puts them, or one standing 1.6 times above the continuum |
 | Ice absorption | The 3.0 µm band deepest at 3.0 µm, or carbon dioxide on a rising curve |
 | Brown dwarf atmosphere | Methane at 3.3 µm together with water vapour |
 | Cool star with water vapour | Two water bands or more |
@@ -387,9 +418,10 @@ The reading then names the kinds of object that give such a curve:
 | Flat spectrum | No slope and no peak |
 | Too bright, only part readable, no source | More than half the points above the calibrated range of the halo method; less than 45 % of the range sampled; nothing above the noise |
 
-What it does not do: it does not classify the object, measure a redshift, or
-look for lines away from their rest wavelengths (a single line is reported as
-possible, "or another line moved there by redshift"). Between deep molecular
+What it does not do: it does not classify the object or measure a redshift,
+and without a published redshift it does not look for lines away from their
+rest wavelengths (a single line is reported as possible, "or another line
+moved there by redshift"). Between deep molecular
 bands the continuum stands up in narrow peaks that this resolution cannot
 tell from emission lines, so with such bands no line is claimed. Confidence
 drops with saturation, noise, gaps in the curve, changes between passes and
@@ -400,11 +432,50 @@ Checked on 14 real spectra (`tests/data/spectra/`): Epsilon Indi B (water and
 methane), Elias 16 and Elias 29 (water and carbon dioxide ice), NGC 7027
 (hydrogen lines, PAH), G191-B2B (hot tail), WISE 0855 (a background star plus
 the cold dwarf's light beyond 4 µm), Barnard's Star (3,000 to 3,700 K;
-catalogue 3,200 K), 3C 273 (red, a possible line at 2.17 µm where its
-redshifted Paschen α falls), RW Aurigae (red), R Draconis (water bands, low
-confidence), Vega (too bright), NGC 3379 and Sgr A* (only part readable), an
-empty field (no source). On 14,400 made-up featureless spectra with noise,
-with and without a 30 % change between passes, no firm band or line appeared.
+catalogue 3,200 K), 3C 273 (red, a possible line at 2.17 µm), RW Aurigae
+(red), R Draconis (water bands, low confidence), Vega (too bright), NGC 3379
+and Sgr A* (only part readable), an empty field (no source). On 14,400
+made-up featureless spectra with noise, with and without a 30 % change
+between passes, no firm band or line appeared, at rest and at seven
+redshifts from 0.16 to 6.3.
+
+Checked with published redshifts on four quasars (three more spectra in
+`tests/data/spectra/`). Read at rest wavelengths, each is "a red source, no
+band or line". Read at its redshift:
+
+| Quasar | z | Lines found where the redshift puts them |
+| --- | --- | --- |
+| 3C 273 | 0.158 | He I 1.083 µm with Paschen γ at 1.25 µm (×1.4, 6.9σ), Paschen α at 2.17 µm (×1.2, 4.5σ): the "possible line at 2.17 µm" of the reading at rest |
+| PG 1634+706 | 1.337 | H α at 1.53 µm (×3.1, 96σ), H β with [O III] at 1.14 µm (11σ), He I at 2.53 µm (20σ), Paschen α at 4.38 µm (11σ) |
+| APM 08279+5255 | 3.911 | H α at 3.22 µm (×2.5, 98σ), H β at 2.39 µm (11σ), C IV at 0.76 µm (6.6σ), C III] at 0.94 µm (5.3σ) |
+| SDSS J0100+2802 | 6.327 | H α at 4.81 µm (×2.1, 4.4σ), the only line, so the confidence is moderate |
+
+#### Reference wavelengths
+
+`web/linelist.js` holds every wavelength the reading looks at, with the
+source of each, and nothing else in the reading uses a wavelength. Under the
+reading, "Reference wavelengths" opens a table with one row per band or
+line: its name, species and transition, the reference wavelength (and where
+the redshift puts it), what the curve shows there (found with its strength
+and significance, possible, not seen, not separated from a neighbour, no
+usable points), and the source. The full references follow the table.
+
+| Kind | Entries | Source |
+| --- | --- | --- |
+| Atomic lines (25: H I Lyman α, Balmer α and β, Paschen α to δ, Brackett α to δ, Pfund β to δ; He I 1.0833 and 2.0587 µm; [S III] 0.9071 and 0.9533 µm; [Fe II] 1.2570 and 1.6440 µm; [O III] 0.4960 and 0.5008 µm; Mg II, C III], C IV) | Vacuum wavelengths, Ritz values where given, to 0.01 nm | NIST Atomic Spectra Database, version 5.12 (Kramida, Ralchenko, Reader and NIST ASD Team 2024, doi:10.18434/T4W30F), read on 2026-11-14 |
+| Water vapour bands (1.38, 1.88, 2.7 µm), methane ν₃ (3.31 µm) | Band positions | HITRAN2020 (Gordon et al. 2022, JQSRT 277, 107949); the bands in M, L and T dwarfs: Cushing, Rayner and Vacca 2005, ApJ 623, 1115 |
+| Water ice (3.05 µm), carbon dioxide (4.27 µm) | Band positions | Boogert, Gerakines and Whittet 2015, ARA&A 53, 541; Gibb et al. 2004, ApJS 151, 35 |
+| PAH band (3.29 µm) | Band position | Tielens 2008, ARA&A 46, 289 |
+
+The atomic wavelengths were read from the NIST database on the date given
+and the hydrogen lines are checked in the tests against the Rydberg formula
+(they agree to 0.002 %). A band seen at a resolving power of 40 has no single
+wavelength: the catalogue gives the position the literature quotes to
+0.01 µm, and the windows in which the band and its continuum are measured,
+which are ours. The bibliographic details of the five papers were checked
+against Crossref on 2026-11-14. The air wavelengths familiar from optical
+spectra (H α 6563 Å, [O III] 5007 Å) are not used: SPHEREx wavelengths are
+in vacuum (H α 0.65646 µm, [O III] 0.50082 µm).
 
 In Simple mode one plain sentence of the reading is shown beside the
 pictures ("What its light says"), and only when the reading names something
@@ -591,6 +662,17 @@ In the viewer (Advanced, `web/movers.js`):
   the frame on screen. Selecting a row opens the object: the movie goes to the
   frame nearest to it, its detections are drawn, and the address gains
   `mover=<id>`, so the link opens the same object.
+- **To the frame it was seen in**: the open object lists every exposure that
+  looked at its path, in the order of time: date and time (UTC), detector,
+  wavelength, the signal to noise of the object there (or "not seen"), and a
+  link to the exposure's Level 2 file at IRSA. Selecting an exposure opens
+  the object's place as a view of its own at full detail (8 arcmin, centred
+  on where the object was in that exposure), with one frame per exposure and
+  only the band that exposure was taken in, and goes to that frame. A wide
+  field is shown at overview resolution, where a faint object is lost; this
+  view is not. The object stays in its card with the other exposures and a
+  "Back to the field" button, the ring and the path stay on the image, and
+  the address gains `seen=<exposure>`, so the link opens that very frame.
 - **Votes**: "Real motion" and "False alarm". One vote per browser; choosing
   the same button again takes it back.
 - **Follow**: kept in this browser only (`localStorage`), marked with a star.
@@ -600,3 +682,51 @@ In the viewer (Advanced, `web/movers.js`):
 
 Objects slower than 2 arcsec per hour (which need two passes of the telescope
 months apart) are not searched.
+
+## 18. Distance and redshift
+
+How far away the object of a view is, which galaxies and quasars lie at a
+given redshift, and how their SPHEREx spectra compare. All distances and
+redshifts are published values with their source; none is measured from the
+SPHEREx images. The rules, the sources and the checks are in
+[distance and redshift](distance-redshift.md).
+
+**The object of a view** (`/api/object`):
+
+- **Advanced**, card "Distance and redshift" under the spectrum. For a star:
+  the object and its type, the distance in parsec and light-years with its
+  range, the parallax, the method, the source and the radial velocity. For a
+  galaxy or a quasar: the redshift with its error and kind (spectroscopic or
+  photometric), when the light set out, how old the universe was then, the
+  distance today, and the paper of the redshift as a link to NASA ADS. For a
+  galaxy below z = 0.01 the redshift is shown as a velocity, with the
+  distances measured by other methods. Nothing catalogued at the crosshair is
+  said in one sentence.
+- **Simple**, one sentence under the description: "About 5.96 light-years
+  away, from the parallax in Gaia DR3." or "Its light set out 12.9 billion
+  years ago, when the universe was 868 million years old (redshift 6.327,
+  from SIMBAD)."
+- When the lookup does not answer, the card falls back to the all-sky list
+  below for the objects it holds, and says so.
+
+**The sky map by redshift** (button "Redshift" on the map, both modes):
+
+- Lowest redshift to show: Off, All, z > 0.1, 1, 3, 5, 6 or 7.
+- 10 037 galaxies (dots) and quasars (diamonds) with spectroscopic redshifts
+  from SIMBAD, coloured by redshift; the chart behind dims. The panel gives
+  the count and how old the light of the chosen range is at least.
+- Pointing at an object shows its name, kind, redshift, light-travel time and
+  whether it is bright enough for a SPHEREx spectrum. A click opens it.
+
+**Compare spectra** ("Enlarge · compare" under the spectrum, "Compare spectra"
+on the distance card and on the redshift panel):
+
+- Up to six objects, added by name or coordinates; the object of the view on
+  screen is added first, so the sheet is also the large plot of one spectrum.
+- Observed or rest-frame wavelength, relative or absolute flux, markers of
+  twelve emission lines, zoom with the wheel, pan by dragging.
+- Each object has its redshift in a field and on a slider, starting at the
+  published value. Moving it shows where the lines would fall; "Reset" goes
+  back to the published value.
+- Example "four quasars, z = 0.16 to 6.3": in the rest frame their Hα lines
+  fall on one marker.

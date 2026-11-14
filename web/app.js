@@ -22,7 +22,7 @@ const S = {
   target: null, ra: null, dec: null, fov: 8, det: "rgb", group: "day", mode: "blink",
   i: 0, ref: 0, playing: false, fps: 3, gain: 0,
   cube: null, meta: null, npix: 0, planes: 1, limits: null, median: null, stack: null,
-  spectrum: null, insight: null, plotmode: "spec", files: null, filesmode: "frame", catalogs: {}, tracks: null, loadId: 0, timer: null,
+  spectrum: null, insight: null, plotmode: "spec", flagged: false, files: null, filesmode: "frame", catalogs: {}, tracks: null, loadId: 0, timer: null,
   zoom: 1, pan: [0.5, 0.5],  // the image magnified: how much, and which point of the whole picture is in the middle
   levels: 0, field: null, stage: null,  // progressive field: rings of 0.12° cells, the server's report, the stage on screen
   ui: "simple", screen: "map",  // Simple or Advanced ("adv"), sky map or view
@@ -81,7 +81,7 @@ function writeUrl(push) {
   if ($("ov-gaia").checked) p.set("gaia", "1");
   if ($("ov-catwise").checked) p.set("catwise", "1");
   if (S.tracks && !$("ov-tracks").checked) p.set("tracks", "0");
-  if (MV.sel) p.set("mover", MV.sel);
+  if (MV.sel) { p.set("mover", MV.sel); if (MV.at) p.set("seen", MV.at); }
   p.set("ui", S.ui);
   S.url = "?" + p.toString();
   if (S.screen === "view" || push) history[push ? "pushState" : "replaceState"](null, "", S.url);
@@ -150,7 +150,7 @@ async function load(next, nopush) {
   Object.assign(S, want);
   S.cube = null; S.meta = null; S.saturated = null; S.median = null; S.stack = null; S.spectrum = null; S.insight = null; showReading(null); S.files = null; S.catalogs = {}; S.i = 0; S.ref = 0; S.busy = 0;
   S.tracks = null; S.measuring = null; $("trackopt").hidden = true; $("trackcard").hidden = true;
-  S.field = null; S.stage = null; $("tileopt").hidden = !S.levels; clearMovers();
+  S.field = null; S.stage = null; $("tileopt").hidden = !S.levels; clearMovers(); clearDepth();
   for (const c of ["speccard", "epochcard"]) $(c).hidden = true;
   $("analysishint").hidden = true; $("timeline").innerHTML = ""; $("cursor").textContent = "";
   $("empty").hidden = false; $("empty").textContent = tr("load.search");
@@ -185,6 +185,7 @@ async function load(next, nopush) {
   loadCatalogs();
   loadTracks();
   loadFiles();
+  moverLink();  // a link to one exposure of a moving object
 }
 /* The pipeline works on a few views at a time; the others wait their turn and are told where they stand. */
 function queueText(job) {
@@ -278,6 +279,15 @@ async function reloadCube() {
   $("progress").classList.remove("busy"); $("progress").hidden = true; $("sky").parentElement.classList.remove("busy");
 }
 
+/* The reading of the spectrum (insight.js). When the catalogues gave the object a redshift, the lines are looked
+   for where it puts them: the redshift is the published one, never one read from the curve. */
+function readSpectrum() {
+  const z = DP.info && DP.info.redshift;
+  try { S.insight = S.spectrum ? analyseSpectrum(S.spectrum, z && z.z >= 0.01 ? {z: z.z, zSource: String(z.source || "").replace(/ \(.*/, "")} : null) : null; }
+  catch (_) { S.insight = null; }  // a reading that fails must not take the plot with it
+  showReading(S.insight);
+}
+
 /* The spectrum needs every exposure; if the server is still gathering them, ask again. */
 async function loadSpectrum(id, attempt = 0) {
   let d = null;
@@ -292,8 +302,7 @@ async function loadSpectrum(id, attempt = 0) {
   }
   if (!d) return;
   S.spectrum = d.points;
-  try { S.insight = analyseSpectrum(d.points); } catch (_) { S.insight = null; }  // a reading that fails must not take the plot with it
-  showReading(S.insight);
+  readSpectrum();
   $("speccard").hidden = false; drawPlot();
 }
 
@@ -879,6 +888,8 @@ function showTarget(t) {
   document.title = `${tidyName(t.name)} - Vanilla Sphere`;
   for (const c of document.querySelectorAll("#featured .target")) { const on = c.dataset.name === t.name; c.classList.toggle("on", on); c.setAttribute("aria-pressed", on); }
   showStory(t);
+  // its distance or redshift, from the catalogues; a redshift that comes after the spectrum changes where its lines are looked for
+  depthTarget(t).then(() => { if (S.spectrum && S.t === t) { readSpectrum(); drawPlot(); } });
 }
 /* Simple mode: a name anyone can read and two sentences on what to look for. */
 function showStory(t) {
@@ -956,18 +967,24 @@ function drawPlot(out) {
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
   }
-  const pts = (S.spectrum || []).filter((p) => p.flux_ujy !== null);
+  const all = (S.spectrum || []).filter((p) => p.flux_ujy !== null);
+  // points with flagged pixels in the aperture stay off the plot until they are asked for (S.flagged),
+  // unless they are all there is; the CSV has every point either way
+  const nFlagged = all.filter(flaggedPoint).length, hide = !S.flagged && nFlagged > 0 && nFlagged < all.length;
+  const pts = hide ? all.filter((p) => !flaggedPoint(p)) : all;
   const lc = S.plotmode === "lc";
   const sans = `12px ${T.sans}`, mono = `11px ${T.mono}`;
   if (!out) {
     $("spectitle").textContent = tr(lc ? "plot.lc" : "plot.spec");
     cv.classList.toggle("none", !pts.length); $("specempty").hidden = !!pts.length; $("spectip").hidden = !pts.length; $("plotdl").hidden = !pts.length;
-    if (!pts.length) { $("specempty").textContent = tr("plot.none"); $("legend").innerHTML = ""; showChange(null); }
+    if (!pts.length) { $("specempty").textContent = tr("plot.none"); $("legend").innerHTML = ""; showChange(null); $("otnav").hidden = true; }
     $("plot").setAttribute("aria-label", tr(lc ? "plot.lc.aria" : "plot.spec.aria"));
+    if (!lc) { $("otnav").hidden = true; cv.classList.remove("zoomin", "zoomout"); }
   }
   if (!pts.length) return null;
   const visits = []; let lastM = -1e9;
-  [...pts].sort((a, b) => a.mjd - b.mjd).forEach((p) => { if (p.mjd - lastM > 20) visits.push(p.mjd); p.visit = visits.length - 1; lastM = p.mjd; });
+  // counted on every point, so a pass keeps its colour when the flagged points come and go
+  [...all].sort((a, b) => a.mjd - b.mjd).forEach((p) => { if (p.mjd - lastM > 20) visits.push(p.mjd); p.visit = visits.length - 1; lastM = p.mjd; });
   const ml = 56, mr = 10, mt = 8, mb = lc ? 54 : 40;
   // bright stars reach tens of Jy: the axis reads in Jy once the 98th percentile passes 1000 mJy
   const top = [...pts.map((p) => p.flux_ujy)].sort((a, b) => a - b)[Math.min(pts.length - 1, Math.floor(pts.length * 0.98))];
@@ -975,9 +992,16 @@ function drawPlot(out) {
   const xs = pts.map((p) => lc ? p.mjd : p.wave_um), ys = pts.map((p) => p.flux_ujy / unit);
   const sorted = [...ys].sort((a, b) => a - b);
   let ymin = Math.min(0, sorted[Math.floor(sorted.length * 0.02)]), ymax = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.98))] * 1.25;
+  if (ymax <= 0) ymax = -0.05 * ymin;   // every flux below zero (the sky ring is brighter than the spot): the axis still ends above them
   if (ymax <= ymin) ymax = ymin + 1;
   // over time: one stretch of the axis per group of days, the empty months between them cut out
-  const axis = lc ? groupedAxis(xs, ml, W - mr) : null, xmin = 0.7, xmax = 5.1;
+  // One group can be enlarged (S.otZoom = its first date): then it alone fills the axis, at the same flux scale.
+  const whole = lc ? groupedAxis(xs, ml, W - mr) : null, xmin = 0.7, xmax = 5.1;
+  if (S.otFor !== S.spectrum) { S.otFor = S.spectrum; S.otZoom = null; }
+  const zoom = lc ? whole.panels.findIndex((p) => p.t0 === S.otZoom) : -1, zp = zoom >= 0 ? whole.panels[zoom] : null;
+  const view = zp ? pts.filter((p) => p.mjd >= zp.t0 && p.mjd <= zp.t1) : pts;
+  const axis = zp ? groupedAxis(view.map((p) => p.mjd), ml, W - mr, {gap: 1e9}) : whole;
+  if (lc && !out) { S.otPanels = whole.panels; showGroups(whole.panels, zoom); }
   const X = lc ? axis.X : (v) => ml + (v - xmin) / (xmax - xmin) * (W - ml - mr), Y = (v) => H - mb - (v - ymin) / (ymax - ymin) * (H - mt - mb);
   const hair = (x0, y0, x1, y1, color) => { ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(Math.round(x0) + 0.5, Math.round(y0) + 0.5); ctx.lineTo(Math.round(x1) + 0.5, Math.round(y1) + 0.5); ctx.stroke(); };
   ctx.font = mono; ctx.textAlign = "right";
@@ -1026,15 +1050,28 @@ function drawPlot(out) {
   ctx.save(); ctx.translate(12, (mt + base) / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(tr(unit === 1e6 ? "plot.y.jy" : "plot.y"), 0, 0); ctx.restore();
   if (lc && S.meta && S.meta.epochs[S.i]) { const x = X(S.meta.epochs[S.i].mjd); hair(x, mt, x, base, T.accent); }
   // dot = aperture flux; diamond = saturated core, flux from the halo; hollow = flagged pixels or above the calibrated range
+  if (lc) {
+    // one line per detector through its points in order of time, inside each group of days: the eye follows a colour
+    ctx.save(); ctx.beginPath(); ctx.rect(ml, mt, W - ml - mr, base - mt); ctx.clip();
+    ctx.lineWidth = 1.25; ctx.lineJoin = "round"; ctx.globalAlpha = 0.6;
+    for (const panel of axis.panels) for (let dn = 1; dn <= 6; dn++) {
+      const run = view.filter((p) => p.detector === dn && p.mjd >= panel.t0 && p.mjd <= panel.t1).sort((u, v) => u.mjd - v.mjd);
+      if (run.length < 2) continue;
+      ctx.strokeStyle = DET_COLOR[dn]; ctx.beginPath();
+      run.forEach((p, k) => { const x = X(p.mjd), y = Y(p.flux_ujy / unit); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
   let nWings = 0, nExtra = 0, nDirty = 0;
-  for (const p of pts) {
+  for (const p of view) {
     const x = X(lc ? p.mjd : p.wave_um), y = Y(p.flux_ujy / unit);
     if (y < mt - 2 || y > base + 2) continue;
     const col = lc ? DET_COLOR[p.detector] : VISIT_COLORS[p.visit % VISIT_COLORS.length];
     ctx.strokeStyle = ctx.fillStyle = col; ctx.lineWidth = 1;
     if (p.flux_err_ujy) { const e = p.flux_err_ujy / unit; ctx.globalAlpha = 0.45; ctx.beginPath(); ctx.moveTo(x, Math.max(mt, Y(p.flux_ujy / unit + e))); ctx.lineTo(x, Math.min(base, Y(p.flux_ujy / unit - e))); ctx.stroke(); }
     const wings = p.method === "wings", extra = p.flags.includes("EXTRAPOLATED");
-    const dirty = !wings && p.flags.some((f) => f !== "SOURCE" && f !== "FULLSAMPLE");  // a saturated core always carries flags
+    const dirty = flaggedPoint(p);
     if (wings) nWings++; if (extra) nExtra++; if (dirty) nDirty++;
     ctx.globalAlpha = 0.95; ctx.beginPath();
     if (wings) { const r = 3; ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); }
@@ -1046,15 +1083,55 @@ function drawPlot(out) {
   if (!out) $("reading").hidden = lc || !S.insight;  // the reading is of the spectrum: it goes with that plot
   const items = lc ? [1, 2, 3, 4, 5, 6].map((dn) => ["D" + dn, DET_COLOR[dn]]) : visits.map((m, k) => [tr("plot.pass", {m: mjdDate(m).toISOString().slice(0, 7)}), VISIT_COLORS[k % VISIT_COLORS.length]]);
   const key = items.slice(0, 8).map(([name, col]) => [name, col, ""])
-    .concat(nDirty || !nWings ? [[tr("plot.flagged"), T.muted, "hollow"]] : [], nWings ? [[tr("plot.wings"), T.ink2, "dia"]] : [], nExtra ? [[tr("plot.extra"), T.ink2, "dia hollow"]] : []);
+    .concat(nDirty ? [[tr("plot.flagged"), T.muted, "hollow"]] : [], hide && out ? [[tr("plot.flagged.left", {n: nFlagged}), T.muted, "hollow"]] : [], nWings ? [[tr("plot.wings"), T.ink2, "dia"]] : [], nExtra ? [[tr("plot.extra"), T.ink2, "dia hollow"]] : []);
   const change = lc ? changeText(changeOf()) : null;
   if (out) return {items: key, verdict: change && change.text};
   showChange(change);
+  const held = document.activeElement && document.activeElement.id === "flagtoggle";
   $("legend").innerHTML = key.map(([name, col, shape]) => `<span>${shape ? `<i class="sw ${shape}"></i>` : swatch(col)}${name}</span>`).join("");
+  if (nFlagged && nFlagged < all.length) {
+    // the way to the flagged points and back
+    const b = document.createElement("button");
+    b.type = "button"; b.id = "flagtoggle"; b.className = "legendbtn"; b.dataset.hint = "tip.flagged"; b.setAttribute("aria-pressed", S.flagged ? "true" : "false");
+    b.textContent = tr(S.flagged ? "plot.flagged.hide" : "plot.flagged.show", {n: nFlagged});
+    b.addEventListener("click", () => { S.flagged = !S.flagged; drawPlot(); });
+    $("legend").appendChild(b);
+    if (held) b.focus();
+  }
   const notes = (lc ? ["plot.note.lc", "plot.note.lc.b", "plot.note.lc.c"] : ["plot.note.spec"]).map((k) => tr(k, {n: pts.length}));
   if (nWings) notes.push(tr("plot.note.wings") + (nExtra ? " " + tr("plot.note.extra") : ""));
   $("specnote").replaceChildren(...notes.map((text) => { const el = document.createElement("p"); el.textContent = text; return el; }));
   return {items: key};
+}
+/* A flux whose aperture holds pixels the SPHEREx pipeline flagged. A saturated core always carries flags:
+   its flux comes from the halo and is told apart by its own mark, so it does not count here. */
+function flaggedPoint(p) { return p.method !== "wings" && p.flags.some((f) => f !== "SOURCE" && f !== "FULLSAMPLE"); }
+/* The row under the Over time plot that steps through the groups of days: all of them side by side, or one enlarged. */
+function showGroups(panels, zoom) {
+  const many = panels.length > 1, day = (m) => mjdDate(m).toISOString().slice(0, 10);
+  $("otnav").hidden = !many; $("plot").classList.toggle("zoomin", many && zoom < 0); $("plot").classList.toggle("zoomout", zoom >= 0);
+  if (!many) return;
+  const p = panels[zoom];
+  $("otlabel").textContent = zoom < 0 ? tr("ot.groups", {n: panels.length})
+    : tr("ot.group", {i: zoom + 1, n: panels.length, from: day(p.t0), to: day(p.t1).slice(day(p.t0).slice(0, 4) === day(p.t1).slice(0, 4) ? 5 : 0)});
+  $("otall").hidden = zoom < 0;
+}
+/* step = +1 or -1 moves to the next or the previous group (from the whole view: the first or the last); 0 shows all. */
+function stepGroup(step) {
+  const panels = S.otPanels || [];
+  if (panels.length < 2) return;
+  const now = panels.findIndex((p) => p.t0 === S.otZoom);
+  const next = step === 0 ? -1 : now < 0 ? (step > 0 ? 0 : panels.length - 1) : (now + step + panels.length) % panels.length;
+  S.otZoom = next < 0 ? null : panels[next].t0; drawPlot();
+}
+/* A click on a group of days enlarges it; a click on the enlarged group brings all of them back. */
+function plotClick(ev) {
+  const panels = S.otPanels || [];
+  if (S.plotmode !== "lc" || panels.length < 2) return;
+  if (S.otZoom != null && panels.some((p) => p.t0 === S.otZoom)) { S.otZoom = null; drawPlot(); return; }
+  const x = ev.clientX - $("plot").getBoundingClientRect().left;
+  const hit = panels.reduce((a, p) => (Math.abs((p.x0 + p.x1) / 2 - x) - (p.x1 - p.x0) / 2 < Math.abs((a.x0 + a.x1) / 2 - x) - (a.x1 - a.x0) / 2 ? p : a));
+  S.otZoom = hit.t0; drawPlot();
 }
 /* The comparison of the visits, worked out once for each set of points. */
 function changeOf() {
@@ -1210,6 +1287,7 @@ function mapHover(h) {
   const con = h.con ? h.con.la : "";
   $("mapread").innerHTML = `${h.ra.toFixed(2)}° ${h.dec >= 0 ? "+" : "−"}${Math.abs(h.dec).toFixed(2)}°` + (con ? ` · <i>${esc(con)}</i>` : "");
   if (h.pin) mapTag(h.x, h.y, `<b>${esc(h.pin.name)}</b><span>${esc(tr("kind." + h.pin.key))}</span>`);
+  else if (h.obj) mapTag(h.x, h.y, depthTag(h.obj));   // a galaxy or quasar of the redshift layer
   else if (h.pole) mapTag(h.x, h.y, `<b>${esc(tr("map.pole." + h.pole))}</b><span class="more">${esc(tr("map.pole." + h.pole + ".more"))}</span>`);
   else if (h.star && (h.star.name || h.star.id)) {   // a star with a name or a designation; any other star keeps the note of its constellation
     const about = LORE.star[h.star.name], kind = h.star.mag <= 3 ? "map.star" : "map.star.faint";
@@ -1221,11 +1299,12 @@ function mapHover(h) {
   else $("maptag").hidden = true;
 }
 function mapPick(hit) {
-  const at = hit.pin || hit, star = hit.star || null, called = star ? star.name || star.id : "";
+  const at = hit.pin || hit, star = hit.star || null, called = hit.obj ? hit.obj.name : star ? star.name || star.id : "";
   mapTag(hit.x, hit.y, (called ? `<b>${esc(called)}</b>` : "") + `<b class="measure" id="mapcoord">${Ambient.text(at.ra, at.dec)}</b><span>${esc(tr("map.open"))}</span>`);
   Ambient.roll($("mapcoord"), at.ra, at.dec);
   if (hit.pin) return openFeatured(hit.pin.f);
   const size = S.ui === "simple" ? {levels: 0, fov: 8} : fieldChoice();
+  if (hit.obj) return depthOpen(hit.obj, size);
   // A star with a proper name is opened by that name, so the view carries the name and the star's place today;
   // if the name services do not know it, or mean another object by it, the star's own coordinates are opened.
   if (star && star.name) { $("q").value = star.name; return load({target: star.name, byCoords: false, ra: null, dec: null, or: {ra: hit.ra, dec: hit.dec}, ...size}); }
@@ -1273,8 +1352,11 @@ function init() {
   seg("group", "group", reloadCube);
   seg("mode", "mode", () => { $("refrow").hidden = S.mode !== "diffref"; S.limits = null; if (S.mode === "stack") stop(); draw(); writeUrl(); });
   seg("plotmode", "plotmode", () => drawPlot());
+  $("plot").addEventListener("click", plotClick);
+  $("otprev").addEventListener("click", () => stepGroup(-1)); $("otnext").addEventListener("click", () => stepGroup(1)); $("otall").addEventListener("click", () => stepGroup(0));
   initExports();
   initMovers();
+  initDepth();
   $("refrow").hidden = S.mode !== "diffref";
   setUi(prefs.ui, true);
   SkyMap.init($("map"), {coords: () => S.ui === "adv", onPick: mapPick, onHover: mapHover, onReady: () => { if (S.t) showStory(S.t); },

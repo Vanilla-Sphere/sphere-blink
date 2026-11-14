@@ -25,6 +25,7 @@ sphere-blink/
 │   ├── mover_store.py      detections, moving objects and votes (local SQLite)
 │   ├── movers_api.py       search jobs and the /api/movers endpoints
 │   ├── known_objects.py    names of known asteroids and comets (SkyBoT, JPL)
+│   ├── distance.py         distance of a star, redshift of a galaxy, from catalogues
 │   └── main.py             FastAPI application: endpoints and static files
 ├── web/                    the viewer (static; see viewer.md)
 ├── sql/                    schema and roles of the measurement database
@@ -65,6 +66,7 @@ of HTML, CSS and JavaScript in the viewer.
 | `movers.py` | 702 | The blind search; no HTTP, no storage | `Detection`, `Track`, `detect`, `link`, `confirm`, `candidates`, `chance_tracks`, `search`, `same_object` |
 | `mover_store.py` | 298 | Stored detections by sky cell, objects, votes; identity of an object found again | `save_field`, `detections_around`, `listing`, `get`, `vote`, `coverage` |
 | `movers_api.py` | 330 | Search jobs in a process of their own, started when a field completes; the four mover endpoints | `router`, `attach`, `start`, `run`, `free_mb` |
+| `distance.py` | 490 | What lies at a position and how far it is: SIMBAD, NED and Gaia lookups with fallbacks, the choice of the object, the Planck 2018 cosmology; no HTTP endpoint of its own | `lookup`, `simbad_cone`, `pick`, `ned_redshift`, `gaia_star`, `parallax_distance`, `cosmology` |
 | `known_objects.py` | 215 | Asks SkyBoT, then JPL, for the known objects of a field and matches tracks to them | `identify`, `match`, `parse_skybot`, `parse_jpl` |
 | `main.py` | 397 | Application object, middleware, parameter handling, all other endpoints, epoch cache, static mount | `app`, `svc`, `fields` |
 
@@ -112,6 +114,7 @@ of HTML, CSS and JavaScript in the viewer.
 | `scripts/calibrate_wings.py` | Measure how halo brightness scales with flux on 2MASS calibrators and print the table for `wings.CALIBRATION` | `collect` then `fit`, with `scripts/wing_calibrators.csv` |
 | `scripts/wing_calibrators.csv` | The 81 isolated 2MASS stars used for the calibration | - |
 | `scripts/build_sky.py` | Build `web/data/sky.json` from d3-celestial data | `python scripts/build_sky.py path/to/d3-celestial/data` |
+| `scripts/build_redshift.py` | Build `web/data/redshift.json`, the galaxies and quasars of the redshift layer, from SIMBAD (about 4 minutes) | `python scripts/build_redshift.py` |
 | `scripts/build_dev_site.sh` | Lay `web/` out as the static dev site (see [environments](environments.md)) | `sh scripts/build_dev_site.sh [output dir]` |
 
 ## Database files
@@ -136,7 +139,7 @@ stubbed HTTP clients, need no network, and finish in about three seconds.
 | `tests/test_measure.py` | 18 | Parallax factors; PSF fit accuracy; neighbour handling; wing fallback; track recovery with parallax; stacks for faint movers; light curve; storage and database synchronisation; saturated stars |
 | `tests/test_overtime_js.py` | 1 | Runs `tests/overtime_cases.js` with node on `web/overtime.js`: groups of days, the cut time axis, and the comparison of visits (steady, fading, saturated star, long stay, one visit, too few points, noise only) |
 | `tests/test_resolve_names.py` | 12 | Name resolution paths: Sesame, mirrors, redirects, SIMBAD fallback, spellings, "not found" against "unavailable", no network for built-in targets |
-| `tests/test_insight.py` | 16 | The preliminary reading of a spectrum (`web/insight.js`, run under Node by `tests/insight_runner.js`): 14 real spectra kept in `tests/data/spectra/` (brown dwarf, ices, planetary nebula, white dwarf, cold neighbour, cool star, quasar, extended galaxy, saturated stars, empty sky) and made-up curves (blackbodies, a power law, ice bands, emission lines, noise); no band or line from noise; nothing claimed from too few points. Skipped where Node is not installed |
+| `tests/test_insight.py` | 24 | The preliminary reading of a spectrum (`web/insight.js`, run under Node by `tests/insight_runner.js`) and its reference wavelengths (`web/linelist.js`: every entry names a source, hydrogen lines agree with the Rydberg formula, every feature of a reading comes from the catalogue); four quasars read with their published redshift, a made-up redshifted source read with the right and a wrong redshift; 17 real spectra kept in `tests/data/spectra/` (brown dwarf, ices, planetary nebula, white dwarf, cold neighbour, cool star, quasar, extended galaxy, saturated stars, empty sky) and made-up curves (blackbodies, a power law, ice bands, emission lines, noise); no band or line from noise; nothing claimed from too few points. Skipped where Node is not installed |
 
 ```bash
 pip install -r requirements.txt pytest

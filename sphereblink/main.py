@@ -27,7 +27,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import atlas, catalogs, config, guard, measure_api, measurements, movers_api, render, tiles, wings
+from . import atlas, catalogs, config, distance, guard, measure_api, measurements, movers_api, render, tiles, wings
 from . import resolve as resolver
 from .cutout import Grid
 from .resolve import FEATURED, NameNotFound, ResolverUnavailable, Target, resolve
@@ -582,6 +582,33 @@ def api_catalog(
     except Exception as exc:
         raise HTTPException(502, f"catalogue service error: {type(exc).__name__}") from exc
     return {"cat": cat, "sources": sources}
+
+
+@app.get("/api/object")
+def api_object(target: str | None = None, ra: float | None = None, dec: float | None = None):
+    """What lies at a position and how far it is, from published catalogues.
+
+    A star gets its distance from its parallax (Gaia DR3, or the parallax
+    SIMBAD holds); a galaxy or a quasar gets its published redshift (SIMBAD,
+    then NED) and what that redshift means in the Planck 2018 cosmology.
+    Nothing here is measured from the SPHEREx images, and every value names
+    its source. ``complete`` is false when a catalogue service did not
+    answer: what there is comes back, and asking again later may add to it.
+    """
+    t = _target(target, ra, dec)
+    named = t.source != "coordinates"
+    key = f"object_v1_{t.name.lower() if named else ''}_{t.ra:.4f}_{t.dec:.4f}"
+    found = svc.store.get_catalog(key)
+    if found is None:
+        guard.charge(guard.catalogs, "catalogue queries")
+        try:
+            found = distance.lookup(t)
+        except Exception as exc:
+            raise HTTPException(502, f"catalogue service error: {type(exc).__name__}") from exc
+        if found["complete"]:  # a partial answer is not kept: the next request tries the services again
+            svc.store.put_catalog(key, found)
+    return JSONResponse({"target": t.to_dict(), **found},
+                        headers={"Cache-Control": "public, max-age=3600" if found["complete"] else "no-store"})
 
 
 @app.get("/api/tracks")

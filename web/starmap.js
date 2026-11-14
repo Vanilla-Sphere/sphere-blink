@@ -29,6 +29,7 @@ const SkyMap = (() => {
   let ATLAS_FROM = 1.1, ATLAS_SHOW = 0.85, photoOn = false;   // the sky photograph: from how many doublings of zoom it comes up, and how strongly
   let mwCv = null, mwCtx = null, MW_SOFT = 1, MW_GLOW = 1;   // the Milky Way's small canvas; how blurred and how bright it is
   let fx = null;                        // ambient.js, when it is loaded: it draws the aiming frame and follows every redraw
+  let layer = null, hoverObj = null;    // objects of a catalogue drawn over the stars (depth.js): {groups: [{col, pts}], dim}
   let AXIS = "sky";                     // the line between the two celestial poles: "sky", "view" or "off" (see axisLine)
 
   /* ---------------------------------------------------------------- geometry */
@@ -363,6 +364,29 @@ const SkyMap = (() => {
       ctx.fill(); list.length = 0;
     }
 
+    // a catalogue over the chart (galaxies and quasars by redshift): the sky steps back, its objects stand out.
+    // A galaxy is a dot, a quasar a diamond, in the colour of its group.
+    if (layer) {
+      ctx.fillStyle = C.well; ctx.globalAlpha = layer.dim; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+      const r = Math.max(2.1, Math.min(4.2, 2.1 + 0.45 * Math.log2(view.k)));
+      ctx.lineWidth = 1; ctx.strokeStyle = "rgba(8,6,4,.75)";
+      for (const g of layer.groups) {
+        ctx.beginPath();
+        for (const o of g.pts) {
+          project(o.v[0], o.v[1], o.v[2], p);
+          if (!onScreen(p, 6)) continue;
+          const x = p[0], y = p[1];
+          if (o.kind === "q") { const d = r * 1.3; ctx.moveTo(x, y - d); ctx.lineTo(x + d, y); ctx.lineTo(x, y + d); ctx.lineTo(x - d, y); ctx.closePath(); }
+          else { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, 2 * Math.PI); }
+        }
+        ctx.fillStyle = g.col; ctx.globalAlpha = 0.92; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke();
+      }
+      if (hoverObj) {
+        project(hoverObj.v[0], hoverObj.v[1], hoverObj.v[2], p);
+        ctx.strokeStyle = C.ink; ctx.lineWidth = 1.25; ctx.beginPath(); ctx.arc(p[0], p[1], r + 4.5, 0, 2 * Math.PI); ctx.stroke();
+      }
+    }
+
     // names: constellations once there is room, the brightest stars a little later
     const halo = (text, x, y, color) => { ctx.lineJoin = "round"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(8,6,4,.72)"; ctx.strokeText(text, x, y); ctx.fillStyle = color; ctx.fillText(text, x, y); };
     // (a phone opens zoomed in already, with little room: its names wait for a closer look)
@@ -477,29 +501,45 @@ const SkyMap = (() => {
     project(stars.v[3 * best], stars.v[3 * best + 1], stars.v[3 * best + 2], p);
     return {i: best, ra: stars.at[4 * best] / 1000, dec: stars.at[4 * best + 1] / 1000, mag: stars.mag[best], name: stars.name.get(best) || "", id: stars.id[best] || "", x: p[0], y: p[1], r: starRadius(stars.mag[best], grow)};
   }
+  /* The object of the catalogue layer the pointer is on, if any: it wins over a star next to it. */
+  function objAt(px, py, finger) {
+    if (!layer) return null;
+    const p = [0, 0, 0], reach = finger ? 16 : 9;
+    let best = null, bd = reach;
+    for (const g of layer.groups) for (const o of g.pts) {
+      project(o.v[0], o.v[1], o.v[2], p);
+      const dx = p[0] - px, dy = p[1] - py;
+      if (dx > reach || dx < -reach || dy > reach || dy < -reach) continue;
+      const d = Math.hypot(dx, dy);
+      if (d < bd) { bd = d; best = o; }
+    }
+    return best;
+  }
   /* free: the pointer is taken as it is, without snapping to a star (Alt is held) */
   function tell(px, py, free) {
     setRot();
     const sk = px === null ? null : unproject(px, py), pin = px === null ? null : pinAt(px, py);
-    const star = pin || !sk || free ? null : starAt(px, py);
-    hover = star ? {ra: star.ra, dec: star.dec} : sk ? {ra: sk[0], dec: sk[1]} : null; hoverPin = pin; hoverStar = star;
+    const obj = pin || !sk || free ? null : objAt(px, py);
+    const star = pin || obj || !sk || free ? null : starAt(px, py);
+    hover = obj ? {ra: obj.ra, dec: obj.dec} : star ? {ra: star.ra, dec: star.dec} : sk ? {ra: sk[0], dec: sk[1]} : null; hoverPin = pin; hoverStar = star; hoverObj = obj;
     const con = hover ? constellation(hover.ra, hover.dec) : null;
     hoverCon = pin ? null : con;
-    cv.style.cursor = pin || star ? "pointer" : sk ? "crosshair" : "grab";
+    cv.style.cursor = pin || star || obj ? "pointer" : sk ? "crosshair" : "grab";
     // a pole's mark has a note of its own, unless a star is nearer the pointer (Polaris is next to the north one)
     const mark = hover && !pin && AXIS !== "off" ? poleAt(px, py) : null;
-    const pole = mark && (!star || mark.d < Math.hypot(star.x - px, star.y - py)) ? mark.pole : null;
-    if (opt.onHover) opt.onHover(hover ? {ra: hover.ra, dec: hover.dec, x: px, y: py, pin, con, star, pole} : null);
+    const pole = mark && !obj && (!star || mark.d < Math.hypot(star.x - px, star.y - py)) ? mark.pole : null;
+    if (opt.onHover) opt.onHover(hover ? {ra: hover.ra, dec: hover.dec, x: px, y: py, pin, con, star, pole, obj} : null);
     redraw();
   }
   function pick(px, py, free, finger) {
     setRot();
     const pin = pinAt(px, py), sk = unproject(px, py);
     if (!pin && !sk) return;
-    const star = pin || free ? null : starAt(px, py, finger);
-    busyAt = pin ? {ra: pin.ra, dec: pin.dec} : star ? {ra: star.ra, dec: star.dec} : {ra: sk[0], dec: sk[1]};
+    const obj = pin || free ? null : objAt(px, py, finger);
+    const star = pin || obj || free ? null : starAt(px, py, finger);
+    busyAt = pin ? {ra: pin.ra, dec: pin.dec} : obj ? {ra: obj.ra, dec: obj.dec} : star ? {ra: star.ra, dec: star.dec} : {ra: sk[0], dec: sk[1]};
     redraw();
-    if (opt.onPick) opt.onPick(pin ? {pin, x: px, y: py} : star ? {ra: star.ra, dec: star.dec, star, x: px, y: py} : {ra: sk[0], dec: sk[1], x: px, y: py});
+    if (opt.onPick) opt.onPick(pin ? {pin, x: px, y: py} : obj ? {ra: obj.ra, dec: obj.dec, obj, x: px, y: py} : star ? {ra: star.ra, dec: star.dec, star, x: px, y: py} : {ra: sk[0], dec: sk[1], x: px, y: py});
   }
   function wire() {
     const ptr = new Map();
@@ -516,7 +556,7 @@ const SkyMap = (() => {
       ptr.set(ev.pointerId, now);
       if (ptr.size === 1) {
         moved += Math.hypot(now[0] - was[0], now[1] - was[1]);
-        if (moved > 5) { cv.style.cursor = "grabbing"; if (hover) { hover = null; hoverPin = null; hoverCon = null; hoverStar = null; if (opt.onHover) opt.onHover(null); } pan(now[0] - was[0], now[1] - was[1]); }
+        if (moved > 5) { cv.style.cursor = "grabbing"; if (hover) { hover = null; hoverPin = null; hoverCon = null; hoverStar = null; hoverObj = null; if (opt.onHover) opt.onHover(null); } pan(now[0] - was[0], now[1] - was[1]); }
       } else if (ptr.size === 2) {
         const [a, b] = [...ptr.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
         if (pinch) zoomAt(d / pinch, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
@@ -569,7 +609,13 @@ const SkyMap = (() => {
     rest() { if (hover || hoverPin) tell(null); },
     photo(from, show) { ATLAS_FROM = from; ATLAS_SHOW = show; redraw(); },   // the sky photograph: where it starts (doublings of zoom past the whole sky) and its strength
     milky(soft, glow) { MW_SOFT = soft; MW_GLOW = glow; redraw(); },
-    axis(mode) { AXIS = mode; redraw(); },   // the line between the celestial poles: "sky", "view" or "off"
+    axis(mode) { AXIS = mode; redraw(); },
+    /* A catalogue drawn over the chart, or null to take it away: {groups: [{col, pts: [{ra, dec, kind, ...}]}], dim}.
+       dim (0 to 1) is how far the chart behind steps back. Its objects are told to onHover and onPick as `obj`. */
+    layer(spec) {
+      if (spec) for (const g of spec.groups) for (const o of g.pts) if (!o.v) o.v = vec(o.ra, o.dec);
+      layer = spec || null; hoverObj = null; redraw();
+    },   // the line between the celestial poles: "sky", "view" or "off"
     look(v) { LOOK = Math.max(0, Math.min(1, v)); starColours(); redraw(); },   // how strong the halo, spikes and colour of the stars are
     get ready() { return !!sky; },
   };
