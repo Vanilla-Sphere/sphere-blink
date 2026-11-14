@@ -279,6 +279,15 @@ async function reloadCube() {
   $("progress").classList.remove("busy"); $("progress").hidden = true; $("sky").parentElement.classList.remove("busy");
 }
 
+/* The reading of the spectrum (insight.js). When the catalogues gave the object a redshift, the lines are looked
+   for where it puts them: the redshift is the published one, never one read from the curve. */
+function readSpectrum() {
+  const z = DP.info && DP.info.redshift;
+  try { S.insight = S.spectrum ? analyseSpectrum(S.spectrum, z && z.z >= 0.01 ? {z: z.z, zSource: String(z.source || "").replace(/ \(.*/, "")} : null) : null; }
+  catch (_) { S.insight = null; }  // a reading that fails must not take the plot with it
+  showReading(S.insight);
+}
+
 /* The spectrum needs every exposure; if the server is still gathering them, ask again. */
 async function loadSpectrum(id, attempt = 0) {
   let d = null;
@@ -293,8 +302,7 @@ async function loadSpectrum(id, attempt = 0) {
   }
   if (!d) return;
   S.spectrum = d.points;
-  try { S.insight = analyseSpectrum(d.points); } catch (_) { S.insight = null; }  // a reading that fails must not take the plot with it
-  showReading(S.insight);
+  readSpectrum();
   $("speccard").hidden = false; drawPlot();
 }
 
@@ -880,7 +888,8 @@ function showTarget(t) {
   document.title = `${tidyName(t.name)} - Vanilla Sphere`;
   for (const c of document.querySelectorAll("#featured .target")) { const on = c.dataset.name === t.name; c.classList.toggle("on", on); c.setAttribute("aria-pressed", on); }
   showStory(t);
-  depthTarget(t);   // its distance or redshift, from the catalogues
+  // its distance or redshift, from the catalogues; a redshift that comes after the spectrum changes where its lines are looked for
+  depthTarget(t).then(() => { if (S.spectrum && S.t === t) { readSpectrum(); drawPlot(); } });
 }
 /* Simple mode: a name anyone can read and two sentences on what to look for. */
 function showStory(t) {

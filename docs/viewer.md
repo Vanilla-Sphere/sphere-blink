@@ -16,7 +16,8 @@ as static files.
 | `data/redshift.json` | 600 KB | 10 037 galaxies and quasars with a spectroscopic redshift (SIMBAD), loaded when the redshift layer is first used |
 | `movers.js` | about 240 lines | Moving objects found by the blind search: the card of a field, the paths on the image, votes, follow, and the "Discoveries" list |
 | `exports.js` | about 230 lines | What a researcher takes away: the plot's points as CSV, the plot as PNG with the credit, the "Source files" panel listing the Level 2 exposures with their IRSA links, its download script, URL list and table, and the "About the data" page |
-| `insight.js` | about 520 lines | The preliminary reading of a spectrum (`analyseSpectrum`): which points can be read, continuum shape, bands and lines, confidence and limits; `showReading` puts it under the plot and `markFeatures` names the detected features on the plot. Pure rules, no network |
+| `linelist.js` | about 110 lines | `LINE_CATALOG`: the reference wavelengths of the reading, 25 atomic lines (vacuum, NIST ASD 5.12) and 7 bands of molecules, ices and dust, each with its source, and the full references. Data only |
+| `insight.js` | about 610 lines | The preliminary reading of a spectrum (`analyseSpectrum(points, {z, zSource})`): which points can be read, continuum shape, bands and lines at the wavelengths of `linelist.js` (moved by a published redshift when one is given), confidence and limits; `showReading` puts it under the plot with the table of reference wavelengths and `markFeatures` names the detected features on the plot. Pure rules, no network |
 | `i18n.js` | 107 lines | Text that scripts put on the page (`STR.en`) and the `tr()` formatter |
 | `overtime.js` | about 130 lines | The Over time plot without the page: the time axis cut into groups of days, and the comparison of visits that says whether the object changed. Tested with node (`tests/overtime_cases.js`) |
 | `hints.js` | 74 lines | One-line notes on controls, shown on hover and keyboard focus |
@@ -24,8 +25,8 @@ as static files.
 | `data/sky.json` | - | Compact star chart: stars, names, constellations, Milky Way, boundary grid |
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
-Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `insight.js`, `depth.js`, `app.js`.
-Asset URLs carry a version query (`?v=40`) that is raised when a file changes,
+Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `linelist.js`, `insight.js`, `depth.js`, `app.js`.
+Asset URLs carry a version query (`?v=42`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
