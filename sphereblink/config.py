@@ -48,6 +48,21 @@ RAM_BUDGET_MB = float(os.environ.get("SPHEREX_RAM_BUDGET_MB", "600"))
 # The disk cache drops its least recently fetched views above this size.
 DISK_BUDGET_GB = float(os.environ.get("SPHEREX_DISK_BUDGET_GB", "4"))
 
+# The photograph behind the zoomed-in sky map: tiles of the 2MASS colour atlas
+# in the HiPS format, from the NASA/IPAC Infrared Science Archive. The server
+# fetches a tile once and keeps it on disk (sphereblink/atlas.py).
+ATLAS_URL = os.environ.get("SPHEREX_ATLAS_URL", "https://irsa.ipac.caltech.edu/data/hips/CDS/2MASS/Color")
+# Tiles kept on disk, in all. Above it the deep tiles nobody asked for the
+# longest time are deleted. This is disk next to DISK_BUDGET_GB: the two
+# together must stay below the disk.
+ATLAS_BUDGET_GB = float(os.environ.get("SPHEREX_ATLAS_BUDGET_GB", "1"))
+# Tiles of this order and below are never deleted. They cover the whole sky:
+# orders 0-3 are 0.08 GB, 0-4 0.36 GB, 0-5 1.65 GB, 0-6 7.2 GB.
+ATLAS_KEEP_ORDER = int(os.environ.get("SPHEREX_ATLAS_KEEP_ORDER", "3"))
+# Fetch all of those after a start (what is on disk already is skipped).
+ATLAS_SEED = os.environ.get("SPHEREX_ATLAS_SEED", "0") not in ("0", "false", "no")
+ATLAS_FETCHES = int(os.environ.get("SPHEREX_ATLAS_FETCHES", "8"))  # tiles fetched from the archive at once
+
 # Flag planes that make a pixel unusable for display. SOURCE is deliberately
 # not here: it marks pixels on known stars, which is exactly what we want to see.
 BAD_FLAG_NAMES = (
@@ -71,6 +86,12 @@ RATE_REQUESTS_PER_S = float(os.environ.get("SPHEREX_RATE_REQUESTS_PER_S", "40"))
 RATE_REQUESTS_BURST = float(os.environ.get("SPHEREX_RATE_REQUESTS_BURST", "1200"))
 RATE_NAMES_PER_MIN = float(os.environ.get("SPHEREX_RATE_NAMES_PER_MIN", "40"))  # names sent to the name services
 RATE_CATALOGS_PER_MIN = float(os.environ.get("SPHEREX_RATE_CATALOGS_PER_MIN", "60"))  # catalogue queries not yet cached
+# Tiles of the sky photograph are counted apart from the API calls: a screen
+# of the map is 10 to 25 of them, and a tile on disk costs the server next to
+# nothing. Tiles asked for, and tiles the server has to fetch from the archive.
+RATE_TILES_PER_S = float(os.environ.get("SPHEREX_RATE_TILES_PER_S", "100"))
+RATE_TILES_BURST = float(os.environ.get("SPHEREX_RATE_TILES_BURST", "3000"))
+RATE_ATLAS_PER_MIN = float(os.environ.get("SPHEREX_RATE_ATLAS_PER_MIN", "1200"))
 RATE_MEASURES_PER_HOUR = float(os.environ.get("SPHEREX_RATE_MEASURES_PER_HOUR", "30"))  # new measurements
 RATE_MEASURES_BURST = float(os.environ.get("SPHEREX_RATE_MEASURES_BURST", "6"))
 MAX_OPEN_REQUESTS = int(os.environ.get("SPHEREX_MAX_OPEN_REQUESTS", "32"))  # API calls being answered at once

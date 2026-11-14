@@ -150,7 +150,8 @@ Four layers, from fastest to most durable:
 | --- | --- | --- | --- |
 | Epoch cache | Web process memory | Stacked epochs of recent (view, band, grouping, diff) combinations | 500 MB, least recently used |
 | Job frames | Web process memory | Decoded frames of recently opened views | `SPHEREX_RAM_BUDGET_MB` (2000 on Render) and at most 500 jobs; least recently used views are forgotten |
-| Cutout cache | `cache.sqlite` on the persistent disk | Frames, exposure lists, wavelength maps, catalogue results | `SPHEREX_DISK_BUDGET_GB` (16 on Render); least recently opened views are dropped whole; the 8 arcmin views of the featured targets are never dropped |
+| Cutout cache | `cache.sqlite` on the persistent disk | Frames, exposure lists, wavelength maps, catalogue results | `SPHEREX_DISK_BUDGET_GB` (13 on Render); least recently opened views are dropped whole; the 8 arcmin views of the featured targets are never dropped |
+| Sky photograph | `atlas/2mass/` on the persistent disk, one JPEG per tile in the HiPS layout | Tiles of the 2MASS atlas behind the sky map, as the archive sends them | `SPHEREX_ATLAS_BUDGET_GB` (4 on Render); orders up to `SPHEREX_ATLAS_KEEP_ORDER` (5) are fetched after a start and never dropped, deeper tiles least recently asked for go first; no new tile is stored with less than 1 GB free on the disk |
 | Measurement store | `measurements.sqlite`, Postgres | Pipeline results | Not evicted; re-measured after 7 days or a pipeline version change |
 
 Details:

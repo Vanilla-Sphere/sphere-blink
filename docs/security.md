@@ -33,6 +33,8 @@ never limited. The code is `sphereblink/guard.py`.
 | API requests open at once | 32 | `SPHEREX_MAX_OPEN_REQUESTS` | 429 |
 | Views being gathered at once | 24 per caller; 96 in total | `SPHEREX_MAX_JOBS_PER_CLIENT`, `SPHEREX_MAX_JOBS` | 429; 503 |
 | Progressive fields loading at once | 8 | `SPHEREX_MAX_FIELDS_PER_CLIENT` | 429 |
+| Tiles of the sky photograph | 100 per second sustained, 3000 at once; counted apart from the API requests and not as open requests | `SPHEREX_RATE_TILES_PER_S`, `SPHEREX_RATE_TILES_BURST` | 429 |
+| Sky tiles the server has to fetch from the archive | 1200 per minute; 8 fetches at once for all callers together | `SPHEREX_RATE_ATLAS_PER_MIN`, `SPHEREX_ATLAS_FETCHES` | 429; 503 |
 | Names sent to the name services | 40 per minute | `SPHEREX_RATE_NAMES_PER_MIN` | 429 |
 | Catalogue and archive queries that go out | 60 per minute | `SPHEREX_RATE_CATALOGS_PER_MIN` | 429 |
 | New measurements | 6 at once, then 30 per hour | `SPHEREX_RATE_MEASURES_BURST`, `SPHEREX_RATE_MEASURES_PER_HOUR` | 429 |
@@ -120,7 +122,7 @@ endpoint is `GET`; nothing else is accepted.
 | IRSA SIA (exposure search) | Finding the exposures of a position | The stored list of that position is used, whatever its age. A position never opened before cannot be opened until the archive answers |
 | IRSA as a whole | Search and second copy of the files | Everything already on disk still opens, including the 8 arcmin views of the five featured targets, which are fetched at start and never evicted |
 | CDS Sesame | Object names | Second host (Harvard), then SIMBAD TAP on two hosts, then the answer stored on disk (kept 30 days, used at any age when no service answers). Coordinates and the featured targets need no service |
-| IRSA HiPS tiles (2MASS atlas) | The photograph behind the zoomed-in sky map, fetched by the visitor's browser | The drawn map stays as it is; after six failed tiles in a row the archive is left alone for a minute. Nothing else depends on it |
+| IRSA HiPS tiles (2MASS atlas) | The photograph behind the zoomed-in sky map | The server keeps every tile it has fetched, and the whole sky at orders 0-5, on its disk: those are shown without the archive. A tile that is not on disk is refused at once while the archive is down (after five failures in a row it is left alone for 30 s). If the server itself cannot give a tile, the browser asks the archive directly; with both away the drawn map stays as it is. Nothing else depends on it |
 | ESA Gaia archive, IRSA Gator | Catalogue overlays | Each catalogue has two services; the overlays of the featured targets are stored at start. See [data and sources](data-sources.md#external-services) |
 | Supabase Postgres | Team measurements | The service's own results are also in a local store and are served from there |
 | The server itself (Render) | Everything | One instance: a deploy or a crash interrupts the site. The server now stops at once instead of after 30 s, which leaves the 27 s the host needs to start the new instance (measured 2026-11-14); the viewer retries by itself, and a worker process that dies is replaced. A second server was considered on 2026-11-14 and not taken |

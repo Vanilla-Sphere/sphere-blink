@@ -6,14 +6,20 @@
    This file works out which diamonds are on screen, fetches them, and draws each one through the
    map's own projection, so the photograph lies exactly under the drawn stars.
 
-   It is a backdrop from an atlas, not SPHEREx data, and the page says so while it shows. If the
-   archive is slow or away nothing is drawn and the map keeps its own drawn background.
+   The tiles come from our own server, which keeps a copy of every tile it has fetched from the
+   archive and of the whole sky at the coarse orders (sphereblink/atlas.py). A tile our server
+   cannot give is asked of the archive itself, and when our server keeps failing the archive is
+   asked directly for a minute.
+
+   It is a backdrop from an atlas, not SPHEREx data, and the page says so while it shows. If neither
+   source answers nothing is drawn and the map keeps its own drawn background.
 
    A tile is cleaned once when it arrives (clean, below): the atlas has a faint magenta floor of
    noise and, near bright stars, patches of pure green, red or blue that the survey's detectors left
    behind. Both are taken out, and the colour is muted a little so the chart on top stays readable. */
 const Atlas = (() => {
-  const BASE = "https://irsa.ipac.caltech.edu/data/hips/CDS/2MASS/Color";
+  const BASE = "/api/atlas/2mass";      // our own server: the tiles it keeps, in the same layout as the archive
+  const ARCHIVE = "https://irsa.ipac.caltech.edu/data/hips/CDS/2MASS/Color";   // the archive itself, the second source
   const TOP = 8;                        // the deepest order asked for (the atlas goes to 9)
   const FLOOR = [43, 27, 41];           // the atlas' floor of noise in red, green and blue: below it is black
   let MUTE = 0.3;                       // how far the colours are pulled toward grey, 0..1
@@ -24,6 +30,7 @@ const Atlas = (() => {
 
   const tiles = new Map();              // "order/face/ix/iy" -> {img, ok, bad (when it last failed), at (when it arrived), used}
   let loading = 0, strikes = 0, restUntil = 0, wake = null, clock = 0, on = true, keep = 60;
+  let ownStrikes = 0, ownRestUntil = 0;   // our own server failing: how often in a row, and until when the archive is asked first
   const saver = () => !!(navigator.connection && navigator.connection.saveData);
   const still = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -105,17 +112,31 @@ const Atlas = (() => {
   }
   function drop(key) { const t = tiles.get(key); if (t && t.ok && t.img.close) t.img.close(); tiles.delete(key); }
   function fetchTile(t) {
-    const pix = number(t.order, t.face, t.ix, t.iy), img = new Image();
-    img.crossOrigin = "anonymous"; img.referrerPolicy = "no-referrer"; img.decoding = "async";
-    t.img = img; loading++;
+    const pix = number(t.order, t.face, t.ix, t.iy);
+    const path = `/Norder${t.order}/Dir${Math.floor(pix / 10000) * 10000}/Npix${pix}.jpg`;
+    loading++;
     const failed = () => {
       loading--; t.img = null; t.bad = performance.now();
-      if (++strikes >= 6) { restUntil = performance.now() + 60000; strikes = 0; }   // the archive is away: leave it alone for a minute
+      if (++strikes >= 6) { restUntil = performance.now() + 60000; strikes = 0; }   // both sources are away: leave them alone for a minute
       if (wake) wake();
     };
-    img.onload = () => clean(img).then((pic) => { loading--; strikes = 0; t.img = pic; t.ok = true; t.at = performance.now(); if (wake) wake(); }, failed);
-    img.onerror = failed;
-    img.src = `${BASE}/Norder${t.order}/Dir${Math.floor(pix / 10000) * 10000}/Npix${pix}.jpg`;
+    /* ask one source; `next` is what to do when it does not give the tile */
+    const from = (base, own, next) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous"; img.referrerPolicy = "no-referrer"; img.decoding = "async";
+      t.img = img;
+      img.onload = () => clean(img).then((pic) => {
+        loading--; strikes = 0; if (own) ownStrikes = 0;
+        t.img = pic; t.ok = true; t.at = performance.now(); if (wake) wake();
+      }, failed);
+      img.onerror = () => {
+        if (own && ++ownStrikes >= 3) { ownRestUntil = performance.now() + 60000; ownStrikes = 0; }
+        (next || failed)();
+      };
+      img.src = base + path;
+    };
+    if (performance.now() < ownRestUntil) from(ARCHIVE, false, null);
+    else from(BASE, true, () => from(ARCHIVE, false, null));
   }
   function tidy() {
     if (tiles.size <= keep) return;

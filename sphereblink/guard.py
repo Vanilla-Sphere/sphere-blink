@@ -6,7 +6,8 @@ Three things live here, all as one ASGI middleware (``Guard``):
   visitor cannot pose as many by sending forwarding headers of their own;
 * how much one caller may ask for: a request rate, a number of requests
   open at once, and token buckets for the expensive actions (looking a name
-  up at the name services, starting a measurement). The numbers are far
+  up at the name services, starting a measurement, making the server fetch
+  tiles of the sky photograph). The numbers are far
   above what a person or a classroom behind one address needs and are there
   to stop a script;
 * the response headers browsers act on (content security policy, no
@@ -131,6 +132,9 @@ requests = Buckets(config.RATE_REQUESTS_PER_S, config.RATE_REQUESTS_BURST)
 names = Buckets(config.RATE_NAMES_PER_MIN / 60.0, config.RATE_NAMES_PER_MIN)
 measures = Buckets(config.RATE_MEASURES_PER_HOUR / 3600.0, config.RATE_MEASURES_BURST)
 catalogs = Buckets(config.RATE_CATALOGS_PER_MIN / 60.0, config.RATE_CATALOGS_PER_MIN)
+sky_tiles = Buckets(config.RATE_TILES_PER_S, config.RATE_TILES_BURST)  # tiles of the sky photograph asked for
+atlas = Buckets(config.RATE_ATLAS_PER_MIN / 60.0, config.RATE_ATLAS_PER_MIN)  # ... and those the server must fetch from the archive
+TILES = "/api/atlas/2mass/"
 
 
 def charge(bucket: Buckets, what: str, cost: float = 1.0) -> None:
@@ -146,9 +150,11 @@ _open_lock = threading.Lock()
 
 # ----------------------------------------------------------------------------- response headers
 # The viewer loads everything from its own origin, with one exception: the
-# photograph behind the zoomed-in sky map is made of tiles of the 2MASS atlas
-# fetched as images from the NASA/IPAC Infrared Science Archive. Inline style
-# attributes are used for colour swatches; there is no inline script.
+# photograph behind the zoomed-in sky map is made of tiles of the 2MASS atlas.
+# They come from this server (/api/atlas/2mass/, which keeps them on disk), and
+# a tile this server cannot give is asked of the NASA/IPAC Infrared Science
+# Archive itself, as an image. Inline style attributes are used for colour
+# swatches; there is no inline script.
 CSP = (
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data: blob: https://irsa.ipac.caltech.edu; "
@@ -216,7 +222,16 @@ class Guard:
             log.info("guard: first outside request carries %s", sorted(
                 k.decode("latin-1") for k, _ in scope.get("headers") or () if k.startswith((b"cf-", b"true-", b"x-forwarded", b"forwarded", b"x-real"))))
         try:
-            if limited:
+            if limited and path.startswith(TILES):
+                # Tiles of the sky photograph have an allowance of their own
+                # and are not counted as open requests: a classroom behind one
+                # address looking at the map must not use up what its views
+                # and measurements need. A refused tile is asked of the
+                # archive by the page itself.
+                wait = sky_tiles.take(client)
+                if wait > 0:
+                    return await _refuse(send_with_headers, Busy("too many sky tiles from your address; slow down", wait))
+            elif limited:
                 wait = requests.take(client)
                 if wait > 0:
                     return await _refuse(send_with_headers, Busy("too many requests from your address; slow down", wait))
