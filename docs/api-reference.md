@@ -514,6 +514,7 @@ dec(t) = dec + pmdec / 3.6e6 * (t - epoch)
 | --- | --- | --- | --- |
 | `target` | string | | Object name or coordinates |
 | `ra`, `dec` | degrees | | A position, instead of `target` |
+| `second` | 0 or 1 | 0 | Where SIMBAD gave the redshift, also ask NED and put what it lists for the same object (within 3 arcsec) in `redshift.second`: `z`, `z_err`, `nature`, `name`, `sep_arcsec`, `source`, `bibcode`. The viewer asks for it when the lines of the SPHEREx spectrum disagree with the published value |
 
 What lies at the position and how far it is. The values are published ones:
 nothing is measured from the SPHEREx images. See

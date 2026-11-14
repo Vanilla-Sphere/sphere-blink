@@ -627,7 +627,7 @@ def api_catalog(
 
 
 @app.get("/api/object")
-def api_object(target: str | None = None, ra: float | None = None, dec: float | None = None):
+def api_object(target: str | None = None, ra: float | None = None, dec: float | None = None, second: bool = False):
     """What lies at a position and how far it is, from published catalogues.
 
     A star gets its distance from its parallax (Gaia DR3, or the parallax
@@ -636,15 +636,18 @@ def api_object(target: str | None = None, ra: float | None = None, dec: float | 
     Nothing here is measured from the SPHEREx images, and every value names
     its source. ``complete`` is false when a catalogue service did not
     answer: what there is comes back, and asking again later may add to it.
+    ``second=1`` adds, where SIMBAD gave the redshift, what NED lists for the
+    same object (``redshift.second``): the viewer asks for it when the lines
+    of the SPHEREx spectrum disagree with the published value.
     """
     t = _target(target, ra, dec)
     named = t.source != "coordinates"
-    key = f"object_v2_{t.name.lower() if named else ''}_{t.ra:.4f}_{t.dec:.4f}"
+    key = f"object_v2_{t.name.lower() if named else ''}_{t.ra:.4f}_{t.dec:.4f}" + ("_second" if second else "")
     found = svc.store.get_catalog(key)
     if found is None:
         guard.charge(guard.catalogs, "catalogue queries")
         try:
-            found = distance.lookup(t)
+            found = distance.lookup(t, second=second)
         except Exception as exc:
             raise HTTPException(502, f"catalogue service error: {type(exc).__name__}") from exc
         if found["complete"]:  # a partial answer is not kept: the next request tries the services again

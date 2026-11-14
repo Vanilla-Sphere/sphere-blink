@@ -128,8 +128,8 @@ def test_api_object_keeps_complete_answers_only(monkeypatch):
 
     calls = []
 
-    def fake(t):
-        calls.append(t.name)
+    def fake(t, second=False):
+        calls.append((t.name, second))
         return {"object": None, "kind": "unknown", "distance": None, "redshift": None, "radial_velocity": None,
                 "measured_distance": None, "notes": [], "unavailable": [] if len(calls) > 1 else ["SIMBAD"], "complete": len(calls) > 1}
 
@@ -146,6 +146,8 @@ def test_api_object_keeps_complete_answers_only(monkeypatch):
     assert second.json()["complete"] and second.json()["target"]["ra"] == pytest.approx(11.11111)
     web.get(url)
     assert len(calls) == 2  # the complete answer came from the store the third time
+    web.get(url + "&second=1")
+    assert len(calls) == 3 and calls[-1][1] is True and calls[0][1] is False  # with a second catalogue: asked and kept apart
     assert web.get("/api/object").status_code == 400
 
 
@@ -178,3 +180,25 @@ def test_published_velocities_are_read_from_simbad():
         return httpx.Response(200, text='velvalue,veltype,bibcode\n2.0,"v  ","1979IAUS...30...57E"\n1.7,"V  ","2006AstL...32..759G"\n'
                                         '-0.0022,"z  ","x"\n,"v  ","y"\n')
     assert distance.simbad_velocities(httpx.Client(transport=httpx.MockTransport(handler)), "2406927") == [2.0, 1.7]
+
+
+def test_a_second_catalogue_is_asked_only_on_request():
+    asked = []
+    replay = client()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        query = dict(request.url.params).get("QUERY", "")
+        if "NEDTAP" not in query:
+            return replay.get(request.url)
+        asked.append(query)
+        return httpx.Response(200, text='prefname,ra,dec,prefphytype,z,zunc,z_bibcode,zflag\n'
+                                        '"3C 273",187.2779159,2.0523883,"QSO",0.158339,0.000067,"1992ApJS...83...29S","SLS"\n')
+    target = resolve.resolve("187.27792 2.05239")  # 3C 273: SIMBAD lists its redshift
+    out = distance.lookup(target, httpx.Client(transport=httpx.MockTransport(handler)))
+    assert out["redshift"]["source"].startswith("SIMBAD") and "second" not in out["redshift"] and not asked
+    out = distance.lookup(target, httpx.Client(transport=httpx.MockTransport(handler)), second=True)
+    again = out["redshift"]["second"]
+    assert out["redshift"]["source"].startswith("SIMBAD") and out["complete"]
+    assert again["z"] == pytest.approx(0.158339) and again["source"].startswith("NED") and again["bibcode"] == "1992ApJS...83...29S"
+    assert len(asked) == 1 and "0.000833" in asked[0]          # 3 arcsec: the same object, not a neighbour
+
