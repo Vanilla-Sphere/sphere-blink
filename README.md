@@ -43,7 +43,8 @@ viewer, code structure, data sources, performance and deployment.
   such a curve. It is written by fixed rules in the browser
   (`web/insight.js`), labelled preliminary, and states its confidence and
   limits. The wavelengths come from a cited catalogue (`web/linelist.js`:
-  NIST Atomic Spectra Database, HITRAN2020, the literature on ices and dust),
+  NIST Atomic Spectra Database, published band origins of water and methane,
+  the literature on ices and dust; every number read in its source),
   and for a galaxy or quasar with a published redshift the lines are looked
   for where the redshift puts them.
 - **Bright stars too.** A star brighter than about K = 9 saturates the

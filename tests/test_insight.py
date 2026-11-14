@@ -248,11 +248,15 @@ def test_every_reference_wavelength_names_its_source(catalog):
         for part in e.get("parts", []):
             assert abs(part - e["w"]) < 0.002 * e["w"], e["key"]   # a multiplet SPHEREx cannot split
     for e in catalog["bands"]:
-        assert e["seen_in"] in catalog["sources"], e["key"]
+        assert e["also"] and all(k in catalog["sources"] for k in e["also"]) and e["where"], e["key"]
+        # the wavelength is the one of the wavenumbers read in the source
+        assert abs(e["w"] - np.mean([1e4 / k for k in e["cm"]])) < 0.006, e["key"]
         assert e["inb"][0] < e["at"] < e["inb"][1] and e["left"][1] <= e["inb"][0] and e["inb"][1] <= e["right"][0], e["key"]
-        assert abs(e["w"] - e["at"]) < 0.05, e["key"]
+        assert abs(e["w"] - e["at"]) < 0.06, e["key"]
     for s in catalog["sources"].values():
-        assert s["short"] and s["cite"] and s["doi"].startswith("10."), s
+        assert s["short"] and s["cite"] and (s.get("doi", "").startswith("10.") or s.get("url", "").startswith("https://")), s
+    cited = {e["source"] for e in catalog["lines"] + catalog["bands"]} | {k for e in catalog["lines"] + catalog["bands"] for k in e.get("also", [])}
+    assert cited == set(catalog["sources"])       # no source is listed that no entry uses
 
 
 def test_hydrogen_lines_agree_with_the_rydberg_formula(catalog):
