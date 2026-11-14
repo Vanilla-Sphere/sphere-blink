@@ -24,6 +24,14 @@ const S = {
   cube: null, meta: null, npix: 0, planes: 1, limits: null, median: null, stack: null,
   spectrum: null, plotmode: "spec", catalogs: {}, tracks: null, loadId: 0, timer: null,
   levels: 0, field: null, stage: null,  // progressive field: rings of 0.12° cells, the server's report, the stage on screen
+  ui: "simple", lang: "en", screen: "map",  // Simple or Advanced ("adv"), English or Vietnamese, sky map or view
+  t: null, featured: [], keep: null, url: "",
+};
+/* Where the challenge targets sit on the sky map (degrees, late 2025; the server holds the exact positions). */
+const FEATURED_AT = {"barnard": [269.446, 4.768], "eps-indi-b": [331.096, -56.801], "wise-0855": [133.768, -7.243], "rw-aur": [76.956, 30.401], "r-dra": [248.167, 66.755]};
+const store = {
+  get(k) { try { return localStorage.getItem("vs." + k); } catch (_) { return null; } },
+  set(k, v) { try { localStorage.setItem("vs." + k, v); } catch (_) {} },
 };
 
 /* ------------------------------------------------------------------ URL state */
@@ -39,6 +47,15 @@ function readUrl() {
   if (p.get("gaia") === "1") $("ov-gaia").checked = true;
   if (p.get("catwise") === "1") $("ov-catwise").checked = true;
   if (p.get("tracks") === "0") $("ov-tracks").checked = false;
+}
+/* Interface mode and language: the link decides, then what this browser used last, then the defaults.
+   A link made before modes existed that carries display settings is an Advanced link. */
+function readPrefs() {
+  const p = new URLSearchParams(location.search);
+  const old = ["det", "group", "mode", "gaia", "catwise", "levels"].some((k) => p.get(k) !== null);
+  const ui = p.get("ui") || (old ? "adv" : store.get("ui")) || "simple";
+  const lang = p.get("lang") || store.get("lang") || ((navigator.language || "").toLowerCase().startsWith("vi") ? "vi" : "en");
+  return {ui: ui === "adv" ? "adv" : "simple", lang: lang === "vi" ? "vi" : "en"};
 }
 function paramsOf(v, extra = {}) {
   const p = new URLSearchParams();
@@ -56,7 +73,7 @@ function viewParams(extra = {}) {
   for (const [k, val] of Object.entries(extra)) p.set(k, val);
   return p;
 }
-function writeUrl() {
+function writeUrl(push) {
   const p = paramsOf(S);
   if (S.det !== "rgb") p.set("det", S.det);
   if (S.group !== "day") p.set("group", S.group);
@@ -64,12 +81,16 @@ function writeUrl() {
   if ($("ov-gaia").checked) p.set("gaia", "1");
   if ($("ov-catwise").checked) p.set("catwise", "1");
   if (S.tracks && !$("ov-tracks").checked) p.set("tracks", "0");
-  history.replaceState(null, "", "?" + p.toString());
+  p.set("ui", S.ui);
+  if (S.lang !== "en") p.set("lang", S.lang);
+  S.url = "?" + p.toString();
+  if (S.screen === "view" || push) history[push ? "pushState" : "replaceState"](null, "", S.url);
   const base = location.origin;
   $("s-page").value = base + "/?" + p.toString();
   const g = viewParams({det: S.det, group: S.group});
   if (S.mode === "diffmed") g.set("diff", "true");
   $("s-gif").value = base + "/api/movie.gif?" + g.toString();
+  $("sgif").href = $("s-gif").value;
   $("s-api").value = base + "/api/spectrum?" + viewParams({wait: 60}).toString();
 }
 
@@ -77,14 +98,13 @@ function writeUrl() {
 /* Switch to another view (`next` holds what changes) or reload the current one.
    The position is checked first; the view on screen is only replaced once that worked,
    so a mistyped name costs nothing. */
-async function load(next) {
+async function load(next, nopush) {
   const want = Object.assign({target: S.target, ra: S.ra, dec: S.dec, byCoords: S.byCoords, fov: S.fov, levels: S.levels}, next || {});
   const id = ++S.loadId, first = !S.meta;
-  searchError(""); $("search").classList.add("busy"); $("go").disabled = true; $("go").textContent = "Searching…";
+  searchError(""); $("search").classList.add("busy"); $("go").disabled = true; $("go").textContent = tr("go.busy");
   if (first) {
-    $("intro").hidden = true;
-    $("empty").hidden = false; $("empty").textContent = "Searching the SPHEREx archive…";
-    $("progress").hidden = false; setProgress(0, "Searching the SPHEREx archive…");
+    $("empty").hidden = false; $("empty").textContent = tr("load.search");
+    $("progress").hidden = false; setProgress(0, tr("load.search"));
   }
   let view, error = null;
   try {
@@ -93,11 +113,13 @@ async function load(next) {
     if (!r.ok) throw new Error(view.detail || r.statusText);
   } catch (e) { error = e; }
   if (id !== S.loadId) return;
-  $("search").classList.remove("busy"); $("go").disabled = false; $("go").textContent = "Show sky";
+  $("search").classList.remove("busy"); $("go").disabled = false; $("go").textContent = tr("go");
   if (error) {
-    if (first) { $("intro").hidden = false; $("empty").hidden = true; $("progress").hidden = true; }
+    SkyMap.idle();
+    if (first) { $("empty").hidden = true; $("progress").hidden = true; if (S.screen === "view") showScreen("map"); }
     return searchError(error.message || String(error), want.target);
   }
+  const fromMap = S.screen === "map";
 
   stop();
   Object.assign(S, want);
@@ -105,13 +127,15 @@ async function load(next) {
   S.tracks = null; $("trackopt").hidden = true; $("trackcard").hidden = true;
   S.field = null; S.stage = null; $("tileopt").hidden = !S.levels;
   for (const c of ["speccard", "epochcard"]) $(c).hidden = true;
-  $("intro").hidden = true; $("analysishint").hidden = true; $("timeline").innerHTML = ""; $("cursor").textContent = "";
-  $("empty").hidden = false; $("empty").textContent = "Searching the SPHEREx archive…";
-  $("progress").hidden = false; $("progress").classList.remove("busy"); setProgress(0, "Searching the SPHEREx archive…");
+  $("analysishint").hidden = true; $("timeline").innerHTML = ""; $("cursor").textContent = "";
+  $("empty").hidden = false; $("empty").textContent = tr("load.search");
+  $("progress").hidden = false; $("progress").classList.remove("busy"); setProgress(0, tr("load.search"));
   ovStatus(); draw();
   const t = view.target;
   S.ra = t.ra; S.dec = t.dec; S.grid = view.grid;
-  showTarget(t); writeUrl();
+  showTarget(t);
+  if (fromMap) showScreen("view");
+  writeUrl(fromMap && !nopush);
   $("sharecard").hidden = false;
   if (S.levels) return loadField(id, view);
 
@@ -124,13 +148,13 @@ async function load(next) {
     if (!job) return;
     if (job.status === "error") return fail(new Error(job.error), id);
     setProgress(job.total ? job.done / job.total : 0,
-      job.status === "ready" ? `${job.frames} exposures in ${job.elapsed_s}s` :
-      job.total ? `Reading exposure ${job.done} of ${job.total} from NASA's archive…` : "Searching the SPHEREx archive…");
+      job.status === "ready" ? tr("load.done", {n: job.frames, s: job.elapsed_s}) :
+      job.total ? tr("load.read", {done: job.done, total: job.total}) : tr("load.search"));
     if (job.status === "ready") break;
     await sleep(job.done === last ? 900 : 1300);
     last = job.done;
   }
-  setTimeout(() => { if (id === S.loadId && !S.busy) $("progress").hidden = true; }, 2500);
+  setTimeout(() => { if (id === S.loadId && !S.busy) $("progress").hidden = true; }, S.ui === "simple" ? 0 : 2500);
   loadSpectrum(id);
   loadCatalogs();
   loadTracks();
@@ -138,8 +162,8 @@ async function load(next) {
 function searchError(message, what) {
   const el = $("searcherr");
   el.hidden = !message;
-  el.textContent = !message ? "" : /^could not resolve/i.test(message)
-    ? `No object called “${what}” was found. Check the spelling, or enter coordinates such as 269.4486 +4.7387.`
+  el.textContent = !message ? "" : /^(could not resolve|no object named)/i.test(message)
+    ? tr(S.ui === "simple" ? "err.name.simple" : "err.name", {name: what})
     : message;
 }
 
@@ -158,10 +182,10 @@ async function loadField(id, f) {
       else draw();
     } catch (e) { return fail(e, id); }
     if (id !== S.loadId) return;
-    const cells = (s) => `${s.tiles} cell${s.tiles > 1 ? "s" : ""}`, j = next && next.job;
-    if (!next) { setProgress(1, `${cells(done)} · ${done.job.frames} exposures in ${f.elapsed_s}s`); break; }
+    const cells = (s) => tr(s.tiles > 1 ? "field.cells" : "field.cell", {n: s.tiles}), j = next && next.job;
+    if (!next) { setProgress(1, tr("field.done", {cells: cells(done), n: done.job.frames, s: f.elapsed_s})); break; }
     setProgress(j && j.total ? j.done / j.total : 0,
-      (done ? `${cells(done)} shown · ` : "") + (j && j.total ? `reading exposure ${j.done} of ${j.total} for ${cells(next)}…` : `searching the archive for ${cells(next)}…`));
+      (done ? tr("field.shown", {cells: cells(done)}) : "") + (j && j.total ? tr("field.read", {done: j.done, total: j.total, cells: cells(next)}) : tr("field.search", {cells: cells(next)})));
     await sleep(done ? 1000 : 1300);
     try {
       const r = await fetch("/api/tiles?" + paramsOf(S)); f = await r.json();
@@ -195,7 +219,7 @@ async function fetchCube(id, keepIndex, seq) {
   S.i = Math.min(S.i, Math.max(0, ne - 1)); S.ref = Math.min(S.ref, Math.max(0, ne - 1));
   $("slider").max = Math.max(0, ne - 1);
   $("empty").hidden = ne > 0;
-  if (!ne && meta.job.status === "ready") $("empty").textContent = "SPHEREx has no usable images at this position (yet) for the chosen detectors.";
+  if (!ne && meta.job.status === "ready") $("empty").textContent = tr(S.ui === "simple" ? "load.none.simple" : "load.none");
   buildTimeline(); draw();
   return meta.job;
 }
@@ -206,7 +230,7 @@ async function reloadCube() {
   if (!S.meta) return;
   const id = S.loadId, seq = S.busy = (S.busy || 0) + 1;
   writeUrl();
-  $("progress").hidden = false; $("progress").classList.add("busy"); $("ptext").textContent = "Loading frames…";
+  $("progress").hidden = false; $("progress").classList.add("busy"); $("ptext").textContent = tr("load.frames");
   $("sky").parentElement.classList.add("busy");
   try { await fetchCube(id, true, seq); } catch (e) { if (seq === S.busy) fail(e, id); }
   if (id !== S.loadId || seq !== S.busy) return;
@@ -235,8 +259,8 @@ function ovStatus() {
   const parts = [];
   for (const cat of ["gaia", "catwise"]) {
     if (!$("ov-" + cat).checked) continue;
-    if (S.catalogs[cat] === "loading") parts.push(`Loading ${CAT_NAME[cat]}…`);
-    if (S.catalogs[cat] === "failed") parts.push(`${CAT_NAME[cat]} did not answer. Untick and tick to try again.`);
+    if (S.catalogs[cat] === "loading") parts.push(tr("cat.loading", {cat: CAT_NAME[cat]}));
+    if (S.catalogs[cat] === "failed") parts.push(tr("cat.failed", {cat: CAT_NAME[cat]}));
   }
   $("ovstatus").textContent = parts.join(" "); $("ovstatus").hidden = !parts.length;
 }
@@ -272,7 +296,7 @@ async function loadTracks() {
     for (const s of d.sources) {
       const dt = document.createElement("dt"), dd = document.createElement("dd"), tr = s.track;
       dt.textContent = s.name;
-      dd.textContent = [s.kind, `${s.detections.length} position${s.detections.length === 1 ? "" : "s"}`,
+      dd.textContent = [s.kind, tr(s.detections.length === 1 ? "track.pos" : "track.poss", {n: s.detections.length}),
         tr ? `${(Math.hypot(tr.pmra, tr.pmdec) / 1000).toFixed(2)}″/yr` : null,
         tr && tr.rms_arcsec != null ? `rms ${tr.rms_arcsec.toFixed(2)}″` : null].filter(Boolean).join(" · ");
       $("tracklist").append(dt, dd);
@@ -285,7 +309,7 @@ function fail(e, id) {
   if (id !== S.loadId) return;
   $("progress").hidden = true;
   $("empty").hidden = false;
-  $("empty").textContent = "That did not work: " + (e.message || e);
+  $("empty").textContent = tr("load.fail", {msg: e.message || e});
 }
 function setProgress(f, text) { $("bar").style.width = Math.round(100 * f) + "%"; $("ptext").textContent = text; }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -364,7 +388,7 @@ function draw() {
   $("count").textContent = ne ? `${S.i + 1} / ${ne}` : "0 / 0";
   $("slider").value = S.i;
   for (const id of ["prev", "play", "next", "slider"]) $(id).disabled = ne < 2;
-  if (!ne) { $("hud").innerHTML = ""; $("epochcard").hidden = true; return; }
+  if (!ne) { $("hud").innerHTML = ""; $("epochcard").hidden = true; $("sdate").textContent = ""; $("scount").textContent = ""; return; }
   if (!$("cursor").textContent) hint();
   const n = S.npix, img = current(), {lo, hi} = limits();
   const diff = S.mode === "diffmed" || S.mode === "diffref";
@@ -405,19 +429,21 @@ function draw() {
     }
   }
   octx.putImageData(id, 0, 0);
-  ctx.imageSmoothingEnabled = $("ov-smooth").checked;
+  ctx.imageSmoothingEnabled = S.ui === "simple" || $("ov-smooth").checked;  // Simple shows a soft picture, Advanced the true pixels unless asked
   ctx.drawImage(off, 0, 0, cv.width, cv.height);
   drawOverlays(ctx, cv);
   const e = S.meta.epochs[S.i];
-  const what = S.mode === "stack" ? `sum of ${ne} frames` : e.label;
-  const modeTxt = {blink: "", diffmed: " − median", diffref: ` − ${fmtLabel(S.meta.epochs[S.ref].label)}`, stack: ""}[S.mode];
+  const what = S.mode === "stack" ? tr("hud.sum", {n: ne}) : e.label;
+  const modeTxt = {blink: "", diffmed: tr("hud.median"), diffref: ` − ${fmtLabel(S.meta.epochs[S.ref].label)}`, stack: ""}[S.mode];
   const chans = e.channels
     ? e.channels.filter((c) => c.detector).map((c) => `<span>${swatch(CHANNEL_COLOR[c.color])}${c.color} D${c.detector}${c.borrowed ? "*" : ""}</span>`).join("")
     : e.detectors.map((x) => `<span>${swatch(DET_COLOR[x])}D${x}</span>`).join("");
   $("hud").innerHTML = `<span class="when">${fmtLabel(what)}${S.mode === "stack" ? "" : `<span class="zone">UTC</span>`}${modeTxt}</span>` +
     `<span class="chans">${chans}</span>` +
     (e.wave_um ? `<span class="wave">${e.wave_um[0].toFixed(2)}–${e.wave_um[1].toFixed(2)} µm</span>` : "") +
-    `<span class="nexp">${e.n_exposures} exposure${e.n_exposures > 1 ? "s" : ""}</span>`;
+    `<span class="nexp">${tr(e.n_exposures > 1 ? "hud.exps" : "hud.exp", {n: e.n_exposures})}</span>`;
+  $("sdate").textContent = new Intl.DateTimeFormat(S.lang === "vi" ? "vi-VN" : "en-GB", {day: "numeric", month: "long", year: "numeric", timeZone: "UTC"}).format(mjdDate(e.mjd));
+  $("scount").textContent = tr("simple.photo", {i: S.i + 1, n: ne});
   showEpoch(e);
   for (const el of document.querySelectorAll("#timeline i")) el.classList.toggle("cur", +el.dataset.i === S.i);
   if (S.plotmode === "lc") drawPlot();
@@ -545,7 +571,7 @@ function cellAt(ra, dec) {
   const x = Math.floor((((ra % 360) + 360) % 360) / 0.12) % 3000, y = Math.min(1499, Math.floor((dec + 90) / 0.12));
   return `icrs012-v1-${String(x).padStart(4, "0")}-${String(y).padStart(4, "0")}`;
 }
-function hint() { const c = $("cursor"); c.classList.add("hint"); c.textContent = !S.meta ? "" : S.field ? "Double-click a cell to open it at full detail" : "Double-click the image to recentre"; }
+function hint() { const c = $("cursor"); c.classList.add("hint"); c.textContent = !S.meta ? "" : tr(S.field ? "hint.cell" : "hint.recentre"); }
 /* The canvas is as many device pixels as it covers, so overlays are sharp on any screen. */
 function fitCanvas() {
   const cv = $("sky"), w = Math.min(1800, Math.round(cv.clientWidth * (window.devicePixelRatio || 1)));
@@ -560,12 +586,13 @@ function sexa(ra, dec) {
   return `${z(hh)}h${z(mm)}m${ss.toFixed(2).padStart(5, "0")}s ${dec < 0 ? "−" : "+"}${z(dd)}°${z(dm)}′${ds.toFixed(1).padStart(4, "0")}″`;
 }
 function showTarget(t) {
+  S.t = t;
   $("targetcard").hidden = false; $("linkcard").hidden = false;
   $("tname").textContent = t.name;
   const pm = Math.hypot(t.pmra, t.pmdec);
   $("tcoords").textContent = `${t.ra.toFixed(5)}° ${t.dec >= 0 ? "+" : "−"}${Math.abs(t.dec).toFixed(5)}°`;
   $("tdeci").textContent = $("tcoords").textContent; $("tsexa").textContent = sexa(t.ra, t.dec);
-  $("tnote").textContent = (t.note ? t.note + " " : "") + (pm > 1 ? `Centred on its predicted position for late 2025 (it moves ${(pm / 1000).toFixed(2)}″/yr).` : "");
+  $("tnote").textContent = (t.note ? t.note + " " : "") + (pm > 1 ? tr("target.pm", {v: (pm / 1000).toFixed(2)}) : "");
   $("tnotetip").hidden = !$("tnote").textContent;
   if (t.source === "featured") $("q").value = t.name;
   const q = `${t.ra.toFixed(5)}%20${t.dec >= 0 ? "%2B" : ""}${t.dec.toFixed(5)}`;
@@ -574,17 +601,27 @@ function showTarget(t) {
   $("l-aladin").href = `https://aladin.cds.unistra.fr/AladinLite/?target=${q}&fov=${(S.fov / 60 * 2).toFixed(3)}&survey=P%2FallWISE%2Fcolor`;
   document.title = `${t.name} - Vanilla Sphere`;
   for (const c of document.querySelectorAll("#featured .target")) { const on = c.dataset.name === t.name; c.classList.toggle("on", on); c.setAttribute("aria-pressed", on); }
+  showStory(t);
+}
+/* Simple mode: a name anyone can read and two sentences on what to look for. */
+function showStory(t) {
+  const f = S.featured.find((x) => x.name === t.name || x.key === S.target);
+  const c = SkyMap.constellation(t.ra, t.dec), con = c ? (S.lang === "vi" ? c.vi : c.la) : "";
+  const spot = !f && (S.byCoords || /^RA /.test(t.name));
+  $("sname").textContent = f ? f.name : spot ? (con ? tr("simple.spot", {con}) : tr("simple.spot.none")) : t.name;
+  $("skind").textContent = f ? tr("kind." + f.key) : ""; $("skind").hidden = !f;
+  $("sstory").textContent = f ? tr("story." + f.key) : tr(spot ? "simple.story.spot" : "simple.story.named", {name: t.name, con});
 }
 function showEpoch(e) {
   $("epochcard").hidden = false;
   const flags = e.flags_at_target.filter((f) => f !== "SOURCE" && f !== "FULLSAMPLE");
-  const fl = flags.length ? flags.map((f) => `<span class="flag">${f}</span>`).join("") : `<span class="flag ok">clean</span>`;
+  const fl = flags.length ? flags.map((f) => `<span class="flag">${f}</span>`).join("") : `<span class="flag ok">${tr("ep.clean")}</span>`;
   $("einfo").innerHTML =
-    `<dt>Date (UTC)</dt><dd>${fmtLabel(e.label)}</dd><dt>MJD</dt><dd>${e.mjd.toFixed(3)}</dd>` +
-    `<dt>Detectors</dt><dd>${e.detectors.map((d) => `${swatch(DET_COLOR[d])}D${d} ${DET[d].replace("-", "–")} µm`).join("<br>")}</dd>` +
-    (e.channels ? `<dt>Colours</dt><dd>${e.channels.map((c) => `${swatch(CHANNEL_COLOR[c.color])}` + (c.detector ? `${c.color} = D${c.detector}${c.borrowed ? ` (from ${c.date})` : ""}` : `${c.color} = no data`)).join("<br>")}</dd>` : "") +
-    `<dt>Exposures</dt><dd>${e.n_exposures}</dd><dt>Coverage</dt><dd>${Math.round(e.coverage * 100)}% of field</dd>` +
-    `<dt>Flags at target</dt><dd>${fl}</dd>`;
+    `<dt>${tr("ep.date")}</dt><dd>${fmtLabel(e.label)}</dd><dt>MJD</dt><dd>${e.mjd.toFixed(3)}</dd>` +
+    `<dt>${tr("ep.det")}</dt><dd>${e.detectors.map((d) => `${swatch(DET_COLOR[d])}D${d} ${DET[d].replace("-", "–")} µm`).join("<br>")}</dd>` +
+    (e.channels ? `<dt>${tr("ep.col")}</dt><dd>${e.channels.map((c) => `${swatch(CHANNEL_COLOR[c.color])}` + (c.detector ? `${c.color} = D${c.detector}${c.borrowed ? tr("ep.from", {date: c.date}) : ""}` : `${c.color} = ${tr("ep.nodata")}`)).join("<br>")}</dd>` : "") +
+    `<dt>${tr("ep.exp")}</dt><dd>${e.n_exposures}</dd><dt>${tr("ep.cov")}</dt><dd>${tr("ep.covv", {p: Math.round(e.coverage * 100)})}</dd>` +
+    `<dt>${tr("ep.flags")}</dt><dd>${fl}</dd>`;
 }
 /* A diagram of real time: a UTC axis, each sky pass as a band, one pin per frame. */
 const mjdDate = (m) => new Date((m - 40587) * 864e5);
@@ -634,11 +671,11 @@ function drawPlot() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
   const pts = (S.spectrum || []).filter((p) => p.flux_ujy !== null);
   const lc = S.plotmode === "lc";
-  $("spectitle").textContent = lc ? "Light curve at the crosshair" : "Spectrum at the crosshair";
+  $("spectitle").textContent = tr(lc ? "plot.lc" : "plot.spec");
   const sans = `12px ${T.sans}`, mono = `11px ${T.mono}`;
   cv.classList.toggle("none", !pts.length); $("specempty").hidden = !!pts.length; $("spectip").hidden = !pts.length;
   if (!pts.length) {
-    $("specempty").textContent = "No clean flux here: the pixels are saturated, masked or off the detector.";
+    $("specempty").textContent = tr("plot.none");
     $("legend").innerHTML = ""; return;
   }
   const visits = []; let lastM = -1e9;
@@ -673,8 +710,8 @@ function drawPlot() {
     for (let v = 1; v <= 5; v++) { hair(X(v), base + 4, X(v), base + 8, T.rule); ctx.fillStyle = T.muted; ctx.fillText(v.toFixed(1), X(v), base + 20); }
   }
   ctx.font = sans; ctx.fillStyle = T.muted;
-  ctx.fillText(lc ? "Date (UTC)" : "Wavelength (µm)", (ml + W - mr) / 2, H - 4);
-  ctx.save(); ctx.translate(12, (mt + base) / 2); ctx.rotate(-Math.PI / 2); ctx.fillText("Flux density (mJy)", 0, 0); ctx.restore();
+  ctx.fillText(tr(lc ? "plot.x.lc" : "plot.x.spec"), (ml + W - mr) / 2, H - 4);
+  ctx.save(); ctx.translate(12, (mt + base) / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(tr("plot.y"), 0, 0); ctx.restore();
   if (lc && S.meta && S.meta.epochs[S.i]) { const x = X(S.meta.epochs[S.i].mjd); hair(x, mt, x, base, T.accent); }
   for (const p of pts) {
     const x = X(lc ? p.mjd : p.wave_um), y = Y(p.flux_ujy / 1000);
@@ -686,33 +723,32 @@ function drawPlot() {
     ctx.globalAlpha = 0.95; ctx.beginPath(); ctx.arc(x, y, 2.3, 0, 2 * Math.PI); dirty ? ctx.stroke() : ctx.fill();
   }
   ctx.globalAlpha = 1;
-  const items = lc ? [1, 2, 3, 4, 5, 6].map((dn) => ["D" + dn, DET_COLOR[dn]]) : visits.map((m, k) => ["pass " + mjdDate(m).toISOString().slice(0, 7), VISIT_COLORS[k % VISIT_COLORS.length]]);
-  $("legend").innerHTML = items.slice(0, 8).map(([name, col]) => `<span>${swatch(col)}${name}</span>`).join("") + `<span><i class="sw hollow"></i>flagged pixels</span>`;
-  $("specnote").textContent = lc
-    ? `${pts.length} measurements, coloured by detector. Each exposure samples a different wavelength, so compare points of one colour.`
-    : `${pts.length} points built on the fly: each exposure sees the target through a different slice of the variable filter. Colours are sky passes; a change between passes means variability. Hollow points have flagged pixels in the aperture.`;
+  const items = lc ? [1, 2, 3, 4, 5, 6].map((dn) => ["D" + dn, DET_COLOR[dn]]) : visits.map((m, k) => [tr("plot.pass", {m: mjdDate(m).toISOString().slice(0, 7)}), VISIT_COLORS[k % VISIT_COLORS.length]]);
+  $("legend").innerHTML = items.slice(0, 8).map(([name, col]) => `<span>${swatch(col)}${name}</span>`).join("") + `<span><i class="sw hollow"></i>${tr("plot.flagged")}</span>`;
+  $("specnote").textContent = tr(lc ? "plot.note.lc" : "plot.note.spec", {n: pts.length});
 }
 
 /* ------------------------------------------------------------------ transport */
 function step(d) { const ne = nEpochs(); if (!ne) return; S.i = (S.i + d + ne) % ne; draw(); }
-function play() { if (S.playing || nEpochs() < 2) return; S.playing = true; $("play").classList.add("playing"); $("playlabel").textContent = "Pause"; tick(); }
+function play() { if (S.playing || nEpochs() < 2) return; S.playing = true; $("play").classList.add("playing"); $("playlabel").textContent = tr("pause"); tick(); }
 function tick() { if (!S.playing) return; step(1); S.timer = setTimeout(tick, (S.i === nEpochs() - 1 ? 2.5 : 1) * 1000 / S.fps); }
-function stop() { S.playing = false; clearTimeout(S.timer); $("play").classList.remove("playing"); $("playlabel").textContent = "Play"; }
+function stop() { S.playing = false; clearTimeout(S.timer); $("play").classList.remove("playing"); $("playlabel").textContent = tr("play"); }
 
 /* ------------------------------------------------------------------ wiring */
+const SYNC = {};  // one function per segmented control: make the buttons show the state
+const syncAll = () => { for (const k in SYNC) SYNC[k](); };
 function seg(id, key, after) {
   const el = $(id);
-  const sync = () => { for (const b of el.children) { b.classList.toggle("on", b.dataset.v === S[key]); b.setAttribute("aria-pressed", b.dataset.v === S[key]); } };
+  const sync = SYNC[key] = () => { for (const b of el.children) { b.classList.toggle("on", b.dataset.v === S[key]); b.setAttribute("aria-pressed", b.dataset.v === S[key]); } };
   el.addEventListener("click", (ev) => { const b = ev.target.closest("button"); if (!b) return; S[key] = b.dataset.v; sync(); after(); });
   sync();
 }
 function buildDets() {
   const el = $("dets"); el.innerHTML = "";
-  const mk = (v, label, title) => { const b = document.createElement("button"); b.dataset.v = v; b.textContent = label; b.title = title; el.appendChild(b); };
-  mk("rgb", "RGB", "False colour: red = D6 (or D5), green = D4 (or D3), blue = D2 (or D1). A channel not observed on a date is borrowed from the nearest date and marked.");
-  mk("all", "All bands", "All six detectors averaged, 0.75-5.0 µm");
-  for (let d = 1; d <= 6; d++) mk(String(d), "D" + d, DET[d] + " µm");
-  const sync = () => { const on = S.det.split(","); for (const b of el.children) { b.classList.toggle("on", on.includes(b.dataset.v)); b.setAttribute("aria-pressed", on.includes(b.dataset.v)); } };
+  const mk = (v, label) => { const b = document.createElement("button"); b.dataset.v = v; b.textContent = label; el.appendChild(b); };
+  mk("rgb", "RGB"); mk("all", "");
+  for (let d = 1; d <= 6; d++) mk(String(d), "D" + d);
+  const sync = SYNC.det = () => { const on = S.det.split(","); for (const b of el.children) { b.classList.toggle("on", on.includes(b.dataset.v)); b.setAttribute("aria-pressed", on.includes(b.dataset.v)); } };
   el.addEventListener("click", (ev) => {
     const b = ev.target.closest("button"); if (!b) return;
     if (b.dataset.v === "all" || b.dataset.v === "rgb") S.det = b.dataset.v;
@@ -723,34 +759,165 @@ function buildDets() {
     }
     sync(); reloadCube();
   });
-  sync();
+  labelDets(); sync();
+}
+function labelDets() {
+  for (const b of $("dets").children) {
+    const v = b.dataset.v;
+    if (v === "rgb") b.title = tr("det.rgb.t");
+    else if (v === "all") { b.textContent = tr("det.all"); b.title = tr("det.all.t"); }
+    else b.title = DET[v] + " µm";
+  }
+}
+/* The challenge targets: a list in the Advanced rail, and pins plus a list on the sky map. */
+function openFeatured(f) {
+  $("q").value = f.name;
+  load({target: f.key, byCoords: false, ra: null, dec: null, ...(S.ui === "simple" ? {levels: 0, fov: 8} : {})});
 }
 async function buildFeatured() {
-  try {
-    const list = await (await fetch("/api/featured")).json();
-    const el = $("featured");
-    for (const f of list) {
-      const b = document.createElement("button"); b.className = "target"; b.title = f.note; b.dataset.name = f.name; b.setAttribute("aria-pressed", "false");
-      for (const [cls, txt] of [["nm", f.name], ["nt", f.note]]) { const sp = document.createElement("span"); sp.className = cls; sp.textContent = txt; b.appendChild(sp); }
-      b.addEventListener("click", () => { $("q").value = f.name; load({target: f.key, byCoords: false, ra: null, dec: null}); });
-      el.appendChild(b);
-    }
-  } catch (_) {}
+  try { S.featured = await (await fetch("/api/featured")).json(); } catch (_) { S.featured = []; }
+  const row = (f, sub) => {
+    const b = document.createElement("button"); b.className = "target"; b.dataset.name = f.name;
+    for (const [cls, txt] of [["nm", f.name], ["nt", sub]]) { const sp = document.createElement("span"); sp.className = cls; sp.textContent = txt; b.appendChild(sp); }
+    b.addEventListener("click", () => openFeatured(f));
+    return b;
+  };
+  const pins = [];
+  for (const f of S.featured) {
+    const b = row(f, f.note); b.title = f.note; b.setAttribute("aria-pressed", "false");
+    $("featured").appendChild(b);
+    if (!FEATURED_AT[f.key]) continue;
+    const pin = {key: f.key, name: f.name, ra: FEATURED_AT[f.key][0], dec: FEATURED_AT[f.key][1], f};
+    pins.push(pin);
+    const m = row(f, ""); m.lastChild.dataset.key = f.key;
+    for (const [on, off] of [["mouseenter", "mouseleave"], ["focus", "blur"]]) { m.addEventListener(on, () => SkyMap.highlight(pin)); m.addEventListener(off, () => SkyMap.highlight(null)); }
+    $("mapfeatured").appendChild(m);
+  }
+  SkyMap.setPins(pins);
+  labelFeatured();
+  if (S.t) showTarget(S.t);
+}
+function labelFeatured() { for (const el of document.querySelectorAll("#mapfeatured .nt")) el.textContent = tr("kind." + el.dataset.key); }
+
+/* ------------------------------------------------------------------ sky map, modes, language */
+const HOME_TITLE = document.title;
+function showScreen(name) {
+  S.screen = name; document.documentElement.dataset.screen = name;
+  $("maptag").hidden = true;
+  if (name === "map") {
+    stop(); document.title = HOME_TITLE;
+    if (S.t) { SkyMap.setMark(S.t.ra, S.t.dec); SkyMap.lookAt(S.t.ra, S.t.dec); }
+    SkyMap.show(true);
+  } else {
+    SkyMap.show(false);
+    if (S.t) document.title = `${S.t.name} - Vanilla Sphere`;
+    requestAnimationFrame(() => { fitCanvas(); if (S.meta) { buildTimeline(); draw(); } if (S.spectrum) drawPlot(); });
+  }
+}
+/* Back and forward: the address decides between the map and a view. */
+function route() {
+  const p = new URLSearchParams(location.search);
+  if (!p.get("target") && p.get("ra") === null) return showScreen("map");
+  if (S.meta && location.search === S.url) return showScreen("view");
+  const byCoords = !p.get("target");
+  load({target: p.get("target") || null, ra: byCoords ? parseFloat(p.get("ra")) : null, dec: byCoords ? parseFloat(p.get("dec")) : null, byCoords}, true);
+}
+function mapTag(x, y, html) {
+  const tag = $("maptag"), box = $("mapscreen").getBoundingClientRect();
+  tag.innerHTML = html; tag.hidden = false;
+  const w = tag.offsetWidth, h = tag.offsetHeight;
+  tag.style.left = Math.max(8, x + 16 + w > box.width - 8 ? x - 14 - w : x + 16) + "px";
+  tag.style.top = Math.max(8, y + 18 + h > box.height - 8 ? y - 12 - h : y + 18) + "px";
+}
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+function mapHover(h) {
+  if (!h) { $("maptag").hidden = true; $("mapread").textContent = ""; return; }
+  const con = h.con ? (S.lang === "vi" ? h.con.vi : h.con.la) : "";
+  $("mapread").innerHTML = `${h.ra.toFixed(2)}° ${h.dec >= 0 ? "+" : "−"}${Math.abs(h.dec).toFixed(2)}°` + (con ? ` · <i>${esc(con)}</i>` : "");
+  if (h.pin) mapTag(h.x, h.y, `<b>${esc(h.pin.name)}</b><span>${esc(tr("kind." + h.pin.key))}</span>`);
+  else if (con) mapTag(h.x, h.y, `<span>${esc(con)}</span>`);
+  else $("maptag").hidden = true;
+}
+function mapPick(hit) {
+  mapTag(hit.x, hit.y, `<span>${esc(tr("map.open"))}</span>`);
+  if (hit.pin) return openFeatured(hit.pin.f);
+  $("q").value = `${hit.ra.toFixed(4)} ${hit.dec >= 0 ? "+" : ""}${hit.dec.toFixed(4)}`;
+  load({ra: hit.ra, dec: hit.dec, byCoords: true, target: null, ...(S.ui === "simple" ? {levels: 0, fov: 8} : fieldChoice())});
+}
+
+/* Simple shows the plain colour movie and nothing to configure; Advanced is the full instrument.
+   Switching keeps the target and the frame; what Advanced had set comes back when it does. */
+function setUi(ui, first) {
+  const was = S.ui;
+  S.ui = ui === "adv" ? "adv" : "simple";
+  document.documentElement.dataset.ui = S.ui; store.set("ui", S.ui);
+  for (const b of $("ui").children) { b.classList.toggle("on", b.dataset.v === S.ui); b.setAttribute("aria-pressed", b.dataset.v === S.ui); }
+  $("q").placeholder = tr(S.ui === "simple" ? "q.simple" : "q.adv");
+  if (S.ui === "simple" && (first || was !== "simple")) {
+    S.keep = first ? null : {det: S.det, group: S.group, mode: S.mode, gain: S.gain, gaia: $("ov-gaia").checked, catwise: $("ov-catwise").checked};
+    const reload = S.det !== "rgb" || S.group !== "day", wide = S.levels || S.fov !== 8;
+    Object.assign(S, {det: "rgb", group: "day", mode: "blink", gain: 0, limits: null});
+    $("gain").value = 0; $("ov-gaia").checked = false; $("ov-catwise").checked = false; $("refrow").hidden = true;
+    syncAll();
+    if (wide) { $("fov").value = 8; if (S.meta) load({levels: 0, fov: 8}); else { S.levels = 0; S.fov = 8; } }
+    else if (S.meta) { if (reload) reloadCube(); else draw(); }
+  } else if (S.ui === "adv" && was === "simple" && S.keep) {
+    const k = S.keep, reload = k.det !== S.det || k.group !== S.group; S.keep = null;
+    Object.assign(S, {det: k.det, group: k.group, mode: k.mode, gain: k.gain, limits: null});
+    $("gain").value = k.gain; $("ov-gaia").checked = k.gaia; $("ov-catwise").checked = k.catwise; $("refrow").hidden = S.mode !== "diffref";
+    syncAll();
+    if (S.meta) { if (reload) reloadCube(); else draw(); loadCatalogs(); }
+  }
+  if (first) return;
+  SkyMap.redraw();
+  if (S.meta) writeUrl();
+  requestAnimationFrame(() => { fitCanvas(); if (S.meta) { buildTimeline(); draw(); } if (S.spectrum) drawPlot(); });
+}
+function setLang(lang, first) {
+  S.lang = lang === "vi" ? "vi" : "en"; store.set("lang", S.lang);
+  applyLang(S.lang);
+  for (const b of $("lang").children) { b.classList.toggle("on", b.dataset.v === S.lang); b.setAttribute("aria-pressed", b.dataset.v === S.lang); }
+  $("q").placeholder = tr(S.ui === "simple" ? "q.simple" : "q.adv");
+  $("go").textContent = tr("go"); $("playlabel").textContent = tr(S.playing ? "pause" : "play");
+  SkyMap.setLang(S.lang);
+  if (first) return;
+  labelDets(); labelFeatured();
+  if (S.t) showTarget(S.t);
+  if (S.meta) { draw(); hint(); ovStatus(); writeUrl(); }
+  if (S.spectrum) drawPlot();
 }
 
 /* The field menu holds plain views (arcmin) and progressive fields ("p3" = 3 rings of cells). */
 function fieldChoice() { const v = $("fov").value; return v[0] === "p" ? {levels: +v.slice(1)} : {levels: 0, fov: +v}; }
 function init() {
+  const prefs = readPrefs();
   readUrl();
   $("fov").value = S.levels ? "p" + S.levels : [4, 8, 15, 30].includes(S.fov) ? S.fov : 8;
-  buildDets(); buildFeatured();
+  buildDets();
   seg("group", "group", reloadCube);
   seg("mode", "mode", () => { $("refrow").hidden = S.mode !== "diffref"; S.limits = null; if (S.mode === "stack") stop(); draw(); writeUrl(); });
   seg("plotmode", "plotmode", drawPlot);
   $("refrow").hidden = S.mode !== "diffref";
-  $("search").addEventListener("submit", (ev) => { ev.preventDefault(); const q = $("q").value.trim(); if (q) load({target: q, byCoords: false, ra: null, dec: null, ...fieldChoice()}); });
+  setLang(prefs.lang, true); setUi(prefs.ui, true);
+  SkyMap.init($("map"), {coords: () => S.ui === "adv", onPick: mapPick, onHover: mapHover, onReady: () => { if (S.t) showStory(S.t); }});
+  buildFeatured();
+  $("ui").addEventListener("click", (ev) => { const b = ev.target.closest("button"); if (b && b.dataset.v !== S.ui) setUi(b.dataset.v); });
+  $("lang").addEventListener("click", (ev) => { const b = ev.target.closest("button"); if (b && b.dataset.v !== S.lang) setLang(b.dataset.v); });
+  $("toadv").addEventListener("click", () => setUi("adv"));
+  $("tomap").addEventListener("click", () => { history.pushState(null, "", location.pathname); showScreen("map"); });
+  $("map-in").addEventListener("click", () => SkyMap.zoom(1.6));
+  $("map-out").addEventListener("click", () => SkyMap.zoom(1 / 1.6));
+  $("map-home").addEventListener("click", () => SkyMap.home());
+  window.addEventListener("popstate", route);
+  $("sshare").addEventListener("click", async () => {
+    const url = $("s-page").value;
+    if (navigator.share && matchMedia("(pointer:coarse)").matches) { try { await navigator.share({title: document.title, url}); } catch (_) {} return; }
+    if (navigator.clipboard) navigator.clipboard.writeText(url);
+    $("ssharelabel").textContent = tr("simple.shared"); setTimeout(() => ($("ssharelabel").textContent = tr("s.share")), 1600);
+  });
+  $("search").addEventListener("submit", (ev) => { ev.preventDefault(); const q = $("q").value.trim(); if (q) load({target: q, byCoords: false, ra: null, dec: null, ...(S.ui === "simple" ? {levels: 0, fov: 8} : fieldChoice())}); });
   $("q").addEventListener("input", () => searchError(""));
-  $("fov").addEventListener("change", () => { if (S.meta) load(fieldChoice()); else Object.assign(S, fieldChoice()); });
+  $("fov").addEventListener("change", () => { if (S.meta && S.screen === "view") load(fieldChoice()); else Object.assign(S, fieldChoice()); });
   $("play").addEventListener("click", () => (S.playing ? stop() : play()));
   $("prev").addEventListener("click", () => { stop(); step(-1); });
   $("next").addEventListener("click", () => { stop(); step(1); });
@@ -762,11 +929,10 @@ function init() {
   for (const c of ["gaia", "catwise", "cross", "smooth", "tracks", "tiles"]) $("ov-" + c).addEventListener("change", () => { if (S.meta) { loadCatalogs(); draw(); writeUrl(); } });
   $("timeline").addEventListener("pointerdown", (ev) => { $("timeline").setPointerCapture(ev.pointerId); scrubTimeline(ev); });
   $("timeline").addEventListener("pointermove", (ev) => { if (ev.buttons & 1) scrubTimeline(ev); });
-  for (const b of document.querySelectorAll("[data-example]")) b.addEventListener("click", () => { $("q").value = b.dataset.example; $("search").requestSubmit(); });
   new ResizeObserver(fitCanvas).observe($("sky"));
   new ResizeObserver(() => { if (S.spectrum) drawPlot(); }).observe($("plot"));
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { draw(); if (S.spectrum) drawPlot(); });
-  for (const b of document.querySelectorAll("[data-copy]")) b.addEventListener("click", () => { const inp = $(b.dataset.copy); inp.select(); navigator.clipboard && navigator.clipboard.writeText(inp.value); b.textContent = "Copied"; setTimeout(() => (b.textContent = "Copy"), 1200); });
+  for (const b of document.querySelectorAll("[data-copy]")) b.addEventListener("click", () => { const inp = $(b.dataset.copy); inp.select(); navigator.clipboard && navigator.clipboard.writeText(inp.value); b.textContent = tr("copied"); setTimeout(() => (b.textContent = tr("copy")), 1200); });
   const cv = $("sky");
   const pos = (ev) => { const r = cv.getBoundingClientRect(); return [(ev.clientX - r.left) * cv.width / r.width, (ev.clientY - r.top) * cv.height / r.height]; };
   cv.addEventListener("mousemove", (ev) => { if (!S.meta) return; const [ra, dec] = toSky(...pos(ev), cv); $("cursor").classList.remove("hint"); $("cursor").textContent = `${ra.toFixed(5)}° ${dec >= 0 ? "+" : "−"}${Math.abs(dec).toFixed(5)}°` + (S.field ? ` · ${cellAt(ra, dec)}` : ""); });
@@ -781,6 +947,7 @@ function init() {
   document.addEventListener("click", closeTips);
   document.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") { closeTips(); if (document.activeElement.classList.contains("tipbtn")) document.activeElement.blur(); }
+    if (S.screen !== "view") return;
     // a focused field or slider keeps its own keys; a focused button keeps the space bar
     const el = document.activeElement;
     if (["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName) && el.type !== "checkbox") return;
@@ -789,6 +956,7 @@ function init() {
     if (ev.key === "ArrowRight") { stop(); step(1); }
     if (ev.key === "ArrowLeft") { stop(); step(-1); }
   });
-  if (S.target || S.ra !== null) { S.byCoords = S.ra !== null && !S.target; $("q").value = S.target || `${S.ra} ${S.dec}`; load(); }
+  if (S.target || S.ra !== null) { S.byCoords = S.ra !== null && !S.target; $("q").value = S.target || `${S.ra} ${S.dec}`; showScreen("view"); load(); }
+  else showScreen("map");
 }
 init();

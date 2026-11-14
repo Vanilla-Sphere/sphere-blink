@@ -100,7 +100,7 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 .dets [data-v="4"]{--sw:var(--d4)} .dets [data-v="5"]{--sw:var(--d5)} .dets [data-v="6"]{--sw:var(--d6)}
 
 /* ------------------------------------------------------------------ top bar */
-.bar{height:var(--bar-h);flex:none;display:grid;grid-template-columns:var(--rail-w) minmax(0,1fr) auto;align-items:center;border-bottom:1px solid var(--color-rule);background:var(--color-paper)}
+.bar{height:var(--bar-h);flex:none;display:grid;grid-template-columns:var(--rail-w) minmax(0,1fr) auto auto;align-items:center;border-bottom:1px solid var(--color-rule);background:var(--color-paper)}
 .brand{display:flex;align-items:center;gap:9px;padding:0 var(--pad);font-size:16px;font-weight:600;letter-spacing:-.02em;color:var(--color-ink)}
 .brand:hover{text-decoration:none}
 #search{position:relative;display:flex;gap:8px;align-items:center;min-width:0;max-width:760px;padding-left:var(--pad)}
@@ -111,6 +111,41 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 .fov,.speed{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--color-muted);white-space:nowrap}
 .barlinks{position:relative;display:flex;align-items:center;gap:20px;padding:0 var(--pad) 0 24px;font-size:13px;font-weight:500}
 .barlinks a{color:var(--color-ink-2)}
+/* Simple or Advanced, and the language: small segmented switches, the current one underlined in orange */
+.modes button,.lang button{height:28px;font-size:12.5px}
+.modes{margin-left:16px}
+.lang button{padding:0 8px}
+#tomap{flex:none}
+[data-ui="simple"] .bar,[data-screen="map"] .bar{grid-template-columns:auto minmax(0,1fr) auto auto}
+
+/* which parts each interface and each screen shows */
+[data-ui="simple"] .adv,[data-ui="adv"] .simple{display:none!important}
+[data-screen="map"] .shell,[data-screen="view"] .mapscreen,[data-screen="map"] #tomap{display:none!important}
+
+/* ------------------------------------------------------------------ sky map: the first screen */
+[data-screen="map"] body{height:100vh;height:100dvh;overflow:hidden}
+.mapscreen{position:relative;flex:1;min-height:0;overflow:hidden}
+#map{position:absolute;left:0;top:0;width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+#map:focus-visible{outline-offset:-3px}
+.maphead{position:absolute;left:var(--pad);top:14px;max-width:min(340px,calc(100% - 2 * var(--pad)));pointer-events:none}
+.maphead{text-shadow:0 0 3px var(--color-paper),0 0 8px var(--color-paper),0 0 14px var(--color-paper)}
+.maphead h1{font-size:clamp(20px,2.1vw,28px);letter-spacing:-.035em;text-wrap:balance}
+.maphead p{margin-top:8px;font-size:13.5px;line-height:1.45;color:var(--color-muted);text-wrap:pretty}
+.mapstart{position:absolute;left:var(--pad);bottom:48px;width:232px;border:1px solid var(--color-rule);background:color-mix(in oklab,var(--color-paper) 90%,transparent)}
+.mapstart h2{padding:9px 12px 8px;border-bottom:1px solid var(--color-rule-2)}
+.mapstart .targets{margin:0}
+.mapstart .target{padding:6px 12px 7px;align-items:start}
+.mapstart .target::before{margin-top:7px;background:var(--color-accent);border-color:var(--color-accent)}
+.mapstart .target .nt{display:block;grid-column:2;font-size:12px;line-height:1.3;color:var(--color-muted)}
+.mapfoot{position:absolute;left:0;right:0;bottom:0;height:32px;display:flex;align-items:center;gap:16px;padding:0 var(--pad);border-top:1px solid var(--color-rule);background:var(--color-paper);color:var(--color-ink-2);white-space:nowrap;overflow:hidden}
+#mapread i{font-style:normal;font-family:var(--font-display);font-size:13px}
+.mapfoot .hint{margin-left:auto;font-family:var(--font-display);font-size:12.5px;color:var(--color-muted)}
+[data-ui="simple"] #mapread{display:none}
+.mapzoom{position:absolute;right:var(--pad);bottom:48px;display:flex;flex-direction:column}
+.mapzoom .btn{margin-top:-1px;background:var(--color-paper)}
+.mapzoom .btn:hover{background:var(--color-paper-2)}
+.maptag{position:absolute;z-index:5;pointer-events:none;display:flex;flex-direction:column;padding:5px 9px;border:1px solid var(--color-muted-2);background:var(--color-lift);color:var(--color-ink-2);font-size:12.5px;line-height:1.4;white-space:nowrap}
+.maptag b{font-weight:500;color:var(--color-ink)}
 
 /* ------------------------------------------------------------------ shell */
 .shell{flex:1;display:grid;grid-template-columns:var(--rail-w) auto minmax(0,1fr);min-height:0}
@@ -250,6 +285,28 @@ dd{margin:0;font-family:var(--font-measure);font-variant-numeric:tabular-nums;fo
 .tipbody b{display:block;font-weight:500;color:var(--color-ink)}
 .barlinks .tipbody{left:auto;right:var(--pad);top:calc(100% + 16px)}
 
+/* ------------------------------------------------------------------ Simple: the picture, its story, play and share */
+[data-ui="simple"]{--img:clamp(300px, calc(100vh - 176px), calc(100vw - 340px - 6 * var(--pad)))}
+[data-ui="simple"] .shell{grid-template-columns:auto minmax(300px,430px);justify-content:center;column-gap:clamp(8px,2.5vw,36px);align-content:start}
+[data-ui="simple"] .stage .well{margin-top:var(--pad)}
+[data-ui="simple"] .transport .btn{height:38px}
+[data-ui="simple"] .transport .btn.icon{width:38px}
+[data-ui="simple"] #play{min-width:112px}
+.scap{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;font-size:13px}
+#sdate{color:var(--color-ink)}
+.simplepanel{min-width:0;padding:calc(var(--pad) + 4px) var(--pad) var(--pad) 0}
+#sname{font-size:clamp(24px,2.5vw,34px);line-height:1.08;letter-spacing:-.035em;text-wrap:balance}
+.shead .who{align-items:flex-start;gap:12px}
+.shead .tip{margin-top:.5em}
+.skind{margin-top:8px;font-size:13px;font-weight:500;color:var(--color-muted)}
+.story{margin-top:16px;max-width:44ch;font-size:16px;line-height:1.55;color:var(--color-ink-2);text-wrap:pretty}
+.sactions{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.sactions .btn{height:38px;padding:0 14px}
+.sactions .btn:hover{text-decoration:none}
+.toadv{display:inline-flex;align-items:center;gap:8px;margin-top:24px;padding:0;border:0;background:none;color:var(--color-muted);font-size:13px;text-align:left;text-decoration:underline;text-decoration-color:var(--color-muted-2);text-underline-offset:3px;transition:color var(--dur-short) var(--ease-out)}
+.toadv:hover{color:var(--color-ink)}
+.toadv svg{width:11px;height:11px;fill:currentColor;flex:none}
+
 /* ------------------------------------------------------------------ desktop: a fixed shell, each column scrolls on its own */
 @media (min-width:1180px){
   body{height:100vh;overflow:hidden}
@@ -295,5 +352,60 @@ dd{margin:0;font-family:var(--font-measure);font-variant-numeric:tabular-nums;fo
   .btn,.seg button,.dets button,select,input[type=text]{min-height:40px}
   .btn.quiet{min-height:32px}
 }
+
+/* ------------------------------------------------------------------ the bar and the new screens on smaller windows */
+@container (max-width:520px){.transport{flex-wrap:wrap}.speed{margin-left:auto}#slider{order:5;flex-basis:100%}}
+@media (max-width:1179.98px){
+  .bar{grid-template-columns:auto minmax(0,1fr) auto auto}
+  .barlinks{gap:14px;padding-left:16px}
+  #tomap span{display:none}
+  #tomap{width:32px;padding:0}
+}
+@media (max-width:999.98px){
+  .bar,[data-ui="simple"] .bar,[data-screen="map"] .bar{height:auto;grid-template-columns:auto minmax(0,1fr) auto;row-gap:8px;padding:8px 0}
+  .modes{justify-self:end;margin-left:0}
+  #search{grid-column:1 / -1;grid-row:2;max-width:none;padding:0 var(--pad)}
+  .searcherr{right:var(--pad)}
+}
+@media (max-width:899.98px){
+  [data-ui="simple"]{--img:clamp(280px, calc(100vw - 2 * var(--pad) - 2px), calc(100vh - 250px))}
+  [data-ui="simple"] .shell{display:flex;flex-direction:column;align-items:center}
+  [data-ui="simple"] .stage{order:-1;position:static;width:calc(var(--img) + 2 * var(--pad) + 2px);max-width:100%;padding-bottom:6px}
+  .simplepanel{display:contents}
+  .shead,.sbody{width:calc(var(--img) + 2px);max-width:calc(100vw - 2 * var(--pad))}
+  .shead{order:-2;padding-top:14px}
+  .sbody{padding-bottom:28px}
+  .story{margin-top:12px;font-size:15.5px}
+}
+@media (max-width:759.98px){
+  .bar,[data-ui="simple"] .bar,[data-screen="map"] .bar{padding:8px 0 10px}
+  .barlinks{gap:10px;padding:0 var(--pad) 0 10px}
+  .barlinks a{display:none}
+  [data-ui="simple"] #search{flex-wrap:nowrap}
+  [data-ui="simple"] #q{flex:1 1 0}
+  [data-ui="simple"] #search .btn{flex:none}
+  [data-ui="adv"] #q{flex:1 1 calc(100% - 60px)}
+  #search #tomap{flex:none;width:40px}
+  .maphead{top:10px}
+  .maphead p{display:none}
+  .mapstart{left:0;right:0;bottom:0;width:auto;border-width:1px 0 0;background:var(--color-paper)}
+  .mapstart h2{display:none}
+  .mapstart .targets{padding:8px var(--pad)}
+  .mapstart .target{flex-direction:column;align-items:flex-start;gap:0;min-height:0;padding:7px 12px 8px}
+  .mapstart .target::before{display:none}
+  .mapstart .target:first-child{border-top:1px solid var(--color-rule)}
+  .mapstart .target .nt{display:block}
+  .mapfoot{display:none}
+  .mapzoom{bottom:84px}
+}
+@media (max-width:479.98px){.brand span{display:none}.brand{padding-right:4px}}
+@media (pointer:coarse){
+  .tipbtn{position:relative}
+  .tipbtn::after{content:"";position:absolute;inset:-11px}
+  .mapfoot .hint{display:none}
+}
+
+/* Geist Mono has no Vietnamese letters: where a readout mixes words and numbers, Vietnamese uses the text face */
+:lang(vi) :is(.legend,.hud .nexp,.hud .when,.scap,#ptext,#einfo dd,#tracklist dd,.cursor.hint){font-family:var(--font-display);font-variant-numeric:tabular-nums}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important}.progress.busy #bar{animation:none;left:0;width:100%!important}}

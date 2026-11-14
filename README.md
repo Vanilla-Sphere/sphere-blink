@@ -90,7 +90,7 @@ browser ──> FastAPI ──> IRSA SIA v2            which exposures cover (RA
 | `sphereblink/service.py` | background jobs and cache |
 | `sphereblink/tiles.py` | fixed 0.12 degree cell grid, progressive fields |
 | `sphereblink/main.py` | HTTP API |
-| `web/` | the viewer (plain HTML/JS, no build step) |
+| `web/` | the viewer (plain HTML/JS, no build step): `app.js` the views, `starmap.js` the sky map, `i18n.js` English and Vietnamese text |
 | `sql/` | optional shared Postgres schema for measured positions and tracks |
 
 ## Data and credits
@@ -102,6 +102,9 @@ browser ──> FastAPI ──> IRSA SIA v2            which exposures cover (RA
 - Interface: the "Rim" theme of [Hallmark](https://github.com/nutlope/hallmark) (MIT), laid out by the
   tool-interface rules of [Impeccable](https://github.com/pbakaus/impeccable). Typefaces Hanken Grotesk and
   Geist Mono, SIL Open Font License (`web/fonts/`).
+- Sky map: bright stars, constellation figures and the Milky Way outline from
+  [d3-celestial](https://github.com/ofrohn/d3-celestial) by Olaf Frohn (BSD 3-Clause, notice in
+  `web/data/`), reduced to `web/data/sky.json` by `scripts/build_sky.py`.
 
 ## Use of AI tools
 
