@@ -546,7 +546,7 @@ nothing is measured from the SPHEREx images. See
 | `object` | The catalogue entry taken as the object, how far it is from the position, and which catalogue named it |
 | `distance` | Stars only: `pc`, `ly`, the range `pc_lo` to `pc_hi`, the parallax and its error in mas, `method`, `source`, `reference`. `uncertain` is true when the parallax is below 5 times its error |
 | `redshift` | Galaxies and quasars: `z`, `z_err`, `nature` (spectroscopic or photometric), the catalogue's `quality` letter, `source`, `bibcode`. `local` is true below z = 0.01, where z is a velocity and not a distance; `cosmology` is what follows from z and names the model, and is null for a blueshift |
-| `radial_velocity` | Stars: km/s with its paper |
+| `radial_velocity` | Stars: `km_s` with its `source` and `bibcode`. Where SIMBAD lists a velocity above 100 km/s that stands far from every other published one, `km_s` is the median of the `count` published measurements and `listed` holds the value and paper SIMBAD lists first |
 | `measured_distance` | Galaxies with distances by other methods in SIMBAD: median `mpc`, `mpc_min`, `mpc_max`, `count`, `methods`, and the `newest` three with bibcodes |
 | `notes` | Plain sentences about limits of this answer |
 | `unavailable` | Catalogue services that did not answer |

@@ -639,7 +639,7 @@ def api_object(target: str | None = None, ra: float | None = None, dec: float | 
     """
     t = _target(target, ra, dec)
     named = t.source != "coordinates"
-    key = f"object_v1_{t.name.lower() if named else ''}_{t.ra:.4f}_{t.dec:.4f}"
+    key = f"object_v2_{t.name.lower() if named else ''}_{t.ra:.4f}_{t.dec:.4f}"
     found = svc.store.get_catalog(key)
     if found is None:
         guard.charge(guard.catalogs, "catalogue queries")

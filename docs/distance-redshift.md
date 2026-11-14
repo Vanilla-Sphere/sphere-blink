@@ -38,6 +38,14 @@ A star has no cosmological redshift: its radial velocity is a few hundred
 km/s at most, and it is shown as a velocity. A galaxy has no parallax. The
 lookup decides which of the two applies from the object type SIMBAD gives.
 
+A catalogue can hold a misprint. On 2026-11-14 SIMBAD listed tau Sco, a star
+that fifteen papers put within a few km/s of rest, at -650 km/s. So a star
+listed as faster than 100 km/s has its velocity compared with every
+measurement SIMBAD collects (`mesVelocities`): where the listed one stands
+alone, more than 50 km/s and ten times their scatter from the median, the
+median is shown, with the number of measurements and the value SIMBAD lists
+first. Barnard's star, which does move at 110 km/s, keeps its listed value.
+
 From a redshift the lookup computes, with the Planck 2018 cosmology (flat
 ΛCDM, H0 = 67.66 km/s/Mpc, Ωm = 0.3111; `astropy.cosmology.Planck18`):
 
