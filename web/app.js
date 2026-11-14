@@ -45,6 +45,7 @@ function readUrl() {
   if (p.get("det")) S.det = p.get("det");
   if (["day", "visit", "exposure"].includes(p.get("group"))) S.group = p.get("group");
   if (["blink", "diffmed", "diffref", "stack"].includes(p.get("mode"))) S.mode = p.get("mode");
+  if (["spec", "lc"].includes(p.get("plot"))) S.plotmode = p.get("plot");
   if (p.get("gaia") === "1") $("ov-gaia").checked = true;
   if (p.get("catwise") === "1") $("ov-catwise").checked = true;
   if (p.get("tracks") === "0") $("ov-tracks").checked = false;
@@ -78,6 +79,7 @@ function writeUrl(push) {
   if (S.det !== "rgb") p.set("det", S.det);
   if (S.group !== "day") p.set("group", S.group);
   if (S.mode !== "blink") p.set("mode", S.mode);
+  if (S.plotmode === "lc") p.set("plot", "lc");   // the plot tab, so that a link can open on "Over time"
   if ($("ov-gaia").checked) p.set("gaia", "1");
   if ($("ov-catwise").checked) p.set("catwise", "1");
   if (S.tracks && !$("ov-tracks").checked) p.set("tracks", "0");
@@ -1147,7 +1149,11 @@ function plotClick(ev) {
 }
 /* The comparison of the visits, worked out once for each set of points. */
 function changeOf() {
-  if (S.changeFor !== S.spectrum) { S.changeFor = S.spectrum; S.change = S.spectrum && S.spectrum.length ? brightnessChange(S.spectrum) : null; }
+  if (S.changeFor !== S.spectrum) {
+    S.changeFor = S.spectrum; S.change = S.spectrum && S.spectrum.length ? brightnessChange(S.spectrum) : null;
+    // the total can stay level while single bands change (the object changed colour): then the bands are named
+    if (S.change && S.change.state === "steady") { const bands = bandChanges(S.spectrum); if (bands.length) S.change.bands = bands; }
+  }
   return S.change;
 }
 /* What that comparison says, in words: {state, head, body, text}; null when there is nothing to say. */
@@ -1159,17 +1165,28 @@ function changeText(c) {
   else if (c.state === "one") { head = tr("ot.one"); body = tr("ot.one.b"); }
   else {
     const first = c.visits[0], last = c.visits[c.visits.length - 1];
-    if (c.state === "varies") { head = tr("ot.varies"); body = tr("ot.varies.b", {a: (c.kind === "wings" ? tr("ot.about") : "") + "×" + c.ratio.toFixed(c.ratio < 10 ? 1 : 0), hi: month(c.hi.mjd), lo: month(c.lo.mjd), s: sig(c.sigma)}); }
+    if (c.bands) {
+      // bands that faded and bands that brightened, each group with its clearest band; then the total, as it is steady
+      const group = (rising) => {
+        const g = c.bands.filter((x) => x.rising === rising);
+        if (!g.length) return "";
+        const top = g.reduce((x, y) => (y.sigma > x.sigma ? y : x)), w = (v) => v.toFixed(v < 1 ? 2 : 1);
+        return tr("ot.part.b", {d: g.map((x) => "D" + x.det).join(", "), w0: w(Math.min(...g.map((x) => x.w0))), w1: w(Math.max(...g.map((x) => x.w1))),
+          a: (g.length > 1 ? tr("ot.upto") : "") + "×" + top.ratio.toFixed(1), hi: month(top.hi.mjd), lo: month(top.lo.mjd), s: sig(top.sigma)});
+      };
+      head = tr("ot.part");
+      body = [group(false), group(true)].filter(Boolean).join(" ") + " " + tr("ot.part.all", {p: Math.round((c.ratio - 1) * 100), s: sig(c.sigma)});
+    } else if (c.state === "varies") { head = tr("ot.varies"); body = tr("ot.varies.b", {a: (c.kind === "wings" ? tr("ot.about") : "") + "×" + c.ratio.toFixed(c.ratio < 10 ? 1 : 0), hi: month(c.hi.mjd), lo: month(c.lo.mjd), s: sig(c.sigma)}); }
     else { head = tr("ot.steady"); body = tr("ot.steady.b", {from: month(first.mjd), to: month(last.mjd), p: Math.round((c.ratio - 1) * 100), s: sig(c.sigma)}); }
     if (c.kind === "wings") body += " " + tr("ot.wings", {p: Math.round(c.floor * 100)});
   }
-  return {state: c.state, head, body, text: head + ". " + body};
+  return {state: c.bands ? "varies" : c.state, head, body, text: head + ". " + body};
 }
 function showChange(change) {
   const el = $("plotverdict"), tab = document.querySelector('#plotmode button[data-v="lc"]');
   el.hidden = !change;
   // the tab carries a mark when the object changed, whichever plot is open
-  const c = changeOf(), varies = !!c && c.state === "varies";
+  const c = changeOf(), varies = !!c && (c.state === "varies" || !!c.bands);
   tab.classList.toggle("flag", varies); tab.dataset.hint = varies ? "tip.lc.varies" : "tip.lc";
   if (!change) return;
   el.dataset.state = change.state;
@@ -1285,6 +1302,12 @@ function route() {
   const byCoords = !p.get("target");
   load({target: p.get("target") || null, ra: byCoords ? parseFloat(p.get("ra")) : null, dec: byCoords ? parseFloat(p.get("dec")) : null, byCoords}, true);
 }
+/* The box of the map where the heading lies, for as long as it is on screen: the map draws no name there. */
+function mapKeepOut() {
+  const sc = $("mapscreen"), a = document.querySelector(".maphead").getBoundingClientRect(), m = $("map").getBoundingClientRect();
+  if (!a.width || (sc.classList.contains("zoomed") && !sc.classList.contains("opening"))) return null;
+  return [a.left - m.left - 8, a.top - m.top - 6, a.right - m.left + 8, a.bottom - m.top + 6];
+}
 function mapTag(x, y, html) {
   const tag = $("maptag"), box = $("mapscreen").getBoundingClientRect();
   tag.innerHTML = html; tag.hidden = false;
@@ -1363,7 +1386,7 @@ function init() {
   buildDets();
   seg("group", "group", reloadCube);
   seg("mode", "mode", () => { $("refrow").hidden = S.mode !== "diffref"; S.limits = null; if (S.mode === "stack") stop(); draw(); writeUrl(); });
-  seg("plotmode", "plotmode", () => drawPlot());
+  seg("plotmode", "plotmode", () => { drawPlot(); writeUrl(); });
   $("plot").addEventListener("click", plotClick);
   $("otprev").addEventListener("click", () => stepGroup(-1)); $("otnext").addEventListener("click", () => stepGroup(1)); $("otall").addEventListener("click", () => stepGroup(0));
   initExports();
@@ -1371,7 +1394,7 @@ function init() {
   initDepth();
   $("refrow").hidden = S.mode !== "diffref";
   setUi(prefs.ui, true);
-  SkyMap.init($("map"), {coords: () => S.ui === "adv", onPick: mapPick, onHover: mapHover, onReady: () => { if (S.t) showStory(S.t); },
+  SkyMap.init($("map"), {coords: () => S.ui === "adv", onPick: mapPick, onHover: mapHover, onReady: () => { if (S.t) showStory(S.t); }, keepOut: mapKeepOut,
     onView: (v) => { $("mapscreen").classList.toggle("zoomed", v.zoomed); $("mapscreen").classList.toggle("opening", !!v.opening); }});
   buildFeatured();
   $("ui").addEventListener("click", (ev) => { const b = ev.target.closest("button"); if (b && b.dataset.v !== S.ui) setUi(b.dataset.v); });

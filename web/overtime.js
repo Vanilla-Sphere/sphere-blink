@@ -5,6 +5,7 @@
    - brightnessChange(): whether the object changed between visits. Each exposure sees another wavelength, so fluxes
      of different dates cannot be compared directly: every flux is first divided by the object's own spectrum at that
      wavelength (the same method as sphereblink/measure.py light_curve), then the visits are compared.
+   - bandChanges(): the same question inside each of the six detector bands, for an object that changed colour.
    Loaded before app.js. */
 "use strict";
 const OT = {
@@ -14,6 +15,7 @@ const OT = {
   MIN_BIN: 12,         // a visit with fewer fluxes is drawn but not compared
   MIN_SNR: 3,          // median signal to noise of single exposures below which nothing is compared
   SIGMA: 3,            // a change counts from this many sigma
+  SIGMA_BAND: 4,       // and from this many inside one band: six bands are six chances of a false alarm
   FLOOR: {aperture: 0.05, wings: 0.12},   // what one visit is good to, whatever the number of exposures
   // flags of a point that is still a clean one: a bright source sets the last four on its own core, and those pixels are measured
   CLEAN: ["SOURCE", "FULLSAMPLE", "OVERFLOW", "TRANSIENT", "SUR_ERROR", "BLOOM"],
@@ -121,4 +123,20 @@ function brightnessChange(points) {
   return out;
 }
 
-if (typeof module !== "undefined") module.exports = {OT, timeGroups, groupedAxis, brightnessChange};
+/* The bands (detectors 1 to 6) in which the object changed between visits, each compared on its own as above:
+   [{det, w0, w1, ratio, sigma, hi, lo, kind, rising}], rising = brightest visit after the faintest.
+   An object can brighten at one end of its spectrum and fade at the other (a young star whose dust moves: RW Aurigae
+   is 1.9 times fainter at 4.7 µm and 1.5 times brighter at 0.9 µm a year later). All bands taken together then
+   nearly cancel, and brightnessChange() rightly says the total did not change; this says what did. */
+function bandChanges(points) {
+  const out = [];
+  for (let det = 1; det <= 6; det++) {
+    const pts = (points || []).filter((p) => p.detector === det), c = brightnessChange(pts);
+    if (c.state !== "varies" || c.sigma < OT.SIGMA_BAND) continue;
+    const w = pts.map((p) => p.wave_um).filter(Number.isFinite);
+    out.push({det, w0: Math.min(...w), w1: Math.max(...w), ratio: c.ratio, sigma: c.sigma, hi: c.hi, lo: c.lo, kind: c.kind, rising: c.hi.mjd > c.lo.mjd});
+  }
+  return out;
+}
+
+if (typeof module !== "undefined") module.exports = {OT, timeGroups, groupedAxis, brightnessChange, bandChanges};

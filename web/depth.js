@@ -495,7 +495,7 @@ function cmpShow() {
     const own = document.createElement("button"); own.type = "button"; own.className = "linkbtn cmpest"; own.hidden = !it.est || it.kind === "star"; own.dataset.cmp = "est"; own.dataset.id = it.id;
     if (!own.hidden) {
       own.textContent = tr("cmp.est", {z: dMinus(it.est.z.toFixed(3))});
-      own.title = tr("cmp.est.t", {lines: zList(zLines(it.est)), z: dMinus(it.est.z.toFixed(3)), e: it.est.zErr.toFixed(3), q: it.est.quality});
+      own.dataset.hintText = tr("cmp.est.t", {lines: zList(zLines(it.est)), z: dMinus(it.est.z.toFixed(3)), e: it.est.zErr.toFixed(3), q: it.est.quality});
       own.addEventListener("click", () => { it.z = it.est.z; it.touched = true; CMP.sel = it.id; cmpShow(); });
     }
     const rm = document.createElement("button"); rm.type = "button"; rm.className = "btn icon quiet"; rm.setAttribute("aria-label", tr("cmp.remove", {name: it.name}));

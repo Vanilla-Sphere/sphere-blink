@@ -57,13 +57,15 @@ The dev site redeploys only when `web/`, the build script or
    (`.github/workflows/checks.yml`) run the test suite and refuse a branch
    with another kind of name.
 3. **Merge to `develop`.** If the viewer changed, the dev site shows it a few
-   seconds later.
-4. **Look at the dev site.**
+   seconds later, and the [UI tests](#ui-tests-after-every-merge) run
+   against it.
+4. **Look at the dev site**, and at the `ui-tests` check on the merge commit.
 5. **Promote.** Open a pull request from `develop` to `main` and merge it
    with a merge commit, not a squash: `main` and `develop` then keep one
    history and the next promotion contains only what is new. Production
    deploys by itself ([release process](deployment.md#release-process)).
-6. **Check production** with the
+6. **Check production**: the UI tests run against it once the deploy is
+   through, next to the
    [post-deploy checks](deployment.md#post-deploy-checks).
 
 `main` takes nothing but `develop`: a pull request to `main` from any other
@@ -73,6 +75,50 @@ costs little since the dev site deploys in seconds.
 `[skip render]` in the commit message and in the merge title still skips the
 production deploy for a change that cannot affect the running service
 ([details](deployment.md#merging-without-a-deploy)).
+
+## UI tests after every merge
+
+The browser tests of the viewer are a repository of their own,
+[sphere-blink-ui-tests](https://github.com/Vanilla-Sphere/sphere-blink-ui-tests)
+(Playwright, a desktop and a phone project). `.github/workflows/ui-tests.yml`
+runs them after every merge:
+
+| Merge to | Site under test | Check on the merge commit |
+| --- | --- | --- |
+| `develop` | <https://dev.vanillasphere.com> | `ui-tests / dev` |
+| `main` | <https://vanillasphere.com> | `ui-tests / production` |
+
+A run has two steps.
+
+1. **Wait for the deploy** (`scripts/wait_for_deploy.sh`). The run goes on
+   when every script and style sheet the site serves under `/static/` is byte
+   for byte the one of the merged commit; if that has not happened after ten
+   minutes the run fails, because the deploy failed or did not start. On
+   `main` it first waits for the engine to restart when the merge changed
+   something the service is built from: the second half of `instance` in
+   `/api/health` is the time the server started, and it has to be later than
+   the push. A merge that deploys nothing
+   ([merging without a deploy](deployment.md#merging-without-a-deploy)) is
+   not waited for.
+2. **Run the tests** with the action of the other repository
+   (`uses: Vanilla-Sphere/sphere-blink-ui-tests@main`). Which tests there
+   are, and how they are run, is decided there: a new or changed test needs
+   no change here. The run page shows the counts and the failed tests, and
+   keeps the HTML report with the traces as an artifact for 14 days.
+
+The tests only read. The cases that start a 7 × 7 field or a measurement
+stay off in CI, on dev as well, because dev acts on production. A newer
+merge to the same branch cancels the run of the one before it. The workflow
+can also be started by hand (Actions > ui-tests > Run workflow) against
+either site as it is.
+
+A red check does not undo a merge and does not stop a deploy: it says that
+the site now fails a test, and the summary of the run says which. Whether
+the viewer or the test is wrong is decided from there.
+
+The other repository is private. It lets this one use its action through
+its setting Settings > Actions > General > Access, "Accessible from
+repositories in the 'Vanilla-Sphere' organization".
 
 ## Asset versions
 

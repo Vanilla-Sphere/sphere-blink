@@ -60,9 +60,21 @@ function savePlotCsv() {
 /* The plot as a picture: drawn again at twice the size on its own canvas, with a title, the key and the credit. */
 function savePlotPng() {
   if (!S.spectrum) return;
-  const lc = S.plotmode === "lc", W = 820, H = 400, pad = 24, head = 62, foot = lc ? 108 : 86, k = 2;
-  const cv = document.createElement("canvas"); cv.width = (W + 2 * pad) * k; cv.height = (head + H + foot) * k;
-  const ctx = cv.getContext("2d"); ctx.scale(k, k);
+  const lc = S.plotmode === "lc", W = 820, H = 400, pad = 24, head = 62, k = 2;
+  // the line that says whether the object changed can be longer than the picture is wide: it is broken into lines first
+  const said = lc ? changeText(changeOf()) : null, lines = [];
+  const cv = document.createElement("canvas"), ctx = cv.getContext("2d");
+  if (said) {
+    ctx.font = `12.5px ${T.sans}`;
+    let line = "";
+    for (const word of said.text.split(" ")) {
+      if (line && ctx.measureText(line + " " + word).width > W) { lines.push(line); line = word; } else line = line ? line + " " + word : word;
+    }
+    lines.push(line);
+  }
+  const foot = (lc ? 108 : 86) + 18 * Math.max(0, lines.length - 1);
+  cv.width = (W + 2 * pad) * k; cv.height = (head + H + foot) * k;
+  ctx.scale(k, k);
   ctx.fillStyle = T.paper; ctx.fillRect(0, 0, W + 2 * pad, head + H + foot);
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   ctx.fillStyle = T.ink; ctx.font = `600 19px ${T.sans}`; ctx.fillText($("tname").textContent || S.target || "", pad, 30);
@@ -76,7 +88,7 @@ function savePlotPng() {
   // the key, as under the plot on the page
   ctx.textAlign = "left"; ctx.font = `12px ${T.mono}`;
   let x = pad, y = head + H + 20;
-  if (key.verdict) { ctx.fillStyle = T.ink; ctx.font = `12.5px ${T.sans}`; ctx.fillText(key.verdict, pad, y); y += 22; ctx.font = `12px ${T.mono}`; }
+  if (key.verdict) { ctx.fillStyle = T.ink; ctx.font = `12.5px ${T.sans}`; for (const line of lines.length ? lines : [key.verdict]) { ctx.fillText(line, pad, y); y += 18; } y += 4; ctx.font = `12px ${T.mono}`; }
   for (const [name, color, shape] of key.items) {
     const w = ctx.measureText(name).width + 34;
     if (x + w > W + pad) { x = pad; y += 18; }

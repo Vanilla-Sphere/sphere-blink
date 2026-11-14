@@ -79,6 +79,8 @@ const STR = {
     "plot.note.lc.b": "A line joins the points of one detector in order of time. Each exposure sees another wavelength, so the ups and downs inside one group are the spectrum of the object, not a change. To see a change, follow one colour from group to group. Click a group, or use the arrows under the plot, to enlarge it.",
     "plot.note.lc.c": "The line under the plot makes that comparison: every flux is divided by the object's own spectrum at its wavelength, then the visits are compared. A change counts from 3σ.",
     "ot.varies": "Brightness changed", "ot.varies.b": "{a} brighter in {hi} than in {lo} ({s}σ).", "ot.about": "About ",
+    "ot.part": "Brightness changed in part of the spectrum", "ot.part.b": "{d} ({w0} to {w1} µm): {a} brighter in {hi} than in {lo} ({s}σ).",
+    "ot.part.all": "All bands together differ by {p}% ({s}σ).", "ot.upto": "up to ",
     "ot.steady": "No significant change", "ot.steady.b": "Visits from {from} to {to} differ by up to {p}% ({s}σ).",
     "ot.one": "One visit so far", "ot.one.b": "SPHEREx returns about every six months. A change needs two visits.",
     "ot.faint": "Too faint to compare", "ot.faint.b": "Single exposures are mostly noise here.",

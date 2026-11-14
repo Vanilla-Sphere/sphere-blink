@@ -22,6 +22,11 @@ const SkyMap = (() => {
      The first view stays just short of it, so it opens with the map, not with a page of names. */
   const NAMES_ALL = 6;
   let fresh = false, wasFresh = null;
+  /* The page's heading lies on a corner of the map. While it is there no name is drawn under it:
+     `keep` is that box of the canvas, asked from the page when the size or the view changes. */
+  let keep = null, keepAsk = true;
+  const kept = (x0, y0, x1, y1) => keep && x1 > keep[0] && x0 < keep[2] && y1 > keep[1] && y0 < keep[3];
+  const keptText = (text, x, y, align) => { if (!keep || y + 4 < keep[1] || y - 12 > keep[3]) return false; const w = ctx.measureText(text).width, x0 = align === "center" ? x - w / 2 : align === "right" ? x - w : x; return kept(x0, y - 12, x0 + w, y + 4); };
   let rot = null;                       // cos/sin of the centre, set once per frame
   let sky = null, stars = null, mw = null, cons = [], names = [], cells = null;
   let pins = [], mark = null, hover = null, hoverPin = null, hoverCon = null, hoverStar = null, busyAt = null, labels = false, wasZoomed = null;
@@ -160,6 +165,7 @@ const SkyMap = (() => {
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     cx = W / 2; cy = H / 2;
     s0 = Math.min(W / (4 * R2 * 1.03), H / (2 * R2 * 1.1));
+    keepAsk = true;
     redraw();
   }
   /* The smallest zoom shows the whole sky; on a tall screen it starts closer so the sky is not a thin strip. */
@@ -231,7 +237,8 @@ const SkyMap = (() => {
     dirty = false;
     if (!cv || !W || !shown) return;
     const zoomed = view.k > homeZoom() * 1.35;
-    if (zoomed !== wasZoomed || fresh !== wasFresh) { wasZoomed = zoomed; wasFresh = fresh; if (opt.onView) opt.onView({zoomed, opening: fresh}); }
+    if (zoomed !== wasZoomed || fresh !== wasFresh) { wasZoomed = zoomed; wasFresh = fresh; if (opt.onView) opt.onView({zoomed, opening: fresh}); keepAsk = true; }
+    if (keepAsk) { keepAsk = false; keep = opt.keepOut ? opt.keepOut() : null; }
     setRot();
     const s = s0 * view.k, p = [0, 0, 0], q = [0, 0, 0];
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -395,7 +402,7 @@ const SkyMap = (() => {
       if ("letterSpacing" in ctx) ctx.letterSpacing = "0.08em";
       for (const c of cons) {
         project(c.at[0], c.at[1], c.at[2], p);
-        if (onScreen(p, 40)) halo(c.la.toUpperCase(), p[0], p[1], C.muted);
+        if (onScreen(p, 40) && !keptText(c.la.toUpperCase(), p[0], p[1], "center")) halo(c.la.toUpperCase(), p[0], p[1], C.muted);
       }
       if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
     }
@@ -406,7 +413,8 @@ const SkyMap = (() => {
       for (const n of names) {
         if (n.mag > (closer >= NAMES_ALL ? 3 : 1.6)) continue;
         project(n.v[0], n.v[1], n.v[2], p);
-        if (onScreen(p, 10)) halo(n.name, p[0] + Math.max(8, 1.5 * starRadius(n.mag, grow) + 4), p[1] + 4, C.ink2);
+        const nx = p[0] + Math.max(8, 1.5 * starRadius(n.mag, grow) + 4);
+        if (onScreen(p, 10) && !keptText(n.name, nx, p[1] + 4, "left")) halo(n.name, nx, p[1] + 4, C.ink2);
       }
     }
     // axis labels for people who work in coordinates
@@ -430,12 +438,14 @@ const SkyMap = (() => {
       pin.x = p[0]; pin.y = p[1];
       if (!onScreen(p, 20)) continue;
       const on = pin === hoverPin, r = on ? 5.5 : 4, x = Math.round(p[0]), y = Math.round(p[1]);
+      if (kept(x - r - 5, y - r - 5, x + r + 5, y + r + 5)) continue;   // under the heading: it shows once the map is moved
       ctx.strokeStyle = "rgba(8,6,4,.8)"; ctx.lineWidth = 3; ctx.strokeRect(x - r - 3.5, y - r - 3.5, 2 * r + 7, 2 * r + 7);
       ctx.strokeStyle = C.accent; ctx.lineWidth = 1; ctx.strokeRect(x - r - 3.5, y - r - 3.5, 2 * r + 7, 2 * r + 7);
       ctx.fillStyle = C.accent; ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
       const flip = x > W - 150;
       ctx.textAlign = flip ? "right" : "left";
-      halo(pin.name, x + (flip ? -1 : 1) * (r + 10), y + 4, on ? C.ink : C.ink2);
+      const lx = x + (flip ? -1 : 1) * (r + 10);
+      if (!keptText(pin.name, lx, y + 4, flip ? "right" : "left")) halo(pin.name, lx, y + 4, on ? C.ink : C.ink2);
     }
     ctx.textAlign = "left";
     // the point under the cursor, or the one being opened
@@ -590,9 +600,9 @@ const SkyMap = (() => {
     init(canvas, options) {
       cv = canvas; ctx = cv.getContext("2d"); wrap = cv.parentElement; opt = options || {};
       theme(); wire(); loadData().catch(() => {});
-      if (document.fonts && document.fonts.ready) document.fonts.ready.then(redraw);
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { keepAsk = true; redraw(); });
     },
-    show(on) { shown = on; if (on) { busyAt = null; resize(); if (view.k === 1 && !view.set) { view.ra = OPEN.ra; view.dec = OPEN.dec; view.k = openZoom(); view.set = true; fresh = true; } redraw(); } },
+    show(on) { shown = on; if (on) { busyAt = null; keepAsk = true; resize(); if (view.k === 1 && !view.set) { view.ra = OPEN.ra; view.dec = OPEN.dec; view.k = openZoom(); view.set = true; fresh = true; } redraw(); } },
     setPins(list) { pins = list; redraw(); },
     setMark(ra, dec) { mark = ra === null ? null : {ra, dec}; redraw(); },
     lookAt(ra, dec, k) { view.ra = ra; view.dec = dec; if (k) view.k = k; view.set = true; fresh = false; clampView(); redraw(); },

@@ -29,7 +29,7 @@ as static files.
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
 Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `linelist.js`, `insight.js`, `redshift.js`, `depth.js`, `showcase.js`, `app.js`.
-Asset URLs carry a version query (`?v=51`) that is raised when a file changes,
+Asset URLs carry a version query (`?v=52`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -106,6 +106,7 @@ at start; `writeUrl` keeps it current (`replaceState` for display changes,
 | `mode` | `blink`, `diffmed`, `diffref`, `stack` | `blink` | Image arithmetic |
 | `gaia`, `catwise` | `1` | off | Catalogue overlays |
 | `tracks` | `0` | on | Hide the measured-tracks overlay |
+| `plot` | `lc` | `spec` | The plot tab: `lc` opens on "Over time" instead of the spectrum |
 | `mover` | id (`VS-...`) | - | The moving object that is open in the "Moving objects" card |
 | `seen` | exposure and detector (`2025W32_1A_0637_3:D3`) | - | With `mover`: the exposure of that object whose frame is on screen |
 | `ui` | `simple`, `adv` | see below | Interface mode |
@@ -259,7 +260,8 @@ The vertical axis reads in mJy and switches to Jy when the 98th percentile of
 the fluxes exceeds 1 Jy. The time axis of the Over time plot is cut into the
 groups of days in which SPHEREx observed the place (`groupedAxis` in
 `overtime.js`), and `changeText`/`showChange` write the line under it that says
-whether the object changed between visits (`brightnessChange`); see
+whether the object changed between visits (`brightnessChange`, and band by
+band `bandChanges` when the total is steady); see
 [features](features.md#9-spectrum-and-flux-over-time).
 
 ## Sky map
