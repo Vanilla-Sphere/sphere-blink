@@ -16,6 +16,7 @@ const SkyMap = (() => {
   let sky = null, stars = null, mw = null, cons = [], names = [], cells = null;
   let pins = [], mark = null, hover = null, hoverPin = null, hoverCon = null, busyAt = null, labels = false, wasZoomed = null;
   let dirty = false, shown = false;
+  let fx = null;                        // ambient.js, when it is loaded: it draws the aiming frame and follows every redraw
 
   /* ---------------------------------------------------------------- geometry */
   const vec = (ra, dec) => { const a = ra * D, d = dec * D, c = Math.cos(d); return [c * Math.cos(a), c * Math.sin(a), Math.sin(d)]; };
@@ -114,11 +115,11 @@ const SkyMap = (() => {
     setRot();
     const s = s0 * view.k, p = [0, 0, 0], q = [0, 0, 0];
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H);
+    ctx.clearRect(0, 0, W, H);          // outside the sky the canvas is clear: the ambient layer shows through
     // the sky itself: a slightly darker sheet with a hairline edge
     ctx.beginPath(); ctx.ellipse(cx, cy, 2 * R2 * s, R2 * s, 0, 0, 2 * Math.PI);
     ctx.fillStyle = C.well; ctx.fill(); ctx.strokeStyle = C.rule; ctx.lineWidth = 1; ctx.stroke();
-    if (!sky) return;
+    if (!sky) { if (fx) fx.sync(); return; }
     ctx.save();
     ctx.beginPath(); ctx.ellipse(cx, cy, 2 * R2 * s, R2 * s, 0, 0, 2 * Math.PI); ctx.clip();
 
@@ -219,7 +220,7 @@ const SkyMap = (() => {
     }
     ctx.textAlign = "left";
     // the point under the cursor, or the one being opened
-    const at = busyAt || (hoverPin ? null : hover);
+    const at = fx ? null : busyAt || (hoverPin ? null : hover);
     if (at) {
       project(...vec(at.ra, at.dec), q);
       const x = Math.round(q[0]) + 0.5, y = Math.round(q[1]) + 0.5, g = 5, L = 9;
@@ -227,6 +228,7 @@ const SkyMap = (() => {
       ctx.moveTo(x - g - L, y); ctx.lineTo(x - g, y); ctx.moveTo(x + g, y); ctx.lineTo(x + g + L, y);
       ctx.moveTo(x, y - g - L); ctx.lineTo(x, y - g); ctx.moveTo(x, y + g); ctx.lineTo(x, y + g + L); ctx.stroke();
     }
+    if (fx) fx.sync();
   }
 
   /* ---------------------------------------------------------------- interaction */
@@ -342,6 +344,12 @@ const SkyMap = (() => {
     zoom(f) { zoomAt(f, cx, cy); },
     home() { view.k = homeZoom(); view.dec = 0; redraw(); },
     constellation, redraw,
+    /* for ambient.js: what the map shows now, where a sky position is on the canvas, a slow turn, and "nobody is pointing" */
+    attach(o) { fx = o; redraw(); },
+    state() { const s = s0 * view.k; return {W, H, cx, cy, rx: 2 * R2 * s, ry: R2 * s, ra: view.ra, dec: view.dec, zoomed: !!wasZoomed, shown, busy: busyAt, hover: hoverPin ? null : hover, pin: hoverPin, pins}; },
+    toXY(ra, dec) { setRot(); const p = project(...vec(ra, dec), [0, 0, 0]); return [p[0], p[1]]; },
+    turn(dra) { view.ra += dra; clampView(); redraw(); },
+    rest() { if (hover || hoverPin) tell(null); },
     get ready() { return !!sky; },
   };
 })();
