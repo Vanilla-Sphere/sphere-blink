@@ -87,3 +87,17 @@ alter table sources    enable row level security;
 alter table detections enable row level security;
 alter table tracks     enable row level security;
 revoke execute on function sources_near(double precision, double precision, double precision) from public;
+
+-- Columns the measurement pipeline (sphereblink/measure.py) fills. Safe to
+-- run on a database made with the tables above.
+alter table detections
+    add column if not exists east_arcsec  double precision,          -- measured minus catalogue prediction
+    add column if not exists north_arcsec double precision,
+    add column if not exists snr          double precision,
+    add column if not exists n_exposures  integer not null default 1,  -- > 1: exposures of one sky pass added up
+    add column if not exists used         boolean not null default true,  -- false: left out of the track fit
+    add column if not exists rel_flux     double precision;          -- flux / the object's mean spectrum at wave_um
+alter table tracks
+    add column if not exists parallax_mas double precision,          -- parallax used in the fit (catalogue)
+    add column if not exists model        text,
+    add column if not exists summary      jsonb;                     -- light curve, statistics, comparison with the catalogue

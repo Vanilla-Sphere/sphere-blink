@@ -28,7 +28,7 @@ const S = {
   t: null, featured: [], keep: null, url: "",
 };
 /* Where the challenge targets sit on the sky map (degrees, late 2025; the server holds the exact positions). */
-const FEATURED_AT = {"barnard": [269.446, 4.768], "eps-indi-b": [331.096, -56.801], "wise-0855": [133.768, -7.243], "rw-aur": [76.956, 30.401], "r-dra": [248.167, 66.755]};
+const FEATURED_AT = {"barnard": [269.446, 4.768], "eps-indi-b": [331.096, -56.801], "wise-0855": [133.760, -7.242], "rw-aur": [76.956, 30.401], "r-dra": [248.167, 66.755]};
 const store = {
   get(k) { try { return localStorage.getItem("vs." + k); } catch (_) { return null; } },
   set(k, v) { try { localStorage.setItem("vs." + k, v); } catch (_) {} },
@@ -289,16 +289,18 @@ async function loadTracks() {
     if (!r.ok) return;
     const d = await r.json();
     if (id !== S.loadId || !d.enabled) return;
+    // positions the pipeline left out of its fit (saturated wings, outliers) are not drawn
+    for (const s of d.sources) s.detections = s.detections.filter((x) => x.used !== false);
     S.tracks = d.sources;
     $("trackopt").hidden = false;
     $("trackcard").hidden = !d.sources.length;
     $("tracklist").innerHTML = "";
     for (const s of d.sources) {
-      const dt = document.createElement("dt"), dd = document.createElement("dd"), tr = s.track;
+      const dt = document.createElement("dt"), dd = document.createElement("dd"), fit = s.track;  // not "tr": that is the translator
       dt.textContent = s.name;
       dd.textContent = [s.kind, tr(s.detections.length === 1 ? "track.pos" : "track.poss", {n: s.detections.length}),
-        tr ? `${(Math.hypot(tr.pmra, tr.pmdec) / 1000).toFixed(2)}″/yr` : null,
-        tr && tr.rms_arcsec != null ? `rms ${tr.rms_arcsec.toFixed(2)}″` : null].filter(Boolean).join(" · ");
+        fit ? `${(Math.hypot(fit.pmra, fit.pmdec) / 1000).toFixed(2)}″/yr` : null,
+        fit && fit.rms_arcsec != null ? `rms ${fit.rms_arcsec.toFixed(2)}″` : null].filter(Boolean).join(" · ");
       $("tracklist").append(dt, dd);
     }
     draw(); writeUrl();
