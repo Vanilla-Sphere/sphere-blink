@@ -32,7 +32,7 @@ as static files.
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
 Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `completeness.js`, `linelist.js`, `insight.js`, `redshift.js`, `depth.js`, `showcase.js`, `app.js`.
-Asset URLs carry a version query (`?v=65`) that is raised when a file changes,
+Asset URLs carry a version query (`?v=66`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -205,7 +205,11 @@ are read from the CSS custom properties, so the canvas follows the design tokens
 `initMovers()` once, `clearMovers()` when a new view starts, `loadMovers()`
 when a progressive field has finished loading, and `drawMovers()` with every
 frame. `loadMovers` asks `/api/movers/field` and asks again every 4 seconds
-while the search is queued or running. Its state is the object `MV`. Two
+while the search is queued or running, then every 15 seconds while the second
+search (faint and slow objects, `job.stack` is `searching`) goes on; the
+status line says so (`mover.stacking`), and an object it found
+(`method: "stack"`) has its own line of facts (`mover.stack`,
+`mover.stack.far`). Its state is the object `MV`. Two
 things are kept in `localStorage`: `vs.voter`, a random id the browser makes
 up once and sends with its votes, and `vs.follow`, the ids of the objects it
 follows. "Discoveries" is a sheet like "About the data"; its Fast and Slow

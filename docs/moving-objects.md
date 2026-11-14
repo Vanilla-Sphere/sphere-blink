@@ -329,6 +329,56 @@ Limits found in the same test:
   few arcsec (rms 7.7 arcsec for 3I/ATLAS in field 1).
 - A search takes 30 to 55 seconds and about 1 GB of memory per field.
 
+## The second search: faint and slow objects
+
+The steps above need an object to show in single exposures and to move two
+arcsec per hour or more. What is fainter or slower (a dwarf planet, a
+centaur, anything beyond Saturn) is searched for by adding the frames up
+along every possible path: `mover_stack`, described with its validation in
+[shift-and-stack.md](shift-and-stack.md). It found Pluto, Makemake, Haumea,
+Chiron, Orcus and Eris blind, none of which the linker finds.
+
+It is wired in as a second stage of a field's search (`movers_api.run_stack`),
+not as a part of the first:
+
+- **The linker's results come first.** They are stored and shown as before,
+  about a minute after the field has loaded. The second search then takes
+  one to three minutes more (185 s for the 713 frames of field 248.34 -16.98,
+  where it finds nothing and reports nothing), and what it finds is added to
+  the field (`mover_store.add_tracks`). Meanwhile the field is `ready` and
+  `job.stack` says `searching`; the viewer asks again every 15 seconds and
+  says that it is still looking.
+- **It has a version of its own** (`mover_stack.VERSION`), noted in the
+  field's record (`stats.stack.version`). Putting it in, or changing it,
+  does not hide the log: `movers.VERSION` stays what it is. After a start
+  the server first searches the fields of an earlier linker version again
+  (linker only), then goes through the fields the second search has not seen
+  (`movers_api.stack_missing`), one at a time, from frames still in the
+  cache.
+- **The linker's paths are kept out** (`exclude`): the paths stored for the
+  field are not reported again and their light is not taken for something
+  new.
+- **What is shown follows the same rule as before, with its own level.** A
+  path with a catalogue name is shown. Without a name it is shown as a
+  candidate only from 7.5 sigma on (`stack_strong`; `movers.strong` answers
+  with it for a stacked path). Between 5 and 7.5 sigma chance gives a path in
+  every second field, so such a path is dropped when the catalogues have no
+  object on it, and stored out of sight while no catalogue has answered.
+  Orcus (7.4 sigma) and Eris (5.6) are in the log through their names.
+- **A stacked path is not pieced together from two fields.** When an
+  overlapping field finds the same object, the stronger find stays whole;
+  where the linker has the object, the linker's record stays.
+- **When it fails, the field keeps what the linker found** and the second
+  search is tried again after the next start.
+- `SPHEREX_MOVER_STACK=0` turns the second search off;
+  `SPHEREX_MOVER_STACK_BUDGET_S` (180) is the time after which its four-day
+  windows are skipped (the whole-pass search always runs).
+
+Not checked from the development machine: the names. SkyBoT and JPL cannot
+be reached from there. That a stacked path of a known body gets its name
+(the limits of `known_objects.match` allow it: within 30 arcsec, motions
+within 4 arcsec per hour) can only be seen on production.
+
 ## Growing with the map
 
 The search is tied to what visitors open. When a progressive field has all its

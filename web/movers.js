@@ -72,6 +72,7 @@ async function loadMovers() {
   } catch (_) { return; }
   if (id !== S.loadId || MV.key !== key || !d.enabled) return;
   MV.status = d.status; MV.stats = d.stats || (d.job && d.job.stats) || null; MV.error = d.job && d.job.error;
+  MV.stack = (d.job && d.job.stack) || "";   // the second search, for faint and slow objects: it adds to the list when it ends
   MV.list = d.movers.slice().sort((a, b) => b.rate_arcsec_hr - a.rate_arcsec_hr);
   $("movercard").hidden = false; $("moveropt").hidden = !MV.list.length;
   if (MV.want) {
@@ -84,13 +85,14 @@ async function loadMovers() {
   }
   showMovers(); draw();
   if (["queued", "searching", "not_loaded"].includes(d.status) && ++MV.tries < 90) MV.timer = setTimeout(loadMovers, 4000);
+  else if (d.status === "ready" && MV.stack === "searching" && ++MV.tries < 150) MV.timer = setTimeout(loadMovers, 15000);
 }
 function showMovers() {
   const st = MV.stats || {}, n = MV.list.length;
   $("moverback").hidden = MV.status !== "pinned";
   $("moverstatus").textContent =
     MV.status === "pinned" ? tr("mover.pinned")
-    : MV.status === "ready" ? (n ? tr(n > 1 ? "mover.found.n" : "mover.found.1", {n, f: st.frames || "?"}) : tr("mover.found.0", {f: st.frames || "?"}))
+    : MV.status === "ready" ? (n ? tr(n > 1 ? "mover.found.n" : "mover.found.1", {n, f: st.frames || "?"}) : tr("mover.found.0", {f: st.frames || "?"})) + (MV.stack === "searching" ? " " + tr("mover.stacking") : "")
     : MV.status === "error" ? tr("mover.error")
     : MV.status === "not_loaded" ? tr("mover.wait")
     : tr("mover.searching");
@@ -123,7 +125,10 @@ function moverRow(m, follow, open, inLog) {
   const more = document.createElement("div"), det = MV.detail[m.id] || {};
   more.className = "movermore";
   const facts = document.createElement("p");
-  facts.textContent = tr("mover.facts", {seen: m.times_seen, of: m.times_covered, id: m.id}) + (m.known && m.known.name ? " " + tr("mover.match", {by: m.known.by, sep: m.known.sep_arcsec}) : m.known && m.known.checked ? " " + tr("mover.cand") : "");
+  const far = m.stack_distance && m.stack_distance.distance_au;
+  facts.textContent = (m.method === "stack"
+    ? tr("mover.stack", {f: m.stack_frames, s: (+m.stack_snr).toFixed(1), id: m.id}) + (far ? " " + tr("mover.stack.far", {d: Math.round(far), lo: Math.round(m.stack_distance.distance_min_au), hi: Math.round(m.stack_distance.distance_max_au)}) : "")
+    : tr("mover.facts", {seen: m.times_seen, of: m.times_covered, id: m.id})) + (m.known && m.known.name ? " " + tr("mover.match", {by: m.known.by, sep: m.known.sep_arcsec}) : m.known && m.known.checked ? " " + tr("mover.cand") : "");
   const row = document.createElement("div"); row.className = "moveracts";
   for (const [value, key] of [["real", "mover.real"], ["false", "mover.false"]]) {
     const b = document.createElement("button");
