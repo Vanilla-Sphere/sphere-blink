@@ -26,12 +26,6 @@ S3_HTTP_BASE = os.environ.get(
 # not answer. It also serves byte ranges, several times slower.
 MIRROR_HTTP_BASE = os.environ.get("SPHEREX_MIRROR_HTTP_BASE", "https://irsa.ipac.caltech.edu/ibe/data/spherex")
 
-# Which deployment this is. Anything but "production" (the dev service sets
-# "dev") tells search engines to stay away: a test copy must never be found
-# in place of the real site. /api/health reports the name.
-ENV = os.environ.get("SPHEREX_ENV", "production").strip().lower() or "production"
-PRODUCTION = ENV == "production"
-
 CACHE_DIR = Path(os.environ.get("SPHEREX_CACHE_DIR", ".cache/sphereblink"))
 DB_URL = os.environ.get("DATABASE_URL", "")  # postgres://... ; empty = SQLite in CACHE_DIR
 

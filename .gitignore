@@ -7,3 +7,4 @@ venv/
 *.sqlite
 *.sqlite-*
 .env
+dev-site/

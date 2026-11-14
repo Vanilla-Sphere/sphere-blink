@@ -1,88 +1,40 @@
-# The dev environment: the service of render.yaml once more, deployed from
-# the branch develop, with a disk of its own and its own tables in the
-# measurement database. Every change is tried here before it is promoted to
-# main (docs/environments.md). Render reads this file from develop.
-#
-# Keep it a copy of render.yaml. Only these may differ: the name, the
-# branch, the domains, SPHEREX_ENV, and which blueprint file each service
-# ignores. tests/test_guard.py compares the two files.
+# The dev environment (docs/environments.md): the viewer of the branch
+# develop, served as a static site in front of the engine of production.
+# It exists to look at a change to web/ before the public does. Everything
+# behind the page is production's: /api/ is passed on to the live service, so
+# dev shows the same pictures and measurements and has no server, disk or
+# database of its own. Render reads this file from develop.
 services:
   - type: web
     name: sphere-blink-dev
+    runtime: static
     branch: develop
-    runtime: python
-    region: virginia   # next to the SPHEREx bucket in AWS us-east-1
-    plan: pro plus   # 4 CPU, 8 GB
-    buildCommand: pip install -r requirements.txt
-    # One web process, always: views and progressive fields are tracked in
-    # its memory, and it starts SPHEREX_FETCH_PROCS processes of its own for
-    # the heavy work. Render sets WEB_CONCURRENCY to the CPU count, which
-    # uvicorn would read as "run 4 servers" - each then loads every view
-    # again and they answer the progress polls with different states.
-    # A deploy stops this server before the next one starts, so it must
-    # leave quickly: 3 s for the answers in flight, then it exits (see
-    # main._stop_fast). Without this it waited for open connections until
-    # the host killed it after 30 s, every deploy.
-    startCommand: uvicorn sphereblink.main:app --host 0.0.0.0 --port $PORT --workers 1 --timeout-graceful-shutdown 3
-    healthCheckPath: /api/health
-    # A deploy restarts the one server (the disk can belong to one instance
-    # only), which takes the site down for a short while and forgets the
-    # views being gathered (the viewer waits and retries by itself). Changes that cannot affect the running
-    # service do not deploy.
+    buildCommand: sh scripts/build_dev_site.sh dev-site
+    staticPublishPath: ./dev-site
+    # Only a change to the viewer (or to how this site is built) deploys it.
     buildFilter:
-      ignoredPaths:
-        - docs/**
-        - tests/**
-        - scripts/**
-        - "**/*.md"
-        - .github/**
-        - render.yaml   # the production service
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.12.7
-      # Not production: /robots.txt and X-Robots-Tag close the site to search
-      # engines, and /api/health says "env": "dev".
-      - key: SPHEREX_ENV
-        value: dev
-      - key: WEB_CONCURRENCY
-        value: "1"
-      - key: SPHEREX_CACHE_DIR
-        value: /var/data/sphereblink
-      # Connection string of the measurement database, with the role
-      # blink_dev: it sees only the schema "dev" (sql/dev.sql) and has no
-      # right on the tables of production. Set it in the Render dashboard,
-      # never in this file, and never the production string.
-      - key: DATABASE_URL
-        sync: false
-      # Keep these three in step with the plan and the disk below:
-      # processes = CPUs of the plan, disk budget = about 80% of the disk.
-      - key: SPHEREX_FETCH_PROCS
-        value: "4"
-      # Frames kept in the server's memory. With the four fetch processes,
-      # a measurement run and the pictures being rendered, 2500 took the
-      # service to 6.6 of its 8 GB under load; 2000 leaves more room and
-      # still holds two 7 x 7 fields at once.
-      - key: SPHEREX_RAM_BUDGET_MB
-        value: "2000"
-      # What the pipeline works on at a time; the rest waits in a queue and
-      # is told its position. Sized to this plan (4 CPU, 8 GB) by
-      # measurement: docs/performance.md, "How many jobs at once". Views: one
-      # per fetch process, and together no more frames in memory than
-      # ACTIVE_MB (two 7 x 7 fields of the largest size). Measurements: two
-      # (three or four measure no more per minute). Measure again before
-      # raising them or changing the plan.
-      - key: SPHEREX_ACTIVE_VIEWS
-        value: "4"
-      - key: SPHEREX_ACTIVE_MB
-        value: "2400"
-      - key: SPHEREX_MEASURE_PROCS
-        value: "2"
-      # glibc otherwise keeps one heap per thread and hands little back
-      - key: MALLOC_ARENA_MAX
-        value: "2"
-      - key: SPHEREX_DISK_BUDGET_GB
-        value: "16"
-    disk:
-      name: cache
-      mountPath: /var/data
-      sizeGB: 20
+      paths:
+        - web/**
+        - scripts/build_dev_site.sh
+        - render.dev.yaml
+    routes:
+      # The engine, its API pages and their description: production answers.
+      - type: rewrite
+        source: /api/*
+        destination: https://vanillasphere.com/api/*
+      - type: rewrite
+        source: /docs
+        destination: https://vanillasphere.com/docs
+      - type: rewrite
+        source: /openapi.json
+        destination: https://vanillasphere.com/openapi.json
+    headers:
+      # A test copy must never be found in place of the real site.
+      - path: /*
+        name: X-Robots-Tag
+        value: noindex, nofollow
+      # The page gets the policy production gives it (guard.CSP; a test keeps
+      # the two the same), so what the policy would block is blocked here too.
+      - path: /
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
