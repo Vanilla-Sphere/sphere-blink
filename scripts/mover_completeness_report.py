@@ -173,6 +173,13 @@ def build(args) -> None:
     if getattr(args, "same_on", None):  # a later search, run on some of the same rounds, found the same fakes
         out["same_on"] = {"version": args.same_on[0], "rounds": args.same_on[1]}
     args.out.parent.mkdir(parents=True, exist_ok=True)
+    if args.out.exists():  # the count of the shift and stack search (mover_completeness_far.py report --into) lives in the same file
+        try:
+            kept = json.loads(args.out.read_text()).get("stack")
+        except ValueError:
+            kept = None
+        if kept:
+            out["stack"] = kept
     args.out.write_text(json.dumps(out, separators=(",", ":")) + "\n")
     a = out["all"]
     print(f"{a['rounds']} rounds, {a['fakes']} fakes, {a['observable']} observable at {MIN_TIMES} times or more")
