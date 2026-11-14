@@ -35,8 +35,18 @@ services:
       - path: /*
         name: X-Robots-Tag
         value: noindex, nofollow
+      # No other site may show this copy inside a frame, whatever the address
+      # asked for (guard.FRAMING; the engine's own answers, passed on above,
+      # arrive with production's headers and are not touched by these).
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
       # The page gets the policy production gives it (guard.CSP; a test keeps
       # the two the same), so what the policy would block is blocked here too.
+      # A static site also answers /index.html with the page, so both carry it.
       - path: /
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://irsa.ipac.caltech.edu; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+      - path: /index.html
         name: Content-Security-Policy
         value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://irsa.ipac.caltech.edu; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"

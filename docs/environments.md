@@ -36,14 +36,20 @@ Two consequences follow:
 `scripts/build_dev_site.sh` builds the site: `web/index.html` at `/` (with
 `[dev]` in front of the title, the only difference in the page), the rest of
 `web/` under `/static/` as the server mounts it, and a `robots.txt` that
-disallows everything. `render.dev.yaml` adds three things:
+disallows everything. `render.dev.yaml` adds four things:
 
 - rewrites that pass `/api/*`, `/docs` and `/openapi.json` on to the live
   site, so the viewer keeps calling its own origin;
 - `X-Robots-Tag: noindex, nofollow` on every answer;
-- the content security policy the server gives the page (`guard.CSP`). A
-  test keeps the two equal, so a script or request the policy would block in
-  production is blocked on dev as well.
+- the content security policy the server gives the page (`guard.CSP`), on
+  `/` and on `/index.html`, which a static site also answers with the page.
+  A test keeps the two equal, so a script or request the policy would block
+  in production is blocked on dev as well;
+- `X-Frame-Options: SAMEORIGIN` on every path, so that no other site can
+  show the copy inside a frame ([security](security.md#framing-by-other-sites)).
+
+These headers go on the files of the static site only. What the rewrites
+pass on arrives with the headers production gave it.
 
 The dev site redeploys only when `web/`, the build script or
 `render.dev.yaml` changes on `develop`.

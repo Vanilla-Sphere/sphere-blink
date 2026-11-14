@@ -45,7 +45,8 @@ already put in the disk cache.
    lie within 7.5 arcsec of the straight line (growing by 0.15 arcsec per
    hour away from the pair that proposed it, to at most 15 arcsec). The best supported line is taken first and
    its detections are removed. Pieces that continue each other on one line
-   are merged.
+   are merged. When a pass holds more than 3000 detections, its 3000
+   brightest take part.
 4. **Confirmation in the pixels.** Along a track, every exposure that covers
    the predicted place is measured there, in the detectors the object was
    detected in. The object counts as seen in an exposure when two things
@@ -92,8 +93,10 @@ already put in the disk cache.
    enough for SPHEREx is a known asteroid or comet, so a path that no
    catalogue has an object on is far more often chance than a new object. It
    is kept only when seen at 8 or more exposure times, at 80 % or more of
-   the times covered, and in 3 or more visits (at 2 or more exposure times in
-   each; `visits_seen`). `stats.unnamed_dropped` counts the rest. A path
+   the times covered, and either in 3 or more visits at 2 or more exposure
+   times in each (`visits_seen`) or in 4 or more visits however often in
+   each (`seen_by_visit` lists the sightings per visit).
+   `stats.unnamed_dropped` counts the rest. A path
    joined from pieces passes when one of its pieces does. In the viewer such
    a path is called a candidate, never a discovery, and is listed after the
    objects the catalogues confirm.
@@ -196,6 +199,8 @@ steps 3 and 4, and none of them is an object:
 - The completeness test with injected sources found the same independently in the field RA 167.13, Dec +5.17: two
   injected sources that hardly move, 11 hours apart, came out as one path of
   75.6 arcsec per hour seen at 8 of 8 times.
+  What the rule of three visits costs and what it keeps out is measured in
+  [how much the search finds](mover-completeness.md#what-the-numbers-say).
 
 All eleven are seen in exactly two visits. Hence step 8: a path that no
 catalogue has an object on must be seen in three visits, at two or more
@@ -238,6 +243,43 @@ The threshold of a sighting (step 4) was measured again on these fields: at
 JPL's positions of the real asteroids in 70 to 76 %. No other choice of the
 three numbers separated the two better, so they stayed.
 
+### What the injection test changed (version 4)
+
+The completeness test ([how much the search finds](mover-completeness.md))
+puts artificial asteroids into real frames and counts how many come back.
+Within two hours of version 3 it showed two things, both fixed the same
+evening:
+
+- **Three visits of two was too much to ask where the telescope gives one
+  exposure per visit.** In the sparse field an artificial object was
+  typically seen as [2, 1, 1, 1, 1, 2, 1, 1, 1]: nine visits, eleven of
+  eleven times, and not "strong". Counting four visits of any size as well
+  brings the share of found bright objects that are strong from 81, 88 and
+  82 % (sparse, medium, Barnard field) to 85, 89 and 88 %. No chance path
+  passes: none of 288 shuffled searches of twelve fields was seen in four
+  visits at 8 times and 80 %, and none of the 14 false paths of the
+  injection rounds. Any three visits would have let one of those through.
+- **The linking looked at too few detections.** A pass holds 3000 to 6000
+  detections in a field with many stars, and the linking took the 1500
+  brightest, so the cut sat at 7 to 8 sigma, not 5. (3780) Maury kept 11 of
+  its 18 detections, (8838) 1989 UW2 5 of 14. With 3000 (and the inner step
+  of the linking in single precision, 2.5 times faster, same tracks) Maury
+  is linked with 17 and 1989 UW2 with 10, (412) Elisabetha gains a visit and
+  passes step 8 on its own, and on the Barnard field 3 more of 44 bright
+  artificial objects are found and none is lost.
+
+Version 4 on the twelve fields of the table above: the same objects, and
+144 shuffled searches (6 of each kind per field) without a path of the
+evidence of step 8.
+
+What was tried and not taken: using frames with more than 80 detections
+(up to 250, or their brightest 80 or 250). Barnard's field loses half its
+frames to that limit and stays clean with any of the three, but the plane of
+the Milky Way, the bulge and galactic latitude 5 then give about one chance
+path with the evidence of step 8 per six visit shuffles, and the fields rich
+in asteroids lose real ones (Elisabetha, 1989 UW2, Maury), because the extra
+detections push the faint real ones out of the 3000 that are linked.
+
 Limits found in the same test:
 
 - 3I/ATLAS at 8.7 arcsec per hour and V about 15.2 (field 3, March 2026) was
@@ -275,7 +317,8 @@ field is loaded and has not been searched.
   keeps its id, its date of discovery and its votes, with the new evidence
   in place of the old. Version 2 (2026-11-14) is the compact source test,
   version 3 (same day) curved paths and three visits for a path without a
-  name.
+  name, version 4 (same day) four visits of any size and 3000 detections
+  per pass.
 - 90 seconds after a start of the server, the fields an earlier version went
   through are searched again by themselves, one at a time, newest first,
   when 95 % or more of their frames are still in the disk cache

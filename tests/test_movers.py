@@ -104,6 +104,13 @@ def test_four_detections_on_a_line_are_not_yet_an_object():
     assert movers.strong(three) and not movers.strong({**three, "times_seen": 7, "times_covered": 7})
     assert not movers.strong({**three, "times_covered": 12})
     assert not movers.strong({**three, "visits_seen": 2})
+    # where the telescope gives one exposure per visit, an object is seen once in each of many visits
+    singles = {"times_seen": 9, "times_covered": 10, "visits_seen": 1, "seen_by_visit": [1, 1, 2, 1, 1, 1, 1, 1]}
+    assert movers.strong(singles) and movers.strong({**singles, "seen_by_visit": [2, 4, 2, 1]})
+    assert not movers.strong({**singles, "seen_by_visit": [4, 4, 1]})  # two leftovers and a chance sighting
+    assert not movers.strong({**singles, "times_covered": 14})
+    points = [{"mjd": 61000.0 + v * 0.07 + k * 0.0015, "seen": True, "counted": True} for v in range(4) for k in range(1 + v % 2)]
+    assert movers.tally([], points)["seen_by_visit"] == [1, 2, 1, 2] and movers.tally([], points)["visits_seen"] == 2
 
 
 def test_single_bright_pixels_along_a_path_are_not_sightings():

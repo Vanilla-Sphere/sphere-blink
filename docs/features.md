@@ -717,6 +717,17 @@ Level 2 exposures, 0.75-5 µm, NASA/IPAC IRSA, processed on the fly.
 - **PNG.** `/api/frame.png` returns any single epoch.
 - **Data.** `/api/spectrum`, `/api/epochs`, `/api/exposures`, `/api/measure`
   and `/api/tracks` return JSON.
+- **All API endpoints.** Under the three addresses of "Link or embed this
+  view" (page, GIF, data) a line opens onto every other endpoint that only
+  reads, 21 addresses filled in for the view on screen: the frame, the
+  epochs, the cube, the job and the wide field of the view; exposures,
+  catalogued object, name, Gaia, CatWISE and measured tracks of the position;
+  the moving objects; and the service itself (measured objects, featured
+  targets, the tile of the sky photograph that holds the position, health,
+  the interactive documentation and the OpenAPI description). The service
+  asks for no key and no sign-in, so an address is a link that opens in a new
+  tab, and "Copy" takes the whole address. `/api/measure` and the vote on a
+  moving object are not offered, because they write.
 - **Cross-links.** The position of the crosshair is given in decimal and
   sexagesimal form with links to the same field in WiseView, SIMBAD and Aladin Lite.
 
@@ -744,9 +755,12 @@ direction, the exposures it was seen in, and the name when it is a known
 asteroid or comet. Visitors can say whether a path looks real
 (`POST /api/movers/{id}/vote`), without an account. A path no catalogue has
 an object on is shown, as a candidate, only when it was seen in three
-separate visits; while no catalogue service answers, a weaker path is not
+separate visits twice or more, or in four visits; while no catalogue service answers, a weaker path is not
 shown at all. The algorithm, its validation on 3I/ATLAS and the asteroids of
 twelve fields, and its limits are in [moving objects](moving-objects.md).
+How much of what moves the search finds was measured with fake objects in
+real exposures: [how much the search finds](mover-completeness.md). The
+result is shown at the end of the Discoveries page (`web/completeness.js`).
 
 In the viewer (Advanced, `web/movers.js`):
 
