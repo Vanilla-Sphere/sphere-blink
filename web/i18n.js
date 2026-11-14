@@ -126,6 +126,7 @@ const STR = {
     "tip.tiles": "A wide view is built from 0.12° cells. This outlines them and shows which have loaded.",
     "tip.tracks": "Diamonds mark where we measured an object in each exposure, with the path fitted through them.",
     "tip.spectrum": "Brightness against wavelength: the object's infrared fingerprint",
+    "tip.readconf": "How far this reading can be trusted: it drops with saturation, noise, gaps in the curve and changes between dates",
     "tip.lc": "Brightness against time: shows flickering or fading",
     "tip.wiseview": "This field in WISE images since 2010, to check a motion",
     "tip.simbad": "What is already catalogued at this position",

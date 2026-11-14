@@ -22,7 +22,7 @@ const S = {
   target: null, ra: null, dec: null, fov: 8, det: "rgb", group: "day", mode: "blink",
   i: 0, ref: 0, playing: false, fps: 3, gain: 0,
   cube: null, meta: null, npix: 0, planes: 1, limits: null, median: null, stack: null,
-  spectrum: null, plotmode: "spec", files: null, filesmode: "frame", catalogs: {}, tracks: null, loadId: 0, timer: null,
+  spectrum: null, insight: null, plotmode: "spec", files: null, filesmode: "frame", catalogs: {}, tracks: null, loadId: 0, timer: null,
   zoom: 1, pan: [0.5, 0.5],  // the image magnified: how much, and which point of the whole picture is in the middle
   levels: 0, field: null, stage: null,  // progressive field: rings of 0.12° cells, the server's report, the stage on screen
   ui: "simple", screen: "map",  // Simple or Advanced ("adv"), sky map or view
@@ -147,7 +147,7 @@ async function load(next, nopush) {
 
   stop();
   Object.assign(S, want);
-  S.cube = null; S.meta = null; S.saturated = null; S.median = null; S.stack = null; S.spectrum = null; S.files = null; S.catalogs = {}; S.i = 0; S.ref = 0; S.busy = 0;
+  S.cube = null; S.meta = null; S.saturated = null; S.median = null; S.stack = null; S.spectrum = null; S.insight = null; showReading(null); S.files = null; S.catalogs = {}; S.i = 0; S.ref = 0; S.busy = 0;
   S.tracks = null; S.measuring = null; $("trackopt").hidden = true; $("trackcard").hidden = true;
   S.field = null; S.stage = null; $("tileopt").hidden = !S.levels;
   for (const c of ["speccard", "epochcard"]) $(c).hidden = true;
@@ -289,7 +289,10 @@ async function loadSpectrum(id, attempt = 0) {
     return id === S.loadId ? loadSpectrum(id, attempt + 1) : undefined;
   }
   if (!d) return;
-  S.spectrum = d.points; $("speccard").hidden = false; drawPlot();
+  S.spectrum = d.points;
+  try { S.insight = analyseSpectrum(d.points); } catch (_) { S.insight = null; }  // a reading that fails must not take the plot with it
+  showReading(S.insight);
+  $("speccard").hidden = false; drawPlot();
 }
 
 const CAT_NAME = {gaia: "Gaia DR3", catwise: "CatWISE"};
@@ -1014,6 +1017,7 @@ function drawPlot(out) {
     dirty || extra ? ctx.stroke() : ctx.fill();
   }
   ctx.globalAlpha = 1;
+  if (!lc && S.insight) markFeatures(ctx, S.insight.features, X, mt, base, {font: mono, absorption: T.ink2, emission: T.accent2});
   const items = lc ? [1, 2, 3, 4, 5, 6].map((dn) => ["D" + dn, DET_COLOR[dn]]) : visits.map((m, k) => [tr("plot.pass", {m: mjdDate(m).toISOString().slice(0, 7)}), VISIT_COLORS[k % VISIT_COLORS.length]]);
   const key = items.slice(0, 8).map(([name, col]) => [name, col, ""])
     .concat(nDirty || !nWings ? [[tr("plot.flagged"), T.muted, "hollow"]] : [], nWings ? [[tr("plot.wings"), T.ink2, "dia"]] : [], nExtra ? [[tr("plot.extra"), T.ink2, "dia hollow"]] : []);

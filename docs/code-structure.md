@@ -127,6 +127,7 @@ stubbed HTTP clients, need no network, and finish in about three seconds.
 | `tests/test_atlas.py` | 10 | The sky photograph kept on disk: one fetch then disk; addresses outside the atlas; answers that are not pictures; shared fetches; a silent archive; eviction that spares the kept orders; filling after a start; a nearly full disk; the two endpoints, their headers and allowances; the page's two sources |
 | `tests/test_measure.py` | 18 | Parallax factors; PSF fit accuracy; neighbour handling; wing fallback; track recovery with parallax; stacks for faint movers; light curve; storage and database synchronisation; saturated stars |
 | `tests/test_resolve_names.py` | 12 | Name resolution paths: Sesame, mirrors, redirects, SIMBAD fallback, spellings, "not found" against "unavailable", no network for built-in targets |
+| `tests/test_insight.py` | 16 | The preliminary reading of a spectrum (`web/insight.js`, run under Node by `tests/insight_runner.js`): 14 real spectra kept in `tests/data/spectra/` (brown dwarf, ices, planetary nebula, white dwarf, cold neighbour, cool star, quasar, extended galaxy, saturated stars, empty sky) and made-up curves (blackbodies, a power law, ice bands, emission lines, noise); no band or line from noise; nothing claimed from too few points. Skipped where Node is not installed |
 
 ```bash
 pip install -r requirements.txt pytest

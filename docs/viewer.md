@@ -13,13 +13,14 @@ as static files.
 | `ambient.js` | about 330 lines | The motion of the sky map screen (`Ambient`): deep star field, rim glow, slow turn, aiming frame, pings, meteors |
 | `atlas.js` | 220 lines | The photograph of the real sky behind the zoomed-in map (`Atlas`): tiles of the 2MASS atlas, from our server's copy (`/api/atlas/2mass/`) or NASA/IPAC IRSA itself, drawn through the map's projection |
 | `exports.js` | about 230 lines | What a researcher takes away: the plot's points as CSV, the plot as PNG with the credit, the "Source files" panel listing the Level 2 exposures with their IRSA links, its download script, URL list and table, and the "About the data" page |
+| `insight.js` | about 520 lines | The preliminary reading of a spectrum (`analyseSpectrum`): which points can be read, continuum shape, bands and lines, confidence and limits; `showReading` puts it under the plot and `markFeatures` names the detected features on the plot. Pure rules, no network |
 | `i18n.js` | 107 lines | Text that scripts put on the page (`STR.en`) and the `tr()` formatter |
 | `hints.js` | 74 lines | One-line notes on controls, shown on hover and keyboard focus |
 | `lore.js` | 130 lines | What the sky map says about each of the 88 constellations and 31 famous stars under the pointer (`LORE`) |
 | `data/sky.json` | - | Compact star chart: stars, names, constellations, Milky Way, boundary grid |
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
-Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `exports.js`, `app.js`.
+Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `exports.js`, `insight.js`, `app.js`.
 Asset URLs carry a version query (`?v=30`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
