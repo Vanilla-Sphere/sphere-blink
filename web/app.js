@@ -608,9 +608,10 @@ function showStory(t) {
   const f = S.featured.find((x) => x.name === t.name || x.key === S.target);
   const c = SkyMap.constellation(t.ra, t.dec), con = c ? (S.lang === "vi" ? c.vi : c.la) : "";
   const spot = !f && (S.byCoords || /^RA /.test(t.name));
-  $("sname").textContent = f ? f.name : spot ? (con ? tr("simple.spot", {con}) : tr("simple.spot.none")) : t.name;
+  const plain = t.name.replace(/\s*\([^)]*\)\s*$/, "");  // "Vega (* alf Lyr)" reads as "Vega" here
+  $("sname").textContent = f ? f.name : spot ? (con ? tr("simple.spot", {con}) : tr("simple.spot.none")) : plain;
   $("skind").textContent = f ? tr("kind." + f.key) : ""; $("skind").hidden = !f;
-  $("sstory").textContent = f ? tr("story." + f.key) : tr(spot ? "simple.story.spot" : "simple.story.named", {name: t.name, con});
+  $("sstory").textContent = f ? tr("story." + f.key) : tr(spot ? "simple.story.spot" : "simple.story.named", {name: plain, con});
 }
 function showEpoch(e) {
   $("epochcard").hidden = false;
