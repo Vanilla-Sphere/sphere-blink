@@ -85,6 +85,9 @@ browser ──> FastAPI ──> IRSA SIA v2            which exposures cover (RA
   Archive, read from the AWS Open Data mirror `nasa-irsa-spherex`.
 - ESA Gaia DR3 and CatWISE2020 catalogues, queried through IRSA TAP.
 - Astropy, NumPy, SciPy, FastAPI, Pillow.
+- Interface: the "Rim" theme of [Hallmark](https://github.com/nutlope/hallmark) (MIT), laid out by the
+  tool-interface rules of [Impeccable](https://github.com/pbakaus/impeccable). Typefaces Hanken Grotesk and
+  Geist Mono, SIL Open Font License (`web/fonts/`).
 
 ## License
 

@@ -5,106 +5,158 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SPHEREx Blink - watch the infrared sky change</title>
 <meta name="description" content="Enter sky coordinates and watch NASA SPHEREx images of that patch play as a movie. Spot moving and variable objects, read their spectra.">
+<meta name="theme-color" content="#0b0a08">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0a08'/%3E%3Crect x='6' y='13' width='9' height='9' fill='%23f47a3c'/%3E%3Crect x='17.5' y='9.5' width='8' height='8' fill='none' stroke='%237fb2f0'/%3E%3C/svg%3E">
+<link rel="preload" href="/static/fonts/HankenGrotesk.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/GeistMono.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<header>
-  <div class="brand">
-    <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="#ffc857" stroke-width="2"/><circle cx="11" cy="16" r="3" fill="#ffc857"/><circle cx="21" cy="16" r="3" fill="none" stroke="#7fd3ff" stroke-width="2" stroke-dasharray="2 2"/></svg>
-    <div><h1>SPHEREx Blink</h1><p>Watch any patch of the infrared sky change over time</p></div>
-  </div>
-  <form id="search" autocomplete="off">
-    <input id="q" type="text" placeholder="RA Dec (269.4486 +4.7387 or 08h55m10.8s -07d14m42.5s) or a name" aria-label="Coordinates or object name" required>
-    <label class="fov">Field
+<header class="bar">
+  <a class="brand" href="/" aria-label="SPHEREx Blink, start page">
+    <svg viewBox="0 0 28 28" width="22" height="22" aria-hidden="true"><rect x="4.5" y="11.5" width="9" height="9" fill="var(--color-accent)"/><rect x="15" y="7" width="8" height="8" fill="none" stroke="var(--color-accent-2)"/><path d="M.5 5V.5H5M23 27.5h4.5V23" fill="none" stroke="var(--color-muted)"/></svg>
+    <span>SPHEREx Blink</span>
+  </a>
+  <form id="search" autocomplete="off" role="search">
+    <input id="q" type="text" placeholder="RA Dec or an object name" aria-label="Coordinates or object name" spellcheck="false" required>
+    <label class="fov"><span>Field</span>
       <select id="fov" aria-label="Field of view">
         <option value="4">4′</option><option value="8" selected>8′</option><option value="15">15′</option><option value="30">30′</option>
       </select>
     </label>
-    <button type="submit">Show sky</button>
+    <button type="submit" class="btn primary">Show sky</button>
   </form>
-  <div id="featured" class="chips" aria-label="Featured targets"></div>
+  <nav class="barlinks" aria-label="Project">
+    <a href="/docs">API</a>
+    <a href="https://github.com/Vanilla-Sphere/sphere-blink" target="_blank" rel="noopener">Source</a>
+  </nav>
 </header>
 
-<main>
-  <section class="stage">
-    <div class="canvaswrap">
-      <canvas id="sky" width="640" height="640" tabindex="0" aria-label="SPHEREx image"></canvas>
-      <div id="hud" class="hud"></div>
-      <div id="cursor" class="cursor"></div>
-      <div id="empty" class="empty">Pick a featured target or enter coordinates to begin.</div>
+<main class="shell">
+  <aside class="rail" aria-label="Targets and display settings">
+    <section class="panel">
+      <h2>Challenge targets</h2>
+      <div id="featured" class="targets"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Display</h2>
+      <div class="ctl"><span class="lab" id="lab-dets">Bands</span>
+        <div id="dets" class="dets" role="group" aria-labelledby="lab-dets"></div>
+      </div>
+      <div class="ctl"><span class="lab" id="lab-group">One frame per</span>
+        <div class="seg" id="group" role="group" aria-labelledby="lab-group">
+          <button data-v="visit" title="Each ~6-month sky pass stacked: deepest">Sky pass</button>
+          <button data-v="day" class="on" title="All exposures of a UTC day stacked">Day</button>
+          <button data-v="exposure" title="Every single exposure: finest time sampling">Exposure</button>
+        </div>
+      </div>
+      <div class="ctl"><span class="lab" id="lab-mode">Image math</span>
+        <div class="seg wrap" id="mode" role="group" aria-labelledby="lab-mode">
+          <button data-v="blink" class="on" title="Plain images">Blink</button>
+          <button data-v="diffmed" title="Each frame minus the median of all frames: static stars vanish">− Median</button>
+          <button data-v="diffref" title="Each frame minus the reference frame">− Reference</button>
+          <button data-v="stack" title="All frames added together">Sum all</button>
+        </div>
+        <div class="inline" id="refrow" hidden><button id="setref" class="btn quiet">Use current frame</button><span id="reflabel" class="measure muted"></span></div>
+      </div>
+      <div class="ctl"><label class="lab" for="gain">Contrast</label>
+        <div class="inline"><input id="gain" type="range" min="-150" max="150" value="0"><button id="resetgain" class="btn quiet">Reset</button></div>
+      </div>
+      <div class="ctl"><span class="lab">Overlays</span>
+        <div class="checks">
+          <label><input type="checkbox" id="ov-gaia"><span>Gaia DR3</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="var(--color-accent-2)"/></svg></label>
+          <label><input type="checkbox" id="ov-catwise"><span>CatWISE</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="var(--color-ink-2)"/></svg></label>
+          <label><input type="checkbox" id="ov-cross" checked><span>Crosshair</span></label>
+          <label><input type="checkbox" id="ov-smooth"><span>Smooth pixels</span></label>
+        </div>
+      </div>
+    </section>
+  </aside>
+
+  <section class="stage" aria-label="Image sequence">
+    <div class="stagehead" id="targetcard" hidden>
+      <h1 id="tname"></h1><p id="tcoords" class="measure"></p>
+      <p id="tnote" class="muted"></p>
     </div>
-    <div class="progress" id="progress" hidden><div id="bar"></div><span id="ptext"></span></div>
+
+    <div class="well ticks">
+      <div class="canvaswrap">
+        <canvas id="sky" width="640" height="640" tabindex="0" aria-label="SPHEREx image"></canvas>
+        <div id="intro" class="intro">
+          <h1>Every SPHEREx image of one patch of sky, played in order.</h1>
+          <p>Enter a position or pick a challenge target. Anything that moves or changes brightness between frames stands out.</p>
+          <div class="examples" aria-label="Accepted input, select to try">
+            <button type="button" data-example="269.4486 +4.7387"><span>Decimal degrees</span><span class="measure">269.4486 +4.7387</span></button>
+            <button type="button" data-example="08h55m10.8s -07d14m42.5s"><span>Sexagesimal</span><span class="measure">08h55m10.8s -07d14m42.5s</span></button>
+            <button type="button" data-example="R Draconis"><span>Object name</span><span class="measure">R Draconis</span></button>
+          </div>
+        </div>
+        <div id="empty" class="empty" hidden></div>
+      </div>
+      <div class="progress" id="progress" hidden><div id="bar"></div><span id="ptext" class="measure"></span></div>
+      <div class="strip measure"><div id="hud" class="hud"></div><div id="cursor" class="cursor"></div></div>
+    </div>
+
     <div class="transport">
-      <button id="prev" title="Previous (←)">◀</button>
-      <button id="play" title="Play / pause (space)">▶ Play</button>
-      <button id="next" title="Next (→)">▶</button>
-      <input id="slider" type="range" min="0" max="0" value="0" aria-label="Epoch">
-      <span id="count">0 / 0</span>
-      <label>Speed <select id="fps"><option>1</option><option selected>3</option><option>6</option><option>12</option></select> fps</label>
+      <div class="keys">
+        <button id="prev" class="btn icon" title="Previous frame (←)" aria-label="Previous frame"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h2v12H3zM13 2v12L6 8z"/></svg></button>
+        <button id="play" class="btn primary" title="Play or pause (space)"><svg class="i-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2l10 6-10 6z"/></svg><svg class="i-pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h4v12H3zM9 2h4v12H9z"/></svg><span id="playlabel">Play</span></button>
+        <button id="next" class="btn icon" title="Next frame (→)" aria-label="Next frame"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 2h2v12h-2zM3 2v12l7-6z"/></svg></button>
+      </div>
+      <input id="slider" type="range" min="0" max="0" value="0" aria-label="Frame">
+      <span id="count" class="measure">0 / 0</span>
+      <label class="speed"><span>Speed</span><select id="fps"><option value="1">1 fps</option><option value="3" selected>3 fps</option><option value="6">6 fps</option><option value="12">12 fps</option></select></label>
     </div>
-    <div class="timeline" id="timeline" title="Observation dates (click to jump)"></div>
+    <div class="timeline" id="timeline" role="img" aria-label="Observation dates in UTC. Select a date to jump to its frame."></div>
   </section>
 
-  <aside>
-    <div class="card" id="targetcard" hidden>
-      <h2 id="tname"></h2>
-      <p id="tcoords" class="mono"></p>
-      <p id="tnote" class="muted"></p>
-      <p class="links"><a id="l-wiseview" target="_blank" rel="noopener">WiseView</a> · <a id="l-simbad" target="_blank" rel="noopener">SIMBAD</a> · <a id="l-aladin" target="_blank" rel="noopener">Aladin Lite</a></p>
-    </div>
+  <aside class="analysis" aria-label="Measurements">
+    <section class="panel" id="speccard" hidden>
+      <div class="panelhead"><h2 id="spectitle">Spectrum at the crosshair</h2>
+        <div class="seg" id="plotmode"><button data-v="spec" class="on">Spectrum</button><button data-v="lc">Light curve</button></div></div>
+      <canvas id="plot" aria-label="Spectrum plot"></canvas>
+      <div id="legend" class="legend measure"></div>
+      <p class="muted note" id="specnote"></p>
+    </section>
 
-    <div class="card">
-      <h3>What to show</h3>
-      <div class="row"><span class="lab">Detectors</span><div id="dets" class="chips small"></div></div>
-      <div class="row"><span class="lab">One frame per</span>
-        <div class="seg" id="group">
-          <button data-v="visit" title="Each ~6-month sky pass stacked: deepest">sky pass</button>
-          <button data-v="day" class="on" title="All exposures of a UTC day stacked">day</button>
-          <button data-v="exposure" title="Every single exposure: finest time sampling">exposure</button>
-        </div>
-      </div>
-      <div class="row"><span class="lab">Image math</span>
-        <div class="seg" id="mode">
-          <button data-v="blink" class="on" title="Plain images">blink</button>
-          <button data-v="diffmed" title="Each frame minus the median of all frames: static stars vanish">− median</button>
-          <button data-v="diffref" title="Each frame minus the reference frame">− reference</button>
-          <button data-v="stack" title="All frames added together">sum all</button>
-        </div>
-      </div>
-      <div class="row" id="refrow" hidden><span class="lab">Reference</span><button id="setref" class="ghost">use current frame</button><span id="reflabel" class="muted"></span></div>
-      <div class="row"><span class="lab">Contrast</span><input id="gain" type="range" min="-150" max="150" value="0" aria-label="Contrast"><button id="resetgain" class="ghost">reset</button></div>
-      <div class="row checks">
-        <label><input type="checkbox" id="ov-gaia"> Gaia DR3</label>
-        <label><input type="checkbox" id="ov-catwise"> CatWISE</label>
-        <label><input type="checkbox" id="ov-cross" checked> crosshair</label>
-        <label><input type="checkbox" id="ov-smooth"> smooth</label>
-      </div>
-    </div>
-
-    <div class="card" id="epochcard" hidden>
-      <h3>This frame</h3>
+    <section class="panel" id="epochcard" hidden>
+      <h2>This frame</h2>
       <dl id="einfo"></dl>
-    </div>
+    </section>
 
-    <div class="card" id="speccard" hidden>
-      <div class="cardhead"><h3 id="spectitle">Spectrum at the crosshair</h3>
-        <div class="seg" id="plotmode"><button data-v="spec" class="on">spectrum</button><button data-v="lc">light curve</button></div></div>
-      <canvas id="plot" width="560" height="300" aria-label="Spectrum plot"></canvas>
-      <p class="muted" id="specnote"></p>
-    </div>
+    <section class="panel" id="linkcard" hidden>
+      <h2>Position of the crosshair</h2>
+      <dl>
+        <dt>Decimal</dt><dd id="tdeci"></dd>
+        <dt>Sexagesimal</dt><dd id="tsexa"></dd>
+        <dt>Same field in</dt><dd class="links"><a id="l-wiseview" target="_blank" rel="noopener">WiseView</a><a id="l-simbad" target="_blank" rel="noopener">SIMBAD</a><a id="l-aladin" target="_blank" rel="noopener">Aladin Lite</a></dd>
+      </dl>
+    </section>
 
-    <div class="card" id="sharecard" hidden>
-      <h3>Share / embed</h3>
-      <div class="share"><span>Page</span><input id="s-page" readonly><button data-copy="s-page" class="ghost">copy</button></div>
-      <div class="share"><span>GIF</span><input id="s-gif" readonly><button data-copy="s-gif" class="ghost">copy</button></div>
-      <div class="share"><span>Data</span><input id="s-api" readonly><button data-copy="s-api" class="ghost">copy</button></div>
-      <p class="muted">Coordinates live in the URL, so any view can be linked or embedded. API docs: <a href="/docs">/docs</a></p>
-    </div>
+    <section class="panel" id="sharecard" hidden>
+      <h2>Link or embed this view</h2>
+      <div class="share"><label for="s-page">Page</label><input id="s-page" class="measure" readonly><button data-copy="s-page" class="btn quiet">Copy</button></div>
+      <div class="share"><label for="s-gif">GIF</label><input id="s-gif" class="measure" readonly><button data-copy="s-gif" class="btn quiet">Copy</button></div>
+      <div class="share"><label for="s-api">Data</label><input id="s-api" class="measure" readonly><button data-copy="s-api" class="btn quiet">Copy</button></div>
+      <p class="muted note">The coordinates live in the URL, so any view can be linked or embedded. Every endpoint is documented at <a href="/docs">/docs</a>.</p>
+    </section>
+
+    <section class="panel" id="analysishint">
+      <h2>What to try once a field is loaded</h2>
+      <dl class="howto">
+        <dt>Blink</dt><dd>Play the frames. A nearby star or a Solar System body jumps from one sky pass to the next.</dd>
+        <dt>− Median</dt><dd>Subtract the median of all frames. Everything that stays put disappears; what moved or changed remains.</dd>
+        <dt>Spectrum</dt><dd>Each exposure sees the crosshair at one wavelength, so together they give its 0.75–5.0 µm spectrum and a light curve.</dd>
+        <dt>Overlays</dt><dd>Gaia DR3 and CatWISE sources, moved by their proper motion to the date of each frame.</dd>
+        <dt>Link</dt><dd>Every view is a URL. The same parameters return a PNG, a GIF or the measurements.</dd>
+      </dl>
+    </section>
   </aside>
 </main>
 
-<footer>
-  <p>Images: NASA SPHEREx Level 2 spectral images (DR1 / QR3) from the NASA/IPAC Infrared Science Archive, read on demand from the AWS Open Data mirror. Overlays: ESA Gaia DR3, CatWISE2020 via IRSA. Built by team Vanilla Sphere for the 2026 NASA Space Apps Challenge "Planet X and SPHEREx".</p>
+<footer class="credits">
+  <p>Images: NASA SPHEREx Level 2 spectral images (DR1, QR3), NASA/IPAC Infrared Science Archive, read on demand from the AWS Open Data mirror. Overlays: ESA Gaia DR3, CatWISE2020. Team Vanilla Sphere, 2026 NASA Space Apps Challenge.</p>
 </footer>
 <script src="/static/app.js"></script>
 </body>
