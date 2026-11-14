@@ -77,6 +77,37 @@ def test_every_answer_carries_the_security_headers(client):
     assert "cdn.jsdelivr.net" in docs.headers["content-security-policy"]  # the API pages load Swagger UI
 
 
+def test_no_other_site_can_frame_a_page_and_pictures_stay_free(client):
+    """Clickjacking: every answer that is a page says "only this site may
+    frame me", twice (CSP frame-ancestors, X-Frame-Options). Pictures and data
+    say nothing of the kind: they are meant to be shown elsewhere."""
+    for path in ("/", "/static/index.html", "/docs", "/redoc"):
+        page = client.get(path)
+        assert page.status_code == 200 and page.headers["content-type"].startswith("text/html"), path
+        policy = [d.strip() for d in page.headers["content-security-policy"].split(";")]
+        assert "frame-ancestors 'self'" in policy, path
+        assert page.headers["x-frame-options"] == "SAMEORIGIN", path
+    assert guard.FRAMING in guard.security_headers("/", b"application/xhtml+xml")
+    for path in ("/api/health", "/static/app.js", "/static/favicon.svg", "/apple-touch-icon.png", "/nothing-here"):
+        other = client.get(path, headers={"Origin": "https://elsewhere.example"})
+        assert "x-frame-options" not in other.headers, path
+        assert "frame-ancestors" not in other.headers["content-security-policy"], path
+        assert other.headers["cross-origin-resource-policy"] == "cross-origin", path  # <img> on another site
+    assert client.get("/api/health", headers={"Origin": "https://elsewhere.example"}).headers["access-control-allow-origin"] == "*"  # fetch from another site
+
+
+def test_not_modified_does_not_replace_the_policy_of_the_page(client):
+    """A browser lays the headers of a 304 over the ones it kept. The 304 has
+    no type, so it must not arrive with the policy of data: the page would
+    lose its own policy, frame-ancestors with it."""
+    first = client.get("/static/index.html")
+    again = client.get("/static/index.html", headers={"If-None-Match": first.headers["etag"]})
+    assert again.status_code == 304
+    for name in ("content-security-policy", "x-frame-options", "cross-origin-resource-policy"):
+        assert name not in again.headers, name
+    assert again.headers["x-content-type-options"] == "nosniff"
+
+
 def test_the_dev_site_is_the_viewer_in_front_of_the_live_engine(tmp_path):
     """render.dev.yaml: the page of the branch develop as a static site, with
     /api/ passed on to production (docs/environments.md)."""
@@ -95,6 +126,9 @@ def test_the_dev_site_is_the_viewer_in_front_of_the_live_engine(tmp_path):
     headers = {(h["path"], h["name"].lower()): h["value"] for h in dev["headers"]}
     assert headers["/*", "x-robots-tag"] == "noindex, nofollow"
     assert headers["/", "content-security-policy"] == guard.CSP  # the page is held to production's policy
+    assert headers["/index.html", "content-security-policy"] == guard.CSP  # ... under its other address too
+    assert headers["/*", "x-frame-options"].encode() == guard.FRAMING[1]  # no path of the copy can be framed elsewhere
+    assert len(headers) == len(dev["headers"])  # no two rules for one header on one path: which would win is not ours to say
     assert "render.dev.yaml" in prod["buildFilter"]["ignoredPaths"]  # a change to dev does not restart production
 
     # the site is laid out the way the server of production serves web/
