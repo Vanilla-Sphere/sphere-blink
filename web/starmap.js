@@ -29,6 +29,12 @@ const SkyMap = (() => {
   let ATLAS_FROM = 1.1, ATLAS_SHOW = 0.85, photoOn = false;   // the sky photograph: from how many doublings of zoom it comes up, and how strongly
   let mwCv = null, mwCtx = null, MW_SOFT = 1, MW_GLOW = 1;   // the Milky Way's small canvas; how blurred and how bright it is
   let fx = null;                        // ambient.js, when it is loaded: it draws the aiming frame and follows every redraw
+  /* The line between the two celestial poles: "sky", "view" or "off" (see axisLine). Until its look is
+     approved it shows on the dev site only; ?axis=sky|view|off in the address tries it anywhere. */
+  let AXIS = (() => {
+    const asked = new URLSearchParams(location.search).get("axis");
+    return ["sky", "view", "off"].includes(asked) ? asked : location.hostname.startsWith("dev.") ? "sky" : "off";
+  })();
 
   /* ---------------------------------------------------------------- geometry */
   const vec = (ra, dec) => { const a = ra * D, d = dec * D, c = Math.cos(d); return [c * Math.cos(a), c * Math.sin(a), Math.sin(d)]; };
@@ -177,6 +183,54 @@ const SkyMap = (() => {
       pen = true; a[0] = b[0]; a[1] = b[1]; a[2] = b[2];
     }
   }
+  /* The axis of the sky, so that the map keeps a sense of direction however it has been turned: the
+     two celestial poles, marked N and S, and one line from pole to pole. "sky" draws the meridian of
+     0h right ascension, which is fixed among the stars and turns with them; "view" draws the straight
+     line down the middle of the map, which stays put while the sky turns past it. */
+  const POLE = [[0, 0, 1], [0, 0, -1]], MERIDIAN = Array.from({length: 91}, (_, i) => vec(0, 2 * i - 90));
+  function axisLine(s) {
+    const p = [0, 0, 0];
+    ctx.strokeStyle = C.muted; ctx.globalAlpha = 0.8; ctx.lineWidth = 1; ctx.setLineDash([5, 4]); ctx.beginPath();
+    if (AXIS === "view") {
+      // the pole on the near side of the sky lies on this line; the other one is on the rim
+      const top = view.dec > 0 ? project(0, 0, 1, p)[1] : cy - R2 * s, bottom = view.dec < 0 ? project(0, 0, -1, p)[1] : cy + R2 * s;
+      ctx.moveTo(Math.round(cx) + 0.5, top); ctx.lineTo(Math.round(cx) + 0.5, bottom);
+    } else polyline(MERIDIAN);
+    ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+  }
+  /* where pole i (0 north, 1 south) is on the canvas: [y, x] or, for a pole on the far side of the sky,
+     [y, x, x'], because it then falls on the cut of the projection and is the same point on both rims */
+  function poleSpots(i) {
+    const p = project(POLE[i][0], POLE[i][1], POLE[i][2], [0, 0, 0]);
+    return (i ? view.dec > 0 : view.dec < 0) ? [p[1], p[0], 2 * cx - p[0]] : [p[1], p[0]];
+  }
+  function axisPoles(halo) {
+    ctx.font = `600 12px ${C.mono}`;
+    for (let i = 0; i < 2; i++) {
+      const [y0, ...xs] = poleSpots(i);
+      for (const x0 of xs) {
+        if (x0 < -12 || y0 < -12 || x0 > W + 12 || y0 > H + 12) continue;
+        const x = Math.round(x0) + 0.5, y = Math.round(y0) + 0.5;
+        for (const [w, col] of [[3, "rgba(8,6,4,.8)"], [1, C.ink2]]) {
+          ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath();
+          ctx.moveTo(x + 4, y); ctx.arc(x, y, 4, 0, 2 * Math.PI);
+          ctx.moveTo(x - 7, y); ctx.lineTo(x + 7, y); ctx.moveTo(x, y - 7); ctx.lineTo(x, y + 7); ctx.stroke();
+        }
+        const left = x > 34;                 // beside the mark, on the side away from the name of a star next to it
+        ctx.textAlign = left ? "right" : "left";
+        halo(i ? "S" : "N", x + (left ? -11 : 11), y + 4, C.ink);
+      }
+    }
+    ctx.textAlign = "left";
+  }
+  /* the pole whose mark the pointer is on ("n" or "s") and how far from it, or null */
+  function poleAt(px, py) {
+    for (let i = 0; i < 2; i++) {
+      const [y, ...xs] = poleSpots(i), d = Math.min(...xs.map((x) => Math.hypot(x - px, y - py)));
+      if (d < 10) return {pole: i ? "s" : "n", d};
+    }
+    return null;
+  }
   function draw() {
     dirty = false;
     if (!cv || !W || !shown) return;
@@ -213,6 +267,7 @@ const SkyMap = (() => {
     for (let ra = 0; ra < 360; ra += stepG) { const pts = []; for (let d = -90; d <= 90; d += 3) pts.push(vec(ra, d)); polyline(pts); }
     for (let d = -90 + stepG; d < 90; d += stepG) { const pts = []; for (let ra = 0; ra <= 360; ra += 3) pts.push(vec(ra, d)); polyline(pts); }
     ctx.stroke();
+    if (AXIS !== "off") axisLine(s);
 
     // Milky Way: a soft glow along the galactic plane. The cells of the data are painted on a small
     // black canvas, each as a patch as bright as its level (the brighter of two overlapping patches
@@ -342,6 +397,7 @@ const SkyMap = (() => {
       for (let d = -90 + stepG; d < 90; d += stepG) { if (!d) continue; const v = vec(view.ra, d); project(v[0], v[1], v[2], p); if (onScreen(p)) halo(`${d > 0 ? "+" : "−"}${Math.abs(d)}°`, p[0], p[1] + 4, C.muted2); }
     }
     ctx.restore();
+    if (AXIS !== "off") axisPoles(halo);
 
     // where the last view was
     if (mark) {
@@ -435,7 +491,10 @@ const SkyMap = (() => {
     const con = hover ? constellation(hover.ra, hover.dec) : null;
     hoverCon = pin ? null : con;
     cv.style.cursor = pin || star ? "pointer" : sk ? "crosshair" : "grab";
-    if (opt.onHover) opt.onHover(hover ? {ra: hover.ra, dec: hover.dec, x: px, y: py, pin, con, star} : null);
+    // a pole's mark has a note of its own, unless a star is nearer the pointer (Polaris is next to the north one)
+    const mark = hover && !pin && AXIS !== "off" ? poleAt(px, py) : null;
+    const pole = mark && (!star || mark.d < Math.hypot(star.x - px, star.y - py)) ? mark.pole : null;
+    if (opt.onHover) opt.onHover(hover ? {ra: hover.ra, dec: hover.dec, x: px, y: py, pin, con, star, pole} : null);
     redraw();
   }
   function pick(px, py, free, finger) {
@@ -515,6 +574,7 @@ const SkyMap = (() => {
     rest() { if (hover || hoverPin) tell(null); },
     photo(from, show) { ATLAS_FROM = from; ATLAS_SHOW = show; redraw(); },   // the sky photograph: where it starts (doublings of zoom past the whole sky) and its strength
     milky(soft, glow) { MW_SOFT = soft; MW_GLOW = glow; redraw(); },
+    axis(mode) { AXIS = mode; redraw(); },   // the line between the celestial poles: "sky", "view" or "off"
     look(v) { LOOK = Math.max(0, Math.min(1, v)); starColours(); redraw(); },   // how strong the halo, spikes and colour of the stars are
     get ready() { return !!sky; },
   };
