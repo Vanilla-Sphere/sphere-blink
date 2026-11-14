@@ -564,7 +564,7 @@ function showReferences(r, far) {
     const wave = el("td", (t.broad ? t.rest_um.toFixed(t.key === "h2o_ice" ? 1 : 2) : t.rest_um.toFixed(4)) + " µm", "num");
     if (far) wave.append(el("small", t.wave_um.toFixed(3) + " µm"));
     tr.append(name, wave, el("td", result(t), "res"), el("td", t.source, "src"));
-    if (t.where) tr.lastChild.title = t.where;
+    if (t.where) tr.lastChild.dataset.hintText = t.where;   // where in the source the value stands: a note like every other, not a native title
     return tr;
   }));
   document.getElementById("readcite").replaceChildren(...(r.sources || []).map((s) => {
