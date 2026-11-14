@@ -40,10 +40,11 @@ function moverKind(m) {
   return tr(m.known && m.known.checked ? "mover.unlisted" : "mover.unchecked");
 }
 const moverLine = (m) => tr("mover.line", {v: m.rate_arcsec_hr < 20 ? m.rate_arcsec_hr.toFixed(1) : Math.round(m.rate_arcsec_hr), pa: Math.round(m.pa_deg), n: m.times_seen || m.n_times, d: moverDate(m.mjd0)});
-/* Where an object is at a time: its path is a straight line at constant speed (arcsec per hour). */
+/* Where an object is at a time: constant speed (arcsec per hour) along a straight line, or, for a path
+   followed over days, a speed that changes steadily (a_east, a_north: arcsec per hour squared). */
 function moverAt(m, mjd) {
-  const h = (mjd - m.mjd0) * 24;
-  return [m.ra0 + m.v_east * h / 3600 / Math.cos(m.dec0 * Math.PI / 180), m.dec0 + m.v_north * h / 3600];
+  const h = (mjd - m.mjd0) * 24, q = 0.5 * h * h;
+  return [m.ra0 + (m.v_east * h + (m.a_east || 0) * q) / 3600 / Math.cos(m.dec0 * Math.PI / 180), m.dec0 + (m.v_north * h + (m.a_north || 0) * q) / 3600];
 }
 
 /* ------------------------------------------------------------------ the field on screen */
@@ -288,7 +289,10 @@ function drawMovers(ctx, cv, u, line, text) {
   for (const m of MV.list) {
     const open = m.id === MV.sel, a = toPixel(...moverAt(m, m.mjd_first), cv), b = toPixel(...moverAt(m, m.mjd_last), cv);
     ctx.globalAlpha = open || !MV.sel ? 1 : 0.45;
-    const n = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, ux = (b[0] - a[0]) / n, uy = (b[1] - a[1]) / n, h = 7 * u;
+    // a curved path turns on the way: it is drawn in short pieces, and the arrowhead follows its last one
+    const bent = !!(m.a_east || m.a_north), span = m.mjd_last - m.mjd_first, P = 64;
+    const b0 = bent ? toPixel(...moverAt(m, m.mjd_last - span / P), cv) : a;
+    const n = Math.hypot(b[0] - b0[0], b[1] - b0[1]) || 1, ux = (b[0] - b0[0]) / n, uy = (b[1] - b0[1]) / n, h = 7 * u;
     // where it is in the frame on screen: a ring wide enough to leave the object itself uncovered,
     // and the path stops at the ring for the same reason
     const now = e.mjd >= m.mjd_first - 0.25 && e.mjd <= m.mjd_last + 0.25 ? toPixel(...moverAt(m, e.mjd), cv) : null;
@@ -297,6 +301,16 @@ function drawMovers(ctx, cv, u, line, text) {
     const ta = ring ? (a[0] - now[0]) * ux + (a[1] - now[1]) * uy : 0, tb = ring ? (b[0] - now[0]) * ux + (b[1] - now[1]) * uy : 0;
     const clear = (x, y) => !ring || Math.hypot(x - now[0], y - now[1]) > R + 2 * u;   // nothing is drawn inside the ring
     line(C, open ? 1.5 : 1, () => {
+      if (bent) {
+        let pen = false;
+        for (let k = 0; k <= P; k++) {
+          const [x, y] = k === 0 ? a : k === P ? b : toPixel(...moverAt(m, m.mjd_first + span * k / P), cv);
+          const out = !ring || Math.hypot(x - now[0], y - now[1]) >= R;
+          if (out && pen) ctx.lineTo(x, y); else if (out) ctx.moveTo(x, y);
+          pen = out;
+        }
+        return;
+      }
       if (!ring) { ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); return; }
       if (ta < -R) { ctx.moveTo(a[0], a[1]); ctx.lineTo(now[0] - ux * R, now[1] - uy * R); }
       if (tb > R) { ctx.moveTo(now[0] + ux * R, now[1] + uy * R); ctx.lineTo(b[0], b[1]); }
