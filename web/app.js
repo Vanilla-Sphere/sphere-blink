@@ -240,6 +240,12 @@ async function loadField(id, f) {
 async function fetchCube(id, keepIndex, seq) {
   const wide = S.stage && S.stage.npix > 300;  // a wide mosaic comes at overview resolution; open a cell for full detail
   const r = await api("/api/cube?" + viewParams(wide ? {det: S.det, group: S.group, bin: 2} : {det: S.det, group: S.group}), () => id === S.loadId);
+  if (r.status === 413 && wide && S.group === "exposure") {
+    // a wide field has too many pixels for one frame per exposure (an old link, or a setting left over
+    // from a narrower view): show it by day instead of refusing
+    S.group = "day"; if (SYNC.group) SYNC.group();
+    return fetchCube(id, keepIndex, seq);
+  }
   if (!r.ok) { let d = {}; try { d = await r.json(); } catch (_) {} throw new Error(d.detail || r.statusText); }
   const buf = await r.arrayBuffer();
   if (id !== S.loadId || (seq && seq !== S.busy)) return null;  // a newer request has taken over

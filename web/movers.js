@@ -182,6 +182,7 @@ async function showMoverFrame(id, p) {
   const det = String(p.detector), D = Math.PI / 180;
   const far = S.field || !S.grid || Math.hypot((p.ra - S.grid.ra) * Math.cos(p.dec * D), p.dec - S.grid.dec) * 60 > S.grid.fov_arcmin * 0.35;
   const bands = S.group !== "exposure" || S.det !== det;
+  if (S.field) MV.fieldView = {group: S.group, det: S.det};   // what the field was shown with, for the way back
   S.group = "exposure"; S.det = det;
   if (SYNC.group) SYNC.group(); if (SYNC.det) SYNC.det();
   if (far) {
@@ -351,6 +352,14 @@ function openMover(m) {
   const ok = key.length === 4 && key.every(Number.isFinite), ra = ok ? key[0] : m.ra0, dec = ok ? key[1] : m.dec0, levels = ok && key[2] < 300 ? 1 : 3;
   setLog(false);
   MV.want = m.id;
+  // A frame view leaves "one frame per exposure" behind, and a wide field has too many pixels for that
+  // (the server refuses it): the field comes back the way it was shown, or by day in colour.
+  if (S.group === "exposure") {
+    const v = MV.fieldView || {group: "day", det: "rgb"};
+    S.group = v.group; S.det = v.det;
+    if (SYNC.group) SYNC.group(); if (SYNC.det) SYNC.det();
+  }
+  MV.fieldView = null;
   if (S.ui === "simple" && typeof setUi === "function") setUi("adv");
   $("q").value = `${ra.toFixed(5)} ${dec >= 0 ? "+" : ""}${dec.toFixed(5)}`; $("fov").value = "p" + levels;
   if (typeof showScreen === "function") showScreen("view");
