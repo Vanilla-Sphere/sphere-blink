@@ -57,43 +57,12 @@ of HTML, CSS and JavaScript in the viewer.
 
 ## Dependency rules
 
-```mermaid
-flowchart TB
-    subgraph L4["HTTP layer"]
-        main
-        measure_api
-    end
-    subgraph L3["Orchestration"]
-        service
-        tiles
-        measurements
-        refcat
-    end
-    subgraph L2["Numerical core"]
-        cutout
-        render
-        measure
-        wings
-        worker
-    end
-    subgraph L1["External data access"]
-        sia
-        resolve
-        catalogs
-    end
-    subgraph L0["Settings"]
-        config
-    end
-    L4 --> L3
-    L4 --> L2
-    L4 --> L1
-    L3 --> L2
-    L3 --> L1
-    L2 --> L1
-    L1 --> L0
-    L2 --> L0
-    L3 --> L0
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/diagrams/code-layers-dark.png">
+  <img alt="Layer stack showing the HTTP layer on top of orchestration, the numerical core, external data access and settings; each layer imports only from layers below it." src="img/diagrams/code-layers.png">
+</picture>
+
+*Figure: Dependency layers of the package. Source: [`diagrams/code-layers.html`](diagrams/code-layers.html).*
 
 - Only `main.py` and `measure_api.py` import FastAPI.
 - `cutout`, `render`, `wings`, `tiles` and `measure` are pure functions and data

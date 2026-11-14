@@ -6,39 +6,12 @@ Vanilla Sphere is a single web service with a static browser client. It owns no
 image data. Everything it shows is read on demand from public archives and
 cached locally.
 
-```mermaid
-flowchart TB
-    subgraph Client
-        B["Browser: web/ viewer<br/>HTML, CSS, vanilla JavaScript"]
-    end
-    subgraph Render["Render, Virginia (Pro Plus: 4 CPU, 8 GB)"]
-        API["FastAPI application<br/>one uvicorn process"]
-        WP["4 worker processes<br/>cut exposures"]
-        MP["1 measurement process"]
-        DISK[("Persistent disk 20 GB<br/>cache.sqlite, measurements.sqlite")]
-        API --- WP
-        API --- MP
-        API --- DISK
-    end
-    subgraph NASA["NASA / IPAC"]
-        SIA["IRSA SIA v2<br/>exposure search"]
-        TAP["IRSA TAP<br/>Gaia DR3, CatWISE2020"]
-        S3[("AWS Open Data bucket<br/>nasa-irsa-spherex, us-east-1")]
-    end
-    subgraph Other["Other services"]
-        ESA["ESA Gaia archive TAP"]
-        CDS["CDS Sesame / SIMBAD TAP"]
-        PG[("Supabase Postgres, us-east-1<br/>sources, detections, tracks")]
-    end
-    B -->|HTTPS| API
-    API --> SIA
-    API --> TAP
-    API --> CDS
-    WP -->|HTTP range| S3
-    MP -->|HTTP range| S3
-    MP --> ESA
-    API --> PG
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/diagrams/system-context-dark.png">
+  <img alt="Architecture diagram showing the browser, the web process with its worker processes and disk on Render, and the archive, catalogue, name and database services they call." src="img/diagrams/system-context.png">
+</picture>
+
+*Figure: System context. Source: [`diagrams/system-context.html`](diagrams/system-context.html).*
 
 | Component | Technology | Role |
 | --- | --- | --- |
@@ -52,26 +25,12 @@ flowchart TB
 
 ## Component responsibilities
 
-```mermaid
-flowchart LR
-    main["main.py<br/>HTTP API"] --> service["service.py<br/>jobs, cache"]
-    main --> tiles["tiles.py<br/>cell grid, fields"]
-    main --> render["render.py<br/>epochs, PNG, GIF, cube"]
-    main --> resolve["resolve.py<br/>names, coordinates"]
-    main --> catalogs["catalogs.py<br/>overlays"]
-    main --> wings["wings.py<br/>halo photometry"]
-    main --> measurements["measurements.py<br/>result stores"]
-    main --> measure_api["measure_api.py<br/>measurement jobs"]
-    tiles --> service
-    service --> sia["sia.py<br/>exposure search"]
-    service --> worker["worker.py<br/>process pool tasks"]
-    worker --> cutout["cutout.py<br/>range reads, resampling"]
-    measure_api --> measure["measure.py<br/>astrometry, photometry"]
-    measure_api --> refcat["refcat.py<br/>reference astrometry"]
-    measure_api --> measurements
-    measure --> cutout
-    refcat --> measure
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/diagrams/component-map-dark.png">
+  <img alt="Dependency diagram showing the HTTP API calling the imaging path and the measurement path, which both end in the cutout engine that reads the archive." src="img/diagrams/component-map.png">
+</picture>
+
+*Figure: Components of the service. Source: [`diagrams/component-map.html`](diagrams/component-map.html). The leaf modules `render`, `resolve`, `catalogs` and `wings` are called only by `main` and are drawn as one box.*
 
 The dependency direction is strict: `main` depends on everything, the numerical
 modules (`cutout`, `render`, `measure`, `wings`, `tiles`) know nothing about
@@ -82,40 +41,19 @@ HTTP, and `measure` knows nothing about the database. See
 
 ### Opening a view
 
-```mermaid
-sequenceDiagram
-    participant B as Browser
-    participant A as API process
-    participant C as SQLite cache
-    participant I as IRSA SIA
-    participant W as Worker processes
-    participant S as S3 bucket
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/diagrams/view-request-search-dark.png">
+  <img alt="Sequence diagram showing the browser requesting a view, the API returning a queued job at once, and the exposure list being read from the cache or from IRSA SIA." src="img/diagrams/view-request-search.png">
+</picture>
 
-    B->>A: GET /api/view?target=...&fov=8
-    A->>A: resolve target, build Grid
-    A-->>B: target, grid, job (status queued)
-    Note over A: background thread runs the job
-    A->>C: exposure list cached (24 h)?
-    alt not cached
-        A->>I: SIA query per collection (CSV)
-        I-->>A: exposures with S3 keys
-        A->>C: store list
-    end
-    A->>C: which frames are cached?
-    A->>W: chunks of 8 uncached exposures
-    loop per exposure, concurrently
-        W->>S: 4 range requests
-        S-->>W: header, pixel rows, flag index, flag rows
-        W->>W: mask, subtract sky, resample
-    end
-    W-->>A: frames and traffic statistics
-    A->>C: store frames
-    loop while job is not ready
-        B->>A: GET /api/cube?...
-        A-->>B: binary cube of the epochs so far
-    end
-    B->>A: GET /api/spectrum, /api/catalog, /api/tracks
-```
+*Figure: Opening a view: request and exposure search. Source: [`diagrams/view-request-search.html`](diagrams/view-request-search.html).*
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/diagrams/view-request-fetch-dark.png">
+  <img alt="Sequence diagram showing worker processes reading each exposure from S3 with four range requests, the API caching the frames, and the browser polling for the cube." src="img/diagrams/view-request-fetch.png">
+</picture>
+
+*Figure: Opening a view: reading frames and serving the cube. Source: [`diagrams/view-request-fetch.html`](diagrams/view-request-fetch.html). The flow is drawn in two parts: the request and the exposure search, then the reading of frames and the polling for the cube.*
 
 Key properties:
 
@@ -146,27 +84,12 @@ configured, to Postgres. The browser polls the same URL until `status` is
 
 ## Concurrency model
 
-```mermaid
-flowchart TB
-    subgraph web["Web process (uvicorn, 1 worker)"]
-        T1["Request threads<br/>FastAPI sync endpoints"]
-        T2["Job threads<br/>one per view being loaded"]
-        T3["Field threads<br/>one per progressive field"]
-        T4["Measurement job threads"]
-        MEM["In-memory state:<br/>jobs, fields, epoch cache,<br/>wavelength maps"]
-    end
-    subgraph pool["Imaging pool: SPHEREX_FETCH_PROCS processes"]
-        P1["event loop + HTTP client"]
-        P2["event loop + HTTP client"]
-        P3["event loop + HTTP client"]
-        P4["event loop + HTTP client"]
-    end
-    subgraph mpool["Measurement pool: 1 process"]
-        M1["asyncio stamps, fits"]
-    end
-    T2 --> pool
-    T4 --> mpool
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/diagrams/process-model-dark.png">
+  <img alt="Architecture diagram showing the single web process with its thread kinds and in-memory state, the pool of imaging processes and the single measurement process." src="img/diagrams/process-model.png">
+</picture>
+
+*Figure: Processes and threads. Source: [`diagrams/process-model.html`](diagrams/process-model.html).*
 
 - **Exactly one web process.** Jobs, fields and their progress live in the
   memory of the web process. Running several uvicorn workers would give each its

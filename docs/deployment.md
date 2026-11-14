@@ -14,15 +14,12 @@
 | TLS | Certificates issued and renewed by the hosting platform |
 | DNS | Apex `A` record and `www` `CNAME` to the hosting platform, at the domain registrar |
 
-```mermaid
-flowchart LR
-    DNS["vanillasphere.com<br/>DNS at registrar"] --> R["Render edge<br/>TLS termination"]
-    R --> S["Web service<br/>uvicorn, 1 process<br/>+ 4 imaging workers<br/>+ 1 measurement worker"]
-    S --- D[("Disk /var/data<br/>cache.sqlite<br/>measurements.sqlite")]
-    S --> PG[("Supabase Postgres<br/>us-east-1")]
-    S --> AWS[("S3 nasa-irsa-spherex<br/>us-east-1")]
-    GH["GitHub main branch"] -->|push triggers deploy| S
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/diagrams/deployment-dark.png">
+  <img alt="Deployment diagram showing the web service and its disk on Render in Virginia, next to the Postgres database and the SPHEREx bucket in AWS us-east-1." src="img/diagrams/deployment.png">
+</picture>
+
+*Figure: Production environment. Source: [`diagrams/deployment.html`](diagrams/deployment.html).*
 
 ### Why this placement
 
@@ -118,16 +115,12 @@ written to it at the next start.
 
 ## Release process
 
-```mermaid
-flowchart LR
-    B["Branch"] --> PR["Pull request"]
-    PR --> M["Merge to main"]
-    M --> BU["Build: pip install"]
-    BU --> ST["Start: uvicorn, warm workers"]
-    ST --> HC["Health check /api/health"]
-    HC --> LIVE["Live"]
-    LIVE --> AM["After 40 s: sync database,<br/>measure stale challenge targets"]
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/diagrams/release-flow-dark.png">
+  <img alt="Flow diagram showing a pull request merged to main, then build, start, health check and going live, followed 40 seconds later by the database sync and re-measurement." src="img/diagrams/release-flow.png">
+</picture>
+
+*Figure: Release process. Source: [`diagrams/release-flow.html`](diagrams/release-flow.html).*
 
 1. Changes are made on a branch and merged to `main` through a pull request.
 2. A push to `main` triggers a deploy. Build and start take about 70 s.

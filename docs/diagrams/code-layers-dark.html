@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dependency layers of the package · Vanilla Sphere</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Hanken+Grotesk:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #0d0b08;
+      --color-ink:     #efebe4;
+      --color-muted:   #afaaa3;
+      --color-accent:  #f97c3d;
+      --font-sans:     'Hanken Grotesk', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+      color-scheme: dark;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1200px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Layer stack · Vanilla Sphere</p>
+    <h1>Dependency layers of the package</h1>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 960 452" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="code-layers-dark-title code-layers-dark-desc">
+        <title id="code-layers-dark-title">Dependency layers of the package</title>
+        <desc id="code-layers-dark-desc">Layer stack showing the HTTP layer on top of orchestration, the numerical core, external data access and settings; each layer imports only from layers below it.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#afaaa3"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f97c3d"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6db0f4"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#0d0b08"/>
+
+        <!-- Connectors (behind the nodes) -->
+        <line x1="64" y1="68" x2="64" y2="356" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+        <!-- Nodes -->
+        <rect x="136" y="40" width="784" height="64" fill="#0d0b08"/>
+        <rect x="136" y="40" width="784" height="64" fill="#1b1814" stroke="rgba(239,235,228,0.30)" stroke-width="1"/>
+        <text x="160" y="75.0" fill="#908b84" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.14em">L4</text>
+        <text x="224" y="77.0" fill="#efebe4" font-size="14" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif">HTTP layer</text>
+        <text x="896" y="75.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="end">main, measure_api</text>
+        <rect x="136" y="104" width="784" height="64" fill="#0d0b08"/>
+        <rect x="136" y="104" width="784" height="64" fill="#1b1814" stroke="rgba(239,235,228,0.30)" stroke-width="1"/>
+        <text x="160" y="139.0" fill="#908b84" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.14em">L3</text>
+        <text x="224" y="141.0" fill="#efebe4" font-size="14" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif">Orchestration</text>
+        <text x="896" y="139.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="end">service, tiles, measurements, refcat</text>
+        <rect x="136" y="232" width="784" height="64" fill="#0d0b08"/>
+        <rect x="136" y="232" width="784" height="64" fill="#1b1814" stroke="rgba(239,235,228,0.30)" stroke-width="1"/>
+        <text x="160" y="267.0" fill="#908b84" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.14em">L1</text>
+        <text x="224" y="269.0" fill="#efebe4" font-size="14" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif">External data access</text>
+        <text x="896" y="267.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="end">sia, resolve, catalogs</text>
+        <rect x="136" y="296" width="784" height="64" fill="#0d0b08"/>
+        <rect x="136" y="296" width="784" height="64" fill="#1b1814" stroke="rgba(239,235,228,0.30)" stroke-width="1"/>
+        <text x="160" y="331.0" fill="#908b84" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.14em">L0</text>
+        <text x="224" y="333.0" fill="#efebe4" font-size="14" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif">Settings</text>
+        <text x="896" y="331.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="end">config</text>
+        <rect x="136" y="168" width="784" height="64" fill="#0d0b08"/>
+        <rect x="136" y="168" width="784" height="64" fill="rgba(249,124,61,0.10)" stroke="#f97c3d" stroke-width="1"/>
+        <text x="160" y="203.0" fill="#f97c3d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.14em">L2</text>
+        <text x="224" y="205.0" fill="#efebe4" font-size="14" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif">Numerical core</text>
+        <text x="896" y="203.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="end">cutout, render, measure, wings, worker</text>
+
+        <!-- Legend and notes -->
+        <text x="40" y="52" fill="#908b84" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="start" letter-spacing="0.14em">IMPORTS</text>
+        <line x1="40" y1="392" x2="920" y2="392" stroke="rgba(239,235,228,0.10)" stroke-width="0.8"/>
+        <text x="40" y="408" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.18em">LEGEND</text>
+        <rect x="40" y="424" width="14" height="10" rx="2" fill="rgba(249,124,61,0.10)" stroke="#f97c3d" stroke-width="1"/>
+        <text x="60" y="432" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Where the pixels and the fits are computed</text>
+        <rect x="288" y="424" width="14" height="10" rx="2" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="308" y="432" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Layer; imports only from below</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

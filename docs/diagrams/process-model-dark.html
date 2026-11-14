@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Processes and threads · Vanilla Sphere</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Hanken+Grotesk:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #0d0b08;
+      --color-ink:     #efebe4;
+      --color-muted:   #afaaa3;
+      --color-accent:  #f97c3d;
+      --font-sans:     'Hanken Grotesk', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+      color-scheme: dark;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1200px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Architecture · Vanilla Sphere</p>
+    <h1>Processes and threads</h1>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 960 428" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="process-model-dark-title process-model-dark-desc">
+        <title id="process-model-dark-title">Processes and threads</title>
+        <desc id="process-model-dark-desc">Architecture diagram showing the single web process with its thread kinds and in-memory state, the pool of imaging processes and the single measurement process.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#afaaa3"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f97c3d"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6db0f4"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#0d0b08"/>
+
+        <!-- Zones and lifelines -->
+        <rect x="40" y="40" width="520" height="296" rx="8" fill="rgba(239,235,228,0.02)" stroke="rgba(239,235,228,0.10)" stroke-width="0.8"/>
+        <rect x="52" y="44" width="180" height="12" rx="2" fill="#0d0b08"/>
+        <text x="142.0" y="53" fill="#908b84" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.14em">WEB PROCESS · UVICORN, 1 WORKER</text>
+
+        <!-- Connectors (behind the nodes) -->
+        <line x1="536" y1="104" x2="680" y2="104" fill="none" stroke="#f97c3d" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <line x1="536" y1="192" x2="680" y2="192" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+        <!-- Nodes -->
+        <rect x="64" y="72" width="224" height="64" rx="6" fill="#0d0b08"/>
+        <rect x="64" y="72" width="224" height="64" rx="6" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="176.0" y="102.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Request threads</text>
+        <text x="176.0" y="118.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">FastAPI sync endpoints</text>
+        <rect x="312" y="72" width="224" height="64" rx="6" fill="#0d0b08"/>
+        <rect x="312" y="72" width="224" height="64" rx="6" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="424.0" y="102.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Job threads</text>
+        <text x="424.0" y="118.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">one per view being loaded</text>
+        <rect x="64" y="160" width="224" height="64" rx="6" fill="#0d0b08"/>
+        <rect x="64" y="160" width="224" height="64" rx="6" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="176.0" y="190.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Field threads</text>
+        <text x="176.0" y="206.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">one per progressive field</text>
+        <rect x="312" y="160" width="224" height="64" rx="6" fill="#0d0b08"/>
+        <rect x="312" y="160" width="224" height="64" rx="6" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="424.0" y="196.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Measurement job threads</text>
+        <rect x="64" y="248" width="472" height="64" rx="6" fill="#0d0b08"/>
+        <rect x="64" y="248" width="472" height="64" rx="6" fill="rgba(239,235,228,0.05)" stroke="#afaaa3" stroke-width="1"/>
+        <text x="300.0" y="278.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">In-memory state</text>
+        <text x="300.0" y="294.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">jobs, fields, epoch cache, wavelength maps</text>
+        <rect x="680" y="72" width="240" height="64" rx="6" fill="#0d0b08"/>
+        <rect x="680" y="72" width="240" height="64" rx="6" fill="rgba(249,124,61,0.10)" stroke="#f97c3d" stroke-width="1"/>
+        <rect x="688" y="80" width="32" height="12" rx="2" fill="transparent" stroke="rgba(249,124,61,0.50)" stroke-width="0.8"/>
+        <text x="704.0" y="89" fill="#f97c3d" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">PROC</text>
+        <rect x="888" y="80" width="24" height="12" rx="2" fill="#0d0b08" stroke="rgba(249,124,61,0.50)" stroke-width="0.8"/>
+        <text x="900.0" y="89" fill="#f97c3d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">x4</text>
+        <text x="800.0" y="108.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Imaging pool</text>
+        <text x="800.0" y="124.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">event loop + HTTP client each</text>
+        <rect x="680" y="160" width="240" height="64" rx="6" fill="#0d0b08"/>
+        <rect x="680" y="160" width="240" height="64" rx="6" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <rect x="688" y="168" width="32" height="12" rx="2" fill="transparent" stroke="rgba(239,235,228,0.40)" stroke-width="0.8"/>
+        <text x="704.0" y="177" fill="#efebe4" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">PROC</text>
+        <rect x="888" y="168" width="24" height="12" rx="2" fill="#0d0b08" stroke="rgba(239,235,228,0.40)" stroke-width="0.8"/>
+        <text x="900.0" y="177" fill="#efebe4" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">x1</text>
+        <text x="800.0" y="196.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Measurement pool</text>
+        <text x="800.0" y="212.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">asyncio stamps, fits</text>
+
+        <!-- Legend and notes -->
+        <line x1="40" y1="368" x2="920" y2="368" stroke="rgba(239,235,228,0.10)" stroke-width="0.8"/>
+        <text x="40" y="384" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.18em">LEGEND</text>
+        <rect x="40" y="400" width="14" height="10" rx="2" fill="rgba(249,124,61,0.10)" stroke="#f97c3d" stroke-width="1"/>
+        <text x="60" y="408" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">SPHEREX_FETCH_PROCS processes</text>
+        <rect x="228" y="400" width="14" height="10" rx="2" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="248" y="408" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Threads or process</text>
+        <rect x="364" y="400" width="14" height="10" rx="2" fill="rgba(239,235,228,0.05)" stroke="#afaaa3" stroke-width="1"/>
+        <text x="384" y="408" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">State lost on restart</text>
+        <line x1="512" y1="406" x2="540" y2="406" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <text x="548" y="408" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Dispatches work</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

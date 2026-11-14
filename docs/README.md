@@ -31,6 +31,30 @@ when it was measured.
 | [Performance](performance.md) | Measured timings and volumes, the optimisations behind them, capacity limits |
 | [Deployment and operations](deployment.md) | Hosting, configuration, release process, health checks, runbook |
 
+## Diagrams
+
+The figures follow the [diagram-design](https://github.com/cathrynlavery/diagram-design)
+skill (MIT licence): orthogonal connectors, masked labels, a 4 px layout grid, one
+accent colour on at most two elements, and a legend strip. The colours and
+typefaces are those of the viewer, in a light and a dark variant; GitHub shows
+the one that matches the reader's theme.
+
+| Location | Contents |
+| --- | --- |
+| [`diagrams/build.py`](diagrams/build.py) | The fifteen diagrams, described with the primitives in `diagrams/dd.py` |
+| `diagrams/<name>.html`, `diagrams/<name>-dark.html` | Self-contained HTML with inline SVG; the source of each figure |
+| `img/diagrams/<name>.png` | 2x PNG exports embedded in the documents |
+
+To change a figure, edit its function in `build.py`, then run:
+
+```bash
+python3 docs/diagrams/build.py            # writes the HTML files
+node docs/diagrams/export_png.js          # writes the PNG files (needs the playwright package)
+```
+
+The skill's `self_check.py` and `verify_geometry.py` pass on all thirty HTML
+files. Where a figure merges or omits elements, its caption says so.
+
 ## Reading paths
 
 - **Evaluating the product:** [overview](overview.md), then [features](features.md), then the

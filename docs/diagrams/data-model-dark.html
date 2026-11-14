@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Measurement database · Vanilla Sphere</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Hanken+Grotesk:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #0d0b08;
+      --color-ink:     #efebe4;
+      --color-muted:   #afaaa3;
+      --color-accent:  #f97c3d;
+      --font-sans:     'Hanken Grotesk', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+      color-scheme: dark;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1200px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Data model · Vanilla Sphere</p>
+    <h1>Measurement database</h1>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 960 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="data-model-dark-title data-model-dark-desc">
+        <title id="data-model-dark-title">Measurement database</title>
+        <desc id="data-model-dark-desc">Entity diagram showing that a source has many detections and at most one fitted track.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#afaaa3"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f97c3d"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6db0f4"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#0d0b08"/>
+
+        <!-- Connectors (behind the nodes) -->
+        <line x1="364" y1="140" x2="272" y2="140" fill="none" stroke="#afaaa3" stroke-width="1.2"/>
+        <line x1="596" y1="140" x2="688" y2="140" fill="none" stroke="#afaaa3" stroke-width="1.2"/>
+
+        <!-- Connector labels -->
+        <rect x="342" y="134" width="16" height="12" rx="2" fill="#0d0b08"/><text x="350" y="144" fill="#afaaa3" font-size="10" font-weight="600" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">1</text>
+        <rect x="276" y="134" width="32" height="12" rx="2" fill="#0d0b08"/><text x="292" y="144" fill="#afaaa3" font-size="10" font-weight="600" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">0..1</text>
+        <rect x="602" y="134" width="16" height="12" rx="2" fill="#0d0b08"/><text x="610" y="144" fill="#afaaa3" font-size="10" font-weight="600" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">1</text>
+        <rect x="666" y="134" width="16" height="12" rx="2" fill="#0d0b08"/><text x="674" y="144" fill="#afaaa3" font-size="10" font-weight="600" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">N</text>
+        <rect x="306" y="116" width="28" height="12" rx="2" fill="#0d0b08"/>
+        <text x="320.0" y="125" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">HAS</text>
+        <rect x="628" y="116" width="28" height="12" rx="2" fill="#0d0b08"/>
+        <text x="642.0" y="125" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">HAS</text>
+
+        <!-- Nodes -->
+        <rect x="40" y="56" width="232" height="216" rx="6" fill="#0d0b08"/>
+        <rect x="40" y="56" width="232" height="216" rx="6" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <path d="M 40,96 V 62 Q 40,56 46,56 H 266 Q 272,56 272,62 V 96 Z" fill="rgba(239,235,228,0.04)"/>
+        <line x1="40" y1="96" x2="272" y2="96" stroke="rgba(239,235,228,0.22)" stroke-width="1"/>
+        <text x="56" y="72" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.14em">ENTITY</text>
+        <text x="56" y="88" fill="#efebe4" font-size="14" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif">tracks</text>
+        <text x="56" y="116" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace"># → source_id bigint</text>
+        <text x="56" y="132" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">epoch</text>
+        <text x="56" y="148" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">ra0_deg, dec0_deg</text>
+        <text x="56" y="164" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">pmra_masyr, pmdec_masyr</text>
+        <text x="56" y="180" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">pmra_err, pmdec_err</text>
+        <text x="56" y="196" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">parallax_mas</text>
+        <text x="56" y="212" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">n_detections, rms_arcsec</text>
+        <text x="56" y="228" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">mjd_min, mjd_max</text>
+        <text x="56" y="244" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">model text</text>
+        <text x="56" y="260" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">summary jsonb</text>
+        <rect x="364" y="56" width="232" height="216" rx="6" fill="#0d0b08"/>
+        <rect x="364" y="56" width="232" height="216" rx="6" fill="rgba(249,124,61,0.10)" stroke="#f97c3d" stroke-width="1"/>
+        <path d="M 364,96 V 62 Q 364,56 370,56 H 590 Q 596,56 596,62 V 96 Z" fill="rgba(249,124,61,0.06)"/>
+        <line x1="364" y1="96" x2="596" y2="96" stroke="rgba(239,235,228,0.22)" stroke-width="1"/>
+        <text x="380" y="72" fill="#f97c3d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.14em">ENTITY</text>
+        <text x="380" y="88" fill="#efebe4" font-size="14" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif">sources</text>
+        <text x="380" y="116" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace"># id bigint</text>
+        <text x="380" y="132" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">name text, unique</text>
+        <text x="380" y="148" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">kind text</text>
+        <text x="380" y="164" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">ra_deg, dec_deg</text>
+        <text x="380" y="180" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">ref_epoch</text>
+        <text x="380" y="196" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">pmra_masyr, pmdec_masyr</text>
+        <text x="380" y="212" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">parallax_mas</text>
+        <text x="380" y="228" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">gaia_source_id bigint</text>
+        <text x="380" y="244" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">catwise_id text</text>
+        <text x="380" y="260" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">note text</text>
+        <rect x="688" y="56" width="232" height="248" rx="6" fill="#0d0b08"/>
+        <rect x="688" y="56" width="232" height="248" rx="6" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <path d="M 688,96 V 62 Q 688,56 694,56 H 914 Q 920,56 920,62 V 96 Z" fill="rgba(239,235,228,0.04)"/>
+        <line x1="688" y1="96" x2="920" y2="96" stroke="rgba(239,235,228,0.22)" stroke-width="1"/>
+        <text x="704" y="72" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.14em">ENTITY</text>
+        <text x="704" y="88" fill="#efebe4" font-size="14" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif">detections</text>
+        <text x="704" y="116" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace"># id bigint</text>
+        <text x="704" y="132" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">→ source_id bigint</text>
+        <text x="704" y="148" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">collection, obs_id, detector</text>
+        <text x="704" y="164" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">mjd</text>
+        <text x="704" y="180" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">ra_deg, dec_deg</text>
+        <text x="704" y="196" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">pos_err_arcsec</text>
+        <text x="704" y="212" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">east_arcsec, north_arcsec</text>
+        <text x="704" y="228" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">wave_um</text>
+        <text x="704" y="244" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">flux_ujy, flux_err_ujy</text>
+        <text x="704" y="260" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">rel_flux, snr</text>
+        <text x="704" y="276" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">flags text[]</text>
+        <text x="704" y="292" fill="#efebe4" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">method, n_exposures, used</text>
+
+        <!-- Legend and notes -->
+        <line x1="40" y1="340" x2="920" y2="340" stroke="rgba(239,235,228,0.10)" stroke-width="0.8"/>
+        <text x="40" y="356" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.18em">LEGEND</text>
+        <rect x="40" y="372" width="14" height="10" rx="2" fill="rgba(249,124,61,0.10)" stroke="#f97c3d" stroke-width="1"/>
+        <text x="60" y="380" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Aggregate root</text>
+        <rect x="156" y="372" width="14" height="10" rx="2" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="176" y="380" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Table; # key, → foreign key</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

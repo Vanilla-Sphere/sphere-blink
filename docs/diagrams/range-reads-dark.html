@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Four range requests for one exposure · Vanilla Sphere</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Hanken+Grotesk:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #0d0b08;
+      --color-ink:     #efebe4;
+      --color-muted:   #afaaa3;
+      --color-accent:  #f97c3d;
+      --font-sans:     'Hanken Grotesk', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+      color-scheme: dark;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1200px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Sequence · Vanilla Sphere</p>
+    <h1>Four range requests for one exposure</h1>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 960 628" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="range-reads-dark-title range-reads-dark-desc">
+        <title id="range-reads-dark-title">Four range requests for one exposure</title>
+        <desc id="range-reads-dark-desc">Sequence diagram showing a worker reading the headers, then the image rows and the flag index together, then the compressed flag rows of one 65 MB file.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#afaaa3"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f97c3d"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6db0f4"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#0d0b08"/>
+
+        <!-- Zones and lifelines -->
+        <line x1="240" y1="96" x2="240" y2="552" stroke="rgba(239,235,228,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="720" y1="96" x2="720" y2="552" stroke="rgba(239,235,228,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+
+        <!-- Connectors (behind the nodes) -->
+        <rect x="236" y="144" width="8" height="384" fill="#0d0b08"/><rect x="236" y="144" width="8" height="384" fill="rgba(239,235,228,0.06)" stroke="#afaaa3" stroke-width="0.8"/>
+        <line x1="244" y1="144" x2="716" y2="144" fill="none" stroke="#6db0f4" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="716" y1="184" x2="244" y2="184" fill="none" stroke="#afaaa3" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+        <path d="M 244,208 H 270 Q 276,208 276,214 V 226 Q 276,232 270,232 H 244" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="244" y1="280" x2="716" y2="280" fill="none" stroke="#f97c3d" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <line x1="244" y1="312" x2="716" y2="312" fill="none" stroke="#6db0f4" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="716" y1="352" x2="244" y2="352" fill="none" stroke="#afaaa3" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+        <line x1="716" y1="384" x2="244" y2="384" fill="none" stroke="#afaaa3" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+        <line x1="244" y1="432" x2="716" y2="432" fill="none" stroke="#6db0f4" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="716" y1="472" x2="244" y2="472" fill="none" stroke="#afaaa3" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+        <path d="M 244,496 H 270 Q 276,496 276,502 V 514 Q 276,520 270,520 H 244" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+        <!-- Connector labels -->
+        <rect x="428" y="124" width="104" height="12" rx="2" fill="#0d0b08"/>
+        <text x="480.0" y="133" fill="#6db0f4" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">1 · BYTES 0-34559</text>
+        <rect x="416" y="164" width="128" height="12" rx="2" fill="#0d0b08"/>
+        <text x="480.0" y="173" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">PRIMARY + IMAGE HEADER</text>
+        <rect x="284" y="214" width="128" height="12" rx="2" fill="#0d0b08"/>
+        <text x="348.0" y="223" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">WCS CARDS, ROWS Y0..Y1</text>
+        <rect x="416" y="260" width="128" height="12" rx="2" fill="#0d0b08"/>
+        <text x="480.0" y="269" fill="#f97c3d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">2A · IMAGE ROWS Y0..Y1</text>
+        <rect x="408" y="292" width="144" height="12" rx="2" fill="#0d0b08"/>
+        <text x="480.0" y="301" fill="#6db0f4" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">2B · FLAGS HEADER + INDEX</text>
+        <rect x="412" y="332" width="136" height="12" rx="2" fill="#0d0b08"/>
+        <text x="480.0" y="341" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">BIG-ENDIAN FLOAT32 ROWS</text>
+        <rect x="412" y="364" width="136" height="12" rx="2" fill="#0d0b08"/>
+        <text x="480.0" y="373" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">ROW OFFSETS AND LENGTHS</text>
+        <rect x="408" y="412" width="144" height="12" rx="2" fill="#0d0b08"/>
+        <text x="480.0" y="421" fill="#6db0f4" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">3 · COMPRESSED FLAGS ROWS</text>
+        <rect x="418" y="452" width="124" height="12" rx="2" fill="#0d0b08"/>
+        <text x="480.0" y="461" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">RICE-COMPRESSED BYTES</text>
+        <rect x="284" y="502" width="156" height="12" rx="2" fill="#0d0b08"/>
+        <text x="362.0" y="511" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">DECODE, MASK, SKY, RESAMPLE</text>
+
+        <!-- Nodes -->
+        <rect x="160" y="40" width="160" height="56" rx="6" fill="#0d0b08"/>
+        <rect x="160" y="40" width="160" height="56" rx="6" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="240.0" y="66.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Worker</text>
+        <text x="240.0" y="82.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">cutout.cut_async</text>
+        <rect x="640" y="40" width="160" height="56" rx="6" fill="#0d0b08"/>
+        <rect x="640" y="40" width="160" height="56" rx="6" fill="rgba(239,235,228,0.03)" stroke="rgba(239,235,228,0.30)" stroke-width="1"/>
+        <text x="720.0" y="66.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">S3 object</text>
+        <text x="720.0" y="82.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">one Level 2 file, 65 MB</text>
+
+        <!-- Legend and notes -->
+        <text x="920" y="300" fill="#efebe4" font-size="14" font-style="italic" font-family="'Instrument Serif', serif" text-anchor="end">2a and 2b are sent together</text>
+        <line x1="40" y1="568" x2="920" y2="568" stroke="rgba(239,235,228,0.10)" stroke-width="0.8"/>
+        <text x="40" y="584" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.18em">LEGEND</text>
+        <line x1="40" y1="606" x2="68" y2="606" stroke="#6db0f4" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <text x="76" y="608" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Range request</text>
+        <line x1="168" y1="606" x2="196" y2="606" stroke="#f97c3d" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <text x="204" y="608" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">The pixels of the cutout</text>
+        <line x1="348" y1="606" x2="376" y2="606" stroke="#afaaa3" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+        <text x="384" y="608" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Response</text>
+        <line x1="452" y1="606" x2="480" y2="606" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <text x="488" y="608" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Work in the process</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

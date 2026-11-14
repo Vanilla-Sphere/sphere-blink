@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Release process · Vanilla Sphere</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Hanken+Grotesk:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f6f3ef;
+      --color-ink:     #1b1813;
+      --color-muted:   #524c45;
+      --color-accent:  #bb4100;
+      --font-sans:     'Hanken Grotesk', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+      color-scheme: light;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1200px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Process · Vanilla Sphere</p>
+    <h1>Release process</h1>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 960 212" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="release-flow-title release-flow-desc">
+        <title id="release-flow-title">Release process</title>
+        <desc id="release-flow-desc">Flow diagram showing a pull request merged to main, then build, start, health check and going live, followed 40 seconds later by the database sync and re-measurement.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#524c45"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bb4100"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#005a9d"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f6f3ef"/>
+
+        <!-- Connectors (behind the nodes) -->
+        <line x1="144" y1="80" x2="168" y2="80" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="272" y1="80" x2="296" y2="80" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="400" y1="80" x2="424" y2="80" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="528" y1="80" x2="552" y2="80" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="656" y1="80" x2="680" y2="80" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="784" y1="80" x2="808" y2="80" fill="none" stroke="#524c45" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+
+        <!-- Nodes -->
+        <rect x="40" y="40" width="104" height="80" rx="6" fill="#f6f3ef"/>
+        <rect x="40" y="40" width="104" height="80" rx="6" fill="rgba(82,76,69,0.10)" stroke="#625d55" stroke-width="1"/>
+        <rect x="48" y="48" width="24" height="12" rx="2" fill="transparent" stroke="rgba(98,93,85,0.40)" stroke-width="0.8"/>
+        <text x="60.0" y="57" fill="#625d55" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">01</text>
+        <text x="92.0" y="84.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Pull request</text>
+        <text x="92.0" y="100.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">from a branch</text>
+        <rect x="168" y="40" width="104" height="80" rx="6" fill="#f6f3ef"/>
+        <rect x="168" y="40" width="104" height="80" rx="6" fill="#ffffff" stroke="#1b1813" stroke-width="1"/>
+        <rect x="176" y="48" width="24" height="12" rx="2" fill="transparent" stroke="rgba(27,24,19,0.40)" stroke-width="0.8"/>
+        <text x="188.0" y="57" fill="#1b1813" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">02</text>
+        <text x="220.0" y="84.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Merge</text>
+        <text x="220.0" y="100.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">into main</text>
+        <rect x="296" y="40" width="104" height="80" rx="6" fill="#f6f3ef"/>
+        <rect x="296" y="40" width="104" height="80" rx="6" fill="#ffffff" stroke="#1b1813" stroke-width="1"/>
+        <rect x="304" y="48" width="24" height="12" rx="2" fill="transparent" stroke="rgba(27,24,19,0.40)" stroke-width="0.8"/>
+        <text x="316.0" y="57" fill="#1b1813" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">03</text>
+        <text x="348.0" y="84.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Build</text>
+        <text x="348.0" y="100.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">pip install</text>
+        <rect x="424" y="40" width="104" height="80" rx="6" fill="#f6f3ef"/>
+        <rect x="424" y="40" width="104" height="80" rx="6" fill="#ffffff" stroke="#1b1813" stroke-width="1"/>
+        <rect x="432" y="48" width="24" height="12" rx="2" fill="transparent" stroke="rgba(27,24,19,0.40)" stroke-width="0.8"/>
+        <text x="444.0" y="57" fill="#1b1813" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">04</text>
+        <text x="476.0" y="78.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Start</text>
+        <text x="476.0" y="94.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">uvicorn,</text>
+        <text x="476.0" y="107.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">warm workers</text>
+        <rect x="552" y="40" width="104" height="80" rx="6" fill="#f6f3ef"/>
+        <rect x="552" y="40" width="104" height="80" rx="6" fill="#ffffff" stroke="#1b1813" stroke-width="1"/>
+        <rect x="560" y="48" width="24" height="12" rx="2" fill="transparent" stroke="rgba(27,24,19,0.40)" stroke-width="0.8"/>
+        <text x="572.0" y="57" fill="#1b1813" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">05</text>
+        <text x="604.0" y="84.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Health check</text>
+        <text x="604.0" y="100.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">/api/health</text>
+        <rect x="680" y="40" width="104" height="80" rx="6" fill="#f6f3ef"/>
+        <rect x="680" y="40" width="104" height="80" rx="6" fill="rgba(187,65,0,0.08)" stroke="#bb4100" stroke-width="1"/>
+        <rect x="688" y="48" width="24" height="12" rx="2" fill="transparent" stroke="rgba(187,65,0,0.50)" stroke-width="0.8"/>
+        <text x="700.0" y="57" fill="#bb4100" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">06</text>
+        <text x="732.0" y="78.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Live</text>
+        <text x="732.0" y="94.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">after about</text>
+        <text x="732.0" y="107.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">70 seconds</text>
+        <rect x="808" y="40" width="104" height="80" rx="6" fill="#f6f3ef"/>
+        <rect x="808" y="40" width="104" height="80" rx="6" fill="rgba(27,24,19,0.02)" stroke="rgba(27,24,19,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
+        <rect x="816" y="48" width="24" height="12" rx="2" fill="transparent" stroke="rgba(27,24,19,0.20)" stroke-width="0.8"/>
+        <text x="828.0" y="57" fill="#625d55" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">07</text>
+        <text x="860.0" y="78.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">After 40 s</text>
+        <text x="860.0" y="94.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">sync database,</text>
+        <text x="860.0" y="107.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">re-measure</text>
+
+        <!-- Legend and notes -->
+        <line x1="40" y1="152" x2="920" y2="152" stroke="rgba(27,24,19,0.10)" stroke-width="0.8"/>
+        <text x="40" y="168" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.18em">LEGEND</text>
+        <rect x="40" y="184" width="14" height="10" rx="2" fill="rgba(82,76,69,0.10)" stroke="#625d55" stroke-width="1"/>
+        <text x="60" y="192" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Manual step</text>
+        <rect x="144" y="184" width="14" height="10" rx="2" fill="#ffffff" stroke="#1b1813" stroke-width="1"/>
+        <text x="164" y="192" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Automatic on push to main</text>
+        <rect x="312" y="184" width="14" height="10" rx="2" fill="rgba(187,65,0,0.08)" stroke="#bb4100" stroke-width="1"/>
+        <text x="332" y="192" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Serving traffic</text>
+        <rect x="432" y="184" width="14" height="10" rx="2" fill="rgba(27,24,19,0.02)" stroke="rgba(27,24,19,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="452" y="192" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Deferred background work</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

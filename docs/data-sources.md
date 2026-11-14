@@ -100,64 +100,12 @@ Gaia reference rows of the challenge targets in the source code.
 
 ### Team measurement database (Postgres)
 
-```mermaid
-erDiagram
-    sources ||--o{ detections : "has"
-    sources ||--o| tracks : "has"
-    sources {
-        bigint id PK
-        text name UK
-        text kind
-        double ra_deg
-        double dec_deg
-        double ref_epoch
-        double pmra_masyr
-        double pmdec_masyr
-        double parallax_mas
-        bigint gaia_source_id
-        text catwise_id
-        text note
-    }
-    detections {
-        bigint id PK
-        bigint source_id FK
-        text collection
-        text obs_id
-        smallint detector
-        double mjd
-        double ra_deg
-        double dec_deg
-        double pos_err_arcsec
-        double wave_um
-        double flux_ujy
-        double flux_err_ujy
-        text_array flags
-        text method
-        double east_arcsec
-        double north_arcsec
-        double snr
-        integer n_exposures
-        boolean used
-        double rel_flux
-    }
-    tracks {
-        bigint source_id PK
-        double epoch
-        double ra0_deg
-        double dec0_deg
-        double pmra_masyr
-        double pmdec_masyr
-        double pmra_err
-        double pmdec_err
-        integer n_detections
-        double rms_arcsec
-        double mjd_min
-        double mjd_max
-        double parallax_mas
-        text model
-        jsonb summary
-    }
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/diagrams/data-model-dark.png">
+  <img alt="Entity diagram showing that a source has many detections and at most one fitted track." src="img/diagrams/data-model.png">
+</picture>
+
+*Figure: Measurement database. Source: [`diagrams/data-model.html`](diagrams/data-model.html). Columns that belong together share a line; `sql/schema.sql` is the authoritative definition.*
 
 | Table | One row per | Notes |
 | --- | --- | --- |

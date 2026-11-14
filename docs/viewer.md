@@ -35,19 +35,12 @@ element so that CSS alone decides what is visible:
 
 Elements that belong to one mode carry the class `adv` or `simple`.
 
-```mermaid
-flowchart LR
-    START(["Open the site"]) -->|address without a position| MAP["Sky map screen"]
-    START -->|address with target or ra and dec| VIEW["View screen"]
-    MAP -->|click the map, pick a target, search| VIEW
-    VIEW -->|Sky map button, browser Back| MAP
-    VIEW -->|recentre, change field, search| VIEW
-    subgraph MODES["Modes of the view screen"]
-        SIMPLE["Simple"] -->|switch, or the link to Advanced| ADV["Advanced"]
-        ADV -->|switch| SIMPLE
-    end
-    VIEW --- MODES
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/diagrams/viewer-screens-dark.png">
+  <img alt="State diagram showing the sky map screen and the view screen, how the address chooses between them, and the Simple and Advanced modes inside the view screen." src="img/diagrams/viewer-screens.png">
+</picture>
+
+*Figure: Screens and modes of the viewer. Source: [`diagrams/viewer-screens.html`](diagrams/viewer-screens.html).*
 
 ### Layout in Advanced mode
 

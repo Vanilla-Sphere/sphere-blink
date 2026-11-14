@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A measurement job · Vanilla Sphere</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Hanken+Grotesk:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f6f3ef;
+      --color-ink:     #1b1813;
+      --color-muted:   #524c45;
+      --color-accent:  #bb4100;
+      --font-sans:     'Hanken Grotesk', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+      color-scheme: light;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1200px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Sequence · Vanilla Sphere</p>
+    <h1>A measurement job</h1>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 960 832" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="measure-job-title measure-job-desc">
+        <title id="measure-job-title">A measurement job</title>
+        <desc id="measure-job-desc">Sequence diagram showing a measurement request answered from the local store when a result exists, and otherwise queued, run in the measurement process, saved and polled.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#524c45"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bb4100"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#005a9d"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f6f3ef"/>
+
+        <!-- Zones and lifelines -->
+        <line x1="120" y1="96" x2="120" y2="756" stroke="rgba(27,24,19,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="312" y1="96" x2="312" y2="756" stroke="rgba(27,24,19,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="520" y1="96" x2="520" y2="756" stroke="rgba(27,24,19,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="704" y1="96" x2="704" y2="756" stroke="rgba(27,24,19,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="856" y1="96" x2="856" y2="756" stroke="rgba(27,24,19,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+        <rect x="48" y="208" width="832" height="524" rx="4" fill="rgba(27,24,19,0.02)" stroke="rgba(27,24,19,0.22)" stroke-width="1"/>
+        <rect x="48" y="208" width="40" height="16" rx="2" fill="#f6f3ef" stroke="rgba(27,24,19,0.22)" stroke-width="1"/>
+        <text x="68" y="220" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.12em">ALT</text>
+        <text x="136" y="240" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.04em">[stored, refresh not requested]</text>
+        <line x1="56" y1="300" x2="872" y2="300" stroke="rgba(27,24,19,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="136" y="324" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.04em">[else]</text>
+
+        <!-- Connectors (behind the nodes) -->
+        <rect x="516" y="452" width="8" height="100" fill="#f6f3ef"/><rect x="516" y="452" width="8" height="100" fill="rgba(27,24,19,0.06)" stroke="#524c45" stroke-width="0.8"/>
+        <rect x="308" y="144" width="8" height="576" fill="#f6f3ef"/><rect x="308" y="144" width="8" height="576" fill="rgba(27,24,19,0.06)" stroke="#524c45" stroke-width="0.8"/>
+        <line x1="124" y1="144" x2="308" y2="144" fill="none" stroke="#005a9d" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="316" y1="184" x2="700" y2="184" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="308" y1="272" x2="124" y2="272" fill="none" stroke="#524c45" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+        <line x1="308" y1="356" x2="124" y2="356" fill="none" stroke="#524c45" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+        <path d="M 316,380 H 342 Q 348,380 348,386 V 398 Q 348,404 342,404 H 316" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="316" y1="452" x2="516" y2="452" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 524,476 H 550 Q 556,476 556,482 V 494 Q 556,500 550,500 H 524" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="516" y1="548" x2="316" y2="548" fill="none" stroke="#524c45" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+        <line x1="316" y1="588" x2="700" y2="588" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="316" y1="628" x2="852" y2="628" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="124" y1="668" x2="308" y2="668" fill="none" stroke="#005a9d" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="308" y1="708" x2="124" y2="708" fill="none" stroke="#bb4100" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+
+        <!-- Connector labels -->
+        <rect x="168" y="124" width="96" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="216.0" y="133" fill="#005a9d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">GET /API/MEASURE</text>
+        <rect x="372" y="164" width="88" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="416.0" y="173" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">STORED RESULT?</text>
+        <rect x="172" y="252" width="88" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="216.0" y="261" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">READY + RESULT</text>
+        <rect x="194" y="336" width="44" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="216.0" y="345" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">QUEUED</text>
+        <rect x="356" y="386" width="120" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="416.0" y="395" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">EXPOSURES, WAVE MAPS</text>
+        <rect x="372" y="432" width="88" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="416.0" y="441" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">RUN THE TARGET</text>
+        <rect x="564" y="482" width="112" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="620.0" y="491" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">STAMPS, FITS, TRACK</text>
+        <rect x="394" y="528" width="44" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="416.0" y="537" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">RESULT</text>
+        <rect x="400" y="568" width="32" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="416.0" y="577" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">SAVE</text>
+        <rect x="370" y="608" width="92" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="416.0" y="617" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">UPSERT 3 TABLES</text>
+        <rect x="200" y="648" width="32" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="216.0" y="657" fill="#005a9d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">POLL</text>
+        <rect x="172" y="688" width="88" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="216.0" y="697" fill="#bb4100" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">READY + RESULT</text>
+
+        <!-- Nodes -->
+        <rect x="56" y="40" width="128" height="56" rx="6" fill="#f6f3ef"/>
+        <rect x="56" y="40" width="128" height="56" rx="6" fill="rgba(82,76,69,0.10)" stroke="#625d55" stroke-width="1"/>
+        <text x="120.0" y="72.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Browser</text>
+        <rect x="248" y="40" width="128" height="56" rx="6" fill="#f6f3ef"/>
+        <rect x="248" y="40" width="128" height="56" rx="6" fill="rgba(187,65,0,0.08)" stroke="#bb4100" stroke-width="1"/>
+        <text x="312.0" y="66.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Web process</text>
+        <text x="312.0" y="82.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">measure_api</text>
+        <rect x="456" y="40" width="128" height="56" rx="6" fill="#f6f3ef"/>
+        <rect x="456" y="40" width="128" height="56" rx="6" fill="#ffffff" stroke="#1b1813" stroke-width="1"/>
+        <text x="520.0" y="66.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Measurement</text>
+        <text x="520.0" y="82.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">one process</text>
+        <rect x="640" y="40" width="128" height="56" rx="6" fill="#f6f3ef"/>
+        <rect x="640" y="40" width="128" height="56" rx="6" fill="rgba(27,24,19,0.05)" stroke="#524c45" stroke-width="1"/>
+        <text x="704.0" y="66.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Local SQLite</text>
+        <text x="704.0" y="82.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">measurements</text>
+        <rect x="792" y="40" width="128" height="56" rx="6" fill="#f6f3ef"/>
+        <rect x="792" y="40" width="128" height="56" rx="6" fill="rgba(27,24,19,0.05)" stroke="#524c45" stroke-width="1"/>
+        <text x="856.0" y="66.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Postgres</text>
+        <text x="856.0" y="82.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">3 tables</text>
+
+        <!-- Legend and notes -->
+        <line x1="40" y1="772" x2="920" y2="772" stroke="rgba(27,24,19,0.10)" stroke-width="0.8"/>
+        <text x="40" y="788" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.18em">LEGEND</text>
+        <line x1="40" y1="810" x2="68" y2="810" stroke="#005a9d" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <text x="76" y="812" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">HTTP request</text>
+        <line x1="164" y1="810" x2="192" y2="810" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <text x="200" y="812" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Call</text>
+        <line x1="248" y1="810" x2="276" y2="810" stroke="#524c45" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+        <text x="284" y="812" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Return</text>
+        <line x1="344" y1="810" x2="372" y2="810" stroke="#bb4100" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <text x="380" y="812" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Fresh result</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>
