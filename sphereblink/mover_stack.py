@@ -142,6 +142,7 @@ MAX_SLOW_SPAN_H = 400.0  # a longer pass is searched in two halves that overlap
 # pass that bends its track, and the bend gives the distance (Bernstein & Khushalani 2000). gamma = 1/d.
 GAMMA_MAX = 0.06  # 1/au: nearer than 17 au a body moves too fast for this search anyway
 RANGE_DROP = 9.0  # drop of the significance squared that bounds the range of distances given
+RANGE_MIN = 1.4  # and the range reaches at least from the best distance over this to the best distance times this
 ESCAPE = 208.8  # arcsec per hour at 1 au of the speed that leaves the Sun from there (42.1 km/s); falls as distance^-1.5
 BOUND_SLACK = 1.3  # a path may need this many times that speed before it is called impossible
 EPOCH_GAP_D = 30.0  # passes further apart than this are different epochs: a slow object is somewhere else by then
@@ -945,9 +946,9 @@ def distance_from_frames(c: Candidate, cube, frames: list[dict], sky: StaticSky,
     each time), the best distance, and the range that is not clearly worse.
     A stack's significance squared is twice the log-likelihood, so a drop of
     4 in it would be two sigma. On Haumea and Makemake that range missed the
-    true distance by a little (whole pixels, colour, frames that are not
-    independent), so the range given is a drop of RANGE_DROP = 9.
-    Changes the candidate to the best path.
+    true distance (whole pixels, colour, frames that are not independent),
+    so the range given is a drop of RANGE_DROP = 9, and never narrower than
+    a factor RANGE_MIN either way. Changes the candidate to the best path.
 
     The visit maps of the search are not used for this: they limit a frame
     to CLIP sigma, which flattens the peak of an object that frames show and
@@ -975,7 +976,9 @@ def distance_from_frames(c: Candidate, cube, frames: list[dict], sky: StaticSky,
     c.x, c.vx = c.x + dx - dg * p.line[0], c.vx + dvx - dg * p.line[1]
     c.y, c.vy = c.y + dy - dg * p.line[2], c.vy + dvy - dg * p.line[3]
     c.gamma = float(gammas[j])
-    out = {"gamma": round(float(gammas[j]), 5), "gamma_lo": round(max(0.0, lo - 0.5 * step), 5), "gamma_hi": round(hi + 0.5 * step, 5),
+    # never narrower than what six known objects showed the method to be good for (2 to 31 % off)
+    lo, hi = min(lo - 0.5 * step, float(gammas[j]) / RANGE_MIN), max(hi + 0.5 * step, float(gammas[j]) * RANGE_MIN)
+    out = {"gamma": round(float(gammas[j]), 5), "gamma_lo": round(max(0.0, lo), 5), "gamma_hi": round(hi, 5),
            "bend_pixels_at_1au": round(sag, 1), "from": "frames"}
     out["distance_au"] = round(1.0 / float(gammas[j]), 1) if gammas[j] > 0 else None
     out["distance_min_au"] = round(1.0 / out["gamma_hi"], 1)
