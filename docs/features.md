@@ -744,7 +744,7 @@ direction, the exposures it was seen in, and the name when it is a known
 asteroid or comet. Visitors can say whether a path looks real
 (`POST /api/movers/{id}/vote`), without an account. A path no catalogue has
 an object on is shown, as a candidate, only when it was seen in three
-separate visits; while no catalogue service answers, a weaker path is not
+separate visits twice or more, or in four visits; while no catalogue service answers, a weaker path is not
 shown at all. The algorithm, its validation on 3I/ATLAS and the asteroids of
 twelve fields, and its limits are in [moving objects](moving-objects.md).
 How much of what moves the search finds was measured with fake objects in
