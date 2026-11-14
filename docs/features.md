@@ -26,6 +26,7 @@ implements it. Implementation detail is in [imaging engine](imaging-engine.md),
 | 15 | Share links, embeddable GIF and PNG, data API | Simple, Advanced | `main.py`, `web/app.js` (`writeUrl`) |
 | 16 | Featured targets | Simple, Advanced | `resolve.FEATURED`, `refcat.TARGETS` |
 | 17 | Blind search for moving objects, with a log ("Discoveries"), names, follow and votes | Advanced | `movers.py`, `mover_store.py`, `movers_api.py`, `known_objects.py`, `web/movers.js` |
+| 18 | Distance and redshift: the object of a view, the sky map by redshift, comparing spectra in the rest frame | Simple, Advanced | `distance.py`, `/api/object`, `scripts/build_redshift.py`, `web/depth.js` |
 
 ## 1. Sky map start screen
 
@@ -611,3 +612,51 @@ In the viewer (Advanced, `web/movers.js`):
 
 Objects slower than 2 arcsec per hour (which need two passes of the telescope
 months apart) are not searched.
+
+## 18. Distance and redshift
+
+How far away the object of a view is, which galaxies and quasars lie at a
+given redshift, and how their SPHEREx spectra compare. All distances and
+redshifts are published values with their source; none is measured from the
+SPHEREx images. The rules, the sources and the checks are in
+[distance and redshift](distance-redshift.md).
+
+**The object of a view** (`/api/object`):
+
+- **Advanced**, card "Distance and redshift" under the spectrum. For a star:
+  the object and its type, the distance in parsec and light-years with its
+  range, the parallax, the method, the source and the radial velocity. For a
+  galaxy or a quasar: the redshift with its error and kind (spectroscopic or
+  photometric), when the light set out, how old the universe was then, the
+  distance today, and the paper of the redshift as a link to NASA ADS. For a
+  galaxy below z = 0.01 the redshift is shown as a velocity, with the
+  distances measured by other methods. Nothing catalogued at the crosshair is
+  said in one sentence.
+- **Simple**, one sentence under the description: "About 5.96 light-years
+  away, from the parallax in Gaia DR3." or "Its light set out 12.9 billion
+  years ago, when the universe was 868 million years old (redshift 6.327,
+  from SIMBAD)."
+- When the lookup does not answer, the card falls back to the all-sky list
+  below for the objects it holds, and says so.
+
+**The sky map by redshift** (button "Redshift" on the map, both modes):
+
+- Lowest redshift to show: Off, All, z > 0.1, 1, 3, 5, 6 or 7.
+- 10 037 galaxies (dots) and quasars (diamonds) with spectroscopic redshifts
+  from SIMBAD, coloured by redshift; the chart behind dims. The panel gives
+  the count and how old the light of the chosen range is at least.
+- Pointing at an object shows its name, kind, redshift, light-travel time and
+  whether it is bright enough for a SPHEREx spectrum. A click opens it.
+
+**Compare spectra** ("Enlarge · compare" under the spectrum, "Compare spectra"
+on the distance card and on the redshift panel):
+
+- Up to six objects, added by name or coordinates; the object of the view on
+  screen is added first, so the sheet is also the large plot of one spectrum.
+- Observed or rest-frame wavelength, relative or absolute flux, markers of
+  twelve emission lines, zoom with the wheel, pan by dragging.
+- Each object has its redshift in a field and on a slider, starting at the
+  published value. Moving it shows where the lines would fall; "Reset" goes
+  back to the published value.
+- Example "four quasars, z = 0.16 to 6.3": in the rest frame their Hα lines
+  fall on one marker.

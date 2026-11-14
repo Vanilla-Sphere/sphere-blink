@@ -1,0 +1,125 @@
+{
+"recorded": "2026-11-14",
+"answers": {
+"simbad.cds.unistra.fr|SELECT TOP 30 b.oid, b.main_id, b.otype, b.ra, b.dec, b.plx_value, b.plx_err, b.plx_bibcode, b.rvz_type, b.rvz_radvel, b.rvz_redshift, b.rvz_err, b.rvz_qual, b.rvz_nature, b.rvz_bibcode, b.sp_type, b.morph_type, DISTANCE(POINT('ICRS', b.ra, b.dec), POINT('ICRS', 269.452083, 4.693364)) AS dist FROM basic AS b WHERE CONTAINS(POINT('ICRS', b.ra, b.dec), CIRCLE('ICRS', 269.452083, 4.693364, 0.001389)) = 1 AND (b.rvz_redshift IS NOT NULL OR b.rvz_radvel IS NOT NULL OR b.plx_value IS NOT NULL) ORDER BY dist": [
+404,
+"<html>error page</html>"
+],
+"simbad.cfa.harvard.edu|SELECT TOP 30 b.oid, b.main_id, b.otype, b.ra, b.dec, b.plx_value, b.plx_err, b.plx_bibcode, b.rvz_type, b.rvz_radvel, b.rvz_redshift, b.rvz_err, b.rvz_qual, b.rvz_nature, b.rvz_bibcode, b.sp_type, b.morph_type, DISTANCE(POINT('ICRS', b.ra, b.dec), POINT('ICRS', 269.452083, 4.693364)) AS dist FROM basic AS b WHERE CONTAINS(POINT('ICRS', b.ra, b.dec), CIRCLE('ICRS', 269.452083, 4.693364, 0.001389)) = 1 AND (b.rvz_redshift IS NOT NULL OR b.rvz_radvel IS NOT NULL OR b.plx_value IS NOT NULL) ORDER BY dist": [
+200,
+"oid,main_id,otype,ra,dec,plx_value,plx_err,plx_bibcode,rvz_type,rvz_radvel,rvz_redshift,rvz_err,rvz_qual,rvz_nature,rvz_bibcode,sp_type,morph_type,dist\n27556610,\"NAME Barnard's Star c\",\"Pl\",269.4520769586187,4.693364966576667,546.9759,0.0401,\"2020yCat.1350....0G\",,,,,,,,,,6.098212979229973E-6\n27556612,\"NAME Barnard's Star e\",\"Pl\",269.4520769586187,4.693364966576667,546.9759,0.0401,\"2020yCat.1350....0G\",,,,,,,,,,6.098212979229973E-6\n13596720,\"NAME Barnard's Star b\",\"Pl\",269.4520769586187,4.693364966576667,546.9759,0.0401,\"2020yCat.1350....0G\",,,,,,,,,,6.098212979229973E-6\n27556611,\"NAME Barnard's Star d\",\"Pl\",269.4520769586187,4.693364966576667,546.9759,0.0401,\"2020yCat.1350....0G\",,,,,,,,,,6.098212979229973E-6\n2669393,\"NAME Barnard's star\",\"BY*\",269.4520769586187,4.693364966576667,546.9759,0.0401,\"2020yCat.1350....0G\",v,-110.11,-3.6721999996314203E-4,2.0E-4,A,\"s\",\"2018MNRAS.475.1960F\",\"M4V\",,6.098212979229973E-6\n"
+],
+"gea.esac.esa.int|SELECT TOP 40 source_id, ra, dec, pmra, pmdec, parallax, parallax_error, phot_g_mean_mag FROM gaiadr3.gaia_source WHERE 1=CONTAINS(POINT('ICRS', ra, dec), CIRCLE('ICRS', 269.448503, 4.739420, 0.055556)) AND (pm > 400 OR 1=CONTAINS(POINT('ICRS', ra, dec), CIRCLE('ICRS', 269.448503, 4.739420, 0.004167))) ORDER BY phot_g_mean_mag": [
+200,
+"source_id,ra,dec,pmra,pmdec,parallax,parallax_error,phot_g_mean_mag\n4472832130942575872,269.44850252543836,4.739420051112412,-801.5509783684709,10362.394206546573,546.975939730948,0.040116355,8.1939745\n4472832886845550080,269.4446663531117,4.740211915227883,-8.530716852018204,-9.665686647507865,0.42102525692529025,0.32361192,19.129816\n4472832886845552640,269.4485791960725,4.741373291425646,,,,,19.34574\n4472832818126055552,269.4512857170916,4.73770847039879,-1.9138326778252213,-1.5864245572802778,0.5281031072943588,0.6417511,19.76727\n4472832818126065408,269.44988505181914,4.73985735847911,1.3063757729499916,-0.8417805225660875,1.1967765048320915,1.4128217,19.879988\n4472832886853156608,269.44512699965344,4.740929283054965,-0.1324213386494447,-3.117350081320583,-0.23135525642253965,0.7616667,20.123922\n4472832822425732608,269.44747301650506,4.736753757642021,,,,,20.657614\n"
+],
+"gea.esac.esa.int|SELECT source_id, r_med_geo, r_lo_geo, r_hi_geo FROM external.gaiaedr3_distance WHERE source_id = 4472832130942575872": [
+200,
+"source_id,r_med_geo,r_lo_geo,r_hi_geo\n4472832130942575872,1.8281064,1.8279749,1.8282253\n"
+],
+"simbad.cds.unistra.fr|SELECT TOP 30 b.oid, b.main_id, b.otype, b.ra, b.dec, b.plx_value, b.plx_err, b.plx_bibcode, b.rvz_type, b.rvz_radvel, b.rvz_redshift, b.rvz_err, b.rvz_qual, b.rvz_nature, b.rvz_bibcode, b.sp_type, b.morph_type, DISTANCE(POINT('ICRS', b.ra, b.dec), POINT('ICRS', 187.277920, 2.052390)) AS dist FROM basic AS b WHERE CONTAINS(POINT('ICRS', b.ra, b.dec), CIRCLE('ICRS', 187.277920, 2.052390, 0.002778)) = 1 AND (b.rvz_redshift IS NOT NULL OR b.rvz_radvel IS NOT NULL OR b.plx_value IS NOT NULL) ORDER BY dist": [
+404,
+"<html>error page</html>"
+],
+"simbad.cfa.harvard.edu|SELECT TOP 30 b.oid, b.main_id, b.otype, b.ra, b.dec, b.plx_value, b.plx_err, b.plx_bibcode, b.rvz_type, b.rvz_radvel, b.rvz_redshift, b.rvz_err, b.rvz_qual, b.rvz_nature, b.rvz_bibcode, b.sp_type, b.morph_type, DISTANCE(POINT('ICRS', b.ra, b.dec), POINT('ICRS', 187.277920, 2.052390)) AS dist FROM basic AS b WHERE CONTAINS(POINT('ICRS', b.ra, b.dec), CIRCLE('ICRS', 187.277920, 2.052390, 0.002778)) = 1 AND (b.rvz_redshift IS NOT NULL OR b.rvz_radvel IS NOT NULL OR b.plx_value IS NOT NULL) ORDER BY dist": [
+200,
+"oid,main_id,otype,ra,dec,plx_value,plx_err,plx_bibcode,rvz_type,rvz_radvel,rvz_redshift,rvz_err,rvz_qual,rvz_nature,rvz_bibcode,sp_type,morph_type,dist\n1940765,\"3C 273\",\"BLL\",187.27791594049,2.05238823055,0.0108,0.0408,\"2018yCat.1345....0G\",z,43555.48595565044,0.15756751,5.0E-4,C,\"se\",\"2022ApJS..261....2K\",,\"E3\",4.425995720950964E-6\n"
+],
+"gea.esac.esa.int|SELECT TOP 40 source_id, ra, dec, pmra, pmdec, parallax, parallax_error, phot_g_mean_mag FROM gaiadr3.gaia_source WHERE 1=CONTAINS(POINT('ICRS', ra, dec), CIRCLE('ICRS', 187.277920, 2.052390, 0.055556)) AND (pm > 400 OR 1=CONTAINS(POINT('ICRS', ra, dec), CIRCLE('ICRS', 187.277920, 2.052390, 0.004167))) ORDER BY phot_g_mean_mag": [
+200,
+"source_id,ra,dec,pmra,pmdec,parallax,parallax_error,phot_g_mean_mag\n3700386905605055360,187.2779158387138,2.052388668185861,-0.022885672495060565,0.09846797908921764,-0.015950290834234743,0.020795885,12.8440895\n"
+],
+"simbad.cds.unistra.fr|SELECT d.dist, d.unit, d.minus_err, d.plus_err, d.method, d.bibcode FROM mesDistance AS d WHERE d.oidref = 1940765": [
+404,
+"<html>error page</html>"
+],
+"simbad.cfa.harvard.edu|SELECT d.dist, d.unit, d.minus_err, d.plus_err, d.method, d.bibcode FROM mesDistance AS d WHERE d.oidref = 1940765": [
+200,
+"dist,unit,minus_err,plus_err,method,bibcode\n657.8,\"Mpc \",,,\"T-F     \",\"2011PASP..123.1011A\"\n"
+],
+"simbad.cds.unistra.fr|SELECT TOP 30 b.oid, b.main_id, b.otype, b.ra, b.dec, b.plx_value, b.plx_err, b.plx_bibcode, b.rvz_type, b.rvz_radvel, b.rvz_redshift, b.rvz_err, b.rvz_qual, b.rvz_nature, b.rvz_bibcode, b.sp_type, b.morph_type, DISTANCE(POINT('ICRS', b.ra, b.dec), POINT('ICRS', 40.669700, -0.011100)) AS dist FROM basic AS b WHERE CONTAINS(POINT('ICRS', b.ra, b.dec), CIRCLE('ICRS', 40.669700, -0.011100, 0.002778)) = 1 AND (b.rvz_redshift IS NOT NULL OR b.rvz_radvel IS NOT NULL OR b.plx_value IS NOT NULL) ORDER BY dist": [
+404,
+"<html>error page</html>"
+],
+"simbad.cfa.harvard.edu|SELECT TOP 30 b.oid, b.main_id, b.otype, b.ra, b.dec, b.plx_value, b.plx_err, b.plx_bibcode, b.rvz_type, b.rvz_radvel, b.rvz_redshift, b.rvz_err, b.rvz_qual, b.rvz_nature, b.rvz_bibcode, b.sp_type, b.morph_type, DISTANCE(POINT('ICRS', b.ra, b.dec), POINT('ICRS', 40.669700, -0.011100)) AS dist FROM basic AS b WHERE CONTAINS(POINT('ICRS', b.ra, b.dec), CIRCLE('ICRS', 40.669700, -0.011100, 0.002778)) = 1 AND (b.rvz_redshift IS NOT NULL OR b.rvz_radvel IS NOT NULL OR b.plx_value IS NOT NULL) ORDER BY dist": [
+200,
+"oid,main_id,otype,ra,dec,plx_value,plx_err,plx_bibcode,rvz_type,rvz_radvel,rvz_redshift,rvz_err,rvz_qual,rvz_nature,rvz_bibcode,sp_type,morph_type,dist\n1378180,\"M  77\",\"Sy2\",40.66962152891999,-0.01329435839,,,,z,1042.573806425224,0.00348372,5.0E-4,C,\"se\",\"2022ApJS..261....2K\",,\"SAb\",0.0021957610193009455\n4699480,\"SDSS J024240.17-000042.2\",\"PoG\",40.66738300000001,-0.011727000000000001,,,,z,1253.4988288376946,0.00419,,D,,\"2008A&A...485..657B\",,,0.0024003370152672864\n"
+],
+"gea.esac.esa.int|SELECT TOP 40 source_id, ra, dec, pmra, pmdec, parallax, parallax_error, phot_g_mean_mag FROM gaiadr3.gaia_source WHERE 1=CONTAINS(POINT('ICRS', ra, dec), CIRCLE('ICRS', 40.669700, -0.011100, 0.055556)) AND (pm > 400 OR 1=CONTAINS(POINT('ICRS', ra, dec), CIRCLE('ICRS', 40.669700, -0.011100, 0.004167))) ORDER BY phot_g_mean_mag": [
+200,
+"source_id,ra,dec,pmra,pmdec,parallax,parallax_error,phot_g_mean_mag\n2498700788995507712,40.66962152892286,-0.013294358393408695,,,,,14.882494\n2498700788995509632,40.66823441207751,-0.010537772421442054,-0.23423658112529558,0.42407122705466616,0.37594801080400886,0.20740773,17.494604\n2498700788994754560,40.669829511975685,-0.012904460288974537,,,,,17.515703\n2498700788995499904,40.67026600385426,-0.012922277530907082,,,,,18.115162\n2498700788995324800,40.66733244482379,-0.011598937510948638,,,,,18.418663\n2498700788994717440,40.66748998363906,-0.011663728688088047,,,,,18.652205\n2498700788994771840,40.672619724606264,-0.012083848486536639,-0.5130089817514806,-1.0923027665065987,0.8219774265713493,0.4872758,18.845705\n2498700788995324160,40.66665352785851,-0.01099594037366759,0.2783541484290585,-1.6953681444177318,-0.50421035274407,0.51314557,19.09962\n2498700788995327616,40.66669953509282,-0.012475478220665375,,,,,19.255014\n2498700788995510528,40.67319221925197,-0.009759357440772536,0.842499175997236,-1.0362396796616051,-1.0961653728479475,0.648375,19.374525\n2498700788995289728,40.672212612846394,-0.00922650151512491,0.3142273704956937,0.0015852541778065678,-2.058086465040453,0.8023885,19.418356\n2498700788995508096,40.672643286508155,-0.013096976546131222,,,,,19.448498\n2498700788994754432,40.67227783949052,-0.014090228564916915,,,,,19.475874\n2498700788995304832,40.66791529109418,-0.010279321589883922,,,,,19.482046\n2498700788995497216,40.67242443059478,-0.013066119869400141,,,,,19.581202\n2498700788995323520,40.66696456812475,-0.010845227610533954,,,,,19.600613\n2498700788995509504,40.669324380420406,-0.01015960856177815,,,,,19.698622\n2498700788995311360,40.67081730782408,-0.00927672828171146,,,,,19.756079\n2498700788995292032,40.668773727227446,-0.014083491838641868,,,,,19.778786\n2498700788995489536,40.667495942791234,-0.010435852685373219,,,,,19.829132\n2498700788995497856,40.67233058025365,-0.010038266985299879,,,,,19.84516\n2498700788995490688,40.672295752647855,-0.009647616049072202,1.6487775937475417,2.9414642815314944,-0.9422705184538526,1.0821277,19.880424\n2498700788995318400,40.667268400492574,-0.012696576581504937,,,,,19.885727\n2498700788994699136,40.66780965682248,-0.00963527524620831,,,,,20.058886\n2498700788995489408,40.6731928586082,-0.011255626488691151,,,,,20.06928\n2498700788995500544,40.67126521002516,-0.010021492218967872,,,,,20.084503\n2498700788995504768,40.671790938887035,-0.011124928624184462,,,,,20.143856\n2498700788995493376,40.6708911787785,-0.01088971926729225,,,,,20.197699\n2498700788995504128,40.670974245257334,-0.010330661982612234,,,,,20.219906\n2498700788995505408,40.671106507316516,-0.008494679586171073,,,,,20.233198\n2498700788995307264,40.671167914404116,-0.008676813870626326,,,,,20.286137\n2498700788995503488,40.66614284017325,-0.011383850316635451,,,,,20.417006\n2498700788995489920,40.67320367128676,-0.01310090071913876,,,,,20.498417\n2498700788995506176,40.6722544310144,-0.008029162876932864,,,,,20.543327\n2498700788995503616,40.671791446226045,-0.009696375625223666,,,,,20.579205\n2498700788995292544,40.667465550737866,-0.014421186437457592,,,,,20.591345\n2498700788995494016,40.67194990957612,-0.010667672005962409,,,,,20.665773\n2498700788995319168,40.66873917512941,-0.009018594232906647,,,,,20.714096\n2498700788995303936,40.6716906609913,-0.013963752070240528,,,,,20.78697\n2498700788994612864,40.67301954639061,-0.009000835603776522,,,,,20.835354\n"
+],
+"simbad.cds.unistra.fr|SELECT d.dist, d.unit, d.minus_err, d.plus_err, d.method, d.bibcode FROM mesDistance AS d WHERE d.oidref = 1378180": [
+404,
+"<html>error page</html>"
+],
+"simbad.cfa.harvard.edu|SELECT d.dist, d.unit, d.minus_err, d.plus_err, d.method, d.bibcode FROM mesDistance AS d WHERE d.oidref = 1378180": [
+200,
+"dist,unit,minus_err,plus_err,method,bibcode\n15.46,\"Mpc \",,,\"redshift\",\"2007ApJ...655..790C\"\n10.0,\"Mpc \",-2.0,1.0,\"T-F     \",\"2008ApJ...676..184T\"\n16.3,\"Mpc \",,,\"redshift\",\"2010ApJ...725.2270P\"\n14.7,\"Mpc \",-4.3,4.3,\"kin     \",\"2018ApJ...861...49H\"\n16.5,\"Mpc \",,,,\"2000ApJ...529..786M\"\n16.2,\"Mpc \",,,\"redshift\",\"2006ApJS..165..307M\"\n14.0,\"Mpc \",,,,\"2007ApJS..173..185G\"\n19.0,\"Mpc \",,,\"redshift\",\"2011MNRAS.413..813C\"\n10.0925,\"Mpc \",,,\"redshift\",\"2019A&A...631A..38L\"\n"
+],
+"simbad.cds.unistra.fr|SELECT TOP 30 b.oid, b.main_id, b.otype, b.ra, b.dec, b.plx_value, b.plx_err, b.plx_bibcode, b.rvz_type, b.rvz_radvel, b.rvz_redshift, b.rvz_err, b.rvz_qual, b.rvz_nature, b.rvz_bibcode, b.sp_type, b.morph_type, DISTANCE(POINT('ICRS', b.ra, b.dec), POINT('ICRS', 10.000000, 20.000000)) AS dist FROM basic AS b WHERE CONTAINS(POINT('ICRS', b.ra, b.dec), CIRCLE('ICRS', 10.000000, 20.000000, 0.002778)) = 1 AND (b.rvz_redshift IS NOT NULL OR b.rvz_radvel IS NOT NULL OR b.plx_value IS NOT NULL) ORDER BY dist": [
+404,
+"<html>error page</html>"
+],
+"simbad.cfa.harvard.edu|SELECT TOP 30 b.oid, b.main_id, b.otype, b.ra, b.dec, b.plx_value, b.plx_err, b.plx_bibcode, b.rvz_type, b.rvz_radvel, b.rvz_redshift, b.rvz_err, b.rvz_qual, b.rvz_nature, b.rvz_bibcode, b.sp_type, b.morph_type, DISTANCE(POINT('ICRS', b.ra, b.dec), POINT('ICRS', 10.000000, 20.000000)) AS dist FROM basic AS b WHERE CONTAINS(POINT('ICRS', b.ra, b.dec), CIRCLE('ICRS', 10.000000, 20.000000, 0.002778)) = 1 AND (b.rvz_redshift IS NOT NULL OR b.rvz_radvel IS NOT NULL OR b.plx_value IS NOT NULL) ORDER BY dist": [
+200,
+"oid,main_id,otype,ra,dec,plx_value,plx_err,plx_bibcode,rvz_type,rvz_radvel,rvz_redshift,rvz_err,rvz_qual,rvz_nature,rvz_bibcode,sp_type,morph_type,dist\n"
+],
+"simbad.cds.unistra.fr|SELECT TOP 8 b.oid, b.main_id, b.otype, b.ra, b.dec, b.plx_value, b.plx_err, b.plx_bibcode, b.rvz_type, b.rvz_radvel, b.rvz_redshift, b.rvz_err, b.rvz_qual, b.rvz_nature, b.rvz_bibcode, b.sp_type, b.morph_type, DISTANCE(POINT('ICRS', b.ra, b.dec), POINT('ICRS', 10.000000, 20.000000)) AS dist FROM basic AS b WHERE CONTAINS(POINT('ICRS', b.ra, b.dec), CIRCLE('ICRS', 10.000000, 20.000000, 0.002778)) = 1 ORDER BY dist": [
+404,
+"<html>error page</html>"
+],
+"simbad.cfa.harvard.edu|SELECT TOP 8 b.oid, b.main_id, b.otype, b.ra, b.dec, b.plx_value, b.plx_err, b.plx_bibcode, b.rvz_type, b.rvz_radvel, b.rvz_redshift, b.rvz_err, b.rvz_qual, b.rvz_nature, b.rvz_bibcode, b.sp_type, b.morph_type, DISTANCE(POINT('ICRS', b.ra, b.dec), POINT('ICRS', 10.000000, 20.000000)) AS dist FROM basic AS b WHERE CONTAINS(POINT('ICRS', b.ra, b.dec), CIRCLE('ICRS', 10.000000, 20.000000, 0.002778)) = 1 ORDER BY dist": [
+200,
+"oid,main_id,otype,ra,dec,plx_value,plx_err,plx_bibcode,rvz_type,rvz_radvel,rvz_redshift,rvz_err,rvz_qual,rvz_nature,rvz_bibcode,sp_type,morph_type,dist\n"
+],
+"gea.esac.esa.int|SELECT TOP 40 source_id, ra, dec, pmra, pmdec, parallax, parallax_error, phot_g_mean_mag FROM gaiadr3.gaia_source WHERE 1=CONTAINS(POINT('ICRS', ra, dec), CIRCLE('ICRS', 10.000000, 20.000000, 0.055556)) AND (pm > 400 OR 1=CONTAINS(POINT('ICRS', ra, dec), CIRCLE('ICRS', 10.000000, 20.000000, 0.004167))) ORDER BY phot_g_mean_mag": [
+200,
+"source_id,ra,dec,pmra,pmdec,parallax,parallax_error,phot_g_mean_mag\n"
+],
+"ned.ipac.caltech.edu|SELECT TOP 60 prefname, ra, dec, prefphytype, z, zunc, z_bibcode, zflag FROM NEDTAP.objdir WHERE CONTAINS(POINT('J2000', ra, dec), CIRCLE('J2000', 10.000000, 20.000000, 0.002778)) = 1 AND z IS NOT NULL": [
+200,
+"prefname,ra,dec,prefphytype,z,zunc,z_bibcode,zflag\n"
+],
+"simbad.cds.unistra.fr|SELECT TOP 30 b.oid, b.main_id, b.otype, b.ra, b.dec, b.plx_value, b.plx_err, b.plx_bibcode, b.rvz_type, b.rvz_radvel, b.rvz_redshift, b.rvz_err, b.rvz_qual, b.rvz_nature, b.rvz_bibcode, b.sp_type, b.morph_type, DISTANCE(POINT('ICRS', b.ra, b.dec), POINT('ICRS', 279.234730, 38.783690)) AS dist FROM basic AS b WHERE CONTAINS(POINT('ICRS', b.ra, b.dec), CIRCLE('ICRS', 279.234730, 38.783690, 0.002778)) = 1 AND (b.rvz_redshift IS NOT NULL OR b.rvz_radvel IS NOT NULL OR b.plx_value IS NOT NULL) ORDER BY dist": [
+404,
+"<html>error page</html>"
+],
+"simbad.cfa.harvard.edu|SELECT TOP 30 b.oid, b.main_id, b.otype, b.ra, b.dec, b.plx_value, b.plx_err, b.plx_bibcode, b.rvz_type, b.rvz_radvel, b.rvz_redshift, b.rvz_err, b.rvz_qual, b.rvz_nature, b.rvz_bibcode, b.sp_type, b.morph_type, DISTANCE(POINT('ICRS', b.ra, b.dec), POINT('ICRS', 279.234730, 38.783690)) AS dist FROM basic AS b WHERE CONTAINS(POINT('ICRS', b.ra, b.dec), CIRCLE('ICRS', 279.234730, 38.783690, 0.002778)) = 1 AND (b.rvz_redshift IS NOT NULL OR b.rvz_radvel IS NOT NULL OR b.plx_value IS NOT NULL) ORDER BY dist": [
+200,
+"oid,main_id,otype,ra,dec,plx_value,plx_err,plx_bibcode,rvz_type,rvz_radvel,rvz_redshift,rvz_err,rvz_qual,rvz_nature,rvz_bibcode,sp_type,morph_type,dist\n2900336,\"* alf Lyr\",\"dS*\",279.234734787025,38.783688956244,130.23,0.36,\"2007A&A...474..653V\",v,-13.5,-4.503013899492814E-5,0.4,C,\"s\",\"2004A&A...420..183A\",\"A0V\",,3.874789897490417E-6\n"
+],
+"gea.esac.esa.int|SELECT TOP 40 source_id, ra, dec, pmra, pmdec, parallax, parallax_error, phot_g_mean_mag FROM gaiadr3.gaia_source WHERE 1=CONTAINS(POINT('ICRS', ra, dec), CIRCLE('ICRS', 279.234730, 38.783690, 0.055556)) AND (pm > 400 OR 1=CONTAINS(POINT('ICRS', ra, dec), CIRCLE('ICRS', 279.234730, 38.783690, 0.004167))) ORDER BY phot_g_mean_mag": [
+200,
+"source_id,ra,dec,pmra,pmdec,parallax,parallax_error,phot_g_mean_mag\n"
+],
+"simbad.cds.unistra.fr|SELECT TOP 30 b.oid, b.main_id, b.otype, b.ra, b.dec, b.plx_value, b.plx_err, b.plx_bibcode, b.rvz_type, b.rvz_radvel, b.rvz_redshift, b.rvz_err, b.rvz_qual, b.rvz_nature, b.rvz_bibcode, b.sp_type, b.morph_type, DISTANCE(POINT('ICRS', b.ra, b.dec), POINT('ICRS', 24.352700, -8.455800)) AS dist FROM basic AS b WHERE CONTAINS(POINT('ICRS', b.ra, b.dec), CIRCLE('ICRS', 24.352700, -8.455800, 0.002778)) = 1 AND (b.rvz_redshift IS NOT NULL OR b.rvz_radvel IS NOT NULL OR b.plx_value IS NOT NULL) ORDER BY dist": [
+404,
+"<html>error page</html>"
+],
+"simbad.cfa.harvard.edu|SELECT TOP 30 b.oid, b.main_id, b.otype, b.ra, b.dec, b.plx_value, b.plx_err, b.plx_bibcode, b.rvz_type, b.rvz_radvel, b.rvz_redshift, b.rvz_err, b.rvz_qual, b.rvz_nature, b.rvz_bibcode, b.sp_type, b.morph_type, DISTANCE(POINT('ICRS', b.ra, b.dec), POINT('ICRS', 24.352700, -8.455800)) AS dist FROM basic AS b WHERE CONTAINS(POINT('ICRS', b.ra, b.dec), CIRCLE('ICRS', 24.352700, -8.455800, 0.002778)) = 1 AND (b.rvz_redshift IS NOT NULL OR b.rvz_radvel IS NOT NULL OR b.plx_value IS NOT NULL) ORDER BY dist": [
+200,
+"oid,main_id,otype,ra,dec,plx_value,plx_err,plx_bibcode,rvz_type,rvz_radvel,rvz_redshift,rvz_err,rvz_qual,rvz_nature,rvz_bibcode,sp_type,morph_type,dist\n9589619,\"ACT-CL J0137.4-0827\",\"ClG\",24.35375,-8.45611111111111,,,,z,126118.33053458216,0.566,,D,\"s\",\"2016A&A...586A.139P\",,,0.0010841818511172796\n"
+],
+"gea.esac.esa.int|SELECT TOP 40 source_id, ra, dec, pmra, pmdec, parallax, parallax_error, phot_g_mean_mag FROM gaiadr3.gaia_source WHERE 1=CONTAINS(POINT('ICRS', ra, dec), CIRCLE('ICRS', 24.352700, -8.455800, 0.055556)) AND (pm > 400 OR 1=CONTAINS(POINT('ICRS', ra, dec), CIRCLE('ICRS', 24.352700, -8.455800, 0.004167))) ORDER BY phot_g_mean_mag": [
+200,
+"source_id,ra,dec,pmra,pmdec,parallax,parallax_error,phot_g_mean_mag\n2465522883892526464,24.348606010770975,-8.45638821027137,-7.347234054780354,-23.921283316406413,3.2041414222595628,0.4671225,19.799873\n"
+],
+"simbad.cds.unistra.fr|SELECT d.dist, d.unit, d.minus_err, d.plus_err, d.method, d.bibcode FROM mesDistance AS d WHERE d.oidref = 9589619": [
+404,
+"<html>error page</html>"
+],
+"simbad.cfa.harvard.edu|SELECT d.dist, d.unit, d.minus_err, d.plus_err, d.method, d.bibcode FROM mesDistance AS d WHERE d.oidref = 9589619": [
+200,
+"dist,unit,minus_err,plus_err,method,bibcode\n"
+],
+"ned.ipac.caltech.edu|SELECT TOP 60 prefname, ra, dec, prefphytype, z, zunc, z_bibcode, zflag FROM NEDTAP.objdir WHERE CONTAINS(POINT('J2000', ra, dec), CIRCLE('J2000', 187.277920, 2.052390, 0.002778)) = 1 AND z IS NOT NULL": [
+200,
+"prefname,ra,dec,prefphytype,z,zunc,z_bibcode,zflag\n\"[HB89] 1226+023 ABS08\",187.27770916996,2.05229440996,\"AbLS\",0.146599993,,\"1992NED11.R......1N\",\"SUN\"\n\"[HB89] 1226+023 ABS17\",187.27770919771,2.05229440308,\"AbLS\",0.0876000002,,\"1993ApJ...419..524M\",\"SUN\"\n\"[HB89] 1226+023 ABS05\",187.27770916996,2.05229440996,\"AbLS\",0.0489999987,,\"1992NED11.R......1N\",\"SUN\"\n\"[HB89] 1226+023 ABS16\",187.27770916996,2.05229440996,\"AbLS\",0.0215620007,,\"1992NED11.R......1N\",\"SUN\"\n\"[HB89] 1226+023 ABS11\",187.27770916996,2.05229440996,\"AbLS\",0.0610000007,,\"1992NED11.R......1N\",\"SUN\"\n\"[HB89] 1226+023 ABS12\",187.27770916996,2.05229440996,\"AbLS\",0.0487999991,0.00100000005,\"1993ApJS...87....1B\",\"SUN\"\n\"[HB89] 1226+023 ABS06\",187.27770916996,2.05229440996,\"AbLS\",0.00520000001,0.00100000005,\"1993ApJS...87....1B\",\"SUN\"\n\"[HB89] 1226+023 ABS04\",187.27770916996,2.05229440996,\"AbLS\",0.0665000007,0.00100000005,\"1993ApJS...87....1B\",\"SUN\"\n\"3C 273\",187.27791541667,2.05238833333,\"QSO\",0.158338994,6.70000009E-5,\"1992ApJS...83...29S\",\"SUN\"\n\"[HB89] 1226+023 ABS02\",187.27770916996,2.05229440996,\"AbLS\",0.0899000019,0.00100000005,\"1993ApJS...87....1B\",\"SUN\"\n\"[HB89] 1226+023 ABS03\",187.27770916996,2.05229440996,\"AbLS\",0.0834999979,,\"1992NED11.R......1N\",\"SUN\"\n\"[HB89] 1226+023 ABS09\",187.27770916996,2.05229440996,\"AbLS\",0.0900999978,,\"1992NED11.R......1N\",\"SUN\"\n\"[HB89] 1226+023 ABS07\",187.27770916996,2.05229440996,\"AbLS\",0.00329999998,0.00100000005,\"1993ApJS...87....1B\",\"SUN\"\n\"[HB89] 1226+023 ABS10\",187.27770916996,2.05229440996,\"AbLS\",0.063500002,,\"1992NED11.R......1N\",\"SUN\"\n\"[HB89] 1226+023 ABS18\",187.27770919771,2.05229440308,\"AbLS\",0.00728000002,,\"1993ApJ...419..524M\",\"SUN\"\n\"[HB89] 1226+023 ABS13\",187.27770916996,2.05229440996,\"AbLS\",0.0323860012,,\"1992NED11.R......1N\",\"SUN\"\n\"[HB89] 1226+023 ABS15\",187.27770916996,2.05229440996,\"AbLS\",0.0258750003,,\"1992NED11.R......1N\",\"SUN\"\n\"[HB89] 1226+023 ABS14\",187.27770916996,2.05229440996,\"AbLS\",0.0290070008,,\"1992NED11.R......1N\",\"SUN\"\n\"[HB89] 1226+023 ABS01\",187.27770916996,2.05229440996,\"AbLS\",0.119999997,,\"1992NED11.R......1N\",\"SUN\"\n"
+],
+"irsa.ipac.caltech.edu|SELECT TOP 40 source_id, ra, dec, pmra, pmdec, parallax, parallax_error, phot_g_mean_mag FROM gaia_dr3_source WHERE CONTAINS(POINT('ICRS', ra, dec), CIRCLE('ICRS', 269.448503, 4.739420, 0.004167))=1": [
+200,
+"source_id,ra,dec,pmra,pmdec,parallax,parallax_error,phot_g_mean_mag\n4472832886845552640,269.44857919607,4.74137329143,,,,,19.345739\n4472832130942575872,269.44850252544,4.73942005111,-801.551,10362.394,546.9759,0.0401,8.193974\n4472832818126065408,269.44988505182,4.73985735848,1.306,-0.842,1.1968,1.4128,19.879988\n4472832818126055552,269.45128571709,4.73770847040,-1.914,-1.586,0.5281,0.6418,19.767269\n4472832822425732608,269.44747301651,4.73675375764,,,,,20.657614\n4472832886853156608,269.44512699965,4.74092928305,-0.132,-3.117,-0.2314,0.7617,20.123922\n4472832886845550080,269.44466635311,4.74021191523,-8.531,-9.666,0.4210,0.3236,19.129816\n"
+]
+}
+}
