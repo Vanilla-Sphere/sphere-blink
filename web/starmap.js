@@ -16,6 +16,7 @@ const SkyMap = (() => {
   let sky = null, stars = null, mw = null, cons = [], names = [], cells = null;
   let pins = [], mark = null, hover = null, hoverPin = null, hoverCon = null, hoverStar = null, busyAt = null, labels = false, wasZoomed = null;
   let dirty = false, shown = false;
+  let ATLAS_FROM = 1.1, ATLAS_SHOW = 0.85, photoOn = false;   // the sky photograph: from how many doublings of zoom it comes up, and how strongly
   let mwCv = null, mwCtx = null, MW_SOFT = 1, MW_GLOW = 1;   // the Milky Way's small canvas; how blurred and how bright it is
   let fx = null;                        // ambient.js, when it is loaded: it draws the aiming frame and follows every redraw
 
@@ -181,6 +182,20 @@ const SkyMap = (() => {
     ctx.save();
     ctx.beginPath(); ctx.ellipse(cx, cy, 2 * R2 * s, R2 * s, 0, 0, 2 * Math.PI); ctx.clip();
 
+    // a photograph of the real sky comes up behind the chart as the map is zoomed in (atlas.js);
+    // `photo` is how much of it shows, and the drawn Milky Way below makes way for it
+    let photo = 0;
+    const near = Math.max(0, Math.min(1, (Math.log2(view.k / homeZoom()) - ATLAS_FROM) / 0.9));
+    if (near > 0 && ATLAS_SHOW > 0 && typeof Atlas !== "undefined") {
+      const cover = Atlas.draw(ctx, {W, H, pxPerDeg: s * D, project, unproject, redraw});
+      if (cover > 0) {
+        // a veil of the sheet's own colour keeps the chart on top readable, and carries the fade-in
+        ctx.fillStyle = C.well; ctx.globalAlpha = 1 - ATLAS_SHOW * near; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+        photo = near * cover;
+      }
+    }
+    if ((photo > 0.25) !== photoOn) { photoOn = photo > 0.25; wrap.classList.toggle("atlas-on", photoOn); }
+
     // graticule
     const stepG = view.k >= 5 ? 15 : 30;
     ctx.strokeStyle = C.rule2; ctx.lineWidth = 1; ctx.beginPath();
@@ -199,7 +214,7 @@ const SkyMap = (() => {
     mwCtx.globalCompositeOperation = "lighten";
     const patch = 1.7 * cell / mq, half = patch / 2;
     for (let lv = 1; lv <= 5; lv++) {
-      const t = MW_GLOW * (0.012 + 0.03 * lv + 0.0024 * lv * lv);
+      const t = MW_GLOW * (1 - photo) * (0.012 + 0.03 * lv + 0.0024 * lv * lv);
       mwCtx.fillStyle = `rgb(${Math.round(196 * t)},${Math.round(200 * t)},${Math.round(240 * t)})`;
       for (let i = 0; i < mw.n; i++) {
         if (mw.lv[i] !== lv) continue;
@@ -485,6 +500,7 @@ const SkyMap = (() => {
     toXY(ra, dec) { setRot(); const p = project(...vec(ra, dec), [0, 0, 0]); return [p[0], p[1]]; },
     turn(dra) { view.ra += dra; clampView(); redraw(); },
     rest() { if (hover || hoverPin) tell(null); },
+    photo(from, show) { ATLAS_FROM = from; ATLAS_SHOW = show; redraw(); },   // the sky photograph: where it starts (doublings of zoom past the whole sky) and its strength
     milky(soft, glow) { MW_SOFT = soft; MW_GLOW = glow; redraw(); },
     look(v) { LOOK = Math.max(0, Math.min(1, v)); starColours(); redraw(); },   // how strong the halo, spikes and colour of the stars are
     get ready() { return !!sky; },

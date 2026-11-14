@@ -185,7 +185,10 @@ measurements loaded by hand under another method name are left alone.
   Geist Mono, SIL Open Font License (`web/fonts/`).
 - Sky map: bright stars, constellation figures and the Milky Way outline from
   [d3-celestial](https://github.com/ofrohn/d3-celestial) by Olaf Frohn (BSD 3-Clause, notice in
-  `web/data/`), reduced to `web/data/sky.json` by `scripts/build_sky.py`.
+  `web/data/`), reduced to `web/data/sky.json` by `scripts/build_sky.py`. The photograph behind the
+  zoomed-in map is the 2MASS near-infrared atlas (University of Massachusetts and IPAC/Caltech, funded by
+  NASA and NSF), in HiPS format by CDS, served by the NASA/IPAC Infrared Science Archive. It is a backdrop,
+  not SPHEREx data.
 
 ## Use of AI tools
 

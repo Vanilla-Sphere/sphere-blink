@@ -43,6 +43,13 @@ The product opens on a drawn map of the whole sky, the same for both modes.
   measured colour index and, when the map is zoomed in, looks like a star in
   a photograph: a bright core, a soft glow and, for the brightest, thin
   spikes.
+- **The real sky behind it.** Zoomed in past about twice the opening view, a
+  photograph of the real sky fades in behind the chart: the 2MASS
+  near-infrared atlas, served by the NASA/IPAC Infrared Science Archive. The
+  Milky Way's dust lanes, the Orion Nebula, clusters and countless faint
+  stars lie exactly under the drawn ones. A line on the map names the survey
+  and says it is a backdrop, not SPHEREx data. If the archive does not
+  answer, the drawn map stays as it is.
 - **Interaction.** Drag to turn, scroll or pinch to zoom, click to open a view
   at that point. Pointing and clicking snap to the nearest star on the map, so
   a click on a star opens that star (by its name when it has one); holding Alt
@@ -54,6 +61,8 @@ The product opens on a drawn map of the whole sky, the same for both modes.
   panel (Simple) or "Featured targets" panel (Advanced).
 - **No dependencies.** The map is drawn on a canvas by `web/starmap.js` from a
   single compact data file, `web/data/sky.json`, built by `scripts/build_sky.py`.
+  The photograph behind it (`web/atlas.js`) is an extra: the map is complete
+  without it.
 - **A sky that moves.** The space around the map is a deep field of faint
   stars over a muted Milky Way (a band of violet cloud with dust lanes, drawn
   in code), with a violet glow around the rim of the sky; the map turns slowly
@@ -333,7 +342,13 @@ exposures"), and after typically 20 to 45 seconds (63 s was observed for
 Proxima Centauri on 2026-11-14) shows:
 
 - the kind of object and the number of positions measured, with the time span;
-- the fitted motion with its error, next to the catalogue motion;
+- the fitted motion with its 1σ error and its significance (speed divided by
+  error), next to the catalogue motion;
+- the direction of the motion as a position angle (from north through east)
+  with its error, and the two components μα* (east, μα cos δ) and μδ (north)
+  with theirs;
+- when the motion is below 3σ: "No significant motion detected" and an upper
+  limit (speed + 3σ) instead of a speed, with no direction;
 - the scatter of the positions around the fit;
 - whether the brightness is steady or varies between sky passes, with the
   amplitude and its significance.
@@ -343,11 +358,22 @@ used for the prediction; otherwise the position itself is measured as an object
 of unknown motion. Results are stored and shown to every later visitor of the
 field.
 
+The (i) next to the name of a measured object opens a small chart of the sky
+(north up, east left, in arcsec): the centroid of the object's light in every
+exposure, faint for early and bright for late exposures, the fitted motion as
+an arrow and the catalogue motion as a dashed arrow. Its note states what the
+numbers are: the motion of the centroid on each exposure's WCS, across the sky
+only (radial velocity would need Doppler shifts in spectra), with larger errors
+for saturated or distorted stars. All of this is computed in the viewer
+(`motionOf`, `trackTip` in `web/app.js`) from the fields `/api/tracks` already
+returns.
+
 ## 13. Measured tracks overlay
 
 Objects measured in the field are drawn on the image: every measured position
 as a dot, the fitted track as a line, and a diamond on the positions measured
-in the frame being shown. The overlay reads `/api/tracks`, which merges the
+in the frame being shown. An arrow from the object shows where it is heading
+when its motion is significant (3σ or more). The overlay reads `/api/tracks`, which merges the
 pipeline's results with any measurements the team has loaded into the shared
 database by other means.
 
