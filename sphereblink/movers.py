@@ -40,7 +40,7 @@ from dataclasses import asdict, dataclass, field
 import numpy as np
 from scipy import ndimage as ndi
 
-VERSION = 2  # 2: a sighting must be a compact source in the pixels, not one bright pixel
+VERSION = 3  # 2: a sighting must be a compact source; 3: curved paths, and three visits for a path without a name
 
 MIN_SNR = 5.0  # peak of a detection, in units of the local noise
 GROW_SNR = 2.5  # pixels joined to a peak
@@ -77,7 +77,17 @@ MIN_SEEN_TIMES = 6  # exposure times a confirmed object is seen at (detected, or
 MIN_SEEN = 0.7  # share of the times its path was covered at which it must be seen
 MIN_SEEN_EXPOSURES = 0.5  # and of the single exposures that cover it
 CANDIDATE_TIMES = 8  # a path that no catalogue has an object on needs more: seen at this many exposure times
-CANDIDATE_SEEN = 0.8  # and at this share of the times it was covered (of 542 chance paths none came near)
+CANDIDATE_SEEN = 0.8  # at this share of the times it was covered (of 542 chance paths none came near),
+CANDIDATE_VISITS = 3  # and in this many separate visits,
+VISIT_TIMES = 2  # at this many exposure times in each. Two visits cannot test a path: two leftovers of stars, each
+# seen through the exposures of one visit, lie on a line at a constant speed whatever they are. A third visit can.
+CURVE_SPAN_H = 20.0  # a path is fitted with a curve (constant acceleration) from this time span on,
+CURVE_TIMES = 6  # this many exposure times
+CURVE_VISITS = 3  # in this many visits: below that a straight line is all the measurements can tell
+CURVE_GAIN = 0.7  # and only when the curve leaves less than this share of the straight line's scatter
+CURVE_MIN = 1.0  # ... and by at least this many arcsec: a line that fits needs no curve
+CURVE_MAX = 0.2  # arcsec per hour squared the curve may have (measured: 0.03 for Astraea, 0.04 for Nha)
+JOIN_GAP_H = 48.0  # pieces of one curved path may be this far apart in time
 MERGE_SEP = 25.0  # arcsec: two tracks this close with the same motion are one object
 MERGE_RATE = 0.1  # relative difference in speed (or 3 arcsec per hour) that still is the same motion
 FAST_RATE = 20.0  # arcsec per hour: speed classes of the result
@@ -125,10 +135,21 @@ class Track:
     n_times: int
     n_visits: int
     extra: dict = field(default_factory=dict)
+    a_east: float = 0.0  # arcsec per hour squared: how the motion changes (0 for a straight path)
+    a_north: float = 0.0
 
     @property
     def rate(self) -> float:
         return math.hypot(self.v_east, self.v_north)
+
+    @property
+    def curved(self) -> bool:
+        return bool(self.a_east or self.a_north)
+
+    def velocity(self, mjd: float) -> tuple[float, float]:
+        """Motion (east, north; arcsec per hour) at a time."""
+        dt = (float(mjd) - self.mjd0) * 24.0
+        return self.v_east + self.a_east * dt, self.v_north + self.a_north * dt
 
     @property
     def pa_deg(self) -> float:
@@ -141,9 +162,18 @@ class Track:
         return (max(t) - min(t)) * 24.0
 
     def at(self, mjd) -> tuple:
-        """Sky position at a time (linear motion in the tangent plane at ra0, dec0)."""
+        """Sky position at a time (in the tangent plane at ra0, dec0: constant
+        motion, or motion that changes at a constant rate for a curved path)."""
         dt = (np.asarray(mjd, dtype=float) - self.mjd0) * 24.0
-        return unproject(self.v_east * dt, self.v_north * dt, self.ra0, self.dec0)
+        return unproject(self.v_east * dt + 0.5 * self.a_east * dt * dt, self.v_north * dt + 0.5 * self.a_north * dt * dt,
+                         self.ra0, self.dec0)
+
+    def residuals(self) -> np.ndarray:
+        """How far each detection lies from the path, arcsec."""
+        ra, dec = self.at([d.mjd for d in self.detections])
+        cosd = math.cos(math.radians(self.dec0))
+        return np.hypot((np.array([d.ra for d in self.detections]) - ra) * cosd * 3600.0,
+                        (np.array([d.dec for d in self.detections]) - dec) * 3600.0)
 
     def speed_class(self) -> str:
         return "very fast" if self.rate >= VERY_FAST_RATE else "fast" if self.rate >= FAST_RATE else "slow"
@@ -153,6 +183,7 @@ class Track:
         return {
             "mjd0": round(self.mjd0, 6), "ra0": round(self.ra0, 6), "dec0": round(self.dec0, 6),
             "v_east": round(self.v_east, 3), "v_north": round(self.v_north, 3),
+            "a_east": round(self.a_east, 5), "a_north": round(self.a_north, 5),
             "rate_arcsec_hr": round(self.rate, 2), "pa_deg": round(self.pa_deg, 1),
             "rms_arcsec": round(self.rms_arcsec, 2), "n_detections": len(self.detections),
             "n_times": self.n_times, "n_visits": self.n_visits, "span_h": round(self.span_h, 2),
@@ -530,23 +561,63 @@ def _track_of(dets: list[Detection]) -> Track:
     mjd = np.array([d.mjd for d in dets])
     t = (mjd - mjd.min()) * 24.0
     t0, e0, n0, ve, vn, rms = _line(t, e, n)
+    ae = an = 0.0
+    n_times, n_visits = int(np.unique(np.round(t, 4)).size), _visits(t)
+    if float(np.ptp(t)) >= CURVE_SPAN_H and n_times >= CURVE_TIMES and n_visits >= CURVE_VISITS:
+        # Over days the motion of an object on its orbit changes, mostly because the telescope goes round the
+        # Sun with the Earth: a straight line then misses it by tens of arcsec, a constant acceleration does not.
+        a = np.column_stack([np.ones_like(t), t - t0, 0.5 * (t - t0) ** 2])
+        ce, *_ = np.linalg.lstsq(a, e, rcond=None)
+        cn, *_ = np.linalg.lstsq(a, n, rcond=None)
+        curve_rms = float(np.sqrt(np.mean((e - a @ ce) ** 2 + (n - a @ cn) ** 2)))
+        if curve_rms <= CURVE_GAIN * rms and rms - curve_rms >= CURVE_MIN and math.hypot(float(ce[2]), float(cn[2])) <= CURVE_MAX:
+            (e0, ve, ae), (n0, vn, an), rms = (float(v) for v in ce), (float(v) for v in cn), curve_rms
     ra, dec = unproject(e0, n0, ra0, dec0)
     return Track(detections=sorted(dets, key=lambda d: d.mjd), mjd0=float(mjd.min() + t0 / 24.0), ra0=float(ra),
-                 dec0=float(dec), v_east=ve, v_north=vn, rms_arcsec=rms, n_times=int(np.unique(np.round(t, 4)).size),
-                 n_visits=_visits(t))
+                 dec0=float(dec), v_east=ve, v_north=vn, rms_arcsec=rms, n_times=n_times, n_visits=n_visits,
+                 a_east=ae, a_north=an)
 
 
-def same_object(a: Track, b: Track, sep: float = MERGE_SEP, rate: float = MERGE_RATE, max_gap_h: float = 24.0) -> bool:
+def joined(a: Track, b: Track, tol: float = TOL, tol_max: float = TOL_MAX, max_gap_h: float = JOIN_GAP_H) -> Track | None:
+    """Both tracks as one curved path, when their detections lie on one.
+
+    Two straight pieces of a path that bends do not continue each other, so
+    ``same_object`` cannot tell that they belong together; a fit through all
+    their detections can. Asked: similar speeds, no more than two days between
+    the pieces, a curve that fits clearly better than a line, every detection
+    within the tolerances of the linking.
+    """
+    ta, tb = [d.mjd for d in a.detections], [d.mjd for d in b.detections]
+    if max(min(ta) - max(tb), min(tb) - max(ta), 0.0) * 24.0 > max_gap_h:
+        return None
+    if abs(a.rate - b.rate) > max(5.0, 0.35 * min(a.rate, b.rate)):
+        return None
+    have = {d.key() for d in a.detections}
+    both = _track_of(a.detections + [d for d in b.detections if d.key() not in have])
+    if not both.curved or both.rms_arcsec > tol or float(both.residuals().max()) > tol_max:
+        return None
+    both.extra = {**b.extra, **a.extra}
+    return both
+
+
+def same_object(a: Track, b: Track, sep: float = MERGE_SEP, rate: float = MERGE_RATE, max_gap_h: float = 24.0,
+                curved: bool = True) -> bool:
     """Do two tracks describe one object: the same motion, and each one's
-    line passes the other where the other was measured. A comet's coma and
-    core, or the pieces of a path that is slightly curved, link separately."""
-    if math.hypot(a.v_east - b.v_east, a.v_north - b.v_north) > max(3.0, rate * min(a.rate, b.rate)):
-        return False
+    path passes the other where the other was measured (a comet's coma and
+    core link separately), or all their detections lie on one curved path
+    (the pieces of a path that bends over days link separately too)."""
+    return _continues(a, b, sep, rate, max_gap_h) or (curved and joined(a, b) is not None)
+
+
+def _continues(a: Track, b: Track, sep: float, rate: float, max_gap_h: float) -> bool:
     ta = [d.mjd for d in a.detections]
     tb = [d.mjd for d in b.detections]
     if max(min(ta) - max(tb), min(tb) - max(ta), 0.0) * 24.0 > max_gap_h:
         return False
     for one, other in ((a, b), (b, a)):
+        ve, vn = one.velocity(other.mjd0)
+        if math.hypot(ve - other.v_east, vn - other.v_north) > max(3.0, rate * min(a.rate, b.rate)):
+            return False
         ra, dec = one.at(other.mjd0)
         e, n = project(float(ra), float(dec), other.ra0, other.dec0)
         if math.hypot(float(e), float(n)) > sep:
@@ -555,19 +626,24 @@ def same_object(a: Track, b: Track, sep: float = MERGE_SEP, rate: float = MERGE_
 
 
 def merge(tracks: list[Track], **kw) -> list[Track]:
-    """Tracks of one object joined into one."""
-    out: list[Track] = []
-    for t in sorted(tracks, key=lambda k: -len(k.detections)):
-        for i, o in enumerate(out):
-            if same_object(o, t, **kw):
-                seen = {d.key() for d in o.detections}
-                joined = _track_of(o.detections + [d for d in t.detections if d.key() not in seen])
-                joined.extra = {**t.extra, **o.extra}
-                out[i] = joined
-                break
-        else:
-            out.append(t)
-    return out
+    """Tracks of one object joined into one (``curved=False``: only pieces
+    that continue each other, not those that fit one curved path)."""
+    out = sorted(tracks, key=lambda k: -len(k.detections))
+    while True:  # a joined path can take up a piece that neither of its parts could
+        kept: list[Track] = []
+        for t in out:
+            for i, o in enumerate(kept):
+                if same_object(o, t, **kw):
+                    have = {d.key() for d in o.detections}
+                    both = _track_of(o.detections + [d for d in t.detections if d.key() not in have])
+                    both.extra = {**t.extra, **o.extra}
+                    kept[i] = both
+                    break
+            else:
+                kept.append(t)
+        if len(kept) == len(out):
+            return kept
+        out = kept
 
 
 # ----------------------------------------------------------------------------- confirmation in the pixels
@@ -600,50 +676,70 @@ def confirm(track: Track, cube: np.ndarray, frames: list[dict], wcs, sky: Static
     for i in np.flatnonzero((t >= first) & (t <= last)):
         ra, dec = track.at(t[i])
         x, y = wcs.world_to_pixel_values(float(ra), float(dec))
-        cx, cy = int(round(float(x))), int(round(float(y)))
-        if not (half <= cx < w - half and half <= cy < h - half):
-            continue
         detector = int(frames[i].get("detector") or 0)
-        ref, mask = sky.of(detector)
-        # the surroundings give the background and the noise; the whole frame is not needed
-        y0, y1, x0, x1 = max(0, cy - WINDOW), min(h, cy + WINDOW + 1), max(0, cx - WINDOW), min(w, cx + WINDOW + 1)
-        res = np.asarray(cube[i][y0:y1, x0:x1], dtype=np.float32) - ref[y0:y1, x0:x1]
-        static = mask[y0:y1, x0:x1]
-        by, bx = slice(cy - half - y0, cy + half + 1 - y0), slice(cx - half - x0, cx + half + 1 - x0)
-        finite = np.isfinite(res[by, bx])
-        if finite.mean() < 0.3:
+        m = measure_at(cube[i], *sky.of(detector), int(round(float(x))), int(round(float(y))), half, core)
+        if m is None:
             continue
-        on_static = bool(static[cy - 1 - y0 : cy + 2 - y0, cx - 1 - x0 : cx + 2 - x0].mean() > 0.5)
-        around = np.isfinite(res) & ~static
-        around[by, bx] = False
-        if around.sum() < 100:
-            continue
-        level = float(np.median(res[around]))
-        noise = 1.4826 * float(np.median(np.abs(res[around] - level)))
-        if not np.isfinite(noise) or noise <= 0:
-            continue
-        use = finite if on_static else finite & ~static[by, bx]
-        if not use.any():
-            continue
-        inside = np.where(use, res[by, bx] - level, 0.0)
-        peak, total = float(inside.max()) / noise, float(inside.sum())
-        # the brightest pixel with its neighbours, as one measurement
-        jy, jx = np.unravel_index(int(np.argmax(inside)), inside.shape)
-        py, px = by.start + int(jy), bx.start + int(jx)
-        cy_, cx_ = slice(max(0, py - core), py + core + 1), slice(max(0, px - core), px + core + 1)
-        part = res[cy_, cx_] - level
-        good = np.isfinite(part) if on_static else np.isfinite(part) & ~static[cy_, cx_]
-        core_sum = float(np.where(good, part, 0.0).sum())
-        core_snr = core_sum / (noise * math.sqrt(max(1, int(good.sum()))))
-        compact = core_snr >= core_min and core_sum >= CORE_SHARE * float(inside.max())
         wave = frames[i].get("wave_um")
         points.append({"mjd": round(float(t[i]), 6), "exposure": str(frames[i]["exposure"]), "detector": detector,
                        "wave_um": round(float(wave), 4) if wave is not None and np.isfinite(wave) else None,
-                       "ra": round(float(ra), 6), "dec": round(float(dec), 6), "snr": round(peak, 2),
-                       "core_snr": round(core_snr, 2), "seen": bool(peak >= seen_snr and compact),
-                       "flux_mjy": round(total * to_mjy, 4), "on_static": on_static,
-                       "counted": (not on_static) and detector in own})
+                       "ra": round(float(ra), 6), "dec": round(float(dec), 6), "snr": round(m["snr"], 2),
+                       "core_snr": round(m["core_snr"], 2), "seen": sighting(m, seen_snr, core_min),
+                       "flux_mjy": round(m["total"] * to_mjy, 4), "on_static": m["on_static"],
+                       "counted": (not m["on_static"]) and detector in own})
     return {**tally([d.mjd for d in track.detections], points), "points": points}
+
+
+def measure_at(image: np.ndarray, ref: np.ndarray, mask: np.ndarray, cx: int, cy: int, half: int = 2,
+               core: int = 1) -> dict | None:
+    """What one exposure shows at a place: the brightest pixel within ``half``
+    pixels of (cx, cy) over the noise (``snr``), that pixel with its
+    neighbours within ``core`` taken together (``core_snr``, and ``share``:
+    how many times the brightest pixel they hold), and the summed residual of
+    the box (``total``, in the units of the image). None where the place
+    cannot be measured: off the image, not covered, or no clean surroundings.
+    """
+    h, w = image.shape
+    if not (half <= cx < w - half and half <= cy < h - half):
+        return None
+    # the surroundings give the background and the noise; the whole frame is not needed
+    y0, y1, x0, x1 = max(0, cy - WINDOW), min(h, cy + WINDOW + 1), max(0, cx - WINDOW), min(w, cx + WINDOW + 1)
+    res = np.asarray(image[y0:y1, x0:x1], dtype=np.float32) - ref[y0:y1, x0:x1]
+    static = mask[y0:y1, x0:x1]
+    by, bx = slice(cy - half - y0, cy + half + 1 - y0), slice(cx - half - x0, cx + half + 1 - x0)
+    finite = np.isfinite(res[by, bx])
+    if finite.mean() < 0.3:
+        return None
+    on_static = bool(static[cy - 1 - y0 : cy + 2 - y0, cx - 1 - x0 : cx + 2 - x0].mean() > 0.5)
+    around = np.isfinite(res) & ~static
+    around[by, bx] = False
+    if around.sum() < 100:
+        return None
+    level = float(np.median(res[around]))
+    noise = 1.4826 * float(np.median(np.abs(res[around] - level)))
+    if not np.isfinite(noise) or noise <= 0:
+        return None
+    use = finite if on_static else finite & ~static[by, bx]
+    if not use.any():
+        return None
+    inside = np.where(use, res[by, bx] - level, 0.0)
+    top = float(inside.max())
+    # the brightest pixel with its neighbours, as one measurement
+    jy, jx = np.unravel_index(int(np.argmax(inside)), inside.shape)
+    py, px = by.start + int(jy), bx.start + int(jx)
+    cy_, cx_ = slice(max(0, py - core), py + core + 1), slice(max(0, px - core), px + core + 1)
+    part = res[cy_, cx_] - level
+    good = np.isfinite(part) if on_static else np.isfinite(part) & ~static[cy_, cx_]
+    core_sum, n_good = float(np.where(good, part, 0.0).sum()), int(good.sum())
+    return {"snr": top / noise, "core_snr": core_sum / (noise * math.sqrt(max(1, n_good))),
+            "share": core_sum / top if top > 0 else 0.0, "core_pixels": n_good, "core_full": int(part.size),
+            "total": float(inside.sum()), "noise": noise, "on_static": on_static}
+
+
+def sighting(m: dict, seen_snr: float = SEEN_SNR, core_min: float = CORE_SNR, share: float = CORE_SHARE) -> bool:
+    """Does a measurement (``measure_at``) show the object: a pixel above the
+    level, and a compact source around it."""
+    return bool(m["snr"] >= seen_snr and m["core_snr"] >= core_min and m["share"] >= share)
 
 
 def tally(detected_mjd: list[float], points: list[dict]) -> dict:
@@ -659,8 +755,16 @@ def tally(detected_mjd: list[float], points: list[dict]) -> dict:
     own = {round(float(m), 4) for m in detected_mjd}
     measured = {round(p["mjd"], 4) for p in counted}
     times_seen = {round(p["mjd"], 4) for p in counted if p["seen"]} | (own - measured)
+    # visits (groups of exposures taken within half an hour) in which it is seen at two or more times
+    visits, last = [], None
+    for m in sorted(times_seen):
+        if last is None or (m - last) * 24.0 > VISIT_GAP_H:
+            visits.append(0)
+        visits[-1] += 1
+        last = m
     return {"covered": len(counted), "seen": seen, "seen_fraction": round(seen / len(counted), 3) if counted else None,
-            "times_seen": len(times_seen), "times_covered": len(own | measured)}
+            "times_seen": len(times_seen), "times_covered": len(own | measured),
+            "visits_seen": sum(1 for v in visits if v >= VISIT_TIMES)}
 
 
 def confirmed(c: dict, min_times: int = MIN_SEEN_TIMES, min_seen: float = MIN_SEEN) -> bool:
@@ -676,7 +780,9 @@ def strong(c: dict) -> bool:
     """The evidence asked of a path without a name. Nearly everything bright
     enough for SPHEREx is a known asteroid or comet, so a nameless path is
     far more often chance than a new object, and has to show more."""
-    return confirmed(c, min_times=CANDIDATE_TIMES, min_seen=CANDIDATE_SEEN)
+    if c.get("strong_piece"):  # a path joined from pieces, one of which shows this much on its own
+        return True
+    return confirmed(c, min_times=CANDIDATE_TIMES, min_seen=CANDIDATE_SEEN) and c.get("visits_seen", 0) >= CANDIDATE_VISITS
 
 
 # ----------------------------------------------------------------------------- the whole search of a field
@@ -684,41 +790,87 @@ def candidates(dets: list[Detection], cube, frames: list[dict], wcs, sky: Static
                **kw) -> tuple[list[Track], int]:
     """Tracks among the detections that the pixels confirm, and how many
     linked tracks the pixels rejected."""
-    kept, rejected = [], 0
-    for t in merge(link(dets, **kw)):
+    kept, weak = [], []
+    for t in merge(link(dets, **kw), curved=False):
         c = confirm(t, cube, frames, wcs, sky, scale_arcsec)
         if confirmed(c):
-            t.extra.update(covered=c["covered"], seen=c["seen"], seen_fraction=c["seen_fraction"], times_seen=c["times_seen"],
-                           times_covered=c["times_covered"], points=c["points"])
+            t.extra.update(c)
             kept.append(t)
         else:
-            rejected += 1
-    kept.sort(key=lambda k: (-k.n_times, k.rms_arcsec))
-    return kept, rejected
+            weak.append(t)
+    # Pieces of one curved path are joined only now, when the pixels have confirmed each of them: the long
+    # path of a faint object crosses visits in which it is too faint to be seen, and would fail as a whole.
+    whole = merge(kept)
+    # A piece the pixels did not confirm on its own still belongs to a confirmed path when its detections lie
+    # on that path: the object is there, the piece only says where else it was detected.
+    taken = set()
+    for i, t in enumerate(whole):
+        for j, w in enumerate(weak):
+            if j not in taken and same_object(t, w):
+                have = {d.key() for d in t.detections}
+                both = _track_of(t.detections + [d for d in w.detections if d.key() not in have])
+                if both.rms_arcsec <= TOL:
+                    both.extra, whole[i], t = t.extra, both, both
+                    taken.add(j)
+    for t in whole:
+        if not any(t is k for k in kept):
+            have = {d.key() for d in t.detections}
+            parts = [k for k in kept if all(d.key() in have for d in k.detections)]
+            t.extra.update(confirm(t, cube, frames, wcs, sky, scale_arcsec), pieces=len(parts),
+                           strong_piece=any(strong(k.extra) for k in parts))
+    whole.sort(key=lambda k: (-k.n_times, k.rms_arcsec))
+    return whole, len(weak) - len(taken)
+
+
+def _shuffled_times(frames: list[dict], rng, visits: bool) -> dict[float, float]:
+    """New times for the exposures, within each pass. Exposure by exposure,
+    or visit by visit: then every visit keeps its exposures in their order
+    and takes the place in time of another visit."""
+    order = sorted({round(float(f["mjd"]), 6) for f in frames})
+    swap: dict[float, float] = {}
+    groups = [[order[0]]] if order else []
+    for m in order[1:]:
+        if m - groups[-1][-1] > PASS_GAP_D:
+            groups.append([])
+        groups[-1].append(m)
+    for g in groups:
+        if not visits:
+            swap.update(zip(g, (float(v) for v in rng.permutation(g))))
+            continue
+        blocks = [[g[0]]]
+        for m in g[1:]:
+            if (m - blocks[-1][-1]) * 24.0 > VISIT_GAP_H:
+                blocks.append([])
+            blocks[-1].append(m)
+        for block, k in zip(blocks, rng.permutation(len(blocks))):
+            swap.update({m: blocks[k][0] + (m - block[0]) for m in block})
+    return swap
 
 
 def chance_tracks(dets: list[Detection], cube, frames: list[dict], wcs, sky: StaticSky, scale_arcsec: float,
-                  trials: int = 3, seed: int = 1, **kw) -> float:
-    """The same search with the exposure times shuffled within each pass:
-    the pictures stay, their order is lost, and with it every real motion.
-    What is still found per trial is what chance produces in this field."""
+                  trials: int = 3, seed: int = 1, visits: bool = False, **kw) -> float:
+    """What chance produces in this field, per search.
+
+    The same search with the exposure times shuffled within each pass: the
+    pictures stay, their order is lost, and with it every real motion.
+
+    With ``visits`` whole visits change places instead, and only tracks with
+    the evidence asked of a nameless path (``strong``) are counted. That is
+    the test for what the first one cannot see: a leftover of a star stays
+    through the exposures of a visit, two of them in two visits make a path,
+    and shuffling single exposures tears such a pair apart while the sky
+    never does.
+    """
     if len(dets) < MIN_TIMES:
         return 0.0
     rng = np.random.default_rng(seed)
     found = 0
     for _ in range(trials):
-        swap: dict[float, float] = {}
-        order = sorted({round(float(f["mjd"]), 6) for f in frames})
-        groups = [[order[0]]] if order else []
-        for m in order[1:]:
-            if m - groups[-1][-1] > PASS_GAP_D:
-                groups.append([])
-            groups[-1].append(m)
-        for g in groups:
-            swap.update(zip(g, rng.permutation(g)))
+        swap = _shuffled_times(frames, rng, visits)
         moved = [{**f, "mjd": float(swap[round(float(f["mjd"]), 6)])} for f in frames]
         shuffled = [Detection(**{**asdict(d), "mjd": float(swap.get(round(d.mjd, 6), d.mjd))}) for d in dets]
-        found += len(candidates(shuffled, cube, moved, wcs, sky, scale_arcsec, **kw)[0])
+        tracks = candidates(shuffled, cube, moved, wcs, sky, scale_arcsec, **kw)[0]
+        found += sum(strong(t.extra) for t in tracks) if visits else len(tracks)
     return found / trials
 
 
@@ -739,4 +891,9 @@ def search(cube: np.ndarray, frames: list[dict], wcs, scale_arcsec: float, known
     stats.update(linked=len(tracks) + rejected, rejected=rejected, tracks=len(tracks))
     if trials:
         stats["chance_tracks"] = chance_tracks(pool, cube, frames, wcs, sky, scale_arcsec, trials=trials)
+        # Without the detections of the paths seen in three visits or more: an object that really moves keeps part
+        # of its path when whole visits change places, and would be counted as chance.
+        taken = {d.key() for t in tracks if t.extra.get("visits_seen", 0) >= CANDIDATE_VISITS for d in t.detections}
+        rest = [d for d in pool if d.key() not in taken]
+        stats["chance_candidates"] = chance_tracks(rest, cube, frames, wcs, sky, scale_arcsec, trials=trials, visits=True)
     return {"detections": fresh, "tracks": tracks, "stats": stats, "version": VERSION}

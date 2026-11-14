@@ -18,7 +18,7 @@ TEMPLATE = HERE.parent / "web" / "data" / "quasar-template.json"
 pytestmark = pytest.mark.skipif(shutil.which("node") is None, reason="needs Node to run web/redshift.js")
 
 WITH_LINES = ("iras-00040-4325", "qso-b0624-6907", "pg-1634-706", "he-0515-4414", "apm-08279-5255", "qso-j1723-2243",
-              "sdss-j0100-2802", "uhs-j0439-1634")
+              "sdss-j0100-2802", "uhs-j0439-1634", "sdss-j1528-3637")
 BLAZARS = ("oj-287", "ton-599", "3c-279", "pg-1553-113")
 STARS = ("barnards-star", "epsilon-indi-b", "wise-0855", "g191-b2b", "vega", "r-draconis", "rw-aurigae", "elias-16", "elias-29",
          "empty-sky", "sgr-a", "ngc-3379")
@@ -208,3 +208,20 @@ def test_the_template_is_what_the_estimate_expects():
         peak = flux[(wave > rest * 0.99) & (wave < rest * 1.01)].max()
         sides = np.median(flux[((wave > rest * 0.9) & (wave < rest * 0.94)) | ((wave > rest * 1.06) & (wave < rest * 1.1))])
         assert peak > 2 * sides, rest
+
+
+def test_when_the_lines_overrule_a_published_redshift():
+    """The rule of web/depth.js for the card and the reading: only a firm estimate, and only against a redshift that is
+    far from it and not that of a galaxy next door."""
+    rule = next(line for line in (HERE.parent / "web" / "depth.js").read_text().splitlines() if line.startswith("const zDisputed = "))
+    cases = [({"quality": 4, "z": 2.406}, {"z": 4.3436}, True),         # SDSS J1528+3637 as SIMBAD lists it
+             ({"quality": 4, "z": 2.406}, {"z": 2.4129}, False),        # and as NED does: 0.2 % apart
+             ({"quality": 3, "z": 2.406}, {"z": 4.3436}, False),        # quality 3 is shown, but overrules nothing
+             ({"quality": 4, "z": 0.157}, {"z": 0.1576}, False),
+             ({"quality": 4, "z": 0.5}, {"z": 0.004}, False),           # a galaxy next door keeps its redshift
+             ({"quality": 4, "z": 1.0}, None, False), (None, {"z": 1.0}, False)]
+    code = rule + "\nprocess.stdout.write(JSON.stringify(" + json.dumps([c[:2] for c in cases]) + ".map(([e, p]) => zDisputed(e, p))));"
+    run = subprocess.run(["node", "-e", code], capture_output=True, text=True, timeout=60)
+    assert run.returncode == 0, run.stderr
+    assert json.loads(run.stdout) == [c[2] for c in cases]
+

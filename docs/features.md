@@ -224,9 +224,13 @@ SPHEREx has six detectors:
 
 The Bands control offers:
 
-- **RGB (default).** False colour with the longest wavelengths in red:
-  red = D6 (or D5), green = D4 (or D3), blue = D2 (or D1). Each channel uses
-  its preferred detector and falls back to the neighbouring one.
+- **RGB simulation (default).** False colour with the longest wavelengths in
+  red: red = D6 (or D5), green = D4 (or D3), blue = D2 (or D1). Each channel
+  uses its preferred detector and falls back to the neighbouring one. The
+  button was labelled "RGB" until 2026-11-14; Duy asked for "RGB simulation"
+  because every SPHEREx band lies beyond 0.75 um, so a true-colour picture
+  cannot be made, and the bare word "RGB" suggests one. The value in links and
+  in the API stays `det=rgb`.
 - **All bands.** The six detectors averaged after per-frame noise normalisation.
 - **Any subset of D1-D6.** For example D5 and D6 to look for very cold objects.
 
@@ -237,6 +241,22 @@ metadata of each epoch records the detector and date of every channel and
 whether it was borrowed; the interface shows this under "This frame", and
 rendered PNG and GIF frames mark a borrowed channel with an asterisk. A frame is
 never presented as a simultaneous three-colour observation.
+
+An (i) beside the "Bands" label (asked by MiLy, 2026-11-14) explains the RGB
+simulation in five short parts: why it is not true colour; which band is
+which colour, with the wavelengths of `DETECTOR_RANGE_UM`; how the bands are
+chosen (the order of wavelength is kept as in the eye; the six bands form a
+short, a middle and a long pair, one pair per colour, so the three colours
+cover the whole range; in a pair the longer band is used and the other stands
+in); the white balance (each band on one scale, so the brightest stars come
+out near white and a colour is a difference between bands); and the borrowing
+of a channel from another date. The note states only what `render.py` does:
+signal-to-noise is not a criterion of the choice. Because the left column
+scrolls and would cut the note, it is laid over the page beside the column
+(`placeTip` in `web/app.js`, class `out` on the note). The legend of a frame
+under "This frame" is headed "RGB simulation" (it was "Colours"), and the
+"What am I looking at?" note of Simple says that the picture is not true
+colour.
 
 Each detector is put on a common display scale (its median sky at zero, its
 bright stars at one) so that a channel keeps its level when the detector feeding
@@ -451,13 +471,26 @@ The tests, in order:
    H β, [O III] and H α into range, and the bands of cool stars and of ices
    are left out. The redshift is the published one and the reading says so:
    it uses the redshift, it never measures it.
+7. **With a redshift read off the lines.** A catalogue can hold a wrong
+   value. Where the estimate of feature 18 is firm (quality 4) and the
+   published redshift differs from it by more than 2 % in (1 + z), or there
+   is none, the lines are looked for at the measured redshift, provided the
+   reading finds emission lines there with its own test. Its first sentence
+   then says which redshift was used and why: the published value and its
+   catalogue, that no firm line stands where it would put them, the measured
+   value with its error and quality, and what a second catalogue (NED) lists
+   for the object. Example: SDSS J152846.73+363751.5, listed at z = 4.344 by
+   SIMBAD, read at z = 2.406 from its lines; NED lists 2.413. Of the 189
+   quasars of the check of feature 18, this changes the reading of two, the
+   two whose SIMBAD value is wrong. It is never done for a star, nor against
+   the redshift of a galaxy next door (below 0.01).
 
 The reading then names the kinds of object that give such a curve:
 
 | Reading | Rests on |
 | --- | --- |
 | Emission lines of ionised gas | Two strong hydrogen lines, or one with another strong line beside it or standing 1.6 times above the continuum |
-| Emission lines at the published redshift | Two strong lines where the redshift puts them, or one standing 1.6 times above the continuum |
+| Emission lines at the published redshift, or at the one read off the lines | Two strong lines where the redshift puts them, or one standing 1.6 times above the continuum |
 | Ice absorption | The 3.0 µm band deepest at 3.0 µm, or carbon dioxide on a rising curve |
 | Brown dwarf atmosphere | Methane at 3.3 µm together with water vapour |
 | Cool star with water vapour | Two water bands or more |
@@ -709,9 +742,11 @@ objects that move between its exposures, with nothing known beforehand. What
 is found is kept in a log on the server (`/api/movers`): path, speed and
 direction, the exposures it was seen in, and the name when it is a known
 asteroid or comet. Visitors can say whether a path looks real
-(`POST /api/movers/{id}/vote`), without an account. The algorithm, its
-validation on 3I/ATLAS and twelve asteroid tracks, and its limits are in
-[moving objects](moving-objects.md).
+(`POST /api/movers/{id}/vote`), without an account. A path no catalogue has
+an object on is shown, as a candidate, only when it was seen in three
+separate visits; while no catalogue service answers, a weaker path is not
+shown at all. The algorithm, its validation on 3I/ATLAS and the asteroids of
+twelve fields, and its limits are in [moving objects](moving-objects.md).
 How much of what moves the search finds was measured with fake objects in
 real exposures: [how much the search finds](mover-completeness.md). The
 result is shown at the end of the Discoveries page (`web/completeness.js`).
@@ -727,7 +762,8 @@ In the viewer (Advanced, `web/movers.js`):
   catalogues", the speed, the position angle of the motion,
   at how many exposure times it was seen, the date, and the votes.
 - **Paths on the image** (overlay "Moving objects"): a line with an arrowhead
-  along the part of the path that was seen, and a ring where the object is in
+  along the part of the path that was seen (curved for an object followed
+  over days, whose motion changes), and a ring where the object is in
   the frame on screen. Selecting a row opens the object: the movie goes to the
   frame nearest to it, its detections are drawn, and the address gains
   `mover=<id>`, so the link opens the same object.
@@ -797,6 +833,13 @@ The rules, the sources and the checks are in
   otherwise nothing is shown.
 - With no published redshift, Simple says it in one sentence that ends "Our
   own reading, not a published value."
+- Where a quality 4 estimate and the published redshift disagree by more than
+  2 % in (1 + z), the page does not go on computing with a value it doubts:
+  the published redshift keeps its row and source, marked as disagreeing, and
+  the light-travel time, the age of the universe then and the distance are
+  computed at the estimate, with the published figure beside it. The
+  preliminary reading (feature 9) looks for lines at the estimate too. Example:
+  SDSS J152846.73+363751.5, listed at z = 4.344, read at z = 2.406.
 - Stars never get one. Blazars, faint objects and spectra with a single line
   get none either.
 

@@ -40,8 +40,12 @@ Object.assign(STR.en, {
   "d.foot.star": "Published values, not measured from SPHEREx.",
   "d.est": "From its lines", "d.est.lines": "Lines found",
   "d.est.val": "z = {z} ± {e} · quality {q} of 4",
-  "d.est.same": " · within {p} % of the published value", "d.est.far": " · the published value is {z}",
+  "d.est.same": " · within {p} % of the published value", "d.est.far": " · the published value is {z}", "d.est.other": " · {src} lists {z}",
   "d.est.left": " · light set out about {t} ago",
+  "d.z.doubt": " · published; the lines of this spectrum disagree",
+  "d.own.at": " · at z = {z}, from its lines ({t} at the published z = {p})",
+  "d.foot.own": "The redshift on the first row and its source are published. The lines of this SPHEREx spectrum stand where another redshift puts them (z = {z}), so the times and the distance are computed at that one with the Planck 2018 cosmology, not at the published one (z = {p}).",
+  "s.own": "The lines in its spectrum put it at redshift {z}: its light set out about {t} ago. {src} lists redshift {p}, which this spectrum does not bear out. Our own reading, not a published value.",
   "d.est.line": "{name} at {w} µm",
   "d.foot.est": "“From its lines” is our own reading of this SPHEREx spectrum: the mean quasar spectrum laid on it at every redshift, and at least two emission lines found on their places (after Colless et al. 2001). An estimate, not a published measurement.",
   "s.est": "The lines in its spectrum put it at redshift {z}: its light set out about {t} ago. Our own reading, not a published value.",
@@ -126,7 +130,7 @@ async function depthNearest(ra, dec, within) {
 
 /* ------------------------------------------------------------------ the object of a view */
 function clearDepth() {
-  DP.key = ""; DP.info = null; DP.est = null; DP.state = "";
+  DP.key = ""; DP.info = null; DP.est = null; DP.other = undefined; DP.state = "";
   $("depthcard").hidden = true; $("sdepth").hidden = true;
 }
 /* ------------------------------------------------------------------ a redshift from the lines of the spectrum */
@@ -150,12 +154,46 @@ async function depthSpectrum(points) {
   if (id !== S.loadId || !e) return;
   DP.est = e;
   if (DP.state !== "wait") showDepth();
+  rereadAt();
+}
+/* The redshift at which the reading of the spectrum (insight.js) looks for lines. As a rule the published one. But
+   where the estimate from the lines is firm (quality 4) and the published one disagrees with it by more than 2 % in
+   (1 + z), or there is none, the estimate: a catalogue can hold a wrong value, and the reading says which one it used
+   and why. Never for a star, and never against the redshift of a galaxy next door (below 0.01). */
+const zDisputed = (est, pub) => !!(est && pub && est.quality === 4 && est.z >= 0.02 && pub.z >= 0.01 && Math.abs(est.z - pub.z) / (1 + pub.z) >= 0.02);
+function readingRedshift() {
+  const d = DP.info || {}, pub = d.redshift || null, src = (z) => String(z.source || "").replace(/ \(.*/, "");
+  const est = DP.est && DP.est.quality === 4 && DP.est.z >= 0.02 && !d.distance && d.kind !== "star" && DP.state !== "wait" ? DP.est : null;
+  if (est && (!pub || zDisputed(est, pub))) {
+    if (pub && DP.other === undefined) secondOpinion();
+    return {z: est.z, measured: {zErr: est.zErr, quality: est.quality, published: pub ? {z: pub.z, source: src(pub)} : null, other: DP.other || null}};
+  }
+  return pub && pub.z >= 0.01 ? {z: pub.z, zSource: src(pub)} : null;
+}
+/* The lines and the published redshift disagree: what does a second catalogue list for the object? Asked once per
+   object, and only then (NED, through the server). The reading is done again when the answer is in. */
+async function secondOpinion() {
+  const key = DP.key, t = S.t;
+  DP.other = null;
+  if (!t || (DP.info && DP.info.offline)) return;
+  try {
+    const r = await fetch("/api/object?" + depthQuery(t) + "&second=1");
+    const d = r.ok ? await r.json() : null, z2 = d && d.redshift && d.redshift.second;
+    if (key !== DP.key || !z2 || !(z2.z >= 0)) return;
+    DP.other = {z: z2.z, source: String(z2.source || "").replace(/ \(.*/, "")};
+    rereadAt(); showDepth();
+  } catch (_) {}
+}
+/* The estimate arrived after the spectrum was read: read it again where the estimate changes the redshift used. */
+function rereadAt() {
+  const at = readingRedshift();
+  if (at && at.measured && S.spectrum && typeof readSpectrum === "function") { readSpectrum(); drawPlot(); }
 }
 const depthQuery = (t) => (S.target && !S.byCoords ? `target=${encodeURIComponent(S.target)}` : `ra=${t.ra.toFixed(6)}&dec=${t.dec.toFixed(6)}`);
 async function depthTarget(t) {
   const key = `${t.name}|${t.ra.toFixed(5)}|${t.dec.toFixed(5)}`;
   if (key === DP.key) return;
-  DP.key = key; DP.info = null; DP.state = "wait";
+  DP.key = key; DP.info = null; DP.other = undefined; DP.state = "wait";
   $("depthcard").hidden = false; $("depthlist").innerHTML = ""; $("depthfoot").hidden = true;
   $("depthstatus").hidden = false; $("depthstatus").textContent = tr("d.wait"); $("sdepth").hidden = true;
   let d = null, down = false;
@@ -212,16 +250,21 @@ function showDepth() {
     row("d.method", star.method.charAt(0).toUpperCase() + star.method.slice(1));
     row("d.source", source(star.source, star.reference));
   }
+  // the lines of the spectrum and the published redshift disagree (the rule of readingRedshift): the published value keeps
+  // its row and its source, and the times and the distance follow the lines, after the row that gives them
+  const own = zDisputed(est, z) ? est : null;
+  const times = (c, mark) => {
+    row("d.left", tr("d.ago", {t: dYears(c.lookback_gyr)}) + (mark || ""));
+    row("d.then", tr("d.old", {t: dYears(c.age_then_gyr)}));
+    row("d.now", tr("d.mpc", {mpc: dSig(c.comoving_mpc, 4), ly: dLy(c.comoving_gly * 1e9)}), "measure");
+  };
   if (z) {
     const c = z.cosmology, nature = z.nature && z.nature !== "not stated" ? " · " + (STR.en["d.nature." + z.nature] || z.nature) : "";
-    row("d.z", (z.z_err ? tr("d.z.err", {z: dZ(z.z), e: z.z_err}) : tr("d.z.val", {z: dZ(z.z)})) + nature, "measure strong");
+    row("d.z", (z.z_err ? tr("d.z.err", {z: dZ(z.z), e: z.z_err}) : tr("d.z.val", {z: dZ(z.z)})) + nature + (own ? tr("d.z.doubt") : ""), own ? "measure" : "measure strong");
     if (z.z < 0) notes.push(tr("d.blue"));
     if (z.velocity_km_s != null && (z.local || z.z < 0)) row("d.velocity", dMinus(tr(z.velocity_km_s < 0 ? "d.rv.to" : "d.rv.away", {v: dFix(Math.abs(z.velocity_km_s), 0)})), "measure");
-    if (c && !z.local) {
-      row("d.left", tr("d.ago", {t: dYears(c.lookback_gyr)}));
-      row("d.then", tr("d.old", {t: dYears(c.age_then_gyr)}));
-      row("d.now", tr("d.mpc", {mpc: dSig(c.comoving_mpc, 4), ly: dLy(c.comoving_gly * 1e9)}), "measure");
-    } else if (z.local && z.z > 0) notes.push(tr("d.local"));
+    if (c && !z.local && !own) times(c);
+    else if (z.local && z.z > 0) notes.push(tr("d.local"));
     const m = d.measured_distance;
     if (m) { const dist = tr("d.mpc", {mpc: dSig(m.mpc), ly: dLy(m.mpc * 3.2616e6)}); row("d.measured", m.count > 1 ? tr("d.measured.n", {d: dist, n: m.count, lo: dSig(m.mpc_min), hi: dSig(m.mpc_max)}) : tr("d.measured.1", {d: dist}), "measure"); }
     row("d.source", source(z.source, z.bibcode));
@@ -230,18 +273,20 @@ function showDepth() {
   if (est) {
     const far = est.z >= 0.02 && est.z > 3 * est.zErr, off = z ? Math.abs(est.z - z.z) / (1 + z.z) : null;
     row("d.est", tr("d.est.val", {z: dMinus(est.z.toFixed(3)), e: est.zErr.toFixed(3), q: est.quality})
-      + (off === null ? (far ? tr("d.est.left", {t: dYears(cosmoOf(est.z).lookback_gyr)}) : "") : off < 0.02 ? tr("d.est.same", {p: (100 * off).toFixed(1)}) : tr("d.est.far", {z: dZ(z.z)})), "measure");
+      + (off === null ? (far ? tr("d.est.left", {t: dYears(cosmoOf(est.z).lookback_gyr)}) : "") : off < 0.02 ? tr("d.est.same", {p: (100 * off).toFixed(1)}) : tr("d.est.far", {z: dZ(z.z)}) + (DP.other ? tr("d.est.other", {src: DP.other.source, z: dZ(DP.other.z)}) : "")), "measure");
     row("d.est.lines", est.lines.map((l) => tr("d.est.line", {name: l.name, w: l.wave.toFixed(2)})).join(" · "));
+    if (own) { const c = z.cosmology || cosmoOf(z.z); times(cosmoOf(own.z), tr("d.own.at", {z: dZ(own.z), t: c ? dYears(c.lookback_gyr) : "", p: dZ(z.z)})); }
   }
   if (d.offline) notes.push(tr("d.offline"));
   if ((d.unavailable || []).length) notes.push(tr("d.partial", {who: d.unavailable.join(", ")}));
   if (!DP.info && DP.state === "away") notes.push(tr("d.away"));
   status.hidden = !notes.length; status.textContent = notes.join(" ");
-  foot.hidden = !(z || star || est); foot.textContent = [z ? tr("d.foot.z") : star ? tr("d.foot.star") : "", est ? tr("d.foot.est") : ""].filter(Boolean).join(" ");
+  foot.hidden = !(z || star || est); foot.textContent = [own ? tr("d.foot.own", {z: dZ(own.z), p: dZ(z.z)}) : z ? tr("d.foot.z") : star ? tr("d.foot.star") : "", est ? tr("d.foot.est") : ""].filter(Boolean).join(" ");
   // Simple mode: one plain sentence
   const m = d.measured_distance, c = z && z.cosmology;
   const line = star && !star.uncertain ? tr("s.star", {ly: star.pc < 100 ? dFix(star.ly, star.ly < 10 ? 2 : 1) : dSig(star.ly), src: star.source.replace(/ \(.*/, "")})
     : z && z.local && m ? tr("s.near", {ly: dLy(m.mpc * 3.2616e6)})
+    : own ? tr("s.own", {z: own.z.toFixed(2), t: dYears(cosmoOf(own.z).lookback_gyr), src: z.source.replace(/ \(.*/, ""), p: dZ(z.z)})
     : c && !z.local ? tr("s.far", {t: dYears(c.lookback_gyr), a: dYears(c.age_then_gyr), z: dZ(z.z), src: z.source.replace(/ \(.*/, "")})
     : !z && est && est.z >= 0.02 && est.z > 3 * est.zErr ? tr("s.est", {z: est.z.toFixed(2), t: dYears(cosmoOf(est.z).lookback_gyr)}) : "";
   $("sdepth").textContent = line; $("sdepth").hidden = !line;

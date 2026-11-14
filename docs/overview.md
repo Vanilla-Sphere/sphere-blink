@@ -110,7 +110,7 @@ What the product does not do, by design or by the nature of the data:
   flux is only right for a single star: a nebula or a neighbour adds to it.
 - **Coverage follows the public releases.** The product reads the collections
   `spherex_dr1` and `spherex_qr3`. A position not yet observed returns no frames.
-- **False colour is a composite.** A position is seen by only one or two
+- **False colour ("RGB simulation" in the viewer) is a composite.** A position is seen by only one or two
   detectors on a given day, so the three colour channels of an epoch generally
   come from different dates. The source of each channel is recorded and shown.
 

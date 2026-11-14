@@ -22,7 +22,7 @@ as static files.
 | `exports.js` | about 230 lines | What a researcher takes away: the plot's points as CSV, the plot as PNG with the credit, the "Source files" panel listing the Level 2 exposures with their IRSA links, its download script, URL list and table, and the "About the data" page |
 | `showcase.js` | about 20 lines | The strip "What you can do here" of the first screen: six cards (`.do`, markup in `index.html`), each opening a live example through functions the other files already have (`openFeatured`, `setLog`, `setDepthPanel`, `setAbout`); it also sets the class `moving` on the map screen while the map is dragged or zoomed, which hides the strip until the visitor stops |
 | `linelist.js` | about 110 lines | `LINE_CATALOG`: the reference wavelengths of the reading, 25 atomic lines (vacuum, NIST ASD 5.12) and 7 bands of molecules, ices and dust, each with its source, and the full references. Data only |
-| `insight.js` | about 610 lines | The preliminary reading of a spectrum (`analyseSpectrum(points, {z, zSource})`): which points can be read, continuum shape, bands and lines at the wavelengths of `linelist.js` (moved by a published redshift when one is given), confidence and limits; `showReading` puts it under the plot with the table of reference wavelengths and `markFeatures` names the detected features on the plot. Pure rules, no network |
+| `insight.js` | about 610 lines | The preliminary reading of a spectrum (`analyseSpectrum(points, {z, zSource, measured})`): which points can be read, continuum shape, bands and lines at the wavelengths of `linelist.js` (moved by a published redshift when one is given, or by the one read off the lines where `readingRedshift()` of `depth.js` hands that one over), confidence and limits; `showReading` puts it under the plot with the table of reference wavelengths and `markFeatures` names the detected features on the plot. Pure rules, no network |
 | `i18n.js` | 107 lines | Text that scripts put on the page (`STR.en`) and the `tr()` formatter |
 | `overtime.js` | about 130 lines | The Over time plot without the page: the time axis cut into groups of days, and the comparison of visits that says whether the object changed. Tested with node (`tests/overtime_cases.js`) |
 | `hints.js` | 74 lines | One-line notes on controls, shown on hover and keyboard focus |
@@ -31,7 +31,7 @@ as static files.
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
 Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `completeness.js`, `linelist.js`, `insight.js`, `redshift.js`, `depth.js`, `showcase.js`, `app.js`.
-Asset URLs carry a version query (`?v=53`) that is raised when a file changes,
+Asset URLs carry a version query (`?v=57`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -188,7 +188,7 @@ Drawn on the image canvas after every frame by `drawOverlays`:
 | Crosshair | On the target; in a progressive field it stays on the target while the mosaic is centred on the seed cell |
 | Gaia DR3 / CatWISE | Circle or square at the position propagated to the date of the frame; fast, significant movers highlighted with a path and a label |
 | Measured tracks | Every measured position as a dot, the fitted track as a line, a diamond on positions measured in the frame on screen, the object's name |
-| Moving objects (progressive fields, `drawMovers` in `movers.js`) | Each object's path over the time it was seen, with an arrowhead and its name; a ring where it is in the frame on screen; the detections of the open object |
+| Moving objects (progressive fields, `drawMovers` in `movers.js`) | Each object's path over the time it was seen (a curve when the record has `a_east`, `a_north`), with an arrowhead and its name; a ring where it is in the frame on screen; the detections of the open object |
 | Scale bar and compass | 1, 2 or 5 arcmin bar depending on the field; N up, E left |
 
 In Advanced both catalogues are fetched as soon as a view opens (`loadCatalogs`),
@@ -465,7 +465,9 @@ Rules it keeps:
 - The interface is in English.
 - **Explanations stay out of the way.** The screen carries minimal text. Longer
   explanations are behind small "i" buttons (`.tip`, `.tipbtn`, `.tipbody`) that
-  open on hover, focus or tap and close on Escape.
+  open on hover, focus or tap and close on Escape. A note in the left column
+  carries the class `out`: that column scrolls and would cut it, so `placeTip`
+  lays it over the page beside the column (under its button on a phone).
 - **Every control has a one-line note.** A control opts in with
   `data-hint="key"` (text in `STR.en`) or `data-hint-text`. `hints.js` shows the
   note after a short delay on hover or keyboard focus, never on touch. A

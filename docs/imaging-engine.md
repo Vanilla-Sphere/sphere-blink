@@ -274,6 +274,9 @@ figures in [performance](performance.md).
 
 ### False colour
 
+The viewer calls this picture "RGB simulation": every band is infrared, so the
+three colours stand for three bands and are not the colours an eye would see.
+
 `render.build_color_epochs` builds three-plane epochs:
 
 | Channel | Preferred detector | Fallback |
