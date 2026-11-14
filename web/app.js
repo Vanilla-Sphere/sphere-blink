@@ -22,7 +22,7 @@ const S = {
   target: null, ra: null, dec: null, fov: 8, det: "rgb", group: "day", mode: "blink",
   i: 0, ref: 0, playing: false, fps: 3, gain: 0,
   cube: null, meta: null, npix: 0, planes: 1, limits: null, median: null, stack: null,
-  spectrum: null, insight: null, plotmode: "spec", files: null, filesmode: "frame", catalogs: {}, tracks: null, loadId: 0, timer: null,
+  spectrum: null, insight: null, plotmode: "spec", flagged: false, files: null, filesmode: "frame", catalogs: {}, tracks: null, loadId: 0, timer: null,
   zoom: 1, pan: [0.5, 0.5],  // the image magnified: how much, and which point of the whole picture is in the middle
   levels: 0, field: null, stage: null,  // progressive field: rings of 0.12° cells, the server's report, the stage on screen
   ui: "simple", screen: "map",  // Simple or Advanced ("adv"), sky map or view
@@ -967,7 +967,11 @@ function drawPlot(out) {
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
   }
-  const pts = (S.spectrum || []).filter((p) => p.flux_ujy !== null);
+  const all = (S.spectrum || []).filter((p) => p.flux_ujy !== null);
+  // points with flagged pixels in the aperture stay off the plot until they are asked for (S.flagged),
+  // unless they are all there is; the CSV has every point either way
+  const nFlagged = all.filter(flaggedPoint).length, hide = !S.flagged && nFlagged > 0 && nFlagged < all.length;
+  const pts = hide ? all.filter((p) => !flaggedPoint(p)) : all;
   const lc = S.plotmode === "lc";
   const sans = `12px ${T.sans}`, mono = `11px ${T.mono}`;
   if (!out) {
@@ -979,7 +983,8 @@ function drawPlot(out) {
   }
   if (!pts.length) return null;
   const visits = []; let lastM = -1e9;
-  [...pts].sort((a, b) => a.mjd - b.mjd).forEach((p) => { if (p.mjd - lastM > 20) visits.push(p.mjd); p.visit = visits.length - 1; lastM = p.mjd; });
+  // counted on every point, so a pass keeps its colour when the flagged points come and go
+  [...all].sort((a, b) => a.mjd - b.mjd).forEach((p) => { if (p.mjd - lastM > 20) visits.push(p.mjd); p.visit = visits.length - 1; lastM = p.mjd; });
   const ml = 56, mr = 10, mt = 8, mb = lc ? 54 : 40;
   // bright stars reach tens of Jy: the axis reads in Jy once the 98th percentile passes 1000 mJy
   const top = [...pts.map((p) => p.flux_ujy)].sort((a, b) => a - b)[Math.min(pts.length - 1, Math.floor(pts.length * 0.98))];
@@ -1066,7 +1071,7 @@ function drawPlot(out) {
     ctx.strokeStyle = ctx.fillStyle = col; ctx.lineWidth = 1;
     if (p.flux_err_ujy) { const e = p.flux_err_ujy / unit; ctx.globalAlpha = 0.45; ctx.beginPath(); ctx.moveTo(x, Math.max(mt, Y(p.flux_ujy / unit + e))); ctx.lineTo(x, Math.min(base, Y(p.flux_ujy / unit - e))); ctx.stroke(); }
     const wings = p.method === "wings", extra = p.flags.includes("EXTRAPOLATED");
-    const dirty = !wings && p.flags.some((f) => !OT.CLEAN.includes(f));  // hollow: a pixel left out (PARTIAL) or a defect flag
+    const dirty = flaggedPoint(p);
     if (wings) nWings++; if (extra) nExtra++; if (dirty) nDirty++;
     ctx.globalAlpha = 0.95; ctx.beginPath();
     if (wings) { const r = 3; ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); }
@@ -1078,16 +1083,31 @@ function drawPlot(out) {
   if (!out) $("reading").hidden = lc || !S.insight;  // the reading is of the spectrum: it goes with that plot
   const items = lc ? [1, 2, 3, 4, 5, 6].map((dn) => ["D" + dn, DET_COLOR[dn]]) : visits.map((m, k) => [tr("plot.pass", {m: mjdDate(m).toISOString().slice(0, 7)}), VISIT_COLORS[k % VISIT_COLORS.length]]);
   const key = items.slice(0, 8).map(([name, col]) => [name, col, ""])
-    .concat(nDirty || !nWings ? [[tr("plot.flagged"), T.muted, "hollow"]] : [], nWings ? [[tr("plot.wings"), T.ink2, "dia"]] : [], nExtra ? [[tr("plot.extra"), T.ink2, "dia hollow"]] : []);
+    .concat(nDirty ? [[tr("plot.flagged"), T.muted, "hollow"]] : [], hide && out ? [[tr("plot.flagged.left", {n: nFlagged}), T.muted, "hollow"]] : [], nWings ? [[tr("plot.wings"), T.ink2, "dia"]] : [], nExtra ? [[tr("plot.extra"), T.ink2, "dia hollow"]] : []);
   const change = lc ? changeText(changeOf()) : null;
   if (out) return {items: key, verdict: change && change.text};
   showChange(change);
+  const held = document.activeElement && document.activeElement.id === "flagtoggle";
   $("legend").innerHTML = key.map(([name, col, shape]) => `<span>${shape ? `<i class="sw ${shape}"></i>` : swatch(col)}${name}</span>`).join("");
+  if (nFlagged && nFlagged < all.length) {
+    // the way to the flagged points and back
+    const b = document.createElement("button");
+    b.type = "button"; b.id = "flagtoggle"; b.className = "legendbtn"; b.dataset.hint = "tip.flagged"; b.setAttribute("aria-pressed", S.flagged ? "true" : "false");
+    b.textContent = tr(S.flagged ? "plot.flagged.hide" : "plot.flagged.show", {n: nFlagged});
+    b.addEventListener("click", () => { S.flagged = !S.flagged; drawPlot(); });
+    $("legend").appendChild(b);
+    if (held) b.focus();
+  }
   const notes = (lc ? ["plot.note.lc", "plot.note.lc.b", "plot.note.lc.c"] : ["plot.note.spec"]).map((k) => tr(k, {n: pts.length}));
   if (nWings) notes.push(tr("plot.note.wings") + (nExtra ? " " + tr("plot.note.extra") : ""));
   $("specnote").replaceChildren(...notes.map((text) => { const el = document.createElement("p"); el.textContent = text; return el; }));
   return {items: key};
 }
+/* A flux whose aperture holds pixels the SPHEREx pipeline flagged. A saturated core always carries flags:
+   its flux comes from the halo and is told apart by its own mark, so it does not count here. */
+/* A pixel of the aperture was left out of the sum (PARTIAL) or carries a defect flag. The flags a bright source sets
+   on its own core are not in that list (OT.CLEAN): those pixels are measured and agree with 2MASS. */
+function flaggedPoint(p) { return p.method !== "wings" && p.flags.some((f) => !OT.CLEAN.includes(f)); }
 /* The row under the Over time plot that steps through the groups of days: all of them side by side, or one enlarged. */
 function showGroups(panels, zoom) {
   const many = panels.length > 1, day = (m) => mjdDate(m).toISOString().slice(0, 10);

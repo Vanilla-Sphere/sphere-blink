@@ -26,7 +26,7 @@ as static files.
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
 Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `linelist.js`, `insight.js`, `depth.js`, `app.js`.
-Asset URLs carry a version query (`?v=44`) that is raised when a file changes,
+Asset URLs carry a version query (`?v=45`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -241,7 +241,8 @@ with astropy to 0.01%).
 
 `drawPlot` draws the spectrum or the flux over time on a canvas without a charting
 library: axes with rounded tick steps, points coloured by sky pass (spectrum) or
-by detector (over time), hollow points for flagged apertures, diamonds for
+by detector (over time), hollow points for flagged apertures (left out until the reader shows them
+with the button in the legend, unless a plot has no other points), diamonds for
 halo-measured fluxes, hollow diamonds above the calibrated range, and a legend.
 The vertical axis reads in mJy and switches to Jy when the 98th percentile of
 the fluxes exceeds 1 Jy. The time axis of the Over time plot is cut into the
