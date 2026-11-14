@@ -1,22 +1,24 @@
 /* Vanilla Sphere viewer.
    Material: the "Rim" theme of Hallmark (MIT, github.com/nutlope/hallmark), night colourway:
-   warm black paper, warm off-white ink, square hairline surfaces, an orange signal and a
-   sky-blue second, a mono face for everything that was measured. Hanken Grotesk stands in
+   near-black paper with a violet cast, warm off-white ink, square hairline surfaces, a nebula-violet
+   signal and a pale cyan second, a mono face for everything that was measured. Hanken Grotesk stands in
    for Switzer so both faces can be served from this repo (SIL OFL, see web/fonts). */
 
 @font-face{font-family:"Hanken Grotesk";src:url(/static/fonts/HankenGrotesk.woff2) format("woff2");font-weight:400 600;font-style:normal;font-display:swap}
 @font-face{font-family:"Geist Mono";src:url(/static/fonts/GeistMono.woff2) format("woff2");font-weight:400 500;font-style:normal;font-display:swap}
 
 :root{
-  --color-paper:oklch(9% 0.008 75); --color-paper-2:oklch(12.5% 0.009 75); --color-paper-3:oklch(6.5% 0.007 75);
-  --color-lift:oklch(16% 0.010 75);
+  --color-paper:oklch(9% 0.012 290); --color-paper-2:oklch(12.5% 0.014 290); --color-paper-3:oklch(6.5% 0.010 290);
+  --color-lift:oklch(16% 0.017 290);
   --color-ink:oklch(94% 0.010 80); --color-ink-2:oklch(84% 0.011 80); --color-muted:oklch(68% 0.012 80); --color-muted-2:oklch(50% 0.010 80);
-  --color-rule:oklch(25% 0.010 78); --color-rule-2:oklch(16% 0.009 78);
-  --color-accent:oklch(72% 0.17 45); --color-accent-hover:oklch(77% 0.16 48); --color-accent-ink:oklch(10% 0.02 45);
-  --color-accent-2:oklch(74% 0.12 250); --color-focus:oklch(78% 0.15 45);
-  --color-nodata:oklch(17% 0.022 50); --color-measured:oklch(84% 0.16 135);
+  --color-rule:oklch(25% 0.016 290); --color-rule-2:oklch(16% 0.013 290);
+  --color-accent:oklch(72% 0.165 300); --color-accent-hover:oklch(78% 0.15 300); --color-accent-ink:oklch(12% 0.04 300);
+  --color-accent-2:oklch(82% 0.10 205); --color-focus:oklch(80% 0.14 300);
+  --color-nodata:oklch(17% 0.025 295); --color-measured:oklch(84% 0.16 135);
+  /* the logo keeps its own two colours whatever the accent is: an orange V holding a vanilla-cream sphere */
+  --brand-v:oklch(72% 0.17 45); --brand-sphere:oklch(95.5% 0.045 95);
   /* data series: the six detectors in wavelength order, and the three colour channels */
-  --d1:oklch(74% 0.13 285); --d2:oklch(76% 0.12 240); --d3:oklch(80% 0.11 195);
+  --d1:oklch(68% 0.15 268); --d2:oklch(76% 0.12 240); --d3:oklch(80% 0.11 195);
   --d4:oklch(82% 0.14 145); --d5:oklch(84% 0.14 90); --d6:oklch(70% 0.18 28);
   --ch-r:oklch(70% 0.18 28); --ch-g:oklch(82% 0.14 145); --ch-b:oklch(76% 0.12 250);
 
@@ -80,7 +82,7 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 #slider::-webkit-slider-thumb{background:var(--color-accent)}
 #slider::-moz-range-thumb{background:var(--color-accent)}
 
-/* segmented choice: orange marks the current state */
+/* segmented choice: the accent marks the current state */
 .seg,.dets{display:flex}
 .seg button,.dets button{flex:1 1 auto;height:30px;padding:0 10px;margin-left:-1px;border:1px solid var(--color-rule);background:none;color:var(--color-muted);font-size:13px;font-weight:500;white-space:nowrap;transition:background var(--dur-short) var(--ease-out),color var(--dur-short) var(--ease-out)}
 .seg button:first-child{margin-left:0}
@@ -111,7 +113,7 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 .fov,.speed{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--color-muted);white-space:nowrap}
 .barlinks{position:relative;display:flex;align-items:center;gap:20px;padding:0 var(--pad) 0 24px;font-size:13px;font-weight:500}
 .barlinks a{color:var(--color-ink-2)}
-/* Simple or Advanced: a small segmented switch, the current one underlined in orange */
+/* Simple or Advanced: a small segmented switch, the current one underlined in the accent */
 .modes button{height:28px;font-size:12.5px}
 .modes{margin-left:16px}
 #tomap{flex:none}
