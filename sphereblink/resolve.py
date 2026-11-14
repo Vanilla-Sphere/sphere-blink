@@ -115,6 +115,22 @@ def parse_coords(text: str) -> tuple[float, float] | None:
     return None
 
 
+def at(ra: float, dec: float) -> Target:
+    """A position given as two numbers (``ra=`` and ``dec=`` of the API).
+
+    Checked as numbers: written out as text, ``nan``, ``inf`` or ``1e-05``
+    would not look like coordinates any more and would be sent to the name
+    services as if they were a name."""
+    if not (math.isfinite(ra) and math.isfinite(dec)) or not (0 <= ra < 360 and -90 <= dec <= 90):
+        raise ResolveError("coordinates out of range: RA is 0 to 360 degrees, Dec is -90 to +90")
+    return Target(name=f"RA {ra:.5f} Dec {dec:+.5f}", ra=ra, dec=dec, ra_input=ra, dec_input=dec, epoch=SPHEREX_EPOCH)
+
+
+def clean_name(text: str) -> str:
+    """A label supplied by the caller: one line of printable text, cut to MAX_NAME_LENGTH."""
+    return " ".join("".join(c for c in text if c.isprintable()).split())[:MAX_NAME_LENGTH]
+
+
 def _from_featured(key: str) -> Target:
     f = FEATURED[key]
     ra, dec = propagate(f["ra"], f["dec"], f["pmra"], f["pmdec"], SPHEREX_EPOCH - f["epoch"])
@@ -277,4 +293,6 @@ def resolve(text: str, client: httpx.Client | None = None) -> Target:
         raise ResolveError("coordinates out of range: RA is 0 to 360 degrees, Dec is -90 to +90")
     if len(text) > MAX_NAME_LENGTH:
         raise ResolveError(f"target name is longer than {MAX_NAME_LENGTH} characters")
+    if not any(c.isalnum() for c in text) or not text.isprintable() or re.search(r'[<>{}\\"`;=|^$%]', text):
+        raise ResolveError("this is not an object name; give a name like 'Vega' or coordinates like '269.45 4.69'")
     return resolve_name(text, client)

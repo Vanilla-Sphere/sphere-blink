@@ -188,14 +188,49 @@ def _bits(planes: dict[str, int], names) -> int:
 NET = {"requests": 0, "bytes": 0, "seconds": 0.0}
 
 
+# The bucket is the fast way in; the archive's own copy is the second.
+# After a few failures in a row the bucket is left alone for a minute, so a
+# view of 1400 requests does not wait for 1400 timeouts.
+MIRROR = {"failures": 0, "until": 0.0, "used": 0}
+MIRROR_AFTER = 3
+MIRROR_FOR_S = 60.0
+
+
+def mirror_url(url: str) -> str | None:
+    """The same file at the second source (None if there is none for it)."""
+    base = config.S3_HTTP_BASE.rstrip("/") + "/"
+    if config.MIRROR_HTTP_BASE and url.startswith(base):
+        return config.MIRROR_HTTP_BASE.rstrip("/") + "/" + url[len(base):]
+    return None
+
+
 async def _get(client: httpx.AsyncClient, url: str, start: int, end: int) -> bytes:
     t0 = time.perf_counter()
-    r = await client.get(url, headers={"Range": f"bytes={start}-{end - 1}"})
-    r.raise_for_status()
+    headers = {"Range": f"bytes={start}-{end - 1}"}
+    second = mirror_url(url)
+    if second and time.monotonic() < MIRROR["until"]:
+        url, second = second, None  # the bucket is failing: straight to the second source
+    try:
+        r = await client.get(url, headers=headers)
+        r.raise_for_status()
+        if second:
+            MIRROR["failures"] = 0
+    except httpx.HTTPError as exc:
+        status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else 0
+        if not second or status == 416:
+            raise
+        if status != 404:  # a file the bucket does not have yet says nothing about the bucket's health
+            MIRROR["failures"] += 1
+            if MIRROR["failures"] >= MIRROR_AFTER:
+                MIRROR["until"] = time.monotonic() + MIRROR_FOR_S
+        r = await client.get(second, headers=headers, follow_redirects=True)
+        r.raise_for_status()
+        MIRROR["used"] += 1
     NET["requests"] += 1
     NET["bytes"] += len(r.content)
     NET["seconds"] += time.perf_counter() - t0
     return r.content
+
 
 
 def _rice_rows(heap: bytes, lens: np.ndarray, offs: np.ndarray, base: int, blocksize: int) -> np.ndarray:

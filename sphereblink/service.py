@@ -6,21 +6,24 @@ import asyncio
 import io
 import json
 import multiprocessing
+import queue
 import sqlite3
 import threading
 import time
 import uuid
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 
 import httpx
 import numpy as np
 
-from . import config, worker
-from .cutout import Frame, Grid, cache_key, wave_map_from_file
+from . import config, guard, worker
+from .cutout import Frame, Grid, cache_key, mirror_url, wave_map_from_file
 from .sia import Exposure, find_exposures_at
 
 EXPOSURE_TTL_S = 24 * 3600
+SEARCH_TIMEOUT_S = 60.0  # archive search for a place never seen before
+REFRESH_TIMEOUT_S = 10.0  # ... and when an older list of its exposures is on disk
 HALF_PRECISION_NPIX = 200  # frames wider than this are stored as float16
 
 
@@ -45,8 +48,21 @@ class Store:
                     key TEXT PRIMARY KEY, created REAL NOT NULL, map BLOB NOT NULL);
                 CREATE TABLE IF NOT EXISTS catalogs (
                     key TEXT PRIMARY KEY, created REAL NOT NULL, payload TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS views (
+                    grid TEXT PRIMARY KEY, bytes INTEGER NOT NULL, used REAL NOT NULL);
+                CREATE TABLE IF NOT EXISTS names (
+                    key TEXT PRIMARY KEY, created REAL NOT NULL, payload TEXT NOT NULL);
                 """
             )
+        self._touched: dict[str, float] = {}
+
+    def count_views(self) -> None:
+        """A cache written before the ``views`` table existed: count it once
+        (reads the whole frame index, so it runs after the server has started)."""
+        with self._conn() as c:
+            if c.execute("SELECT 1 FROM views LIMIT 1").fetchone() is None:
+                c.execute("INSERT OR IGNORE INTO views SELECT grid, COALESCE(SUM(LENGTH(image)), 0), MAX(created) "
+                          "FROM frames GROUP BY grid")
 
     def _conn(self) -> sqlite3.Connection:
         c = getattr(self._local, "c", None)
@@ -78,6 +94,17 @@ class Store:
     def put_catalog(self, key: str, sources: list[dict]) -> None:
         with self._conn() as c:
             c.execute("INSERT OR REPLACE INTO catalogs VALUES (?,?,?)", (key, time.time(), json.dumps(sources)))
+
+    # resolved object names ------------------------------------------------
+    def get_name(self, key: str, max_age: float) -> dict | None:
+        row = self._conn().execute("SELECT created, payload FROM names WHERE key=?", (key,)).fetchone()
+        return json.loads(row[1]) if row and time.time() - row[0] <= max_age else None
+
+    def put_name(self, key: str, target: dict) -> None:
+        with self._conn() as c:
+            c.execute("INSERT OR REPLACE INTO names VALUES (?,?,?)", (key, time.time(), json.dumps(target)))
+            if c.execute("SELECT COUNT(*) FROM names").fetchone()[0] > 50000:  # keep the newest half
+                c.execute("DELETE FROM names WHERE created < (SELECT created FROM names ORDER BY created DESC LIMIT 1 OFFSET 25000)")
 
     # wavelength maps ------------------------------------------------------
     def get_wave_map(self, key: str) -> np.ndarray | None:
@@ -131,30 +158,150 @@ class Store:
                     np.save(buf, frame.image.astype(np.float32))
                 blob = buf.getvalue()
             rows.append((key, exposure.uid, grid.key(), now, json.dumps(meta), blob))
+        size = sum(len(r[5]) for r in rows if r[5] is not None)
         with self._conn() as c:
             c.executemany("INSERT OR REPLACE INTO frames VALUES (?,?,?,?,?,?)", rows)
+            c.execute("INSERT INTO views VALUES (?,?,?) ON CONFLICT(grid) DO UPDATE SET bytes = bytes + excluded.bytes, "
+                      "used = excluded.used", (grid.key(), size, now))
 
     def put_frame(self, key: str, exposure: Exposure, grid: Grid, frame: Frame | None) -> None:
         self.put_frames(grid, [(key, exposure, frame)])
 
-    def trim(self, max_bytes: float, keep: str = "") -> int:
-        """Drop the least recently fetched views until the frames fit in
-        ``max_bytes`` (never the view ``keep``). Returns the bytes freed."""
+    def touch(self, grid_key: str) -> None:
+        """Note that a view was opened (at most once a minute per view)."""
+        now = time.time()
+        if now - self._touched.get(grid_key, 0.0) < 60.0:
+            return
+        if len(self._touched) > 5000:
+            self._touched.clear()
+        self._touched[grid_key] = now
+        with self._conn() as c:
+            c.execute("UPDATE views SET used=? WHERE grid=?", (now, grid_key))
+
+    def trim(self, max_bytes: float, keep: "str | set[str]" = "") -> int:
+        """Drop the views nobody opened for the longest time until the frames
+        fit in ``max_bytes`` (never the views in ``keep``). Returns the bytes freed."""
+        keep = {keep} if isinstance(keep, str) else set(keep)
         c = self._conn()
-        views = c.execute(
-            "SELECT grid, SUM(LENGTH(image)), MAX(created) FROM frames GROUP BY grid ORDER BY MAX(created)"
-        ).fetchall()
+        views = c.execute("SELECT grid, bytes FROM views ORDER BY used").fetchall()
         total = sum(v[1] or 0 for v in views)
         freed = 0
-        for grid_key, size, _ in views:
+        for grid_key, size in views:
             if total - freed <= max_bytes:
                 break
-            if grid_key == keep:
+            if grid_key in keep:
                 continue
             with c:
                 c.execute("DELETE FROM frames WHERE grid=?", (grid_key,))
+                c.execute("DELETE FROM views WHERE grid=?", (grid_key,))
             freed += size or 0
         return freed
+
+
+class Scheduler:
+    """Shares the fetch processes between the views being gathered.
+
+    Every view hands in its exposures as chunks. Only a few chunks are in
+    the worker processes at a time; whenever one comes back, the next is
+    chosen:
+
+    * a view that has not been served yet goes first, so everybody sees
+      first frames within seconds however long the queue is;
+    * then the view with the least left to do (a small view passes a wide
+      mosaic that is still loading, and of equal views the one that started
+      first finishes first, which gives the shortest average wait);
+    * every fourth chunk goes to the view that has waited longest, so a
+      mosaic keeps moving while small views keep arriving;
+    * the views of one caller beyond ``config.FAIR_JOBS`` wait behind
+      everyone else's.
+    """
+
+    def __init__(self, pool_of, slots: int):
+        self._pool_of, self._slots = pool_of, slots
+        self._lock = threading.Lock()
+        self._views: dict[str, dict] = {}  # job id -> {client, started, pending, sent, out}
+        self._flying = 0
+        self._picks = 0
+        self._wake = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def _loop(self) -> None:
+        # Chunks are handed over from a thread of our own, never from the
+        # pool's callback (which may hold the pool's locks).
+        while True:
+            self._wake.wait()
+            self._wake.clear()
+            try:
+                self._pump()
+            except Exception:  # pragma: no cover - keep the dispatcher alive whatever happens
+                time.sleep(0.2)
+                self._wake.set()
+
+    def run(self, job_id: str, client: str, grid: Grid, chunks: list[list[worker.Item]]):
+        """Cut the chunks of one view; yields (results, stats) as each comes back."""
+        out: "queue.Queue" = queue.Queue()
+        with self._lock:
+            self._views[job_id] = {"client": client, "started": time.time(), "grid": grid, "pending": list(reversed(chunks)),
+                                   "sent": 0, "out": out}
+            if self._thread is None:
+                self._thread = threading.Thread(target=self._loop, daemon=True, name="fetch-scheduler")
+                self._thread.start()
+        try:
+            self._wake.set()
+            for _ in range(len(chunks)):
+                got = out.get()
+                if isinstance(got, BaseException):
+                    raise got
+                yield got
+        finally:
+            with self._lock:
+                self._views.pop(job_id, None)
+
+    def _next(self) -> "dict | None":
+        waiting = [v for v in self._views.values() if v["pending"]]
+        if not waiting:
+            return None
+        by_client: dict[str, list[dict]] = {}
+        for v in sorted(self._views.values(), key=lambda v: v["started"]):
+            by_client.setdefault(v["client"], []).append(v)
+        extra = {id(v) for vs in by_client.values() for v in vs[config.FAIR_JOBS:]} if config.FAIR_JOBS > 0 else set()
+        fair = [v for v in waiting if id(v) not in extra] or waiting
+        fresh = [v for v in waiting if v["sent"] == 0]  # the first few exposures cost little: no view waits for them
+        self._picks += 1
+        if fresh:
+            return min(fresh, key=lambda v: v["started"])
+        if self._picks % 4 == 0:
+            return min(fair, key=lambda v: v["started"])
+        return min(fair, key=lambda v: (len(v["pending"]), v["started"]))
+
+    def _pump(self) -> None:
+        while True:
+            with self._lock:
+                if self._flying >= self._slots:
+                    return
+                v = self._next()
+                if v is None:
+                    return
+                chunk = v["pending"].pop()
+                v["sent"] += 1
+                self._flying += 1
+            try:
+                fut = self._pool_of().submit(worker.cut_chunk, v["grid"], chunk)
+            except BaseException as exc:  # the pool is broken or shutting down
+                with self._lock:
+                    self._flying -= 1
+                v["out"].put(exc)
+                continue
+            fut.add_done_callback(lambda f, v=v: self._done(v, f))
+
+    def _done(self, v: dict, fut) -> None:
+        with self._lock:
+            self._flying -= 1
+        try:
+            v["out"].put(fut.result())
+        except BaseException as exc:
+            v["out"].put(exc)
+        self._wake.set()
 
 
 @dataclass
@@ -170,6 +317,7 @@ class Job:
     last_used: float = field(default_factory=time.time)
     stats: dict = field(default_factory=dict)  # where the time went (seconds, MB)
     resuming: bool = True  # still looking up what the disk cache already has
+    client: str = ""  # who asked first (for sharing the fetch processes fairly)
     frames: list[Frame] = field(default_factory=list)  # grows while fetching
 
     def public(self) -> dict:
@@ -202,6 +350,9 @@ class Service:
         self._wave_locks: dict[str, threading.Lock] = {}
         self._search_locks: dict[str, threading.Lock] = {}
         self._procs: ProcessPoolExecutor | None = None
+        # a couple more chunks than processes are handed over, so no process waits for the next one
+        self._sched = Scheduler(self._pool, config.FETCH_PROCS + 2)
+        self.pinned: set[str] = set()  # views the disk cache never drops (the featured targets)
 
     # ------------------------------------------------------------------ search
     def exposures(self, ra: float, dec: float) -> list[Exposure]:
@@ -222,14 +373,15 @@ class Service:
         with lk:  # a search that is already running is waited for, not repeated
             exps = self.store.get_exposures(key)
             if exps is None:
+                # An older list is good enough when the archive search is slow
+                # or down: with one in hand the search gets a short while only.
+                stale = self.store.get_exposures(key, max_age=float("inf"))
                 try:
-                    exps = find_exposures_at(points)
+                    exps = find_exposures_at(points, timeout=SEARCH_TIMEOUT_S if stale is None else REFRESH_TIMEOUT_S)
                 except Exception:
-                    # Archive search is down: fall back to a stale list if we have one.
-                    exps = self.store.get_exposures(key, max_age=float("inf"))
-                    if exps is None:
+                    if stale is None:
                         raise
-                    return exps
+                    return stale
                 self.store.put_exposures(key, exps)
         with self.lock:
             if len(self._search_locks) > 2000:
@@ -248,28 +400,46 @@ class Service:
                 return self._wave[key]
             wmap = self.store.get_wave_map(key)
             if wmap is None:
-                try:
-                    wmap = wave_map_from_file(e.http_url)
-                    self.store.put_wave_map(key, wmap)
-                except Exception:
-                    wmap = None
+                for url in dict.fromkeys(u for u in (e.http_url, mirror_url(e.http_url), e.access_url) if u):
+                    try:  # the bucket first, then the archive's own copy
+                        wmap = wave_map_from_file(url)
+                        self.store.put_wave_map(key, wmap)
+                        break
+                    except Exception:
+                        wmap = None
             self._wave[key] = wmap
             return wmap
 
     # ------------------------------------------------------------------ jobs
-    def start(self, grid: Grid) -> Job:
-        """Start (or reuse) a background job that gathers every frame of a view."""
+    def start(self, grid: Grid, client: str | None = None, capped: bool = True) -> Job:
+        """Start (or reuse) a background job that gathers every frame of a view.
+
+        ``client`` is who asks (default: the caller of the request being
+        answered). A caller with too many views in the works gets
+        ``guard.Busy``; a view that exists already is always given."""
         vk = grid.key()
+        client = guard.current() if client is None else client
         with self.lock:
             jid = self.by_view.get(vk)
             if jid and self.jobs[jid].status != "error":
                 self.jobs[jid].last_used = time.time()
-                return self.jobs[jid]
-            job = Job(id=uuid.uuid4().hex[:12])
-            self.jobs[job.id] = job
-            self.by_view[vk] = job.id
-        threading.Thread(target=self._run, args=(job, grid), daemon=True).start()
-        return job
+                job = self.jobs[jid]
+            else:
+                job = None
+                if capped and client and not guard.internal(client):
+                    active = [j for j in self.jobs.values() if j.status not in ("ready", "error")]
+                    if sum(1 for j in active if j.client == client) >= config.MAX_JOBS_PER_CLIENT:
+                        raise guard.Busy("too many views are being gathered for your address; wait for them to finish", 10.0)
+                    if len(active) >= config.MAX_JOBS:
+                        raise guard.Busy("the server is gathering as many views as it can; try again in a moment", 10.0, 503)
+                new = Job(id=uuid.uuid4().hex[:12], client=client or "")
+                self.jobs[new.id] = new
+                self.by_view[vk] = new.id
+        if job is not None:
+            self.store.touch(vk)
+            return job
+        threading.Thread(target=self._run, args=(new, grid), daemon=True).start()
+        return new
 
     def peek(self, grid: Grid) -> Job | None:
         """The job of a view if it is in memory (never starts one)."""
@@ -296,6 +466,7 @@ class Service:
     def _run(self, job: Job, grid: Grid) -> None:
         try:
             job.status = "searching"
+            self.store.touch(grid.key())
             t0 = time.time()
             exps = self.view_exposures(grid)
             job.stats["search_s"] = time.time() - t0
@@ -334,8 +505,9 @@ class Service:
                         asyncio.run(self._fetch_in_loop(job, grid, items))
                     job.stats.update(m.stats)
                 job.stats["fetch_s"] = time.time() - t0
-                self.store.trim(config.DISK_BUDGET_GB * 1e9, keep=grid.key())
             job.status = "ready"
+            if todo:  # after "ready": nobody waits for the housekeeping
+                self.store.trim(config.DISK_BUDGET_GB * 1e9, keep={grid.key()} | self.pinned)
         except Exception as exc:  # surfaced to the UI
             job.status = "error"
             job.error = f"{type(exc).__name__}: {exc}"
@@ -355,6 +527,10 @@ class Service:
 
     def _pool(self) -> ProcessPoolExecutor:
         with self.lock:
+            if self._procs is not None and getattr(self._procs, "_broken", False):
+                # a worker died (out of memory, killed): the pool refuses all work from then on
+                self._procs.shutdown(wait=False, cancel_futures=True)
+                self._procs = None
             if self._procs is None:
                 per_proc = max(4, config.FETCH_WORKERS // config.FETCH_PROCS)
                 self._procs = ProcessPoolExecutor(
@@ -372,14 +548,29 @@ class Service:
             pool = self._pool()
             for fut in [pool.submit(worker.ready, 0.5) for _ in range(config.FETCH_PROCS)]:
                 fut.result()
+        self.store.count_views()
+
+    def keep_ready(self, grids: list[Grid]) -> None:
+        """Have these views on disk (the featured targets): they are pinned
+        there, so they still open when the archive or the bucket is away.
+        One after another, and only what is missing is fetched."""
+        for g in grids:
+            self.pinned.add(g.key())
+        for g in grids:
+            try:
+                self.frames_blocking(g, timeout=300)
+            except Exception:
+                pass  # tried again at the next start
 
     def _fetch_in_processes(self, job: Job, grid: Grid, items: list[worker.Item]) -> None:
-        """Several cores: chunks of exposures are cut in worker processes."""
+        """Several cores: chunks of exposures are cut in worker processes,
+        which this view shares with the others being gathered (see Scheduler)."""
         chunk = max(4, config.FETCH_WORKERS // config.FETCH_PROCS)
-        pool = self._pool()
-        futures = [pool.submit(worker.cut_chunk, grid, items[i : i + chunk]) for i in range(0, len(items), chunk)]
-        for fut in as_completed(futures):
-            results, stats = fut.result()
+        chunks = [items[i : i + chunk] for i in range(0, len(items), chunk)]
+        if len(chunks) > 1:  # a small first chunk: first frames on screen sooner
+            head = max(1, min(4, len(chunks[0]) // 2))
+            chunks = [chunks[0][:head], chunks[0][head:]] + chunks[1:]
+        for results, stats in self._sched.run(job.id, job.client, grid, chunks):
             for k, v in stats.items():
                 job.stats[k] = job.stats.get(k, 0) + v
             t0 = time.time()
@@ -399,7 +590,7 @@ class Service:
             await asyncio.gather(*(one(*it) for it in items))
 
     def frames_blocking(self, grid: Grid, timeout: float = 600) -> list[Frame]:
-        job = self.start(grid)
+        job = self.start(grid, client="")
         t0 = time.time()
         while job.status not in ("ready", "error") and time.time() - t0 < timeout:
             time.sleep(0.2)
