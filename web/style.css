@@ -480,6 +480,7 @@ dd{margin:0;font-family:var(--font-measure);font-variant-numeric:tabular-nums;fo
 .reticle{position:absolute;left:0;top:0;width:0;height:0;opacity:0;--r:24px;--c:var(--color-accent-2);transition:opacity 120ms linear}
 .reticle.glide{transition:opacity 120ms linear,transform 150ms var(--ease-out)}
 .reticle[data-mode="aim"]{opacity:1;--r:12px}
+.reticle[data-mode="star"]{opacity:1;--r:9px;--c:var(--color-ink)}
 .reticle[data-mode="pin"]{opacity:1;--r:14px;--c:var(--color-accent)}
 .reticle[data-mode="lock"]{opacity:1;--r:7px;--c:var(--color-accent)}
 .reticle i{position:absolute;left:0;top:0;width:7px;height:7px;border:0 solid var(--c);transition:transform 280ms var(--ease-out),border-color 140ms linear}

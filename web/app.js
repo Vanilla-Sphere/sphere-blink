@@ -118,6 +118,7 @@ async function api(url, alive) {
 }
 async function load(next, nopush) {
   const want = Object.assign({target: S.target, ra: S.ra, dec: S.dec, byCoords: S.byCoords, fov: S.fov, levels: S.levels}, next || {});
+  const or = want.or || null; delete want.or;       // the place to open instead if the name leads nowhere, or elsewhere
   const id = ++S.loadId, first = !S.meta;
   searchError(""); $("search").classList.add("busy"); $("go").disabled = true; $("go").textContent = tr("go.busy");
   if (first) {
@@ -131,6 +132,10 @@ async function load(next, nopush) {
     if (!r.ok) throw new Error(view.detail || r.statusText);
   } catch (e) { error = e; }
   if (id !== S.loadId) return;
+  if (or && (error || Math.abs(view.target.dec - or.dec) > 0.3 || Math.abs(((view.target.ra - or.ra + 540) % 360) - 180) * Math.cos(or.dec * Math.PI / 180) > 0.3)) {
+    $("q").value = `${or.ra.toFixed(4)} ${or.dec >= 0 ? "+" : ""}${or.dec.toFixed(4)}`;
+    return load({target: null, byCoords: true, ra: or.ra, dec: or.dec, fov: want.fov, levels: want.levels}, nopush);
+  }
   $("search").classList.remove("busy"); $("go").disabled = false; $("go").textContent = tr("go");
   if (error) {
     SkyMap.idle();
@@ -979,9 +984,9 @@ function mapHover(h) {
   const con = h.con ? h.con.la : "";
   $("mapread").innerHTML = `${h.ra.toFixed(2)}° ${h.dec >= 0 ? "+" : "−"}${Math.abs(h.dec).toFixed(2)}°` + (con ? ` · <i>${esc(con)}</i>` : "");
   if (h.pin) mapTag(h.x, h.y, `<b>${esc(h.pin.name)}</b><span>${esc(tr("kind." + h.pin.key))}</span>`);
-  else if (h.star) {
-    const about = LORE.star[h.star.name];
-    mapTag(h.x, h.y, `<b>${esc(h.star.name)}</b><span>${esc(con ? tr("map.star", {con}) : tr("map.star.none"))}</span>` + (about ? `<span class="more">${esc(about)}</span>` : ""));
+  else if (h.star && (h.star.name || h.star.id)) {   // a star with a name or a designation; any other star keeps the note of its constellation
+    const about = LORE.star[h.star.name], kind = h.star.mag <= 3 ? "map.star" : "map.star.faint";
+    mapTag(h.x, h.y, `<b>${esc(h.star.name || h.star.id)}</b><span>${esc(con ? tr(kind, {con}) : tr(kind + ".none"))}</span>` + (about ? `<span class="more">${esc(about)}</span>` : ""));
   } else if (con) {
     const [figure, about] = LORE.con[h.con.id] || [];
     mapTag(h.x, h.y, `<b>${esc(con)}</b>` + (figure ? `<span>${esc(figure)}</span>` : "") + (about ? `<span class="more">${esc(about)}</span>` : ""));
@@ -989,12 +994,16 @@ function mapHover(h) {
   else $("maptag").hidden = true;
 }
 function mapPick(hit) {
-  const at = hit.pin || hit;
-  mapTag(hit.x, hit.y, `<b class="measure" id="mapcoord">${Ambient.text(at.ra, at.dec)}</b><span>${esc(tr("map.open"))}</span>`);
+  const at = hit.pin || hit, star = hit.star || null, called = star ? star.name || star.id : "";
+  mapTag(hit.x, hit.y, (called ? `<b>${esc(called)}</b>` : "") + `<b class="measure" id="mapcoord">${Ambient.text(at.ra, at.dec)}</b><span>${esc(tr("map.open"))}</span>`);
   Ambient.roll($("mapcoord"), at.ra, at.dec);
   if (hit.pin) return openFeatured(hit.pin.f);
+  const size = S.ui === "simple" ? {levels: 0, fov: 8} : fieldChoice();
+  // A star with a proper name is opened by that name, so the view carries the name and the star's place today;
+  // if the name services do not know it, or mean another object by it, the star's own coordinates are opened.
+  if (star && star.name) { $("q").value = star.name; return load({target: star.name, byCoords: false, ra: null, dec: null, or: {ra: hit.ra, dec: hit.dec}, ...size}); }
   $("q").value = `${hit.ra.toFixed(4)} ${hit.dec >= 0 ? "+" : ""}${hit.dec.toFixed(4)}`;
-  load({ra: hit.ra, dec: hit.dec, byCoords: true, target: null, ...(S.ui === "simple" ? {levels: 0, fov: 8} : fieldChoice())});
+  load({ra: hit.ra, dec: hit.dec, byCoords: true, target: null, ...size});
 }
 
 /* Simple shows the plain colour movie and nothing to configure; Advanced is the full instrument.

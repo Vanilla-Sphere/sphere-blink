@@ -41,7 +41,9 @@ The product opens on a drawn map of the whole sky, the same for both modes.
   zoomed), proper names of stars to magnitude 3, constellation figures and
   names, and the Milky Way as a dot field.
 - **Interaction.** Drag to turn, scroll or pinch to zoom, click to open a view
-  at that point. Keyboard: arrow keys pan, `+` and `-` zoom, Enter opens the
+  at that point. Pointing and clicking snap to the nearest star on the map, so
+  a click on a star opens that star (by its name when it has one); holding Alt
+  picks the exact point under the pointer instead. Keyboard: arrow keys pan, `+` and `-` zoom, Enter opens the
   centre. Buttons zoom in, zoom out, reset to the whole sky and fill the screen with the map alone (full screen; Esc or the same button leaves it).
 - **Readout.** The coordinates under the pointer and the constellation they
   fall in (from IAU boundaries precomputed on a 1 degree grid).
