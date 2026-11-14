@@ -185,6 +185,9 @@ def test_the_result_file_of_the_viewer_holds_together():
     assert "completeness.js" in page and "completeness.css" in page and "data-completeness" in page
     d = json.loads((web / "data" / "mover-completeness.json").read_text())
     assert d["all"]["fakes"] >= 1000 and set(d["fields"]) == {"sparse", "medium", "crowded"}
+    # a later search that gave the same on some of the rounds is named with the number of those rounds
+    same = d.get("same_on")
+    assert same is None or (same["version"] > d["version"] and 0 < same["rounds"] <= d["all"]["rounds"])
     for part in [d["all"], *d["fields"].values()]:
         assert part["observable"] <= part["fakes"]
         for level in ("found", "strong"):
