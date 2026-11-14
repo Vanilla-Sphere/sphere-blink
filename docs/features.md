@@ -451,13 +451,26 @@ The tests, in order:
    H β, [O III] and H α into range, and the bands of cool stars and of ices
    are left out. The redshift is the published one and the reading says so:
    it uses the redshift, it never measures it.
+7. **With a redshift read off the lines.** A catalogue can hold a wrong
+   value. Where the estimate of feature 18 is firm (quality 4) and the
+   published redshift differs from it by more than 2 % in (1 + z), or there
+   is none, the lines are looked for at the measured redshift, provided the
+   reading finds emission lines there with its own test. Its first sentence
+   then says which redshift was used and why: the published value and its
+   catalogue, that no firm line stands where it would put them, the measured
+   value with its error and quality, and what a second catalogue (NED) lists
+   for the object. Example: SDSS J152846.73+363751.5, listed at z = 4.344 by
+   SIMBAD, read at z = 2.406 from its lines; NED lists 2.413. Of the 189
+   quasars of the check of feature 18, this changes the reading of two, the
+   two whose SIMBAD value is wrong. It is never done for a star, nor against
+   the redshift of a galaxy next door (below 0.01).
 
 The reading then names the kinds of object that give such a curve:
 
 | Reading | Rests on |
 | --- | --- |
 | Emission lines of ionised gas | Two strong hydrogen lines, or one with another strong line beside it or standing 1.6 times above the continuum |
-| Emission lines at the published redshift | Two strong lines where the redshift puts them, or one standing 1.6 times above the continuum |
+| Emission lines at the published redshift, or at the one read off the lines | Two strong lines where the redshift puts them, or one standing 1.6 times above the continuum |
 | Ice absorption | The 3.0 µm band deepest at 3.0 µm, or carbon dioxide on a rising curve |
 | Brown dwarf atmosphere | Methane at 3.3 µm together with water vapour |
 | Cool star with water vapour | Two water bands or more |
@@ -797,6 +810,13 @@ The rules, the sources and the checks are in
   otherwise nothing is shown.
 - With no published redshift, Simple says it in one sentence that ends "Our
   own reading, not a published value."
+- Where a quality 4 estimate and the published redshift disagree by more than
+  2 % in (1 + z), the page does not go on computing with a value it doubts:
+  the published redshift keeps its row and source, marked as disagreeing, and
+  the light-travel time, the age of the universe then and the distance are
+  computed at the estimate, with the published figure beside it. The
+  preliminary reading (feature 9) looks for lines at the estimate too. Example:
+  SDSS J152846.73+363751.5, listed at z = 4.344, read at z = 2.406.
 - Stars never get one. Blazars, faint objects and spectra with a single line
   get none either.
 

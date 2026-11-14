@@ -288,10 +288,10 @@ async function reloadCube() {
 }
 
 /* The reading of the spectrum (insight.js). When the catalogues gave the object a redshift, the lines are looked
-   for where it puts them: the redshift is the published one, never one read from the curve. */
+   for where it puts them; where a firm redshift read off the lines disagrees with it, at that one (readingRedshift
+   in depth.js decides, and the reading says which and why). */
 function readSpectrum() {
-  const z = DP.info && DP.info.redshift;
-  try { S.insight = S.spectrum ? analyseSpectrum(S.spectrum, z && z.z >= 0.01 ? {z: z.z, zSource: String(z.source || "").replace(/ \(.*/, "")} : null) : null; }
+  try { S.insight = S.spectrum ? analyseSpectrum(S.spectrum, readingRedshift()) : null; }
   catch (_) { S.insight = null; }  // a reading that fails must not take the plot with it
   showReading(S.insight);
 }
