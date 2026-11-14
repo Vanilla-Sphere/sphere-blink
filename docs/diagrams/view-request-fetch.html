@@ -11,7 +11,7 @@
       --color-paper:   #f6f3ef;
       --color-ink:     #1b1813;
       --color-muted:   #524c45;
-      --color-accent:  #bb4100;
+      --color-accent:  #7137b6;
       --font-sans:     'Hanken Grotesk', system-ui, sans-serif;
       --font-serif:    'Instrument Serif', serif;
       --font-mono:     'Geist Mono', ui-monospace, monospace;
@@ -70,8 +70,8 @@
         <desc id="view-request-fetch-desc">Sequence diagram showing worker processes reading each exposure from S3 with four range requests, the API caching the frames, and the browser polling for the cube.</desc>
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#524c45"/></marker>
-          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bb4100"/></marker>
-          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#005a9d"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#7137b6"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#006a73"/></marker>
         </defs>
 
         <rect width="100%" height="100%" fill="#f6f3ef"/>
@@ -95,20 +95,20 @@
         <rect x="668" y="144" width="8" height="260" fill="#f6f3ef"/><rect x="668" y="144" width="8" height="260" fill="rgba(27,24,19,0.06)" stroke="#524c45" stroke-width="0.8"/>
         <rect x="308" y="144" width="8" height="516" fill="#f6f3ef"/><rect x="308" y="144" width="8" height="516" fill="rgba(27,24,19,0.06)" stroke="#524c45" stroke-width="0.8"/>
         <line x1="316" y1="144" x2="668" y2="144" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <line x1="676" y1="240" x2="852" y2="240" fill="none" stroke="#005a9d" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="676" y1="240" x2="852" y2="240" fill="none" stroke="#006a73" stroke-width="1.2" marker-end="url(#arrow-link)"/>
         <line x1="852" y1="280" x2="676" y2="280" fill="none" stroke="#524c45" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
         <path d="M 676,304 H 702 Q 708,304 708,310 V 322 Q 708,328 702,328 H 676" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
         <line x1="668" y1="400" x2="316" y2="400" fill="none" stroke="#524c45" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
         <line x1="316" y1="440" x2="500" y2="440" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <line x1="124" y1="536" x2="308" y2="536" fill="none" stroke="#005a9d" stroke-width="1.2" marker-end="url(#arrow-link)"/>
-        <line x1="308" y1="576" x2="124" y2="576" fill="none" stroke="#bb4100" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
-        <line x1="124" y1="648" x2="308" y2="648" fill="none" stroke="#005a9d" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="124" y1="536" x2="308" y2="536" fill="none" stroke="#006a73" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="308" y1="576" x2="124" y2="576" fill="none" stroke="#7137b6" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <line x1="124" y1="648" x2="308" y2="648" fill="none" stroke="#006a73" stroke-width="1.2" marker-end="url(#arrow-link)"/>
 
         <!-- Connector labels -->
         <rect x="346" y="124" width="124" height="12" rx="2" fill="#f6f3ef"/>
         <text x="408.0" y="133" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">CHUNKS OF 8 EXPOSURES</text>
         <rect x="716" y="220" width="96" height="12" rx="2" fill="#f6f3ef"/>
-        <text x="764.0" y="229" fill="#005a9d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">4 RANGE REQUESTS</text>
+        <text x="764.0" y="229" fill="#006a73" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">4 RANGE REQUESTS</text>
         <rect x="708" y="260" width="112" height="12" rx="2" fill="#f6f3ef"/>
         <text x="764.0" y="269" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">HEADER, ROWS, FLAGS</text>
         <rect x="716" y="310" width="112" height="12" rx="2" fill="#f6f3ef"/>
@@ -118,18 +118,18 @@
         <rect x="370" y="420" width="76" height="12" rx="2" fill="#f6f3ef"/>
         <text x="408.0" y="429" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">STORE FRAMES</text>
         <rect x="176" y="516" width="80" height="12" rx="2" fill="#f6f3ef"/>
-        <text x="216.0" y="525" fill="#005a9d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">GET /API/CUBE</text>
+        <text x="216.0" y="525" fill="#006a73" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">GET /API/CUBE</text>
         <rect x="162" y="556" width="108" height="12" rx="2" fill="#f6f3ef"/>
-        <text x="216.0" y="565" fill="#bb4100" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">BINARY CUBE SO FAR</text>
+        <text x="216.0" y="565" fill="#7137b6" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">BINARY CUBE SO FAR</text>
         <rect x="144" y="628" width="144" height="12" rx="2" fill="#f6f3ef"/>
-        <text x="216.0" y="637" fill="#005a9d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">SPECTRUM, CATALOG, TRACKS</text>
+        <text x="216.0" y="637" fill="#006a73" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">SPECTRUM, CATALOG, TRACKS</text>
 
         <!-- Nodes -->
         <rect x="56" y="40" width="128" height="56" rx="6" fill="#f6f3ef"/>
         <rect x="56" y="40" width="128" height="56" rx="6" fill="rgba(82,76,69,0.10)" stroke="#625d55" stroke-width="1"/>
         <text x="120.0" y="72.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Browser</text>
         <rect x="248" y="40" width="128" height="56" rx="6" fill="#f6f3ef"/>
-        <rect x="248" y="40" width="128" height="56" rx="6" fill="rgba(187,65,0,0.08)" stroke="#bb4100" stroke-width="1"/>
+        <rect x="248" y="40" width="128" height="56" rx="6" fill="rgba(113,55,182,0.08)" stroke="#7137b6" stroke-width="1"/>
         <text x="312.0" y="66.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">API process</text>
         <text x="312.0" y="82.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">job thread</text>
         <rect x="440" y="40" width="128" height="56" rx="6" fill="#f6f3ef"/>
@@ -148,13 +148,13 @@
         <!-- Legend and notes -->
         <line x1="40" y1="696" x2="920" y2="696" stroke="rgba(27,24,19,0.10)" stroke-width="0.8"/>
         <text x="40" y="712" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.18em">LEGEND</text>
-        <line x1="40" y1="734" x2="68" y2="734" stroke="#005a9d" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="40" y1="734" x2="68" y2="734" stroke="#006a73" stroke-width="1.2" marker-end="url(#arrow-link)"/>
         <text x="76" y="736" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">HTTP request</text>
         <line x1="164" y1="734" x2="192" y2="734" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
         <text x="200" y="736" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Call</text>
         <line x1="248" y1="734" x2="276" y2="734" stroke="#524c45" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
         <text x="284" y="736" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Return</text>
-        <line x1="344" y1="734" x2="372" y2="734" stroke="#bb4100" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <line x1="344" y1="734" x2="372" y2="734" stroke="#7137b6" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
         <text x="380" y="736" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Epochs available so far</text>
       </svg>
     </div>

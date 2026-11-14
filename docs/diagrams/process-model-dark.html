@@ -11,7 +11,7 @@
       --color-paper:   #0d0b08;
       --color-ink:     #efebe4;
       --color-muted:   #afaaa3;
-      --color-accent:  #f97c3d;
+      --color-accent:  #b58afb;
       --font-sans:     'Hanken Grotesk', system-ui, sans-serif;
       --font-serif:    'Instrument Serif', serif;
       --font-mono:     'Geist Mono', ui-monospace, monospace;
@@ -70,8 +70,8 @@
         <desc id="process-model-dark-desc">Architecture diagram showing the single web process with its thread kinds and in-memory state, the pool of imaging processes and the single measurement process.</desc>
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#afaaa3"/></marker>
-          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f97c3d"/></marker>
-          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6db0f4"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b58afb"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6cd7e3"/></marker>
         </defs>
 
         <rect width="100%" height="100%" fill="#0d0b08"/>
@@ -82,7 +82,7 @@
         <text x="142.0" y="53" fill="#908b84" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.14em">WEB PROCESS · UVICORN, 1 WORKER</text>
 
         <!-- Connectors (behind the nodes) -->
-        <line x1="536" y1="104" x2="680" y2="104" fill="none" stroke="#f97c3d" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <line x1="536" y1="104" x2="680" y2="104" fill="none" stroke="#b58afb" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
         <line x1="536" y1="192" x2="680" y2="192" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
 
         <!-- Nodes -->
@@ -106,11 +106,11 @@
         <text x="300.0" y="278.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">In-memory state</text>
         <text x="300.0" y="294.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">jobs, fields, epoch cache, wavelength maps</text>
         <rect x="680" y="72" width="240" height="64" rx="6" fill="#0d0b08"/>
-        <rect x="680" y="72" width="240" height="64" rx="6" fill="rgba(249,124,61,0.10)" stroke="#f97c3d" stroke-width="1"/>
-        <rect x="688" y="80" width="32" height="12" rx="2" fill="transparent" stroke="rgba(249,124,61,0.50)" stroke-width="0.8"/>
-        <text x="704.0" y="89" fill="#f97c3d" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">PROC</text>
-        <rect x="888" y="80" width="24" height="12" rx="2" fill="#0d0b08" stroke="rgba(249,124,61,0.50)" stroke-width="0.8"/>
-        <text x="900.0" y="89" fill="#f97c3d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">x4</text>
+        <rect x="680" y="72" width="240" height="64" rx="6" fill="rgba(181,138,251,0.10)" stroke="#b58afb" stroke-width="1"/>
+        <rect x="688" y="80" width="32" height="12" rx="2" fill="transparent" stroke="rgba(181,138,251,0.50)" stroke-width="0.8"/>
+        <text x="704.0" y="89" fill="#b58afb" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">PROC</text>
+        <rect x="888" y="80" width="24" height="12" rx="2" fill="#0d0b08" stroke="rgba(181,138,251,0.50)" stroke-width="0.8"/>
+        <text x="900.0" y="89" fill="#b58afb" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">x4</text>
         <text x="800.0" y="108.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Imaging pool</text>
         <text x="800.0" y="124.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">event loop + HTTP client each</text>
         <rect x="680" y="160" width="240" height="64" rx="6" fill="#0d0b08"/>
@@ -125,7 +125,7 @@
         <!-- Legend and notes -->
         <line x1="40" y1="368" x2="920" y2="368" stroke="rgba(239,235,228,0.10)" stroke-width="0.8"/>
         <text x="40" y="384" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.18em">LEGEND</text>
-        <rect x="40" y="400" width="14" height="10" rx="2" fill="rgba(249,124,61,0.10)" stroke="#f97c3d" stroke-width="1"/>
+        <rect x="40" y="400" width="14" height="10" rx="2" fill="rgba(181,138,251,0.10)" stroke="#b58afb" stroke-width="1"/>
         <text x="60" y="408" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">SPHEREX_FETCH_PROCS processes</text>
         <rect x="228" y="400" width="14" height="10" rx="2" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
         <text x="248" y="408" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Threads or process</text>

@@ -11,7 +11,7 @@
       --color-paper:   #f6f3ef;
       --color-ink:     #1b1813;
       --color-muted:   #524c45;
-      --color-accent:  #bb4100;
+      --color-accent:  #7137b6;
       --font-sans:     'Hanken Grotesk', system-ui, sans-serif;
       --font-serif:    'Instrument Serif', serif;
       --font-mono:     'Geist Mono', ui-monospace, monospace;
@@ -70,8 +70,8 @@
         <desc id="data-model-desc">Entity diagram showing that a source has many detections and at most one fitted track.</desc>
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#524c45"/></marker>
-          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bb4100"/></marker>
-          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#005a9d"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#7137b6"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#006a73"/></marker>
         </defs>
 
         <rect width="100%" height="100%" fill="#f6f3ef"/>
@@ -108,10 +108,10 @@
         <text x="56" y="244" fill="#1b1813" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">model text</text>
         <text x="56" y="260" fill="#1b1813" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">summary jsonb</text>
         <rect x="364" y="56" width="232" height="216" rx="6" fill="#f6f3ef"/>
-        <rect x="364" y="56" width="232" height="216" rx="6" fill="rgba(187,65,0,0.08)" stroke="#bb4100" stroke-width="1"/>
-        <path d="M 364,96 V 62 Q 364,56 370,56 H 590 Q 596,56 596,62 V 96 Z" fill="rgba(187,65,0,0.06)"/>
+        <rect x="364" y="56" width="232" height="216" rx="6" fill="rgba(113,55,182,0.08)" stroke="#7137b6" stroke-width="1"/>
+        <path d="M 364,96 V 62 Q 364,56 370,56 H 590 Q 596,56 596,62 V 96 Z" fill="rgba(113,55,182,0.06)"/>
         <line x1="364" y1="96" x2="596" y2="96" stroke="rgba(27,24,19,0.22)" stroke-width="1"/>
-        <text x="380" y="72" fill="#bb4100" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.14em">ENTITY</text>
+        <text x="380" y="72" fill="#7137b6" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.14em">ENTITY</text>
         <text x="380" y="88" fill="#1b1813" font-size="14" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif">sources</text>
         <text x="380" y="116" fill="#1b1813" font-size="10" font-family="'Geist Mono', ui-monospace, monospace"># id bigint</text>
         <text x="380" y="132" fill="#1b1813" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">name text, unique</text>
@@ -145,7 +145,7 @@
         <!-- Legend and notes -->
         <line x1="40" y1="340" x2="920" y2="340" stroke="rgba(27,24,19,0.10)" stroke-width="0.8"/>
         <text x="40" y="356" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.18em">LEGEND</text>
-        <rect x="40" y="372" width="14" height="10" rx="2" fill="rgba(187,65,0,0.08)" stroke="#bb4100" stroke-width="1"/>
+        <rect x="40" y="372" width="14" height="10" rx="2" fill="rgba(113,55,182,0.08)" stroke="#7137b6" stroke-width="1"/>
         <text x="60" y="380" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Aggregate root</text>
         <rect x="156" y="372" width="14" height="10" rx="2" fill="#ffffff" stroke="#1b1813" stroke-width="1"/>
         <text x="176" y="380" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Table; # key, → foreign key</text>

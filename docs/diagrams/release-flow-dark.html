@@ -11,7 +11,7 @@
       --color-paper:   #0d0b08;
       --color-ink:     #efebe4;
       --color-muted:   #afaaa3;
-      --color-accent:  #f97c3d;
+      --color-accent:  #b58afb;
       --font-sans:     'Hanken Grotesk', system-ui, sans-serif;
       --font-serif:    'Instrument Serif', serif;
       --font-mono:     'Geist Mono', ui-monospace, monospace;
@@ -70,8 +70,8 @@
         <desc id="release-flow-dark-desc">Flow diagram showing a pull request merged to main, then build, start, health check and going live, followed 40 seconds later by the database sync and re-measurement.</desc>
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#afaaa3"/></marker>
-          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f97c3d"/></marker>
-          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6db0f4"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b58afb"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6cd7e3"/></marker>
         </defs>
 
         <rect width="100%" height="100%" fill="#0d0b08"/>
@@ -117,9 +117,9 @@
         <text x="604.0" y="84.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Health check</text>
         <text x="604.0" y="100.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">/api/health</text>
         <rect x="680" y="40" width="104" height="80" rx="6" fill="#0d0b08"/>
-        <rect x="680" y="40" width="104" height="80" rx="6" fill="rgba(249,124,61,0.10)" stroke="#f97c3d" stroke-width="1"/>
-        <rect x="688" y="48" width="24" height="12" rx="2" fill="transparent" stroke="rgba(249,124,61,0.50)" stroke-width="0.8"/>
-        <text x="700.0" y="57" fill="#f97c3d" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">06</text>
+        <rect x="680" y="40" width="104" height="80" rx="6" fill="rgba(181,138,251,0.10)" stroke="#b58afb" stroke-width="1"/>
+        <rect x="688" y="48" width="24" height="12" rx="2" fill="transparent" stroke="rgba(181,138,251,0.50)" stroke-width="0.8"/>
+        <text x="700.0" y="57" fill="#b58afb" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">06</text>
         <text x="732.0" y="78.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Live</text>
         <text x="732.0" y="94.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">after about</text>
         <text x="732.0" y="107.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">70 seconds</text>
@@ -138,7 +138,7 @@
         <text x="60" y="192" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Manual step</text>
         <rect x="144" y="184" width="14" height="10" rx="2" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
         <text x="164" y="192" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Automatic on push to main</text>
-        <rect x="312" y="184" width="14" height="10" rx="2" fill="rgba(249,124,61,0.10)" stroke="#f97c3d" stroke-width="1"/>
+        <rect x="312" y="184" width="14" height="10" rx="2" fill="rgba(181,138,251,0.10)" stroke="#b58afb" stroke-width="1"/>
         <text x="332" y="192" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Serving traffic</text>
         <rect x="432" y="184" width="14" height="10" rx="2" fill="rgba(239,235,228,0.02)" stroke="rgba(239,235,228,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
         <text x="452" y="192" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Deferred background work</text>

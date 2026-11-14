@@ -20,12 +20,12 @@ import re
 SKINS = {
     "light": {
         "paper": "#f6f3ef", "paper2": "#ece9e4", "ink": "#1b1813", "muted": "#524c45",
-        "soft": "#625d55", "accent": "#bb4100", "link": "#005a9d", "backend": "#ffffff",
+        "soft": "#625d55", "accent": "#7137b6", "link": "#006a73", "backend": "#ffffff",
         "tint": 0.08, "frame": 0.02,
     },
     "dark": {
         "paper": "#0d0b08", "paper2": "#15120e", "ink": "#efebe4", "muted": "#afaaa3",
-        "soft": "#908b84", "accent": "#f97c3d", "link": "#6db0f4", "backend": "#1b1814",
+        "soft": "#908b84", "accent": "#b58afb", "link": "#6cd7e3", "backend": "#1b1814",
         "tint": 0.10, "frame": 0.04,
     },
 }

@@ -11,7 +11,7 @@
       --color-paper:   #0d0b08;
       --color-ink:     #efebe4;
       --color-muted:   #afaaa3;
-      --color-accent:  #f97c3d;
+      --color-accent:  #b58afb;
       --font-sans:     'Hanken Grotesk', system-ui, sans-serif;
       --font-serif:    'Instrument Serif', serif;
       --font-mono:     'Geist Mono', ui-monospace, monospace;
@@ -70,8 +70,8 @@
         <desc id="measure-job-dark-desc">Sequence diagram showing a measurement request answered from the local store when a result exists, and otherwise queued, run in the measurement process, saved and polled.</desc>
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#afaaa3"/></marker>
-          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f97c3d"/></marker>
-          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6db0f4"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b58afb"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6cd7e3"/></marker>
         </defs>
 
         <rect width="100%" height="100%" fill="#0d0b08"/>
@@ -92,7 +92,7 @@
         <!-- Connectors (behind the nodes) -->
         <rect x="516" y="452" width="8" height="100" fill="#0d0b08"/><rect x="516" y="452" width="8" height="100" fill="rgba(239,235,228,0.06)" stroke="#afaaa3" stroke-width="0.8"/>
         <rect x="308" y="144" width="8" height="576" fill="#0d0b08"/><rect x="308" y="144" width="8" height="576" fill="rgba(239,235,228,0.06)" stroke="#afaaa3" stroke-width="0.8"/>
-        <line x1="124" y1="144" x2="308" y2="144" fill="none" stroke="#6db0f4" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="124" y1="144" x2="308" y2="144" fill="none" stroke="#6cd7e3" stroke-width="1.2" marker-end="url(#arrow-link)"/>
         <line x1="316" y1="184" x2="700" y2="184" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
         <line x1="308" y1="272" x2="124" y2="272" fill="none" stroke="#afaaa3" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
         <line x1="308" y1="356" x2="124" y2="356" fill="none" stroke="#afaaa3" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
@@ -102,12 +102,12 @@
         <line x1="516" y1="548" x2="316" y2="548" fill="none" stroke="#afaaa3" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
         <line x1="316" y1="588" x2="700" y2="588" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
         <line x1="316" y1="628" x2="852" y2="628" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <line x1="124" y1="668" x2="308" y2="668" fill="none" stroke="#6db0f4" stroke-width="1.2" marker-end="url(#arrow-link)"/>
-        <line x1="308" y1="708" x2="124" y2="708" fill="none" stroke="#f97c3d" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <line x1="124" y1="668" x2="308" y2="668" fill="none" stroke="#6cd7e3" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="308" y1="708" x2="124" y2="708" fill="none" stroke="#b58afb" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
 
         <!-- Connector labels -->
         <rect x="168" y="124" width="96" height="12" rx="2" fill="#0d0b08"/>
-        <text x="216.0" y="133" fill="#6db0f4" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">GET /API/MEASURE</text>
+        <text x="216.0" y="133" fill="#6cd7e3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">GET /API/MEASURE</text>
         <rect x="372" y="164" width="88" height="12" rx="2" fill="#0d0b08"/>
         <text x="416.0" y="173" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">STORED RESULT?</text>
         <rect x="172" y="252" width="88" height="12" rx="2" fill="#0d0b08"/>
@@ -127,16 +127,16 @@
         <rect x="370" y="608" width="92" height="12" rx="2" fill="#0d0b08"/>
         <text x="416.0" y="617" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">UPSERT 3 TABLES</text>
         <rect x="200" y="648" width="32" height="12" rx="2" fill="#0d0b08"/>
-        <text x="216.0" y="657" fill="#6db0f4" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">POLL</text>
+        <text x="216.0" y="657" fill="#6cd7e3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">POLL</text>
         <rect x="172" y="688" width="88" height="12" rx="2" fill="#0d0b08"/>
-        <text x="216.0" y="697" fill="#f97c3d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">READY + RESULT</text>
+        <text x="216.0" y="697" fill="#b58afb" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">READY + RESULT</text>
 
         <!-- Nodes -->
         <rect x="56" y="40" width="128" height="56" rx="6" fill="#0d0b08"/>
         <rect x="56" y="40" width="128" height="56" rx="6" fill="rgba(175,170,163,0.10)" stroke="#908b84" stroke-width="1"/>
         <text x="120.0" y="72.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Browser</text>
         <rect x="248" y="40" width="128" height="56" rx="6" fill="#0d0b08"/>
-        <rect x="248" y="40" width="128" height="56" rx="6" fill="rgba(249,124,61,0.10)" stroke="#f97c3d" stroke-width="1"/>
+        <rect x="248" y="40" width="128" height="56" rx="6" fill="rgba(181,138,251,0.10)" stroke="#b58afb" stroke-width="1"/>
         <text x="312.0" y="66.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Web process</text>
         <text x="312.0" y="82.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">measure_api</text>
         <rect x="456" y="40" width="128" height="56" rx="6" fill="#0d0b08"/>
@@ -155,13 +155,13 @@
         <!-- Legend and notes -->
         <line x1="40" y1="772" x2="920" y2="772" stroke="rgba(239,235,228,0.10)" stroke-width="0.8"/>
         <text x="40" y="788" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.18em">LEGEND</text>
-        <line x1="40" y1="810" x2="68" y2="810" stroke="#6db0f4" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="40" y1="810" x2="68" y2="810" stroke="#6cd7e3" stroke-width="1.2" marker-end="url(#arrow-link)"/>
         <text x="76" y="812" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">HTTP request</text>
         <line x1="164" y1="810" x2="192" y2="810" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
         <text x="200" y="812" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Call</text>
         <line x1="248" y1="810" x2="276" y2="810" stroke="#afaaa3" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
         <text x="284" y="812" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Return</text>
-        <line x1="344" y1="810" x2="372" y2="810" stroke="#f97c3d" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <line x1="344" y1="810" x2="372" y2="810" stroke="#b58afb" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
         <text x="380" y="812" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Fresh result</text>
       </svg>
     </div>
