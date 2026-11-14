@@ -31,7 +31,7 @@ from .resolve import FEATURED, ResolverUnavailable, Target, resolve
 log = logging.getLogger(__name__)
 router = APIRouter()
 
-VERSION = 1  # raise to have every stored result measured again
+VERSION = 2  # raise to have every stored result measured again
 MAX_AGE_S = 7 * 24 * 3600  # challenge targets are measured again after a week (new exposures)
 JOB_TIMEOUT_S = 600
 MID_MJD = 61000.0  # a date inside the SPHEREx data, for cone searches

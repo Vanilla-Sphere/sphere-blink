@@ -231,3 +231,36 @@ def test_results_measured_without_a_database_are_written_once_it_is_there(tmp_pa
     monkeypatch.setattr(measurements, "save_db", lambda result: False)  # database away: keep the result for next time
     measurements.save_local("d", {"name": "d", "ra": 1.0, "dec": 2.0, "stats": {}})
     assert measurements.sync_db() == 0 and not measurements.load_local("d")["stats"].get("in_database")
+
+
+def saturated_stamp(body, mjd, flux, n_sat):
+    """A bright star with ``n_sat`` overflowed pixels at its centre: they are flagged and read too low."""
+    st = stamp_of(body, mjd, flux=flux)
+    x, y = st.pixel(*body.at(mjd))
+    cx, cy = int(round(x)), int(round(y))
+    flags = np.zeros(st.data.shape, dtype=np.int32)
+    flags[cy, cx : cx + n_sat] = 1
+    data = st.data.copy()
+    data[flags > 0] *= 0.3
+    return M.make_stamp(st.exposure, st.wcs, 0, 0, data, flags, {"OVERFLOW": 1})
+
+
+def test_a_partly_saturated_core_gives_a_position_but_no_core_flux():
+    b = M.Body("bright", 80.0, 30.0)
+    d = M.measure_stamp(saturated_stamp(b, 60900.0, 4000.0, 1), b)
+    assert d is not None and d.method == "psf" and "SATURATED" in d.flags and not np.isfinite(d.flux_ujy)
+    assert math.hypot(d.east, d.north) < 1.5
+
+
+def test_a_mostly_saturated_star_gets_its_light_curve_from_the_ring():
+    b = M.Body("bright", 80.0, 30.0)
+    stamps = []
+    for k, (start, level) in enumerate(((60800.0, 1.0), (60985.0, 1.5))):
+        for i in range(40):
+            st = saturated_stamp(b, start + i * 0.2, 4000.0 * level, 0 if i % 4 == 0 else 1)
+            st.exposure.obs_id = f"s{k}_{i}"
+            stamps.append(st)
+    waves = {"t_D3": None}
+    result = M.measure_all(stamps, b, [], waves)
+    dets = result["detections"]
+    assert len(dets) == 80 and all("RING_FLUX" in d["flags"] for d in dets)

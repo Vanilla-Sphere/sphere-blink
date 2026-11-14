@@ -146,7 +146,7 @@ What it gives on the challenge targets (DR1 + QR3, measured 2026-11-14):
 | Barnard's Star | 86 on detectors 5-6 (254 more from saturated wings, not used) | -992 ± 472, +10327 ± 249 | -801.6, +10362.4 (Gaia DR3) | position 0.1 arcsec from the Gaia prediction |
 | Epsilon Indi B | 431 | +3945 ± 48, -2513 ± 49 | +3982.0, -2466.8 (Gaia DR3) | 0.6 arcsec from the Gaia prediction (unresolved pair Ba+Bb); brightness constant to 2 % |
 | WISE 0855-0714 | 6, of which 5 are stacks of 14-25 exposures | -8766 ± 992, +1536 ± 992 | -8123.7, +673.2 (Kirkpatrick et al. 2021) | invisible in single exposures, found at 4-5 um in the stacks |
-| RW Aurigae | 271 | +316 ± 288, +49 ± 84 | +4.9, -24.6 (Gaia DR3) | 34 % brighter in Sep 2026 than in Sep 2025 (6 sigma) |
+| RW Aurigae | 271 | +316 ± 288, +49 ± 84 | +4.9, -24.6 (Gaia DR3) | no change beyond the 12 % ring accuracy (0.99, 1.14, 1.00 in three passes); most exposures are saturated |
 | R Draconis | 515, all from saturated wings | +154 ± 334, +241 ± 426 | -20.6, +6.1 (Gaia DR3) | faded by a factor 2.0 from Jun 2025 to Jun 2026 (Mira variable) |
 
 Honest limits: SPHEREx pixels are 6.15 arcsec and the PSF is undersampled, so
@@ -155,6 +155,10 @@ spread over little more than a year the proper motion errors are tens to
 hundreds of mas/yr. The spacecraft is turned around between passes, which
 leaves a 0.1-0.3 arcsec offset that changes sign each pass and limits the
 free parallax fit. Ring fluxes of saturated stars are good to about 12 %.
+A PSF fit to what is left of a saturated core reads 2-5 times low, so such
+exposures give a position but no core flux; a star saturated in most of its
+exposures (RW Aurigae, Barnard's Star, R Draconis) gets its whole light curve
+from the ring.
 The pipeline only writes rows with `method` `psf`, `wings` or `stack`;
 measurements loaded by hand under another method name are left alone.
 
