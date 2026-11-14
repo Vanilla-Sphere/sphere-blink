@@ -2,7 +2,7 @@
 "use strict";
 const assert = require("assert");
 const path = require("path");
-const {timeGroups, groupedAxis, brightnessChange} = require(path.join(__dirname, "..", "web", "overtime.js"));
+const {timeGroups, groupedAxis, brightnessChange, bandChanges} = require(path.join(__dirname, "..", "web", "overtime.js"));
 
 // a small generator, so the same exposures come out on every run
 let seed = 7;
@@ -71,5 +71,23 @@ assert.strictEqual(brightnessChange(exposures([[60900, 14, 1], [61080, 14, 2]], 
 assert.strictEqual(brightnessChange([]).state, "few");
 c = brightnessChange(exposures([[60900, 14, 0.001], [61080, 14, 0.002]], {sky: 30}));
 assert.strictEqual(c.state, "faint");
+
+// a change of colour: the red end fades by half while the blue end brightens, so the total hardly moves.
+// The bands that changed are named, each with its direction; the bands between them are not.
+const colour = exposures([[60900, 14, 1], [61260, 14, 1]], {n: 240});
+for (const p of colour) if (p.mjd > 61000) p.flux_ujy *= p.wave_um > 3.6 ? 0.5 : p.wave_um < 1.45 ? 1.5 : 1;
+const bands = bandChanges(colour);
+const fell = bands.filter((b) => !b.rising).map((b) => b.det), rose = bands.filter((b) => b.rising).map((b) => b.det);
+assert.ok(fell.includes(6) && fell.includes(5), `faded bands: ${fell}`);
+assert.deepStrictEqual(rose, [1]);
+assert.ok(!bands.some((b) => b.det === 3), "a band that did not change is not named");
+const b6 = bands.find((b) => b.det === 6);
+assert.ok(Math.abs(b6.ratio - 2) < 0.2 && b6.sigma > 4 && b6.w0 > 4 && b6.w1 <= 5, `band 6: ratio ${b6.ratio}`);
+assert.ok(brightnessChange(colour).sigma < b6.sigma, "all bands together show less than the band that changed most");
+// steady stars name no band, whatever the draw; nor does a star that is too faint or seen once
+for (let k = 0; k < 40; k++) assert.deepStrictEqual(bandChanges(exposures([[60900, 14, 1], [61080, 14, 1], [61260, 14, 1]], {n: 240})), []);
+for (let k = 0; k < 10; k++) assert.deepStrictEqual(bandChanges(exposures([[60900, 14, 1], [61080, 14, 1]], {n: 200, method: "wings", noise: 0.08})), []);
+assert.deepStrictEqual(bandChanges(exposures([[60900, 14, 1]], {n: 240})), []);
+assert.deepStrictEqual(bandChanges([]), []);
 
 console.log("ok");
