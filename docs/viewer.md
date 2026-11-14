@@ -32,7 +32,7 @@ as static files.
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
 Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `completeness.js`, `linelist.js`, `insight.js`, `redshift.js`, `depth.js`, `showcase.js`, `app.js`.
-Asset URLs carry a version query (`?v=61`) that is raised when a file changes,
+Asset URLs carry a version query (`?v=62`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
