@@ -149,6 +149,7 @@ const STR = {
     "mover.frame.snr": "S/N {s}", "mover.frame.unseen": "not seen",
     "mover.frame.t": "Open the object's place at full detail and show this exposure alone, in the band it was taken in",
     "mover.frame.load": "Loading the exposures of D{d}…", "mover.frame.open": "Opening that place at full detail…",
+    "mover.frame.bands": "The exposure you selected was taken in D{d} alone. Choose D{d} and one frame per Exposure to see the object in it: other bands are filled in from other moments.",
     "mover.pinned": "At full detail: the crosshair is where the object was in the exposure you selected.", "mover.back.t": "Open the wide field this object was found in", "mover.frame.none": "That exposure is not among the frames of this view.",
     "mover.vote.ok": "Vote counted.", "mover.vote.back": "Vote taken back.", "mover.vote.limit": "No more votes accepted from this network for now.", "mover.vote.fail": "The vote did not go through.",
     "log.all.t": "Everything found, latest first", "log.follow.t": "The objects you follow",

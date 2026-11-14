@@ -271,7 +271,17 @@ async function voteMover(id, value) {
 /* Paths on the image: every object of the field as a thin line along the part of its path that was
    seen; the open one with its detections and, while the frame on screen is within its time, a ring
    where it is in that frame. */
+/* The exposure someone selected was taken in one band. With other bands on screen (RGB fills its
+   colours from other moments, when the object was elsewhere) the frame no longer shows it: say so. */
+function moverBandNote() {
+  const el = $("movernote");
+  if (!el || MV.note) return;
+  const p = MV.pin && MV.at && MV.sel && moverPoints(MV.sel).find((x) => x.exposure === MV.at);
+  const text = p && S.meta && (S.det !== String(p.detector) || S.group !== "exposure") ? tr("mover.frame.bands", {d: p.detector}) : "";
+  if (el.textContent !== text) el.textContent = text;
+}
 function drawMovers(ctx, cv, u, line, text) {
+  moverBandNote();
   if ((!S.field && !MV.pin) || S.ui === "simple" || !MV.list.length || !S.meta || !S.meta.epochs.length || !$("ov-movers").checked) return;
   const e = S.meta.epochs[S.i], W = cv.width, C = T.accent, inside = (x, y) => x >= 0 && y >= 0 && x <= W && y <= W;
   for (const m of MV.list) {
@@ -282,20 +292,23 @@ function drawMovers(ctx, cv, u, line, text) {
     // and the path stops at the ring for the same reason
     const now = e.mjd >= m.mjd_first - 0.25 && e.mjd <= m.mjd_last + 0.25 ? toPixel(...moverAt(m, e.mjd), cv) : null;
     const R = (open ? 15 : 10) * u, ring = now && inside(now[0], now[1]);
+    // how far along the path its two ends are from where the object is now (negative: behind it)
+    const ta = ring ? (a[0] - now[0]) * ux + (a[1] - now[1]) * uy : 0, tb = ring ? (b[0] - now[0]) * ux + (b[1] - now[1]) * uy : 0;
+    const clear = (x, y) => !ring || Math.hypot(x - now[0], y - now[1]) > R + 2 * u;   // nothing is drawn inside the ring
     line(C, open ? 1.5 : 1, () => {
-      ctx.moveTo(a[0], a[1]);
-      if (ring) { ctx.lineTo(now[0] - ux * R, now[1] - uy * R); ctx.moveTo(now[0] + ux * R, now[1] + uy * R); }
-      ctx.lineTo(b[0], b[1]);
+      if (!ring) { ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); return; }
+      if (ta < -R) { ctx.moveTo(a[0], a[1]); ctx.lineTo(now[0] - ux * R, now[1] - uy * R); }
+      if (tb > R) { ctx.moveTo(now[0] + ux * R, now[1] + uy * R); ctx.lineTo(b[0], b[1]); }
     });
     // an arrowhead at the late end: where it was heading
-    line(C, open ? 1.5 : 1, () => { ctx.moveTo(b[0] - ux * h - uy * h * 0.6, b[1] - uy * h + ux * h * 0.6); ctx.lineTo(b[0], b[1]); ctx.lineTo(b[0] - ux * h + uy * h * 0.6, b[1] - uy * h - ux * h * 0.6); });
+    if (clear(b[0] - ux * h, b[1] - uy * h)) line(C, open ? 1.5 : 1, () => { ctx.moveTo(b[0] - ux * h - uy * h * 0.6, b[1] - uy * h + ux * h * 0.6); ctx.lineTo(b[0], b[1]); ctx.lineTo(b[0] - ux * h + uy * h * 0.6, b[1] - uy * h - ux * h * 0.6); });
     if (open) {
       const det = (MV.detail[m.id] || {}).detections || [];
       ctx.fillStyle = C;
       for (const d of det) {
         if (Math.abs(d.mjd - e.mjd) < 2e-4) continue;   // in the frame on screen the object shows itself
         const [x, y] = toPixel(d.ra, d.dec, cv);
-        if (inside(x, y)) ctx.fillRect(x - 1.5 * u, y - 1.5 * u, 3 * u, 3 * u);
+        if (inside(x, y) && clear(x, y)) ctx.fillRect(x - 1.5 * u, y - 1.5 * u, 3 * u, 3 * u);
       }
     }
     if (ring) line(C, open ? 1.5 : 1, () => { ctx.moveTo(now[0] + R, now[1]); ctx.arc(now[0], now[1], R, 0, 2 * Math.PI); });
