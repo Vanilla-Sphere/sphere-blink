@@ -89,6 +89,7 @@ function writeUrl(push) {
   if (S.mode === "diffmed") g.set("diff", "true");
   $("s-gif").value = base + "/api/movie.gif?" + g.toString();
   $("sgif").href = $("s-gif").value;
+  $("sgif").download = `${String(S.target || "sky").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "sky"}-vanilla-sphere.gif`;
   $("s-api").value = base + "/api/spectrum?" + viewParams({wait: 60}).toString();
 }
 
@@ -121,7 +122,7 @@ async function load(next, nopush) {
 
   stop();
   Object.assign(S, want);
-  S.cube = null; S.meta = null; S.median = null; S.stack = null; S.spectrum = null; S.catalogs = {}; S.i = 0; S.ref = 0; S.busy = 0;
+  S.cube = null; S.meta = null; S.saturated = null; S.median = null; S.stack = null; S.spectrum = null; S.catalogs = {}; S.i = 0; S.ref = 0; S.busy = 0;
   S.tracks = null; S.measuring = null; $("trackopt").hidden = true; $("trackcard").hidden = true;
   S.field = null; S.stage = null; $("tileopt").hidden = !S.levels;
   for (const c of ["speccard", "epochcard"]) $(c).hidden = true;
@@ -163,6 +164,13 @@ function searchError(message, what) {
   el.textContent = !message ? "" : /^(could not resolve|no object named)/i.test(message)
     ? tr(S.ui === "simple" ? "err.name.simple" : "err.name", {name: what})
     : message;
+  clearTimeout(S.errTimer);  // it leaves by itself, on Escape, or on a press anywhere outside the search
+  if (message) S.errTimer = setTimeout(() => searchError(""), 12000);
+}
+/* "500 3" or "10 -95" are two numbers but not a place on the sky. */
+function offSky(q) {
+  const m = /^\s*([+-]?\d+(?:\.\d*)?)\s*[,\s]\s*([+-]?\d+(?:\.\d*)?)\s*$/.exec(q);
+  return !!m && (+m[1] < 0 || +m[1] >= 360 || Math.abs(+m[2]) > 90);
 }
 
 /* A progressive field: the seed cell first, then its ring, then the whole block.
@@ -212,6 +220,7 @@ async function fetchCube(id, keepIndex, seq) {
   const oldLabel = S.meta && S.meta.epochs[S.i] ? S.meta.epochs[S.i].label : null;
   S.cube = cube; S.meta = meta; S.grid = meta.grid; S.npix = meta.grid.npix; S.planes = meta.encoding.planes || 1; S.median = null; S.stack = null;
   S.limits = null;
+  S.saturated = null;
   const ne = meta.epochs.length;
   if (keepIndex && oldLabel) { const f = meta.epochs.findIndex((e) => e.label === oldLabel); S.i = f >= 0 ? f : 0; }
   S.i = Math.min(S.i, Math.max(0, ne - 1)); S.ref = Math.min(S.ref, Math.max(0, ne - 1));
@@ -262,6 +271,18 @@ function ovStatus() {
   }
   $("ovstatus").textContent = parts.join(" "); $("ovstatus").hidden = !parts.length;
 }
+/* A large and significant proper motion earns a catalogue source its orange mark. Around a saturated
+   star CatWISE lists dozens of false movers packed together (the star's halo, found at another place
+   in each year's images). A real fast mover stands alone, so a candidate with three or more others
+   within 60″ is not marked; and nothing moves faster than Barnard's Star (10.4″/yr). */
+function markFast(list) {
+  const cand = list.filter((s) => { const pm = Math.hypot(s.pmra, s.pmdec); return pm > 150 && pm < 11000 && (s.pm_snr || 0) >= 5; });
+  for (const s of list) s.fast = false;
+  for (const s of cand) {
+    const c = Math.cos(s.dec * Math.PI / 180);
+    s.fast = cand.filter((o) => o !== s && Math.hypot((o.ra - s.ra) * c, o.dec - s.dec) * 3600 < 60).length < 3;
+  }
+}
 async function loadCatalogs() {
   for (const cat of ["gaia", "catwise"]) {
     if (!$("ov-" + cat).checked || Array.isArray(S.catalogs[cat]) || S.catalogs[cat] === "loading") continue;
@@ -273,6 +294,7 @@ async function loadCatalogs() {
       try { const r = await fetch("/api/catalog?" + viewParams({cat})); if (r.ok) sources = (await r.json()).sources; } catch (_) {}
       if (id !== S.loadId) return;
     }
+    if (sources) markFast(sources);
     S.catalogs[cat] = sources || "failed";
     ovStatus(); draw();
   }
@@ -385,6 +407,26 @@ function current() {
   for (let p = 0; p < f.length; p++) out[p] = f[p] - ref[p];
   return out;
 }
+/* Simple only: does the target overload the detectors and flood the middle of the picture?
+   True when most photos carry an overload flag at the target and its light fills 30 % or more of the central disc. */
+function floods() {
+  if (S.saturated !== null) return S.saturated;
+  if (!S.cube || S.mode !== "blink") return false;
+  const ne = nEpochs();
+  if (S.meta.epochs.filter(overloaded).length <= ne / 2) return (S.saturated = false);
+  const L = limits(), P = S.planes, n = S.npix, n2 = n * n, h = (n - 1) / 2, R = n * 0.25, keep = S.i, share = [];
+  for (const e of [0, ne >> 1, ne - 1]) {
+    S.i = e; const a = current(); let hit = 0, all = 0;
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      if (Math.hypot(x - h, y - h) > R) continue;
+      all++;
+      for (let c = 0; c < P; c++) { const v = a[c * n2 + y * n + x]; if (v !== v || (v - L.lo[c]) / (L.hi[c] - L.lo[c]) > 0.15) { hit++; break; } }
+    }
+    share.push(hit / all);
+  }
+  S.i = keep;
+  return (S.saturated = share.sort((p, q) => p - q)[1] >= 0.3);
+}
 function percentile(sorted, p) { return sorted.length ? sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(p * (sorted.length - 1))))] : 0; }
 function limits() {
   const key = S.mode + "|" + (S.mode === "diffref" ? S.ref : "");
@@ -482,6 +524,7 @@ function draw() {
     `<span class="nexp">${tr(e.n_exposures > 1 ? "hud.exps" : "hud.exp", {n: e.n_exposures})}</span>`;
   $("sdate").textContent = new Intl.DateTimeFormat("en-GB", {day: "numeric", month: "long", year: "numeric", timeZone: "UTC"}).format(mjdDate(e.mjd));
   $("scount").textContent = tr("simple.photo", {i: S.i + 1, n: ne});
+  $("ssat").hidden = !(S.ui === "simple" && floods());
   showEpoch(e);
   for (const el of document.querySelectorAll("#timeline i")) el.classList.toggle("cur", +el.dataset.i === S.i);
   if (S.plotmode === "lc") drawPlot();
@@ -537,7 +580,7 @@ function drawOverlays(ctx, cv) {
     for (const s of list) {
       const [ra, dec] = moved(s, yr), [x, y] = toPixel(ra, dec, cv);
       if (x < 0 || y < 0 || x > W || y > W) continue;
-      const pm = Math.hypot(s.pmra, s.pmdec), fast = pm > 150 && (s.pm_snr || 0) >= 5;
+      const pm = Math.hypot(s.pmra, s.pmdec), fast = s.fast;
       if (!fast && shown >= 40) continue;
       shown++;
       ctx.strokeStyle = fast ? T.accent : styles[cat];
@@ -555,7 +598,7 @@ function drawOverlays(ctx, cv) {
   }
   // the team's own measurements: every measured position as a dot, the fitted track as a line,
   // and a diamond on the positions measured in the frame being shown
-  if ($("ov-tracks").checked && Array.isArray(S.tracks)) {
+  if (S.ui !== "simple" && $("ov-tracks").checked && Array.isArray(S.tracks)) {
     const M = T.measured, win = {visit: 25, day: 0.6, exposure: 0.02}[S.group], inside = (x, y) => x >= 0 && y >= 0 && x <= W && y <= W;
     const diamond = (x, y, r) => { ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); };
     for (const s of S.tracks) {
@@ -618,15 +661,23 @@ function fitCanvas() {
 
 /* ------------------------------------------------------------------ side panels */
 function sexa(ra, dec) {
-  const h = ra / 15, hh = Math.floor(h), mm = Math.floor((h - hh) * 60), ss = ((h - hh) * 60 - mm) * 60;
-  const a = Math.abs(dec), dd = Math.floor(a), dm = Math.floor((a - dd) * 60), ds = ((a - dd) * 60 - dm) * 60;
+  // round first, then split: 59.96″ must carry into the minutes, not print as 60.0″
   const z = (v, n = 2) => String(v).padStart(n, "0");
-  return `${z(hh)}h${z(mm)}m${ss.toFixed(2).padStart(5, "0")}s ${dec < 0 ? "−" : "+"}${z(dd)}°${z(dm)}′${ds.toFixed(1).padStart(4, "0")}″`;
+  const t = ((Math.round(ra / 15 * 360000) % 8640000) + 8640000) % 8640000;  // hundredths of a second of time
+  const a = Math.round(Math.abs(dec) * 36000);  // tenths of an arcsecond
+  return `${z(Math.floor(t / 360000))}h${z(Math.floor(t % 360000 / 6000))}m${(t % 6000 / 100).toFixed(2).padStart(5, "0")}s ` +
+    `${dec < 0 ? "−" : "+"}${z(Math.floor(a / 36000))}°${z(Math.floor(a % 36000 / 600))}′${(a % 600 / 10).toFixed(1).padStart(4, "0")}″`;
+}
+/* A name typed in lower case reads as a name: "vega" as Vega, "m31" as M31, "ngc 891" as NGC 891. */
+function tidyName(name) {
+  if (/[A-Z]/.test(name.replace(/\([^)]*\)/g, ""))) return name;
+  return name.replace(/^[^(]+/, (head) => head.replace(/[a-z0-9'’]+/g, (w) =>
+    /^(m\d+|ngc|ic|hd|hip|hr|gj|sao|bd|lhs|lp|wise|wisea|2mass|psr|tyc|ugc|pgc|rw|uv|v\d+)$/.test(w) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1)));
 }
 function showTarget(t) {
   S.t = t;
   $("targetcard").hidden = false; $("linkcard").hidden = false;
-  $("tname").textContent = t.name;
+  $("tname").textContent = tidyName(t.name);
   const pm = Math.hypot(t.pmra, t.pmdec);
   $("tcoords").textContent = `${t.ra.toFixed(5)}° ${t.dec >= 0 ? "+" : "−"}${Math.abs(t.dec).toFixed(5)}°`;
   $("tdeci").textContent = $("tcoords").textContent; $("tsexa").textContent = sexa(t.ra, t.dec);
@@ -637,7 +688,7 @@ function showTarget(t) {
   $("l-wiseview").href = `http://byw.tools/wiseview#ra=${t.ra.toFixed(5)}&dec=${t.dec.toFixed(5)}&size=${Math.round(S.fov * 60)}&band=3`;
   $("l-simbad").href = `https://simbad.cds.unistra.fr/simbad/sim-coo?Coord=${q}&Radius=1&Radius.unit=arcmin`;
   $("l-aladin").href = `https://aladin.cds.unistra.fr/AladinLite/?target=${q}&fov=${(S.fov / 60 * 2).toFixed(3)}&survey=P%2FallWISE%2Fcolor`;
-  document.title = `${t.name} - Vanilla Sphere`;
+  document.title = `${tidyName(t.name)} - Vanilla Sphere`;
   for (const c of document.querySelectorAll("#featured .target")) { const on = c.dataset.name === t.name; c.classList.toggle("on", on); c.setAttribute("aria-pressed", on); }
   showStory(t);
 }
@@ -646,11 +697,13 @@ function showStory(t) {
   const f = S.featured.find((x) => x.name === t.name || x.key === S.target);
   const c = SkyMap.constellation(t.ra, t.dec), con = c ? c.la : "";
   const spot = !f && (S.byCoords || /^RA /.test(t.name));
-  const plain = t.name.replace(/\s*\([^)]*\)\s*$/, "");  // "Vega (* alf Lyr)" reads as "Vega" here
+  const plain = tidyName(t.name).replace(/\s*\([^)]*\)\s*$/, "");  // "Vega (* alf Lyr)" reads as "Vega" here
   $("sname").textContent = f ? f.name : spot ? (con ? tr("simple.spot", {con}) : tr("simple.spot.none")) : plain;
   $("skind").textContent = f ? tr("kind." + f.key) : ""; $("skind").hidden = !f;
   $("sstory").textContent = f ? tr("story." + f.key) : tr(spot ? "simple.story.spot" : "simple.story.named", {name: plain, con});
 }
+/* Too bright for the detector: the core pixels overflow and bleed, and the picture looks broken there. */
+const overloaded = (e) => (e.flags_at_target || []).some((f) => f === "OVERFLOW" || f === "SATURATED" || f === "BLOOM");
 function showEpoch(e) {
   $("epochcard").hidden = false;
   const flags = e.flags_at_target.filter((f) => f !== "SOURCE" && f !== "FULLSAMPLE");
@@ -660,7 +713,7 @@ function showEpoch(e) {
     `<dt>${tr("ep.det")}</dt><dd>${e.detectors.map((d) => `${swatch(DET_COLOR[d])}D${d} ${DET[d].replace("-", "–")} µm`).join("<br>")}</dd>` +
     (e.channels ? `<dt>${tr("ep.col")}</dt><dd>${e.channels.map((c) => `${swatch(CHANNEL_COLOR[c.color])}` + (c.detector ? `${c.color} = D${c.detector}${c.borrowed ? tr("ep.from", {date: c.date}) : ""}` : `${c.color} = ${tr("ep.nodata")}`)).join("<br>")}</dd>` : "") +
     `<dt>${tr("ep.exp")}</dt><dd>${e.n_exposures}</dd><dt>${tr("ep.cov")}</dt><dd>${tr("ep.covv", {p: Math.round(e.coverage * 100)})}</dd>` +
-    `<dt>${tr("ep.flags")}</dt><dd>${fl}</dd>`;
+    `<dt>${tr("ep.flags")}</dt><dd>${fl}${overloaded(e) ? `<span class="flagnote">${tr("ep.sat")}</span>` : ""}</dd>`;
 }
 /* A diagram of real time: a UTC axis, each sky pass as a band, one pin per frame. */
 const mjdDate = (m) => new Date((m - 40587) * 864e5);
@@ -862,7 +915,7 @@ function showScreen(name) {
     SkyMap.show(true);
   } else {
     SkyMap.show(false);
-    if (S.t) document.title = `${S.t.name} - Vanilla Sphere`;
+    if (S.t) document.title = `${tidyName(S.t.name)} - Vanilla Sphere`;
     requestAnimationFrame(() => { fitCanvas(); if (S.meta) { buildTimeline(); draw(); } if (S.spectrum) drawPlot(); });
   }
 }
@@ -887,7 +940,13 @@ function mapHover(h) {
   const con = h.con ? h.con.la : "";
   $("mapread").innerHTML = `${h.ra.toFixed(2)}° ${h.dec >= 0 ? "+" : "−"}${Math.abs(h.dec).toFixed(2)}°` + (con ? ` · <i>${esc(con)}</i>` : "");
   if (h.pin) mapTag(h.x, h.y, `<b>${esc(h.pin.name)}</b><span>${esc(tr("kind." + h.pin.key))}</span>`);
-  else if (con) mapTag(h.x, h.y, `<span>${esc(con)}</span>`);
+  else if (h.star) {
+    const about = LORE.star[h.star.name];
+    mapTag(h.x, h.y, `<b>${esc(h.star.name)}</b><span>${esc(con ? tr("map.star", {con}) : tr("map.star.none"))}</span>` + (about ? `<span class="more">${esc(about)}</span>` : ""));
+  } else if (con) {
+    const [figure, about] = LORE.con[h.con.id] || [];
+    mapTag(h.x, h.y, `<b>${esc(con)}</b>` + (figure ? `<span>${esc(figure)}</span>` : "") + (about ? `<span class="more">${esc(about)}</span>` : ""));
+  }
   else $("maptag").hidden = true;
 }
 function mapPick(hit) {
@@ -938,7 +997,8 @@ function init() {
   seg("plotmode", "plotmode", drawPlot);
   $("refrow").hidden = S.mode !== "diffref";
   setUi(prefs.ui, true);
-  SkyMap.init($("map"), {coords: () => S.ui === "adv", onPick: mapPick, onHover: mapHover, onReady: () => { if (S.t) showStory(S.t); }});
+  SkyMap.init($("map"), {coords: () => S.ui === "adv", onPick: mapPick, onHover: mapHover, onReady: () => { if (S.t) showStory(S.t); },
+    onView: (v) => $("mapscreen").classList.toggle("zoomed", v.zoomed)});
   buildFeatured();
   $("ui").addEventListener("click", (ev) => { const b = ev.target.closest("button"); if (b && b.dataset.v !== S.ui) setUi(b.dataset.v); });
   $("toadv").addEventListener("click", () => setUi("adv"));
@@ -950,10 +1010,15 @@ function init() {
   $("sshare").addEventListener("click", async () => {
     const url = $("s-page").value;
     if (navigator.share && matchMedia("(pointer:coarse)").matches) { try { await navigator.share({title: document.title, url}); } catch (_) {} return; }
-    if (navigator.clipboard) navigator.clipboard.writeText(url);
-    $("ssharelabel").textContent = tr("simple.shared"); setTimeout(() => ($("ssharelabel").textContent = tr("s.share")), 1600);
+    let done = false;
+    try { await navigator.clipboard.writeText(url); done = true; } catch (_) {
+      // no clipboard permission: the old way, through a selected text field
+      const ta = document.createElement("textarea"); ta.value = url; ta.style.cssText = "position:fixed;opacity:0"; document.body.appendChild(ta); ta.select();
+      try { done = document.execCommand("copy"); } catch (_) {} ta.remove();
+    }
+    $("ssharelabel").textContent = tr(done ? "simple.shared" : "simple.share.fail"); setTimeout(() => ($("ssharelabel").textContent = tr("s.share")), done ? 1600 : 5000);
   });
-  $("search").addEventListener("submit", (ev) => { ev.preventDefault(); const q = $("q").value.trim(); if (q) load({target: q, byCoords: false, ra: null, dec: null, ...(S.ui === "simple" ? {levels: 0, fov: 8} : fieldChoice())}); });
+  $("search").addEventListener("submit", (ev) => { ev.preventDefault(); const q = $("q").value.trim(); if (offSky(q)) return searchError(tr("err.range")); if (q) load({target: q, byCoords: false, ra: null, dec: null, ...(S.ui === "simple" ? {levels: 0, fov: 8} : fieldChoice())}); });
   $("q").addEventListener("input", () => searchError(""));
   $("fov").addEventListener("change", () => { if (S.meta && S.screen === "view") load(fieldChoice()); else Object.assign(S, fieldChoice()); });
   $("play").addEventListener("click", () => (S.playing ? stop() : play()));
@@ -984,8 +1049,9 @@ function init() {
     if (open) ev.currentTarget.blur(); else t.classList.add("open");
   });
   document.addEventListener("click", closeTips);
+  document.addEventListener("click", (ev) => { if (!$("searcherr").hidden && !ev.target.closest("#search")) searchError(""); });
   document.addEventListener("keydown", (ev) => {
-    if (ev.key === "Escape") { closeTips(); if (document.activeElement.classList.contains("tipbtn")) document.activeElement.blur(); }
+    if (ev.key === "Escape") { searchError(""); closeTips(); if (document.activeElement.classList.contains("tipbtn")) document.activeElement.blur(); }
     if (S.screen !== "view") return;
     // a focused field or slider keeps its own keys; a focused button keeps the space bar
     const el = document.activeElement;
@@ -995,7 +1061,8 @@ function init() {
     if (ev.key === "ArrowRight") { stop(); step(1); }
     if (ev.key === "ArrowLeft") { stop(); step(-1); }
   });
-  if (S.target || S.ra !== null) { S.byCoords = S.ra !== null && !S.target; $("q").value = S.target || `${S.ra} ${S.dec}`; showScreen("view"); load(); }
+  if (S.ra !== null && !S.target && !(S.ra >= 0 && S.ra < 360 && Math.abs(S.dec) <= 90)) { S.ra = S.dec = null; showScreen("map"); searchError(tr("err.range")); }
+  else if (S.target || S.ra !== null) { S.byCoords = S.ra !== null && !S.target; $("q").value = S.target || `${S.ra} ${S.dec}`; showScreen("view"); load(); }
   else showScreen("map");
 }
 init();

@@ -14,7 +14,7 @@ const SkyMap = (() => {
   const view = {ra: 0, dec: 0, k: 1};
   let rot = null;                       // cos/sin of the centre, set once per frame
   let sky = null, stars = null, mw = null, cons = [], names = [], cells = null;
-  let pins = [], mark = null, hover = null, hoverPin = null, busyAt = null, labels = false;
+  let pins = [], mark = null, hover = null, hoverPin = null, hoverCon = null, busyAt = null, labels = false, wasZoomed = null;
   let dirty = false, shown = false;
 
   /* ---------------------------------------------------------------- geometry */
@@ -109,6 +109,8 @@ const SkyMap = (() => {
   function draw() {
     dirty = false;
     if (!cv || !W || !shown) return;
+    const zoomed = view.k > homeZoom() * 1.35;
+    if (zoomed !== wasZoomed) { wasZoomed = zoomed; if (opt.onView) opt.onView({zoomed}); }
     setRot();
     const s = s0 * view.k, p = [0, 0, 0], q = [0, 0, 0];
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -144,6 +146,12 @@ const SkyMap = (() => {
     ctx.strokeStyle = C.muted2; ctx.globalAlpha = 0.55; ctx.lineWidth = 1; ctx.beginPath();
     for (const c of cons) for (const seg of c.lines) polyline(seg);
     ctx.stroke(); ctx.globalAlpha = 1;
+    // the figure under the pointer stands out (both halves of the Serpent together)
+    if (hoverCon) {
+      ctx.strokeStyle = C.ink2; ctx.globalAlpha = 0.9; ctx.lineWidth = 1.25; ctx.beginPath();
+      for (const c of cons) if (c.id === hoverCon.id) for (const seg of c.lines) polyline(seg);
+      ctx.stroke(); ctx.globalAlpha = 1;
+    }
 
     // stars, brightest first; fainter ones appear as the map is zoomed
     const lim = Math.min(6.5, (W < 700 ? 4.4 : 4.9) + 1.15 * Math.log2(view.k)), grow = 1 + 0.22 * Math.log2(view.k);
@@ -164,7 +172,8 @@ const SkyMap = (() => {
 
     // names: constellations once there is room, the brightest stars a little later
     const halo = (text, x, y, color) => { ctx.lineJoin = "round"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(8,6,4,.72)"; ctx.strokeText(text, x, y); ctx.fillStyle = color; ctx.fillText(text, x, y); };
-    if (labels || view.k >= 1.7) {
+    // (a phone opens zoomed in already, with little room: its names wait for a closer look)
+    if (labels || view.k >= (W < 700 ? 4.2 : 1.7)) {
       ctx.font = `500 10.5px ${C.sans}`; ctx.textAlign = "center";
       if ("letterSpacing" in ctx) ctx.letterSpacing = "0.08em";
       for (const c of cons) {
@@ -248,12 +257,23 @@ const SkyMap = (() => {
     for (const pin of pins) { const d = Math.hypot(pin.x - px, pin.y - py); if (d < bd) { bd = d; best = pin; } }
     return best;
   }
+  // a named star within reach of the pointer; the brighter one wins when two are close
+  function starAt(px, py) {
+    let best = null; const p = [0, 0];
+    for (const n of names) {
+      project(n.v[0], n.v[1], n.v[2], p);
+      if (Math.hypot(p[0] - px, p[1] - py) <= 9 && (!best || n.mag < best.mag)) best = n;
+    }
+    return best;
+  }
   function tell(px, py) {
     setRot();
     const sk = px === null ? null : unproject(px, py), pin = px === null ? null : pinAt(px, py);
     hover = sk ? {ra: sk[0], dec: sk[1]} : null; hoverPin = pin;
+    const con = hover ? constellation(hover.ra, hover.dec) : null;
+    hoverCon = pin ? null : con;
     cv.style.cursor = pin ? "pointer" : sk ? "crosshair" : "grab";
-    if (opt.onHover) opt.onHover(hover ? {ra: hover.ra, dec: hover.dec, x: px, y: py, pin, con: constellation(hover.ra, hover.dec)} : null);
+    if (opt.onHover) opt.onHover(hover ? {ra: hover.ra, dec: hover.dec, x: px, y: py, pin, con, star: pin || !sk ? null : starAt(px, py)} : null);
     redraw();
   }
   function pick(px, py) {
@@ -279,7 +299,7 @@ const SkyMap = (() => {
       ptr.set(ev.pointerId, now);
       if (ptr.size === 1) {
         moved += Math.hypot(now[0] - was[0], now[1] - was[1]);
-        if (moved > 5) { cv.style.cursor = "grabbing"; if (hover) { hover = null; hoverPin = null; if (opt.onHover) opt.onHover(null); } pan(now[0] - was[0], now[1] - was[1]); }
+        if (moved > 5) { cv.style.cursor = "grabbing"; if (hover) { hover = null; hoverPin = null; hoverCon = null; if (opt.onHover) opt.onHover(null); } pan(now[0] - was[0], now[1] - was[1]); }
       } else if (ptr.size === 2) {
         const [a, b] = [...ptr.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
         if (pinch) zoomAt(d / pinch, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);

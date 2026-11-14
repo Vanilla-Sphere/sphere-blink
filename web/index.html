@@ -6,11 +6,23 @@
 <title>Vanilla Sphere - watch the infrared sky change</title>
 <meta name="description" content="Pick any spot on the sky map and watch NASA SPHEREx images of it play as a movie. Spot moving and variable objects, read their spectra.">
 <meta name="theme-color" content="#0b0a08">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Vanilla Sphere">
+<meta property="og:title" content="Vanilla Sphere - watch the infrared sky change">
+<meta property="og:description" content="Pick any spot on the sky map and watch NASA SPHEREx images of it play as a movie.">
+<meta property="og:url" content="https://vanillasphere.com/">
+<meta property="og:image" content="https://vanillasphere.com/static/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Vanilla Sphere - watch the infrared sky change">
+<meta name="twitter:description" content="Pick any spot on the sky map and watch NASA SPHEREx images of it play as a movie.">
+<meta name="twitter:image" content="https://vanillasphere.com/static/og.png">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 <link rel="preload" href="/static/fonts/HankenGrotesk.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/GeistMono.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/static/style.css?v=16">
+<link rel="stylesheet" href="/static/style.css?v=18">
 </head>
 <body>
 <header class="bar">
@@ -46,7 +58,7 @@
   <canvas id="map" tabindex="0" aria-label="Map of the whole sky. Drag to turn it, scroll to zoom, select a point to open it."></canvas>
   <div class="maphead">
     <h1>Pick a spot in the sky</h1>
-    <p class="simple">NASA's SPHEREx telescope photographs the whole sky again and again. Click anywhere to watch that place change.</p>
+    <p class="simple"><span class="long">NASA's SPHEREx telescope photographs the whole sky again and again. </span>Tap or click anywhere to watch that place change.</p>
   </div>
   <section class="mapstart" aria-labelledby="mapstart-h">
     <h2 id="mapstart-h"><span class="simple">Start here</span><span class="adv">Challenge targets</span></h2>
@@ -141,9 +153,10 @@
     </div>
     <div class="sbody">
       <p id="sstory" class="story"></p>
+      <p id="ssat" class="snote" hidden>Very bright here: this object overloads the SPHEREx detectors, so its centre can look patchy or oddly coloured. That is the camera, not the sky.</p>
       <div class="sactions" data-hint-side="top">
         <button type="button" class="btn" id="sshare" data-hint="tip.share"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 1l6 6-6 6V9C5 9 3 10.500 1 13c0-5 3-8 8-8z"/></svg><span id="ssharelabel">Share</span></button>
-        <a class="btn" id="sgif" target="_blank" rel="noopener" data-hint="tip.gif"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 1h2v7l3-3 1.500 1.500L8 12 2.500 6.500 4 5l3 3zM2 13h12v2H2z"/></svg><span>Download GIF</span></a>
+        <a class="btn" id="sgif" data-hint="tip.gif"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 1h2v7l3-3 1.500 1.500L8 12 2.500 6.500 4 5l3 3zM2 13h12v2H2z"/></svg><span>Download GIF</span></a>
       </div>
       <button type="button" class="toadv" id="toadv"><span>See the measurements, bands and spectrum in Advanced</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 2l6 6-6 6V10H1V6h8z"/></svg></button>
     </div>
@@ -198,9 +211,10 @@
   </aside>
 </main>
 
-<script src="/static/i18n.js?v=16"></script>
-<script src="/static/hints.js?v=16"></script>
-<script src="/static/starmap.js?v=16"></script>
-<script src="/static/app.js?v=16"></script>
+<script src="/static/i18n.js?v=18"></script>
+<script src="/static/lore.js?v=18"></script>
+<script src="/static/hints.js?v=18"></script>
+<script src="/static/starmap.js?v=18"></script>
+<script src="/static/app.js?v=18"></script>
 </body>
 </html>
