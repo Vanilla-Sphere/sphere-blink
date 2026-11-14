@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: sphere-blink
+    runtime: python
+    region: virginia   # next to the SPHEREx bucket in AWS us-east-1
+    plan: standard
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn sphereblink.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: SPHEREX_CACHE_DIR
+        value: /var/data/sphereblink
+    disk:
+      name: cache
+      mountPath: /var/data
+      sizeGB: 5

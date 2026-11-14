@@ -1,0 +1,126 @@
+"""Find SPHEREx Level 2 exposures that cover a sky position (IRSA SIA v2)."""
+
+from __future__ import annotations
+
+import io
+import json
+import re
+from dataclasses import asdict, dataclass
+
+import httpx
+from astropy.io.votable import parse_single_table
+
+from . import config
+
+
+@dataclass
+class Exposure:
+    obs_id: str  # e.g. 2025W33_2C_0321_1 (one exposure of the focal plane)
+    detector: int  # 1-6
+    collection: str  # spherex_dr1, spherex_qr3, ...
+    mjd_start: float
+    mjd_end: float
+    wave_min_um: float  # wavelength range covered by this detector
+    wave_max_um: float
+    s3_key: str  # key in the nasa-irsa-spherex bucket
+    access_url: str  # IRSA download URL (fallback)
+    s_region: str
+    ra_center: float
+    dec_center: float
+
+    @property
+    def mjd(self) -> float:
+        return 0.5 * (self.mjd_start + self.mjd_end)
+
+    @property
+    def uid(self) -> str:
+        return f"{self.obs_id}_D{self.detector}"
+
+    @property
+    def http_url(self) -> str:
+        if self.s3_key:
+            return f"{config.S3_HTTP_BASE}/{self.s3_key}"
+        return self.access_url
+
+    def to_dict(self) -> dict:
+        d = asdict(self)
+        d["uid"] = self.uid
+        d["mjd"] = self.mjd
+        return d
+
+
+_DET_RE = re.compile(r"D(\d)")
+
+
+def _s3_key(cloud_access: str, access_url: str) -> str:
+    if cloud_access:
+        try:
+            return json.loads(cloud_access)["aws"]["key"]
+        except (ValueError, KeyError, TypeError):
+            pass
+    # https://irsa.ipac.caltech.edu/ibe/data/spherex/<key>
+    m = re.search(r"/ibe/data/spherex/(.+\.fits)", access_url or "")
+    return m.group(1) if m else ""
+
+
+def parse_sia_votable(payload: bytes, collection: str) -> list[Exposure]:
+    table = parse_single_table(io.BytesIO(payload)).to_table(use_names_over_ids=True)
+    out: list[Exposure] = []
+    for row in table:
+        if str(row["dataproduct_subtype"]).strip() not in ("image", "science"):
+            continue
+        if str(row["dataproduct_type"]).strip() != "image":
+            continue
+        band = str(row["energy_bandpassname"])
+        m = _DET_RE.search(band)
+        if not m:
+            continue
+        access_url = str(row["access_url"])
+        out.append(
+            Exposure(
+                obs_id=str(row["obs_id"]).strip(),
+                detector=int(m.group(1)),
+                collection=str(row["obs_collection"]).strip() or collection,
+                mjd_start=float(row["t_min"]),
+                mjd_end=float(row["t_max"]),
+                wave_min_um=float(row["em_min"]) * 1e6,
+                wave_max_um=float(row["em_max"]) * 1e6,
+                s3_key=_s3_key(str(row["cloud_access"]), access_url),
+                access_url=access_url,
+                s_region=str(row["s_region"]),
+                ra_center=float(row["s_ra"]),
+                dec_center=float(row["s_dec"]),
+            )
+        )
+    return out
+
+
+def find_exposures(
+    ra: float,
+    dec: float,
+    collections: list[str] | None = None,
+    client: httpx.Client | None = None,
+    timeout: float = 90.0,
+) -> list[Exposure]:
+    """All exposures whose footprint contains (ra, dec), oldest first.
+
+    When the same exposure/detector appears in several releases, the release
+    listed first in ``collections`` wins (newest processing by default).
+    """
+    collections = collections or config.COLLECTIONS
+    own = client is None
+    client = client or httpx.Client(timeout=timeout, follow_redirects=True)
+    try:
+        seen: dict[str, Exposure] = {}
+        for coll in collections:
+            r = client.get(
+                config.SIA_URL,
+                params={"COLLECTION": coll, "POS": f"circle {ra} {dec} 0.0005"},
+            )
+            r.raise_for_status()
+            for e in parse_sia_votable(r.content, coll):
+                seen.setdefault(e.uid, e)
+        return sorted(seen.values(), key=lambda e: (e.mjd, e.detector))
+    finally:
+        if own:
+            client.close()

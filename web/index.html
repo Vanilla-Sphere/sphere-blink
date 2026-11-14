@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPHEREx Blink - watch the infrared sky change</title>
+<meta name="description" content="Enter sky coordinates and watch NASA SPHEREx images of that patch play as a movie. Spot moving and variable objects, read their spectra.">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="#ffc857" stroke-width="2"/><circle cx="11" cy="16" r="3" fill="#ffc857"/><circle cx="21" cy="16" r="3" fill="none" stroke="#7fd3ff" stroke-width="2" stroke-dasharray="2 2"/></svg>
+    <div><h1>SPHEREx Blink</h1><p>Watch any patch of the infrared sky change over time</p></div>
+  </div>
+  <form id="search" autocomplete="off">
+    <input id="q" type="text" placeholder="RA Dec (269.4486 +4.7387 or 08h55m10.8s -07d14m42.5s) or a name" aria-label="Coordinates or object name" required>
+    <label class="fov">Field
+      <select id="fov" aria-label="Field of view">
+        <option value="4">4′</option><option value="8" selected>8′</option><option value="15">15′</option><option value="30">30′</option>
+      </select>
+    </label>
+    <button type="submit">Show sky</button>
+  </form>
+  <div id="featured" class="chips" aria-label="Featured targets"></div>
+</header>
+
+<main>
+  <section class="stage">
+    <div class="canvaswrap">
+      <canvas id="sky" width="640" height="640" tabindex="0" aria-label="SPHEREx image"></canvas>
+      <div id="hud" class="hud"></div>
+      <div id="cursor" class="cursor"></div>
+      <div id="empty" class="empty">Pick a featured target or enter coordinates to begin.</div>
+    </div>
+    <div class="progress" id="progress" hidden><div id="bar"></div><span id="ptext"></span></div>
+    <div class="transport">
+      <button id="prev" title="Previous (←)">◀</button>
+      <button id="play" title="Play / pause (space)">▶ Play</button>
+      <button id="next" title="Next (→)">▶</button>
+      <input id="slider" type="range" min="0" max="0" value="0" aria-label="Epoch">
+      <span id="count">0 / 0</span>
+      <label>Speed <select id="fps"><option>1</option><option selected>3</option><option>6</option><option>12</option></select> fps</label>
+    </div>
+    <div class="timeline" id="timeline" title="Observation dates (click to jump)"></div>
+  </section>
+
+  <aside>
+    <div class="card" id="targetcard" hidden>
+      <h2 id="tname"></h2>
+      <p id="tcoords" class="mono"></p>
+      <p id="tnote" class="muted"></p>
+      <p class="links"><a id="l-wiseview" target="_blank" rel="noopener">WiseView</a> · <a id="l-simbad" target="_blank" rel="noopener">SIMBAD</a> · <a id="l-aladin" target="_blank" rel="noopener">Aladin Lite</a></p>
+    </div>
+
+    <div class="card">
+      <h3>What to show</h3>
+      <div class="row"><span class="lab">Detectors</span><div id="dets" class="chips small"></div></div>
+      <div class="row"><span class="lab">One frame per</span>
+        <div class="seg" id="group">
+          <button data-v="visit" title="Each ~6-month sky pass stacked: deepest">sky pass</button>
+          <button data-v="day" class="on" title="All exposures of a UTC day stacked">day</button>
+          <button data-v="exposure" title="Every single exposure: finest time sampling">exposure</button>
+        </div>
+      </div>
+      <div class="row"><span class="lab">Image math</span>
+        <div class="seg" id="mode">
+          <button data-v="blink" class="on" title="Plain images">blink</button>
+          <button data-v="diffmed" title="Each frame minus the median of all frames: static stars vanish">− median</button>
+          <button data-v="diffref" title="Each frame minus the reference frame">− reference</button>
+          <button data-v="stack" title="All frames added together">sum all</button>
+        </div>
+      </div>
+      <div class="row" id="refrow" hidden><span class="lab">Reference</span><button id="setref" class="ghost">use current frame</button><span id="reflabel" class="muted"></span></div>
+      <div class="row"><span class="lab">Contrast</span><input id="gain" type="range" min="-150" max="150" value="0" aria-label="Contrast"><button id="resetgain" class="ghost">reset</button></div>
+      <div class="row checks">
+        <label><input type="checkbox" id="ov-gaia"> Gaia DR3</label>
+        <label><input type="checkbox" id="ov-catwise"> CatWISE</label>
+        <label><input type="checkbox" id="ov-cross" checked> crosshair</label>
+        <label><input type="checkbox" id="ov-smooth"> smooth</label>
+      </div>
+    </div>
+
+    <div class="card" id="epochcard" hidden>
+      <h3>This frame</h3>
+      <dl id="einfo"></dl>
+    </div>
+
+    <div class="card" id="speccard" hidden>
+      <div class="cardhead"><h3 id="spectitle">Spectrum at the crosshair</h3>
+        <div class="seg" id="plotmode"><button data-v="spec" class="on">spectrum</button><button data-v="lc">light curve</button></div></div>
+      <canvas id="plot" width="560" height="300" aria-label="Spectrum plot"></canvas>
+      <p class="muted" id="specnote"></p>
+    </div>
+
+    <div class="card" id="sharecard" hidden>
+      <h3>Share / embed</h3>
+      <div class="share"><span>Page</span><input id="s-page" readonly><button data-copy="s-page" class="ghost">copy</button></div>
+      <div class="share"><span>GIF</span><input id="s-gif" readonly><button data-copy="s-gif" class="ghost">copy</button></div>
+      <div class="share"><span>Data</span><input id="s-api" readonly><button data-copy="s-api" class="ghost">copy</button></div>
+      <p class="muted">Coordinates live in the URL, so any view can be linked or embedded. API docs: <a href="/docs">/docs</a></p>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <p>Images: NASA SPHEREx Level 2 spectral images (DR1 / QR3) from the NASA/IPAC Infrared Science Archive, read on demand from the AWS Open Data mirror. Overlays: ESA Gaia DR3, CatWISE2020 via IRSA. Built by team Vanilla Sphere for the 2026 NASA Space Apps Challenge "Planet X and SPHEREx".</p>
+</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>
