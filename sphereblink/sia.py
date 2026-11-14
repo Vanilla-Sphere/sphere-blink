@@ -6,11 +6,12 @@ import csv
 import io
 import json
 import re
+import time
 from dataclasses import asdict, dataclass
 
 import httpx
 
-from . import config
+from . import config, retry
 
 
 @dataclass
@@ -114,6 +115,9 @@ def parse_sia(payload: bytes, content_type: str, collection: str) -> list[Exposu
     return parse_sia_votable(payload, collection)  # a service that ignores RESPONSEFORMAT
 
 
+ARCHIVE = "NASA's SPHEREx archive (IRSA)"  # how the image search is named to a reader
+
+
 def find_exposures(
     ra: float,
     dec: float,
@@ -135,28 +139,29 @@ def find_exposures_at(
     client: httpx.Client | None = None,
     timeout: float = 90.0,
     parallel: int = 12,
+    budget: float | None = None,
 ) -> list[Exposure]:
-    """All exposures whose footprint contains at least one of ``points``."""
+    """All exposures whose footprint contains at least one of ``points``.
+
+    ``timeout`` is how long one query may take, ``budget`` (default: the
+    same) how long the whole search may go on asking again after passing
+    failures of the archive (see ``retry``). Raises ``retry.Unavailable``
+    when a query got no answer in that time."""
     from concurrent.futures import ThreadPoolExecutor
 
     collections = collections or config.COLLECTIONS
     own = client is None
     client = client or httpx.Client(timeout=timeout, follow_redirects=True)
+    deadline = time.monotonic() + (timeout if budget is None else budget)  # one deadline for all the queries
 
     def query(arg: tuple[str, tuple[float, float]]) -> list[Exposure]:
         coll, (ra, dec) = arg
-        last: Exception | None = None
-        for _ in range(2):  # the archive occasionally drops one of many parallel queries
-            try:
-                r = client.get(
-                    config.SIA_URL,
-                    params={"COLLECTION": coll, "POS": f"circle {ra} {dec} 0.0005", "RESPONSEFORMAT": "csv"},
-                )
-                r.raise_for_status()
-                return parse_sia(r.content, r.headers.get("content-type", ""), coll)
-            except httpx.HTTPError as exc:
-                last = exc
-        raise last  # type: ignore[misc]
+        r = retry.get(
+            config.SIA_URL,
+            {"COLLECTION": coll, "POS": f"circle {ra} {dec} 0.0005", "RESPONSEFORMAT": "csv"},
+            service=ARCHIVE, client=client, timeout=timeout, deadline=deadline,
+        )
+        return parse_sia(r.content, r.headers.get("content-type", ""), coll)
 
     try:
         jobs = [(coll, p) for coll in collections for p in points]  # release order = priority

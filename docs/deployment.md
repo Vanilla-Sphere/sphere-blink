@@ -337,7 +337,7 @@ SPHEREX_AUTO_MEASURE=0 pytest -q
 | Symptom | Likely cause | Action |
 | --- | --- | --- |
 | Progress jumps backward or differs between polls; views load several times slower than expected | More than one web process | Confirm with `/api/health` (`instance` changes); restore `--workers 1` and `WEB_CONCURRENCY=1` |
-| Views fail with 502 "data archive error" | IRSA SIA unreachable and no cached exposure list | Check the archive's status; previously opened views keep working from the cache |
+| New views fail with 502 "NASA's SPHEREx archive (IRSA) is not answering right now" | IRSA SIA gave no answer for a minute of asking, and the place has no stored exposure list | Check the archive's status; previously opened views keep working from the cache. The log lines "answered at try N" and "gave no answer in N tries" (`retry.py`) say how often the archive stumbles |
 | Many exposures counted as `failed` | S3 or network errors | The job completes with the rest. Failed exposures are not cached, so they are read again the next time the view is loaded from disk (after it has left memory, or after a restart) |
 | Name search answers 503 | CDS name services unreachable | Coordinates and featured targets still work; add a mirror in `resolve.SESAME_URLS` if an outage persists |
 | Overlays do not load | IRSA TAP slow or down | The viewer retries three times; untick and tick the overlay to retry |
