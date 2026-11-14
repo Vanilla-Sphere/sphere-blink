@@ -73,10 +73,10 @@ search result. If that column is empty the IRSA download URL is used instead.
 
 | Service | Endpoint | Called by | Timeout | On failure |
 | --- | --- | --- | --- | --- |
-| IRSA SIA v2 | `https://irsa.ipac.caltech.edu/SIA` | `sia.py` | 60 s for a new position, 10 s when an older list is stored | One retry; then the stored list of any age; else the view fails with 502 |
+| IRSA SIA v2 | `https://irsa.ipac.caltech.edu/SIA` | `sia.py` | 60 s for a new position; 30 s in the background when an older list is stored | A new position: asked again with a growing pause for up to 60 s, then the view fails with 502 and a readable sentence. A position seen before: the stored list of any age is given at once and refreshed in the background |
 | AWS S3 (SPHEREx bucket) | `https://nasa-irsa-spherex.s3.us-east-1.amazonaws.com` | `cutout.py`, `measure.py` | 60 s (8 s connect) | The same byte range is read from IRSA (`https://irsa.ipac.caltech.edu/ibe/data/spherex/<key>`), which is about five times slower; after three failures in a row the bucket is skipped for a minute. Three attempts per exposure; the exposure is then counted as failed |
-| ESA Gaia archive TAP | `https://gea.esac.esa.int/tap-server/tap/sync` | `catalogs.py`, `refcat.py` | 25 s / 40 s | Falls back to IRSA TAP |
-| IRSA Gator | `https://irsa.ipac.caltech.edu/cgi-bin/Gator/nph-query` | `catalogs.py` | 25 s | CatWISE overlay; falls back to IRSA TAP |
+| ESA Gaia archive TAP | `https://gea.esac.esa.int/tap-server/tap/sync` | `catalogs.py`, `refcat.py` | 25 s / 40 s | A passing failure is asked again for up to 8 s, then falls back to IRSA TAP |
+| IRSA Gator | `https://irsa.ipac.caltech.edu/cgi-bin/Gator/nph-query` | `catalogs.py` | 25 s | CatWISE overlay; a passing failure is asked again for up to 8 s, then falls back to IRSA TAP |
 | IRSA TAP | `https://irsa.ipac.caltech.edu/TAP/sync` | `catalogs.py`, `refcat.py` | 25 s / 40 s | Second choice for both overlays and for measurement. Overlay: 502 and client retry when both services fail |
 | CDS Sesame | `https://cds.unistra.fr/cgi-bin/nph-sesame`, then `https://vizier.cfa.harvard.edu/viz-bin/nph-sesame` | `resolve.py` | 8 s (4 s connect) | Next host, then SIMBAD TAP |
 | SkyBoT cone search | `https://ssp.imcce.fr/webservices/skybot/api/conesearch.php` | `known_objects.py` | 25 s (6 s connect) | Names of moving objects; JPL is asked instead |

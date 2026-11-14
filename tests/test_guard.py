@@ -1,6 +1,7 @@
 """Limits, headers, fair sharing and second sources: everything offline."""
 
 import asyncio
+import threading
 import time
 
 import httpx
@@ -548,24 +549,142 @@ def test_files_come_from_the_archive_when_the_bucket_fails(monkeypatch):
     asyncio.run(run())
 
 
-def test_an_older_exposure_list_is_used_when_the_archive_search_fails(tmp_path, monkeypatch):
-    from sphereblink import service
+def test_an_older_exposure_list_is_given_at_once_and_refreshed_behind_the_scenes(tmp_path, monkeypatch):
+    from sphereblink import retry, service
 
     svc = service.Service(service.Store(tmp_path / "c.sqlite"))
-    timeouts = []
+    asked, release, answer = [], threading.Event(), {}
 
     def search(points, timeout=0.0, **k):
-        timeouts.append(timeout)
-        if len(timeouts) > 1:
-            raise httpx.ConnectTimeout("archive away")
-        return [exposure(1), exposure(2)]
+        asked.append(timeout)
+        if len(asked) == 1:
+            return [exposure(1), exposure(2)]
+        release.wait(5)  # the archive is slow ...
+        if "error" in answer:
+            raise answer["error"]  # ... or away
+        return answer["found"]
+
+    def settled(key):  # the refresh in the background has ended
+        for _ in range(200):
+            if svc._refreshing.get(key) != float("inf"):
+                return
+            time.sleep(0.01)
+        raise AssertionError("still refreshing")
 
     monkeypatch.setattr(service, "find_exposures_at", search)
     assert len(svc.exposures(10.0, 5.0)) == 2
-    with svc.store._conn() as c:  # a day passes: the list is due for a refresh
-        c.execute("UPDATE exposure_lists SET created = created - 2 * 86400")
-    assert len(svc.exposures(10.0, 5.0)) == 2  # the search failed, the older list serves
-    assert timeouts == [service.SEARCH_TIMEOUT_S, service.REFRESH_TIMEOUT_S]
-    monkeypatch.setattr(service, "find_exposures_at", lambda points, timeout=0.0, **k: (_ for _ in ()).throw(httpx.ConnectTimeout("away")))
-    with pytest.raises(httpx.ConnectTimeout):
-        svc.exposures(99.0, 5.0)  # a place never seen: nothing to fall back on
+    (key,) = [k for (k,) in svc.store._conn().execute("SELECT key FROM exposure_lists")]
+
+    def age():
+        with svc.store._conn() as c:  # a day passes: the list is due for a refresh
+            c.execute("UPDATE exposure_lists SET created = created - 2 * 86400")
+
+    # the archive is away: the older list is the answer, and nobody waits for the search
+    age()
+    answer["error"] = retry.Unavailable("the archive", "HTTP 502", 9)
+    t0 = time.time()
+    assert len(svc.exposures(10.0, 5.0)) == 2
+    assert time.time() - t0 < 1.0 and asked == [service.SEARCH_TIMEOUT_S, service.REFRESH_TIMEOUT_S]
+    release.set()
+    settled(key)
+    assert len(svc.exposures(10.0, 5.0)) == 2 and len(asked) == 2  # a failed refresh is not repeated at every request
+
+    # the archive is back and has a new exposure: the list on disk is brought up to date for the next request
+    answer.pop("error")
+    answer["found"] = [exposure(1), exposure(2), exposure(3)]
+    svc._refreshing.clear()  # as if the pause after the failure were over
+    assert len(svc.exposures(10.0, 5.0)) == 2
+    settled(key)
+    assert len(svc.exposures(10.0, 5.0)) == 3 and len(asked) == 3
+
+    # a place never seen has nothing to fall back on: the failure is said in a sentence, without the address asked
+    monkeypatch.setattr(service, "find_exposures_at", lambda points, timeout=0.0, **k: (_ for _ in ()).throw(answer["boom"]))
+    answer["boom"] = retry.Unavailable("NASA's SPHEREx archive (IRSA)", "HTTP 502", 9)
+    with pytest.raises(retry.Unavailable):
+        svc.exposures(99.0, 5.0)
+    job = svc.start(Grid.from_fov(99.0, 5.0, 8.0), client="")
+    for _ in range(300):
+        if job.status == "error":
+            break
+        time.sleep(0.01)
+    assert job.status == "error"
+    assert job.error == "NASA's SPHEREx archive (IRSA) is not answering right now (HTTP 502, asked 9 times). This usually passes within minutes."
+    request = httpx.Request("GET", "https://irsa.ipac.caltech.edu/SIA?POS=circle+1+2+0.0005")
+    raw = httpx.HTTPStatusError("Server error '502 Proxy Error' for url 'https://irsa...'\nFor more information check: https://developer.mozilla.org/",
+                                request=request, response=httpx.Response(502, request=request))
+    assert "http" not in service.say(raw) and "HTTP 502" in service.say(raw)
+    assert len(service.say(ValueError("x" * 500))) < 180
+
+
+def test_a_passing_failure_of_an_archive_is_asked_again_until_the_deadline():
+    from sphereblink import retry
+
+    def client(answers):
+        seen = []
+
+        def handler(request):
+            seen.append(request)
+            a = answers[min(len(seen) - 1, len(answers) - 1)]
+            if isinstance(a, Exception):
+                raise a
+            return httpx.Response(a, text="ok" if a == 200 else "<h1>Proxy Error</h1>", headers={"retry-after": "2"} if a == 429 else {})
+
+        return httpx.Client(transport=httpx.MockTransport(handler)), seen
+
+    class Time:  # a clock that only moves when the code sleeps
+        now = 0.0
+        naps: list = []
+
+        def sleep(self, s):
+            self.naps.append(s)
+            self.now += s
+
+    def ask(answers, budget=60.0):
+        c, seen = client(answers)
+        t = Time()
+        t.naps = []
+        try:
+            r = retry.get("https://archive.test/SIA", {"POS": "circle 1 2 0.0005"}, service="The archive", client=c,
+                          budget=budget, sleep=t.sleep, clock=lambda: t.now)
+            return r, seen, t
+        except retry.Unavailable as exc:
+            return exc, seen, t
+
+    # five gateway errors in a row (what IRSA did on 2026-11-15), then the answer
+    r, seen, t = ask([502, 502, 502, 502, 502, 200])
+    assert r.status_code == 200 and len(seen) == 6
+    assert all(0.25 <= a <= 4.0 for a in t.naps) and t.naps[3] >= 2.0  # the pauses grow, are capped, and are uneven
+    # a timeout and a dropped connection are passing failures too
+    r, seen, _ = ask([httpx.ReadTimeout("slow"), httpx.ConnectError("refused"), 200])
+    assert r.status_code == 200 and len(seen) == 3
+    # an archive that asks for a pause is given it
+    r, seen, t = ask([429, 200])
+    assert r.status_code == 200 and t.naps == [2.0]
+    # away for good: asking stops at the deadline, and the error is a sentence without the address
+    exc, seen, t = ask([502], budget=20.0)
+    assert isinstance(exc, retry.Unavailable) and exc.reason == "HTTP 502" and exc.tries == len(seen) > 5
+    assert t.now <= 20.0 and "archive.test" not in str(exc) and str(exc).startswith("The archive is not answering right now (HTTP 502, asked ")
+    # a refusal that asking again cannot change is not repeated
+    exc, seen, _ = ask([400, 200])
+    assert isinstance(exc, retry.Unavailable) and exc.reason == "HTTP 400" and len(seen) == 1
+
+
+def test_the_exposure_search_shares_one_deadline_and_names_the_archive(monkeypatch):
+    from sphereblink import retry, sia
+
+    seen = []
+
+    def handler(request):
+        seen.append(request.url.params["COLLECTION"])
+        if len(seen) % 3:  # two in three fail, as on 2026-11-15
+            return httpx.Response(502, text="<h1>Proxy Error</h1>")
+        return httpx.Response(200, text="s_ra,s_dec\n", headers={"content-type": "text/csv"})
+
+    monkeypatch.setattr(retry, "FIRST_PAUSE_S", 0.0)  # no waiting in a test
+    c = httpx.Client(transport=httpx.MockTransport(handler))
+    assert sia.find_exposures_at([(1.0, 2.0), (1.1, 2.0)], ["spherex_dr1", "spherex_qr3"], client=c, timeout=30.0) == []
+    assert len(seen) >= 4 and set(seen) == {"spherex_dr1", "spherex_qr3"}
+    down = httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(502)))
+    with pytest.raises(retry.Unavailable) as err:
+        sia.find_exposures_at([(1.0, 2.0)], ["spherex_dr1"], client=down, timeout=30.0, budget=0.0)
+    assert str(err.value).startswith("NASA's SPHEREx archive (IRSA) is not answering right now (HTTP 502")
