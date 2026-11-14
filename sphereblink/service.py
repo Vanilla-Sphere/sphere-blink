@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import io
 import json
+import logging
 import multiprocessing
 import queue
 import sqlite3
@@ -18,14 +19,31 @@ from typing import Callable
 import httpx
 import numpy as np
 
-from . import config, guard, settings, worker
+from . import config, guard, retry, settings, worker
 from .cutout import Frame, Grid, cache_key, mirror_url, wave_map_from_file
 from .sia import Exposure, find_exposures_at
 
 EXPOSURE_TTL_S = 24 * 3600
-SEARCH_TIMEOUT_S = 60.0  # archive search for a place never seen before
-REFRESH_TIMEOUT_S = 10.0  # ... and when an older list of its exposures is on disk
+SEARCH_TIMEOUT_S = 60.0  # archive search for a place never seen before: asked again until then
+REFRESH_TIMEOUT_S = 30.0  # ... and for a place whose older list is on disk (nobody waits for this one)
+REFRESH_PAUSE_S = 300.0  # after a refresh that failed, the older list serves this long before the next try
+REFRESHES_AT_ONCE = 4
 HALF_PRECISION_NPIX = 200  # frames wider than this are stored as float16
+
+
+log = logging.getLogger("uvicorn.error")  # the server's own log: these lines show in the service's log
+
+
+def say(exc: Exception) -> str:
+    """What went wrong with a view, for the person looking at it: a sentence
+    when an outside service is away, otherwise the kind of error and a short
+    text. Never the address that was asked (the full text goes to the log)."""
+    if isinstance(exc, retry.Unavailable):
+        return str(exc)
+    if isinstance(exc, httpx.HTTPError):
+        return f"A data service is not answering right now ({retry.reason_of(exc)}). This usually passes within minutes."
+    text = " ".join(str(exc).split())
+    return f"{type(exc).__name__}: {text[:157] + '...' if len(text) > 160 else text}"
 
 
 class Store:
@@ -405,6 +423,7 @@ class Service:
         self._wave: dict[str, np.ndarray | None] = {}
         self._wave_locks: dict[str, threading.Lock] = {}
         self._search_locks: dict[str, threading.Lock] = {}
+        self._refreshing: dict[str, float] = {}  # exposure list -> inf while asked again, else when that last failed
         self._procs: ProcessPoolExecutor | None = None
         # a couple more chunks than processes are handed over, so no process waits for the next one
         self._sched = Scheduler(self._pool, config.FETCH_PROCS + 2)
@@ -430,20 +449,43 @@ class Service:
         with lk:  # a search that is already running is waited for, not repeated
             exps = self.store.get_exposures(key)
             if exps is None:
-                # An older list is good enough when the archive search is slow
-                # or down: with one in hand the search gets a short while only.
-                stale = self.store.get_exposures(key, max_age=float("inf"))
-                try:
-                    exps = find_exposures_at(points, timeout=SEARCH_TIMEOUT_S if stale is None else REFRESH_TIMEOUT_S)
-                except Exception:
-                    if stale is None:
-                        raise
-                    return stale
-                self.store.put_exposures(key, exps)
+                # A list older than a day is still the right answer for nearly
+                # all of its exposures: it is given at once and brought up to
+                # date behind the scenes, so a place seen before opens the same
+                # whether the archive search is quick, slow or down.
+                exps = self.store.get_exposures(key, max_age=float("inf"))
+                if exps is not None:
+                    self._refresh_later(key, points)
+                else:
+                    exps = find_exposures_at(points, timeout=SEARCH_TIMEOUT_S)
+                    self.store.put_exposures(key, exps)
         with self.lock:
             if len(self._search_locks) > 2000:
                 self._search_locks.clear()
         return exps
+
+    def _refresh_later(self, key: str, points: list[tuple[float, float]]) -> None:
+        """Ask the archive for the current list of a place in the background."""
+        now = time.time()
+        with self.lock:
+            if len(self._refreshing) > 2000:
+                self._refreshing = {k: t for k, t in self._refreshing.items() if now - t < REFRESH_PAUSE_S}
+            running = sum(1 for t in self._refreshing.values() if t == float("inf"))
+            if now - self._refreshing.get(key, 0.0) < REFRESH_PAUSE_S or running >= REFRESHES_AT_ONCE:
+                return
+            self._refreshing[key] = float("inf")  # running
+
+        def run() -> None:
+            try:
+                self.store.put_exposures(key, find_exposures_at(points, timeout=REFRESH_TIMEOUT_S))
+                done = 0.0  # fresh for a day: the next request does not come here
+            except Exception as exc:
+                log.warning("exposure list %s not refreshed: %s", key, exc)
+                done = time.time()
+            with self.lock:
+                self._refreshing[key] = done
+
+        threading.Thread(target=run, daemon=True, name="refresh-exposures").start()
 
     # ------------------------------------------------------------------ wavelength
     def wave_map(self, e: Exposure) -> np.ndarray | None:
@@ -567,7 +609,8 @@ class Service:
                 self.store.trim(config.DISK_BUDGET_GB * 1e9, keep={grid.key()} | self.pinned)
         except Exception as exc:  # surfaced to the UI
             job.status = "error"
-            job.error = f"{type(exc).__name__}: {exc}"
+            job.error = say(exc)
+            log.warning("view %s failed: %s: %s", grid.key(), type(exc).__name__, exc)
         finally:
             job.resuming = False
             job.finished = time.time()

@@ -336,7 +336,8 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 .examples button{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:9px 0;border:0;border-top:1px solid var(--color-rule);background:none;text-align:left;font-size:13px;font-weight:500;color:var(--color-muted)}
 .examples button .measure{color:var(--color-ink)}
 .examples button:hover .measure{color:var(--color-accent)}
-.empty{align-items:center;text-align:center;color:var(--color-ink-2);font-size:14.5px;pointer-events:none}
+.empty{align-items:center;text-align:center;color:var(--color-ink-2);font-size:14.5px;pointer-events:none;overflow-wrap:anywhere}
+.empty .again{margin-top:16px;pointer-events:auto}
 
 .transport{display:flex;align-items:center;gap:12px;margin-top:14px}
 .keys{display:flex}

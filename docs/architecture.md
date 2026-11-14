@@ -167,8 +167,11 @@ Details:
 - **Wide frames are stored in half precision.** Frames wider than 200 pixels are
   saved as `float16` (about four significant digits, far below the noise), which
   halves the largest items on disk.
-- **Exposure lists** expire after 24 hours so that new data releases appear. If
-  the archive search fails, a stale list is used instead of failing the view.
+- **Exposure lists** are fresh for 24 hours so that new data releases appear.
+  An older list is still given at once, and the archive is asked for the
+  current one in the background (`Service._refresh_later`): a place seen before
+  opens the same whether the archive search is quick, slow or down. A refresh
+  that failed is tried again after five minutes at the earliest.
 - **Wavelength maps** are one small array per (collection, detector), read once
   ever and held in memory.
 - **Views forgotten from memory stay on disk.** Reopening one reloads its frames
@@ -195,7 +198,7 @@ local store.
 
 | Failure | Behaviour |
 | --- | --- |
-| IRSA SIA search fails | Each query is retried once; a stale cached exposure list is used if one exists; otherwise the job ends in `error` and the API answers 502 |
+| IRSA SIA search fails | A place seen before never waits for the search (see above). For a new place each query is asked again after a passing failure (gateway error, timeout, dropped connection) with a growing pause, for up to 60 s (`retry.py`); only then does the job end in `error`, and the API answers 502 with a sentence fit for the page, which shows it with a "Try again" button |
 | A range request fails or a file has an unexpected layout | The exposure is retried up to three times with increasing delay, then counted in `job.failed`; the view completes with the remaining exposures |
 | Exposure does not intersect the view | Recorded as a miss; not an error |
 | Catalogue service (IRSA TAP) fails | `/api/catalog` answers 502; the viewer retries three times and reports that the overlay did not load |
