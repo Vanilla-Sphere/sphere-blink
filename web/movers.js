@@ -35,10 +35,17 @@ function moverFollow(id, on) {
 const moverName = (m) => (m.known && m.known.name) || m.id;
 const moverFast = (m) => m.rate_arcsec_hr >= 20;   // the server's speed classes: slow below 20 arcsec per hour
 const moverDate = (mjd) => new Date((mjd - 40587) * 86400000).toISOString().slice(0, 10);
-function moverKind(m) {
-  if (m.known && m.known.name) return tr(m.known.kind === "comet" ? "mover.comet" : "mover.asteroid");
-  return tr(m.known && m.known.checked ? "mover.unlisted" : "mover.unchecked");
+/* What a named object is called. SkyBoT gives the class of its orbit ("MB>Inner", "KBO>Resonant>3:2", "Centaur"...):
+   a body beyond Neptune is not an asteroid. JPL gives no class, and an unknown one is not guessed at. */
+const MOVER_CLASSES = [[/^(kbo|ioc)/, "mover.tno"], [/^centaur/, "mover.centaur"], [/dwarf/, "mover.dwarf"], [/^planet/, "mover.planet"],
+  [/satellite/, "mover.moon"], [/^(nea|mars|hungaria|mb|trojan|vulcanoid)/, "mover.asteroid"]];
+function moverKindKey(k) {
+  if (!(k && k.name)) return k && k.checked ? "mover.unlisted" : "mover.unchecked";
+  if (k.kind === "comet") return "mover.comet";
+  const c = String(k.class || "").trim().toLowerCase();
+  return c ? (MOVER_CLASSES.find(([re]) => re.test(c)) || [0, "mover.body"])[1] : "mover.minor";
 }
+const moverKind = (m) => tr(moverKindKey(m.known));
 const moverLine = (m) => tr("mover.line", {v: m.rate_arcsec_hr < 20 ? m.rate_arcsec_hr.toFixed(1) : Math.round(m.rate_arcsec_hr), pa: Math.round(m.pa_deg), n: m.times_seen || m.n_times, d: moverDate(m.mjd0)});
 /* Where an object is at a time: constant speed (arcsec per hour) along a straight line, or, for a path
    followed over days, a speed that changes steadily (a_east, a_north: arcsec per hour squared). */

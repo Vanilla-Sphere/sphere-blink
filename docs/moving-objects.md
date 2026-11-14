@@ -306,7 +306,8 @@ the id the second piece made for itself.
 The wider frame limit was measured again the same night, now only where it
 could help: 250 detections per frame and 5000 per pass on the nine fields
 outside the Milky Way. Barnard's field found 33 of 44 bright artificial
-objects where it finds 22 now (the completeness test), and nothing real was
+objects where the limit of 80 found 22 in the same rounds (the completeness
+test of that night), and nothing real was
 lost. But 144 shuffled searches gave one chance path with the evidence of
 step 8 (Barnard's field, 5 detections, seen at 12 of 13 times), the
 injection rounds one more (4 detections in 3 visits), and the linking and
@@ -374,10 +375,22 @@ not as a part of the first:
   `SPHEREX_MOVER_STACK_BUDGET_S` (180) is the time after which its four-day
   windows are skipped (the whole-pass search always runs).
 
-Not checked from the development machine: the names. SkyBoT and JPL cannot
-be reached from there. That a stacked path of a known body gets its name
-(the limits of `known_objects.match` allow it: within 30 arcsec, motions
-within 4 arcsec per hour) can only be seen on production.
+The names could not be checked from the development machine (SkyBoT and JPL
+cannot be reached from there), so they were checked on production after the
+release (2026-11-15). The field of Pluto (RA 304.14, Dec -23.58, 472
+exposures): the linker found nothing, the second search found three paths in
+169 seconds; SkyBoT named the strongest "134340 Pluto" at 0.2 arcsec (279.6
+sigma, 0.22 arcsec per hour), and the two others, nameless and below 7.5
+sigma, were dropped. The four fields stored before the release were searched
+by the server itself in 30 to 243 seconds each and gained nothing; the two
+largest ran into the time budget and skipped three windows.
+
+The list names a known object by the class of its orbit as SkyBoT gives it:
+"known trans-Neptunian object" for Pluto (class `KBO>Resonant>3:2`), "known
+centaur", "known asteroid" for the classes of asteroids, "known comet"; "known
+minor planet" when the name comes from JPL, which gives no class, and "known
+body" for a class the viewer does not know. Before this every named object
+that was not a comet was called "known asteroid".
 
 ## Growing with the map
 
