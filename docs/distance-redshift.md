@@ -242,8 +242,17 @@ et al. (2016) below 0.55 µm and the SDSS and IRTF composite of Glikman et al.
   a row "Lines found" with each line and the wavelength it was found at. With
   no published redshift, the light-travel time of the estimate is given. The
   note under the card says that this value is our own.
-- **Simple**: only when there is no published redshift, one sentence that ends
-  "Our own reading, not a published value."
+  Where an estimate of quality 4 and the published redshift disagree (more
+  than 2 % in 1 + z; `zDisputed` in `web/depth.js`), the published value keeps
+  its row and its source, marked "published; the lines of this spectrum
+  disagree", and the rows "Light set out", "Universe then" and "Distance now"
+  come after the estimate and are computed at it: "11.1 billion years ago ·
+  at z = 2.406, from its lines (12.4 billion years at the published z =
+  4.344)". The note under the card says which redshift the times use and why.
+  A page that doubts a value does not go on computing with it.
+- **Simple**: when there is no published redshift, or the published one is
+  overruled as above (the sentence then names the catalogue and its value),
+  one sentence that ends "Our own reading, not a published value."
 - **Compare spectra**: "from its lines 1.343" next to the published value of
   each object; pressing it moves the spectrum to that redshift.
 - **Preliminary reading**: where an estimate of quality 4 and the published
