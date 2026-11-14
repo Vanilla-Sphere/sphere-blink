@@ -1,4 +1,4 @@
-/* SPHEREx Blink - interactive viewer. No build step, no dependencies. */
+/* Vanilla Sphere - interactive viewer. No build step, no dependencies. */
 "use strict";
 
 const $ = (id) => document.getElementById(id);
@@ -499,7 +499,7 @@ function showTarget(t) {
   $("l-wiseview").href = `http://byw.tools/wiseview#ra=${t.ra.toFixed(5)}&dec=${t.dec.toFixed(5)}&size=${Math.round(S.fov * 60)}&band=3`;
   $("l-simbad").href = `https://simbad.cds.unistra.fr/simbad/sim-coo?Coord=${q}&Radius=1&Radius.unit=arcmin`;
   $("l-aladin").href = `https://aladin.cds.unistra.fr/AladinLite/?target=${q}&fov=${(S.fov / 60 * 2).toFixed(3)}&survey=P%2FallWISE%2Fcolor`;
-  document.title = `${t.name} - SPHEREx Blink`;
+  document.title = `${t.name} - Vanilla Sphere`;
   for (const c of document.querySelectorAll("#featured .target")) { const on = c.dataset.name === t.name; c.classList.toggle("on", on); c.setAttribute("aria-pressed", on); }
 }
 function showEpoch(e) {
