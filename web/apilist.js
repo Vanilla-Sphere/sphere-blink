@@ -113,6 +113,8 @@ const ApiList = (() => {
       const address = path === "/api/movers/{id}" ? "/api/movers/" + tail : path === "/api/atlas/2mass/…" ? tail : path + tail;
       r.link.textContent = address; r.link.href = location.origin + address;
     }
+    // the heading counts the rows on show: one less while the log holds no moving object to give as an example
+    el("apicount").textContent = Object.values(rows).filter((r) => !r.row.hidden).length;
   }
 
   build();
