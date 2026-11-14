@@ -12,6 +12,13 @@ what we measure on top of the images:
 
 `sources_near(ra, dec, radius_deg)` returns the sources inside a cone.
 
+Most rows are written by the web service itself: its measurement pipeline
+(`sphereblink/measure.py`, `GET /api/measure`) measures an object in every
+exposure, fits the track and upserts all three tables. It owns the rows
+whose `method` is `psf`, `wings` or `stack` and replaces them when it
+measures an object again. Measurements made another way can be loaded next
+to them under a different `method`.
+
 ## Files
 
 - `schema.sql`: tables, indexes, cone-search function, row level security.

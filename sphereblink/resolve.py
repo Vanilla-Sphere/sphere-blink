@@ -45,13 +45,15 @@ class ResolverUnavailable(ResolveError):
     """No name service could be reached, so the name was not checked."""
 
 # Challenge test targets. Positions are J2000 (epoch 2000.0) from SIMBAD,
-# except WISE 0855 whose coordinates are the ones given in the challenge text.
+# except WISE 0855 whose coordinates are the ones given in the challenge text:
+# the AllWISE designation, which is where it was in mid 2010 (it has moved
+# two arcminutes since; our own stacks find it where epoch 2010.5 predicts).
 FEATURED = {
     "barnard": dict(name="Barnard's Star", ra=269.452083, dec=4.693364, pmra=-802.80, pmdec=10362.54, epoch=2000.0,
                     note="Highest proper motion star (10.4 arcsec/yr)."),
     "eps-indi-b": dict(name="Epsilon Indi B", ra=331.043750, dec=-56.782694, pmra=3966.7, pmdec=-2536.2, epoch=2000.0,
                        note="Pair of brown dwarfs orbiting Epsilon Indi A."),
-    "wise-0855": dict(name="WISE 0855-0714", ra=133.795129, dec=-7.245147, pmra=-8118.0, pmdec=673.0, epoch=2014.0,
+    "wise-0855": dict(name="WISE 0855-0714", ra=133.795129, dec=-7.245147, pmra=-8123.7, pmdec=673.2, epoch=2010.5,
                       note="Coldest known brown dwarf; ~8 arcsec/yr."),
     "rw-aur": dict(name="RW Aurigae", ra=76.956404, dec=30.401408, pmra=4.0, pmdec=-25.0, epoch=2000.0,
                    note="Young variable star (dimming events)."),

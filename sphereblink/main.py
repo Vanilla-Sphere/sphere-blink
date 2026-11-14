@@ -24,7 +24,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import catalogs, config, measurements, render, tiles
+from . import catalogs, config, measure_api, measurements, render, tiles
 from .cutout import Grid
 from .resolve import FEATURED, ResolverUnavailable, Target, resolve
 from .service import Service
@@ -38,6 +38,8 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "P
 app.add_middleware(GZipMiddleware, minimum_size=2000, compresslevel=4)  # cubes are large: speed over the last few %
 svc = Service()
 fields = tiles.Fields(svc)
+measure_api.attach(svc)  # measurement pipeline: /api/measure, /api/measured
+app.include_router(measure_api.router)
 
 
 # --------------------------------------------------------------------------- helpers
