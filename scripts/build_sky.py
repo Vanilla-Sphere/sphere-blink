@@ -8,8 +8,13 @@ and mw.json.
     python scripts/build_sky.py path/to/d3-celestial/data
 
 Output layout (angles in degrees, J2000):
-    stars  flat [ra*100, dec*100, mag*10, bv*10, ...], brightest first
-    names  [[ra, dec, mag, name], ...] proper names of stars to magnitude 3
+    stars  flat [ra*1000, dec*1000, mag*10, bv*10, ...], brightest first
+           (positions to 0.001 degree: a click on a star opens the star)
+    ids    one designation per star, in the order of stars: Bayer letter,
+           Flamsteed number or variable-star name with the constellation
+           ("τ Phe", "61 Cyg", "CG And"), or "" when the star has none
+    names  [[ra, dec, mag, name, index into stars], ...] proper names of
+           all stars that have one; the map labels those to magnitude 3
     cons   [{id, la, at: [ra, dec], lines: [[[ra, dec], ...], ...]}]
     mw     flat [ra*10, dec*10, level, ...], a dot grid aligned with the
            galactic plane; level 1 (faint edge) to 5 (bright core)
@@ -47,19 +52,17 @@ def main(src):
     load = lambda n: json.loads((src / n).read_text(encoding="utf-8"))
 
     stars = sorted(load("stars.6.json")["features"], key=lambda f: f["properties"]["mag"])
-    flat = []
-    for f in stars:
+    names_src = load("starnames.json")
+    flat, desig, names = [], [], []
+    for i, f in enumerate(stars):
         lon, lat = f["geometry"]["coordinates"]
         bv = f["properties"].get("bv") or "0.6"
-        flat += [round((lon % 360) * 100), round(lat * 100), round(f["properties"]["mag"] * 10), round(float(bv) * 10)]
-
-    names_src = load("starnames.json")
-    names = []
-    for f in stars:
-        n = names_src.get(str(f["id"]), {}).get("name", "")
-        if n and f["properties"]["mag"] <= 3.0:
-            lon, lat = f["geometry"]["coordinates"]
-            names.append([round(lon % 360, 2), round(lat, 2), f["properties"]["mag"], n])
+        flat += [round((lon % 360) * 1000) % 360000, round(lat * 1000), round(f["properties"]["mag"] * 10), round(float(bv) * 10)]
+        about = names_src.get(str(f["id"]), {})
+        letter = about.get("bayer") or about.get("flam") or about.get("var") or ""
+        desig.append(f"{letter} {about['c']}" if letter and about.get("c") else "")
+        if about.get("name"):
+            names.append([round(lon % 360, 2), round(lat, 2), f["properties"]["mag"], about["name"], i])
 
     lines = {f["id"]: f["geometry"]["coordinates"] for f in load("constellations.lines.json")["features"]}
     cons, ids = [], []
@@ -67,7 +70,7 @@ def main(src):
         cid = f["id"]
         lon, lat = f["geometry"]["coordinates"]
         entry = {"id": cid, "la": f["properties"]["name"], "at": [round(lon % 360, 1), round(lat, 1)],
-                 "lines": [[[round(p[0] % 360, 2), round(p[1], 2)] for p in seg] for seg in lines.get(cid, [])]}
+                 "lines": [[[round(p[0] % 360, 3), round(p[1], 3)] for p in seg] for seg in lines.get(cid, [])]}
         cons.append(entry)
         ids.append(cid)
     first = {}
@@ -109,7 +112,7 @@ def main(src):
             grid += [int(idx[start]), i - start]
             start = i
 
-    out = {"stars": flat, "names": names, "cons": cons, "mw": mw, "grid": grid}
+    out = {"stars": flat, "ids": desig, "names": names, "cons": cons, "mw": mw, "grid": grid}
     dest = Path(__file__).resolve().parent.parent / "web" / "data" / "sky.json"
     dest.parent.mkdir(exist_ok=True)
     dest.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")

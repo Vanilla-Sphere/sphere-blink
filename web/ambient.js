@@ -26,7 +26,7 @@ const Ambient = (() => {
   let lastRa = null, lastDec = 0, ox = 0, oy = 0;     // how far the deep field has slid, CSS pixels at depth 1
   let ptr = {in: false, down: false, x: 0.5, y: 0.5}, px = 0, py = 0, lastActive = 0;
   let speed = 0;                        // the slow turn of the map, degrees per second
-  let mode = "off", pings = [], meteorTimer = 0;
+  let mode = "off", snapped = "", pings = [], meteorTimer = 0;
   const TURN = 150000, SLEEP = 300000;
   let lastFrame = 0, beat = 50, seen = 0, late = 0, slow = 0;       // is the screen keeping up with the turning map?
 
@@ -98,14 +98,17 @@ const Ambient = (() => {
     wake();
   }
   function aim() {
-    const next = st.busy ? "lock" : st.pin ? "pin" : st.hover ? "aim" : "off";
+    const next = st.busy ? "lock" : st.pin ? "pin" : st.star ? "star" : st.hover ? "aim" : "off";
+    const on = next === "pin" ? "p" + st.pin.key : next === "star" ? "s" + st.star.i : "";   // what the frame has snapped to
     if (next !== "off") {
       const p = st.busy ? SkyMap.toXY(st.busy.ra, st.busy.dec) : st.pin ? [st.pin.x, st.pin.y] : SkyMap.toXY(st.hover.ra, st.hover.dec);
-      // jumping onto a featured target or off it is a short glide; following the pointer is immediate
-      const glide = mode !== "off" && (next === "pin") !== (mode === "pin") && next !== "lock";
-      reticle.classList.toggle("glide", glide);
+      // snapping onto a star or a featured target, or letting go of it, is a short glide; following the pointer is immediate
+      reticle.classList.toggle("glide", mode !== "off" && next !== "lock" && on !== snapped);
       reticle.style.transform = `translate3d(${Math.round(p[0])}px,${Math.round(p[1])}px,0)`;
+      if (next === "star") reticle.style.setProperty("--r", `${Math.round(Math.max(9, st.star.r + 5))}px`);   // the frame clears a large star
+      else if (mode === "star") reticle.style.removeProperty("--r");
     }
+    snapped = on;
     if (next !== mode) { mode = next; reticle.dataset.mode = next; }
   }
   function ping() {

@@ -18,7 +18,7 @@ as static files.
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
 Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `starmap.js`, `ambient.js`, `app.js`.
-Asset URLs carry a version query (`?v=22`) that is raised when a file changes,
+Asset URLs carry a version query (`?v=23`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -195,15 +195,30 @@ the fluxes exceeds 1 Jy.
 `lookAt`, `setMark`, `setPins`, `highlight`, `idle` and `constellation` (and
 `attach`, `state`, `toXY`, `turn` and `rest` for `ambient.js`), and
 takes the callbacks `onPick`, `onHover`, `onView` and `onReady`. `onHover` reports
-the sky position, the constellation, a target pin and a named star within 9 px
-of the pointer; `app.js` turns that into the map tag (pin, then star, then
-constellation, with the text from `lore.js`), and the map brightens the figure
-of the constellation under the pointer.
+the sky position, the constellation, a target pin and the star the pointer has
+snapped to; `app.js` turns that into the map tag (pin, then a star with a name
+or a designation, then constellation, with the text from `lore.js`), and the
+map brightens the figure of the constellation under the pointer.
+
+**Snapping to stars.** Pointing and picking snap to the nearest drawn star
+(`starAt`): the aiming frame jumps onto it, the readout shows the star's own
+coordinates and a click opens the star, not a place a few pixels beside it. A
+star is within reach when the pointer is within 6 px of its disc at the opening
+zoom, growing by 3 px for each doubling of the zoom up to 16 px, and 1.6 times
+that for a finger; a finger also prefers the brighter of two close stars.
+Holding Alt points and picks freely, between the stars. A star with a proper
+name (493 of them) is opened by that name, so the view carries the name and the
+position corrected for proper motion; if the name services do not know the name
+or place it more than 0.3 degrees away, the star's catalogue coordinates
+(J2000, to 0.001 degree) are opened instead. Any other star is opened by its
+coordinates.
 
 - **Projection.** Hammer equal-area about a movable centre. Positions are
   rotated as unit vectors so the centre can be any point of the sky.
-- **Data.** `data/sky.json` holds stars as a flat integer array (RA, Dec,
-  magnitude, colour index), star names, constellation lines and label
+- **Data.** `data/sky.json` holds stars as a flat integer array (RA and Dec in
+  thousandths of a degree, magnitude, colour index), one designation per star
+  (Bayer, Flamsteed or variable-star name, when it has one), the proper names
+  of 493 stars with their index in the star list, constellation lines and label
   positions, the Milky Way as a dot grid with five brightness levels, and a
   run-length-encoded 1 degree grid naming the constellation of each cell. It is
   built by `scripts/build_sky.py` from d3-celestial data and Astropy's
