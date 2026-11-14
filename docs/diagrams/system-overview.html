@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System at a glance · Vanilla Sphere</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Hanken+Grotesk:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f6f3ef;
+      --color-ink:     #1b1813;
+      --color-muted:   #524c45;
+      --color-accent:  #bb4100;
+      --font-sans:     'Hanken Grotesk', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+      color-scheme: light;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1200px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Architecture · Vanilla Sphere</p>
+    <h1>System at a glance</h1>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 960 412" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="system-overview-title system-overview-desc">
+        <title id="system-overview-title">System at a glance</title>
+        <desc id="system-overview-desc">Architecture diagram showing the browser calling one web service, which dispatches imaging workers and a measurement process that read the SPHEREx archive on S3 with range requests.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#524c45"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bb4100"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#005a9d"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f6f3ef"/>
+
+        <!-- Connectors (behind the nodes) -->
+        <line x1="168" y1="176" x2="224" y2="176" fill="none" stroke="#005a9d" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="312" y1="144" x2="312" y2="104" fill="none" stroke="#005a9d" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="312" y1="208" x2="312" y2="248" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="400" y1="164" x2="464" y2="164" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 400,188 H 424 Q 432,188 432,196 V 272 Q 432,280 440,280 H 464" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="640" y1="164" x2="744" y2="164" fill="none" stroke="#bb4100" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <path d="M 640,268 H 684 Q 692,268 692,260 V 196 Q 692,188 700,188 H 744" fill="none" stroke="#005a9d" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="640" y1="292" x2="744" y2="292" fill="none" stroke="#005a9d" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+
+        <!-- Connector labels -->
+        <rect x="178" y="156" width="36" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="196.0" y="165" fill="#005a9d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">HTTPS</text>
+        <rect x="320" y="118" width="44" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="342.0" y="127" fill="#005a9d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">SEARCH</text>
+        <rect x="320" y="222" width="36" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="338.0" y="231" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">CACHE</text>
+        <rect x="658" y="144" width="68" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="692.0" y="153" fill="#bb4100" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">RANGE READS</text>
+        <rect x="662" y="300" width="60" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="692.0" y="309" fill="#005a9d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">REF STARS</text>
+
+        <!-- Nodes -->
+        <rect x="40" y="144" width="128" height="64" rx="6" fill="#f6f3ef"/>
+        <rect x="40" y="144" width="128" height="64" rx="6" fill="rgba(82,76,69,0.10)" stroke="#625d55" stroke-width="1"/>
+        <rect x="48" y="152" width="28" height="12" rx="2" fill="transparent" stroke="rgba(98,93,85,0.40)" stroke-width="0.8"/>
+        <text x="62.0" y="161" fill="#625d55" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">WEB</text>
+        <text x="104.0" y="180.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Browser</text>
+        <text x="104.0" y="196.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">static viewer</text>
+        <rect x="224" y="144" width="176" height="64" rx="6" fill="#f6f3ef"/>
+        <rect x="224" y="144" width="176" height="64" rx="6" fill="rgba(187,65,0,0.08)" stroke="#bb4100" stroke-width="1"/>
+        <rect x="232" y="152" width="28" height="12" rx="2" fill="transparent" stroke="rgba(187,65,0,0.50)" stroke-width="0.8"/>
+        <text x="246.0" y="161" fill="#bb4100" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">API</text>
+        <text x="312.0" y="180.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Web service</text>
+        <text x="312.0" y="196.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">FastAPI, one process</text>
+        <rect x="224" y="40" width="176" height="64" rx="6" fill="#f6f3ef"/>
+        <rect x="224" y="40" width="176" height="64" rx="6" fill="rgba(27,24,19,0.03)" stroke="rgba(27,24,19,0.30)" stroke-width="1"/>
+        <rect x="232" y="48" width="28" height="12" rx="2" fill="transparent" stroke="rgba(27,24,19,0.22)" stroke-width="0.8"/>
+        <text x="246.0" y="57" fill="#625d55" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">EXT</text>
+        <text x="312.0" y="76.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Query services</text>
+        <text x="312.0" y="92.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">IRSA SIA, TAP, CDS</text>
+        <rect x="224" y="248" width="176" height="64" rx="6" fill="#f6f3ef"/>
+        <rect x="224" y="248" width="176" height="64" rx="6" fill="rgba(27,24,19,0.05)" stroke="#524c45" stroke-width="1"/>
+        <rect x="232" y="256" width="32" height="12" rx="2" fill="transparent" stroke="rgba(82,76,69,0.50)" stroke-width="0.8"/>
+        <text x="248.0" y="265" fill="#524c45" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">DATA</text>
+        <text x="312.0" y="284.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Storage</text>
+        <text x="312.0" y="300.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">SQLite cache, Postgres</text>
+        <rect x="464" y="144" width="176" height="64" rx="6" fill="#f6f3ef"/>
+        <rect x="464" y="144" width="176" height="64" rx="6" fill="#ffffff" stroke="#1b1813" stroke-width="1"/>
+        <rect x="472" y="152" width="32" height="12" rx="2" fill="transparent" stroke="rgba(27,24,19,0.40)" stroke-width="0.8"/>
+        <text x="488.0" y="161" fill="#1b1813" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">PROC</text>
+        <rect x="608" y="152" width="24" height="12" rx="2" fill="#f6f3ef" stroke="rgba(27,24,19,0.40)" stroke-width="0.8"/>
+        <text x="620.0" y="161" fill="#1b1813" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">x4</text>
+        <text x="552.0" y="180.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Imaging workers</text>
+        <text x="552.0" y="196.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">cut exposures</text>
+        <rect x="464" y="248" width="176" height="64" rx="6" fill="#f6f3ef"/>
+        <rect x="464" y="248" width="176" height="64" rx="6" fill="#ffffff" stroke="#1b1813" stroke-width="1"/>
+        <rect x="472" y="256" width="32" height="12" rx="2" fill="transparent" stroke="rgba(27,24,19,0.40)" stroke-width="0.8"/>
+        <text x="488.0" y="265" fill="#1b1813" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">PROC</text>
+        <rect x="608" y="256" width="24" height="12" rx="2" fill="#f6f3ef" stroke="rgba(27,24,19,0.40)" stroke-width="0.8"/>
+        <text x="620.0" y="265" fill="#1b1813" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">x1</text>
+        <text x="552.0" y="284.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Measurement process</text>
+        <text x="552.0" y="300.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">positions, tracks</text>
+        <rect x="744" y="144" width="176" height="64" rx="6" fill="#f6f3ef"/>
+        <rect x="744" y="144" width="176" height="64" rx="6" fill="rgba(27,24,19,0.03)" stroke="rgba(27,24,19,0.30)" stroke-width="1"/>
+        <rect x="752" y="152" width="28" height="12" rx="2" fill="transparent" stroke="rgba(27,24,19,0.22)" stroke-width="0.8"/>
+        <text x="766.0" y="161" fill="#625d55" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">AWS</text>
+        <text x="832.0" y="180.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">SPHEREx archive</text>
+        <text x="832.0" y="196.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">S3 nasa-irsa-spherex</text>
+        <rect x="744" y="248" width="176" height="64" rx="6" fill="#f6f3ef"/>
+        <rect x="744" y="248" width="176" height="64" rx="6" fill="rgba(27,24,19,0.03)" stroke="rgba(27,24,19,0.30)" stroke-width="1"/>
+        <rect x="752" y="256" width="28" height="12" rx="2" fill="transparent" stroke="rgba(27,24,19,0.22)" stroke-width="0.8"/>
+        <text x="766.0" y="265" fill="#625d55" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">EXT</text>
+        <text x="832.0" y="284.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">ESA Gaia archive</text>
+        <text x="832.0" y="300.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">reference astrometry</text>
+
+        <!-- Legend and notes -->
+        <line x1="40" y1="352" x2="920" y2="352" stroke="rgba(27,24,19,0.10)" stroke-width="0.8"/>
+        <text x="40" y="368" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.18em">LEGEND</text>
+        <rect x="40" y="384" width="14" height="10" rx="2" fill="rgba(187,65,0,0.08)" stroke="#bb4100" stroke-width="1"/>
+        <text x="60" y="392" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Focal</text>
+        <rect x="112" y="384" width="14" height="10" rx="2" fill="#ffffff" stroke="#1b1813" stroke-width="1"/>
+        <text x="132" y="392" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Process</text>
+        <rect x="196" y="384" width="14" height="10" rx="2" fill="rgba(27,24,19,0.05)" stroke="#524c45" stroke-width="1"/>
+        <text x="216" y="392" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Store</text>
+        <rect x="268" y="384" width="14" height="10" rx="2" fill="rgba(27,24,19,0.03)" stroke="rgba(27,24,19,0.30)" stroke-width="1"/>
+        <text x="288" y="392" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">External service</text>
+        <rect x="396" y="384" width="14" height="10" rx="2" fill="rgba(82,76,69,0.10)" stroke="#625d55" stroke-width="1"/>
+        <text x="416" y="392" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Client or input</text>
+        <line x1="516" y1="390" x2="544" y2="390" stroke="#bb4100" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <text x="552" y="392" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Range reads</text>
+        <line x1="636" y1="390" x2="664" y2="390" stroke="#005a9d" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <text x="672" y="392" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">HTTP request</text>
+        <line x1="760" y1="390" x2="788" y2="390" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <text x="796" y="392" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Internal</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

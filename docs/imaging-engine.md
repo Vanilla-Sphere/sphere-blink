@@ -4,18 +4,12 @@ How a request for "this position, this field of view" becomes a time-ordered
 set of sky-aligned images. The engine is the modules `sia.py`, `cutout.py`,
 `worker.py`, `service.py`, `render.py` and `tiles.py`.
 
-```mermaid
-flowchart LR
-    A["Position + field of view"] --> B["Grid<br/>north-up TAN"]
-    B --> C["Exposure search<br/>IRSA SIA v2"]
-    C --> D["Range reads<br/>4 requests per exposure"]
-    D --> E["Mask bad pixels<br/>subtract sky plane"]
-    E --> F["Resample onto Grid<br/>bilinear, mask-aware"]
-    F --> G[("Frame cache")]
-    G --> H["Epochs<br/>exposure / day / sky pass"]
-    H --> I["Grey or false colour"]
-    I --> J["Binary cube, PNG, GIF"]
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/diagrams/imaging-pipeline-dark.png">
+  <img alt="Flow diagram showing a request turned into a grid, an exposure search, range reads, cleaning and resampling, the frame cache, epochs and the encoded output." src="img/diagrams/imaging-pipeline.png">
+</picture>
+
+*Figure: From a position to pixels. Source: [`diagrams/imaging-pipeline.html`](diagrams/imaging-pipeline.html).*
 
 ## 1. The grid
 
@@ -81,24 +75,12 @@ function and the wavelength description). The engine needs a
 few dozen rows of IMAGE and the matching rows of FLAGS. `cutout.cut_async` gets
 them with four HTTP range requests in three steps:
 
-```mermaid
-sequenceDiagram
-    participant W as Worker
-    participant S as S3 object (65 MB)
-    W->>S: 1. bytes 0-34559
-    S-->>W: primary header + IMAGE header
-    Note over W: parse WCS cards only, map grid to detector pixels, find rows y0..y1
-    par Pixel rows
-        W->>S: 2a. IMAGE rows y0..y1
-        S-->>W: (y1-y0) x 8160 bytes, big-endian float32
-    and Flag index
-        W->>S: 2b. FLAGS header + row index (40320 bytes)
-        S-->>W: compression parameters, per-row offsets and lengths
-    end
-    W->>S: 3. compressed FLAGS rows y0..y1
-    S-->>W: Rice-compressed bytes
-    Note over W: decode flags, mask, subtract sky, resample
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/diagrams/range-reads-dark.png">
+  <img alt="Sequence diagram showing a worker reading the headers, then the image rows and the flag index together, then the compressed flag rows of one 65 MB file." src="img/diagrams/range-reads.png">
+</picture>
+
+*Figure: Four range requests for one exposure. Source: [`diagrams/range-reads.html`](diagrams/range-reads.html).*
 
 What makes this possible:
 

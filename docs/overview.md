@@ -80,20 +80,12 @@ the date of the frame, the measured track, and the spectrum at the crosshair.*
 
 ## System at a glance
 
-```mermaid
-flowchart LR
-    U["Browser<br/>static viewer"] -->|HTTPS, JSON, binary cube| A["FastAPI service<br/>one web process"]
-    A --> W["Worker processes<br/>cutting exposures"]
-    A --> M["Measurement process"]
-    W -->|HTTP range requests| S3[("AWS Open Data<br/>nasa-irsa-spherex")]
-    M -->|HTTP range requests| S3
-    A -->|exposure search| SIA["IRSA SIA v2"]
-    A -->|overlays| TAP["IRSA TAP<br/>Gaia DR3, CatWISE2020"]
-    M -->|reference stars| GAIA["ESA Gaia archive"]
-    A -->|name lookup| CDS["CDS Sesame, SIMBAD"]
-    A --> C[("SQLite cache<br/>persistent disk")]
-    A --> DB[("Postgres<br/>sources, detections, tracks")]
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/diagrams/system-overview-dark.png">
+  <img alt="Architecture diagram showing the browser calling one web service, which dispatches imaging workers and a measurement process that read the SPHEREx archive on S3 with range requests." src="img/diagrams/system-overview.png">
+</picture>
+
+*Figure: System at a glance. Source: [`diagrams/system-overview.html`](diagrams/system-overview.html). The query services are IRSA SIA v2, IRSA TAP and the CDS name services; storage is the SQLite cache on the persistent disk and the Postgres measurement database.*
 
 The service runs on Render in the Virginia region, next to the AWS `us-east-1`
 bucket that holds the SPHEREx data. See [architecture](architecture.md).

@@ -10,26 +10,12 @@ spectra).
 The viewer shows resampled pictures. A measurement instead works on the pixels
 the detector recorded, without resampling.
 
-```mermaid
-flowchart TB
-    T["Target: name or position"] --> R["Reference astrometry<br/>Gaia DR3 or literature"]
-    T --> X["Exposure list"]
-    X --> S["Native stamps<br/>49 x 81 px by range request"]
-    R --> P["Predicted position per exposure<br/>proper motion + parallax"]
-    S --> F["PSF fit with Gaia neighbours"]
-    P --> F
-    F -->|detected in at least half of a pass| D["Single-exposure detections"]
-    F -->|too faint| K["Co-moving stack per pass and detector<br/>bootstrap errors"]
-    F -->|core saturated| WG["Moffat fit to the wings<br/>ring flux"]
-    D --> TR["Track fit<br/>outlier rejection, jackknife"]
-    K --> TR
-    WG --> TR
-    D --> LC["Light curve<br/>flux / mean spectrum"]
-    WG --> LC
-    TR --> O["Result: detections, track, light curve, statistics"]
-    LC --> O
-    O --> ST[("SQLite + Postgres")]
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/diagrams/measurement-pipeline-dark.png">
+  <img alt="Flowchart showing predicted positions and native stamps feeding a PSF fit whose outcome selects single-exposure detections, a co-moving stack or a wing fit, followed by the track fit and the light curve." src="img/diagrams/measurement-pipeline.png">
+</picture>
+
+*Figure: Measuring one object. Source: [`diagrams/measurement-pipeline.html`](diagrams/measurement-pipeline.html). The light curve uses the single-exposure detections and the wing fits; stacks contribute to the track only.*
 
 ## 1. Reference astrometry
 
@@ -213,29 +199,12 @@ identification and timing:
 
 ## Job execution
 
-```mermaid
-sequenceDiagram
-    participant B as Browser
-    participant A as Web process
-    participant M as Measurement process
-    participant L as Local SQLite
-    participant P as Postgres
-    B->>A: GET /api/measure?target=...
-    A->>L: stored result?
-    alt stored and refresh not requested
-        A-->>B: status ready, result
-    else
-        A-->>B: status queued
-        A->>A: exposures, wavelength maps (status searching)
-        A->>M: run(target, exposures, wave maps) (status measuring)
-        M->>M: Gaia cone, stamps, fits, track, light curve
-        M-->>A: result
-        A->>L: save
-        A->>P: upsert sources, detections, tracks
-        B->>A: GET /api/measure?target=... (poll)
-        A-->>B: status ready, result
-    end
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/diagrams/measure-job-dark.png">
+  <img alt="Sequence diagram showing a measurement request answered from the local store when a result exists, and otherwise queued, run in the measurement process, saved and polled." src="img/diagrams/measure-job.png">
+</picture>
+
+*Figure: A measurement job. Source: [`diagrams/measure-job.html`](diagrams/measure-job.html).*
 
 - **Keys.** A challenge target is keyed by its short name; any other position by
   `pos_<ra>_<dec>` rounded to four decimals.

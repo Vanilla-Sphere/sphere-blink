@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Components of the service · Vanilla Sphere</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Hanken+Grotesk:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #0d0b08;
+      --color-ink:     #efebe4;
+      --color-muted:   #afaaa3;
+      --color-accent:  #f97c3d;
+      --font-sans:     'Hanken Grotesk', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+      color-scheme: dark;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1200px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Architecture · Vanilla Sphere</p>
+    <h1>Components of the service</h1>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 960 644" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="component-map-dark-title component-map-dark-desc">
+        <title id="component-map-dark-title">Components of the service</title>
+        <desc id="component-map-dark-desc">Dependency diagram showing the HTTP API calling the imaging path and the measurement path, which both end in the cutout engine that reads the archive.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#afaaa3"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f97c3d"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6db0f4"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#0d0b08"/>
+
+        <!-- Zones and lifelines -->
+        <rect x="192" y="40" width="536" height="208" rx="8" fill="rgba(239,235,228,0.02)" stroke="rgba(239,235,228,0.10)" stroke-width="0.8"/>
+        <rect x="608" y="44" width="76" height="12" rx="2" fill="#0d0b08"/>
+        <text x="646.0" y="53" fill="#908b84" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.14em">IMAGING PATH</text>
+        <rect x="192" y="344" width="536" height="208" rx="8" fill="rgba(239,235,228,0.02)" stroke="rgba(239,235,228,0.10)" stroke-width="0.8"/>
+        <rect x="608" y="348" width="100" height="12" rx="2" fill="#0d0b08"/>
+        <text x="658.0" y="357" fill="#908b84" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.14em">MEASUREMENT PATH</text>
+
+        <!-- Connectors (behind the nodes) -->
+        <line x1="104" y1="208" x2="104" y2="152" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 168,232 H 268 Q 276,232 276,224 V 136" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 168,256 H 452 Q 460,256 460,248 V 136" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 168,280 H 268 Q 276,280 276,288 V 376" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 104,304 V 496 Q 104,504 112,504 H 208" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="344" y1="104" x2="392" y2="104" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="528" y1="92" x2="576" y2="92" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 528,116 H 544 Q 552,116 552,124 V 192 Q 552,200 560,200 H 576" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 712,104 H 844 Q 852,104 852,112 V 224" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="344" y1="408" x2="392" y2="408" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="276" y1="440" x2="276" y2="472" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="528" y1="408" x2="576" y2="408" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 712,408 H 844 Q 852,408 852,400 V 288" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+        <!-- Nodes -->
+        <rect x="40" y="72" width="128" height="80" rx="6" fill="#0d0b08"/>
+        <rect x="40" y="72" width="128" height="80" rx="6" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="104.0" y="104.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Leaf modules</text>
+        <text x="104.0" y="120.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">render, resolve,</text>
+        <text x="104.0" y="133.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">catalogs, wings</text>
+        <rect x="40" y="208" width="128" height="96" rx="6" fill="#0d0b08"/>
+        <rect x="40" y="208" width="128" height="96" rx="6" fill="rgba(249,124,61,0.10)" stroke="#f97c3d" stroke-width="1"/>
+        <rect x="48" y="216" width="36" height="12" rx="2" fill="transparent" stroke="rgba(249,124,61,0.50)" stroke-width="0.8"/>
+        <text x="66.0" y="225" fill="#f97c3d" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">ENTRY</text>
+        <text x="104.0" y="260.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">HTTP API</text>
+        <text x="104.0" y="276.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">main.py</text>
+        <rect x="208" y="72" width="136" height="64" rx="6" fill="#0d0b08"/>
+        <rect x="208" y="72" width="136" height="64" rx="6" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="276.0" y="102.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Field tiling</text>
+        <text x="276.0" y="118.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">tiles.py</text>
+        <rect x="392" y="72" width="136" height="64" rx="6" fill="#0d0b08"/>
+        <rect x="392" y="72" width="136" height="64" rx="6" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="460.0" y="102.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Jobs and cache</text>
+        <text x="460.0" y="118.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">service.py</text>
+        <rect x="576" y="72" width="136" height="64" rx="6" fill="#0d0b08"/>
+        <rect x="576" y="72" width="136" height="64" rx="6" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="644.0" y="102.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Pool tasks</text>
+        <text x="644.0" y="118.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">worker.py</text>
+        <rect x="576" y="168" width="136" height="64" rx="6" fill="#0d0b08"/>
+        <rect x="576" y="168" width="136" height="64" rx="6" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="644.0" y="198.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Exposure search</text>
+        <text x="644.0" y="214.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">sia.py</text>
+        <rect x="784" y="224" width="136" height="64" rx="6" fill="#0d0b08"/>
+        <rect x="784" y="224" width="136" height="64" rx="6" fill="rgba(249,124,61,0.10)" stroke="#f97c3d" stroke-width="1"/>
+        <rect x="792" y="232" width="32" height="12" rx="2" fill="transparent" stroke="rgba(249,124,61,0.50)" stroke-width="0.8"/>
+        <text x="808.0" y="241" fill="#f97c3d" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">CORE</text>
+        <text x="852.0" y="260.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Cutout engine</text>
+        <text x="852.0" y="276.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">cutout.py</text>
+        <rect x="208" y="376" width="136" height="64" rx="6" fill="#0d0b08"/>
+        <rect x="208" y="376" width="136" height="64" rx="6" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="276.0" y="406.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Measurement jobs</text>
+        <text x="276.0" y="422.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">measure_api.py</text>
+        <rect x="392" y="376" width="136" height="64" rx="6" fill="#0d0b08"/>
+        <rect x="392" y="376" width="136" height="64" rx="6" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="460.0" y="406.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Ref. astrometry</text>
+        <text x="460.0" y="422.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">refcat.py</text>
+        <rect x="576" y="376" width="136" height="64" rx="6" fill="#0d0b08"/>
+        <rect x="576" y="376" width="136" height="64" rx="6" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="644.0" y="406.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Measurement core</text>
+        <text x="644.0" y="422.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">measure.py</text>
+        <rect x="208" y="472" width="136" height="64" rx="6" fill="#0d0b08"/>
+        <rect x="208" y="472" width="136" height="64" rx="6" fill="rgba(239,235,228,0.05)" stroke="#afaaa3" stroke-width="1"/>
+        <text x="276.0" y="502.0" fill="#efebe4" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Result stores</text>
+        <text x="276.0" y="518.0" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">measurements.py</text>
+
+        <!-- Legend and notes -->
+        <line x1="40" y1="584" x2="920" y2="584" stroke="rgba(239,235,228,0.10)" stroke-width="0.8"/>
+        <text x="40" y="600" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.18em">LEGEND</text>
+        <rect x="40" y="616" width="14" height="10" rx="2" fill="rgba(249,124,61,0.10)" stroke="#f97c3d" stroke-width="1"/>
+        <text x="60" y="624" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Entry point and shared core</text>
+        <rect x="220" y="616" width="14" height="10" rx="2" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
+        <text x="240" y="624" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Module</text>
+        <rect x="300" y="616" width="14" height="10" rx="2" fill="rgba(239,235,228,0.05)" stroke="#afaaa3" stroke-width="1"/>
+        <text x="320" y="624" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Storage module</text>
+        <line x1="416" y1="622" x2="444" y2="622" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <text x="452" y="624" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Imports and calls</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

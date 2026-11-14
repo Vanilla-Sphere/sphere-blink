@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Opening a view: request and exposure search · Vanilla Sphere</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Hanken+Grotesk:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f6f3ef;
+      --color-ink:     #1b1813;
+      --color-muted:   #524c45;
+      --color-accent:  #bb4100;
+      --font-sans:     'Hanken Grotesk', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+      color-scheme: light;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1200px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Sequence · Vanilla Sphere</p>
+    <h1>Opening a view: request and exposure search</h1>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 960 684" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="view-request-search-title view-request-search-desc">
+        <title id="view-request-search-title">Opening a view: request and exposure search</title>
+        <desc id="view-request-search-desc">Sequence diagram showing the browser requesting a view, the API returning a queued job at once, and the exposure list being read from the cache or from IRSA SIA.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#524c45"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bb4100"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#005a9d"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f6f3ef"/>
+
+        <!-- Zones and lifelines -->
+        <line x1="136" y1="96" x2="136" y2="608" stroke="rgba(27,24,19,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="376" y1="96" x2="376" y2="608" stroke="rgba(27,24,19,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="616" y1="96" x2="616" y2="608" stroke="rgba(27,24,19,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="824" y1="96" x2="824" y2="608" stroke="rgba(27,24,19,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+        <rect x="304" y="312" width="544" height="168" rx="4" fill="rgba(27,24,19,0.02)" stroke="rgba(27,24,19,0.22)" stroke-width="1"/>
+        <rect x="304" y="312" width="40" height="16" rx="2" fill="#f6f3ef" stroke="rgba(27,24,19,0.22)" stroke-width="1"/>
+        <text x="324" y="324" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.12em">OPT</text>
+        <text x="392" y="344" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.04em">[list missing or older than 24 h]</text>
+
+        <!-- Connectors (behind the nodes) -->
+        <rect x="372" y="144" width="8" height="448" fill="#f6f3ef"/><rect x="372" y="144" width="8" height="448" fill="rgba(27,24,19,0.06)" stroke="#524c45" stroke-width="0.8"/>
+        <line x1="140" y1="144" x2="372" y2="144" fill="none" stroke="#005a9d" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <path d="M 380,176 H 406 Q 412,176 412,182 V 194 Q 412,200 406,200 H 380" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="372" y1="240" x2="140" y2="240" fill="none" stroke="#bb4100" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <line x1="380" y1="288" x2="612" y2="288" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="380" y1="376" x2="820" y2="376" fill="none" stroke="#005a9d" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="820" y1="416" x2="380" y2="416" fill="none" stroke="#524c45" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+        <line x1="380" y1="456" x2="612" y2="456" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="380" y1="528" x2="612" y2="528" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 380,560 H 406 Q 412,560 412,566 V 578 Q 412,584 406,584 H 380" fill="none" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+        <!-- Connector labels -->
+        <rect x="186" y="124" width="140" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="256.0" y="133" fill="#005a9d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">GET /API/VIEW?TARGET&amp;FOV</text>
+        <rect x="420" y="182" width="152" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="496.0" y="191" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">RESOLVE TARGET, BUILD GRID</text>
+        <rect x="186" y="220" width="140" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="256.0" y="229" fill="#bb4100" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">TARGET, GRID, JOB QUEUED</text>
+        <rect x="434" y="268" width="124" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="496.0" y="277" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">EXPOSURE LIST CACHED?</text>
+        <rect x="426" y="356" width="140" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="496.0" y="365" fill="#005a9d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">SIA QUERY PER COLLECTION</text>
+        <rect x="432" y="396" width="128" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="496.0" y="405" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">EXPOSURES WITH S3 KEYS</text>
+        <rect x="464" y="436" width="64" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="496.0" y="445" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">STORE LIST</text>
+        <rect x="426" y="508" width="140" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="496.0" y="517" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">WHICH FRAMES ARE CACHED?</text>
+        <rect x="420" y="566" width="168" height="12" rx="2" fill="#f6f3ef"/>
+        <text x="504.0" y="575" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">FETCH THE REST (NEXT DIAGRAM)</text>
+
+        <!-- Nodes -->
+        <rect x="64" y="40" width="144" height="56" rx="6" fill="#f6f3ef"/>
+        <rect x="64" y="40" width="144" height="56" rx="6" fill="rgba(82,76,69,0.10)" stroke="#625d55" stroke-width="1"/>
+        <text x="136.0" y="72.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">Browser</text>
+        <rect x="304" y="40" width="144" height="56" rx="6" fill="#f6f3ef"/>
+        <rect x="304" y="40" width="144" height="56" rx="6" fill="rgba(187,65,0,0.08)" stroke="#bb4100" stroke-width="1"/>
+        <text x="376.0" y="66.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">API process</text>
+        <text x="376.0" y="82.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">job thread</text>
+        <rect x="544" y="40" width="144" height="56" rx="6" fill="#f6f3ef"/>
+        <rect x="544" y="40" width="144" height="56" rx="6" fill="rgba(27,24,19,0.05)" stroke="#524c45" stroke-width="1"/>
+        <text x="616.0" y="66.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">SQLite cache</text>
+        <text x="616.0" y="82.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">exposure_lists</text>
+        <rect x="752" y="40" width="144" height="56" rx="6" fill="#f6f3ef"/>
+        <rect x="752" y="40" width="144" height="56" rx="6" fill="rgba(27,24,19,0.03)" stroke="rgba(27,24,19,0.30)" stroke-width="1"/>
+        <text x="824.0" y="66.0" fill="#1b1813" font-size="12" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif" text-anchor="middle">IRSA SIA</text>
+        <text x="824.0" y="82.0" fill="#524c45" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">CSV answers</text>
+
+        <!-- Legend and notes -->
+        <line x1="40" y1="624" x2="920" y2="624" stroke="rgba(27,24,19,0.10)" stroke-width="0.8"/>
+        <text x="40" y="640" fill="#524c45" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.18em">LEGEND</text>
+        <line x1="40" y1="662" x2="68" y2="662" stroke="#005a9d" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <text x="76" y="664" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">HTTP request</text>
+        <line x1="164" y1="662" x2="192" y2="662" stroke="#524c45" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <text x="200" y="664" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Call</text>
+        <line x1="248" y1="662" x2="276" y2="662" stroke="#524c45" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+        <text x="284" y="664" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Return</text>
+        <line x1="344" y1="662" x2="372" y2="662" stroke="#bb4100" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <text x="380" y="664" fill="#524c45" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Answer before any data is read</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>
