@@ -12,6 +12,7 @@ as static files.
 | `starmap.js` | about 570 lines | The sky map (`SkyMap`): projection, drawing, pan and zoom, picking |
 | `ambient.js` | about 330 lines | The motion of the sky map screen (`Ambient`): deep star field, rim glow, slow turn, aiming frame, pings, meteors |
 | `atlas.js` | 220 lines | The photograph of the real sky behind the zoomed-in map (`Atlas`): tiles of the 2MASS atlas, from our server's copy (`/api/atlas/2mass/`) or NASA/IPAC IRSA itself, drawn through the map's projection |
+| `movers.js` | about 240 lines | Moving objects found by the blind search: the card of a field, the paths on the image, votes, follow, and the "Discoveries" list |
 | `exports.js` | about 230 lines | What a researcher takes away: the plot's points as CSV, the plot as PNG with the credit, the "Source files" panel listing the Level 2 exposures with their IRSA links, its download script, URL list and table, and the "About the data" page |
 | `i18n.js` | 107 lines | Text that scripts put on the page (`STR.en`) and the `tr()` formatter |
 | `hints.js` | 74 lines | One-line notes on controls, shown on hover and keyboard focus |
@@ -19,8 +20,8 @@ as static files.
 | `data/sky.json` | - | Compact star chart: stars, names, constellations, Milky Way, boundary grid |
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
-Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `exports.js`, `app.js`.
-Asset URLs carry a version query (`?v=35`) that is raised when a file changes,
+Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `exports.js`, `movers.js`, `app.js`.
+Asset URLs carry a version query (`?v=36`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -96,6 +97,7 @@ at start; `writeUrl` keeps it current (`replaceState` for display changes,
 | `mode` | `blink`, `diffmed`, `diffref`, `stack` | `blink` | Image arithmetic |
 | `gaia`, `catwise` | `1` | off | Catalogue overlays |
 | `tracks` | `0` | on | Hide the measured-tracks overlay |
+| `mover` | id (`VS-...`) | - | The moving object that is open in the "Moving objects" card |
 | `ui` | `simple`, `adv` | see below | Interface mode |
 
 Only non-default display values are written. The interface mode is resolved in
@@ -173,6 +175,7 @@ Drawn on the image canvas after every frame by `drawOverlays`:
 | Crosshair | On the target; in a progressive field it stays on the target while the mosaic is centred on the seed cell |
 | Gaia DR3 / CatWISE | Circle or square at the position propagated to the date of the frame; fast, significant movers highlighted with a path and a label |
 | Measured tracks | Every measured position as a dot, the fitted track as a line, a diamond on positions measured in the frame on screen, the object's name |
+| Moving objects (progressive fields, `drawMovers` in `movers.js`) | Each object's path over the time it was seen, with an arrowhead and its name; a ring where it is in the frame on screen; the detections of the open object |
 | Scale bar and compass | 1, 2 or 5 arcmin bar depending on the field; N up, E left |
 
 In Advanced both catalogues are fetched as soon as a view opens (`loadCatalogs`),
@@ -181,6 +184,18 @@ so ticking an overlay shows it without a wait; Simple fetches none.
 Marks and text keep a constant size in CSS pixels on any display density and
 carry a thin dark edge so they remain legible over bright pixels. Canvas colours
 are read from the CSS custom properties, so the canvas follows the design tokens.
+
+### Moving objects
+
+`movers.js` is loaded before `app.js`, which calls four of its functions:
+`initMovers()` once, `clearMovers()` when a new view starts, `loadMovers()`
+when a progressive field has finished loading, and `drawMovers()` with every
+frame. `loadMovers` asks `/api/movers/field` and asks again every 4 seconds
+while the search is queued or running. Its state is the object `MV`. Two
+things are kept in `localStorage`: `vs.voter`, a random id the browser makes
+up once and sends with its votes, and `vs.follow`, the ids of the objects it
+follows. "Discoveries" is a sheet like "About the data"; its Fast and Slow
+tabs filter the list of `/api/movers` at 20 arcsec per hour.
 
 ### Plots
 
