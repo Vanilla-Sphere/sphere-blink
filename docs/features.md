@@ -719,11 +719,12 @@ Level 2 exposures, 0.75-5 µm, NASA/IPAC IRSA, processed on the fly.
   and `/api/tracks` return JSON.
 - **All API endpoints.** Under the three addresses of "Link or embed this
   view" (page, GIF, data) a line opens onto every other endpoint that only
-  reads, 21 addresses filled in for the view on screen: the frame, the
+  reads, 22 addresses filled in for the view on screen: the frame, the
   epochs, the cube, the job and the wide field of the view; exposures,
   catalogued object, name, Gaia, CatWISE and measured tracks of the position;
   the moving objects; and the service itself (measured objects, featured
-  targets, the tile of the sky photograph that holds the position, health,
+  targets, the tile of the sky photograph that holds the position, the limits
+  in force, health,
   the interactive documentation and the OpenAPI description). The service
   asks for no key and no sign-in, so an address is a link that opens in a new
   tab, and "Copy" takes the whole address. `/api/measure` and the vote on a

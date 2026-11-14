@@ -1,4 +1,11 @@
-"""Runtime settings, read from environment variables."""
+"""Runtime settings, read from environment variables.
+
+The limits of the pipeline queue and of the callers (ACTIVE_*, MEASURE_PROCS,
+QUEUE_PREVIEW, RAM_BUDGET_MB, MAX_JOBS*, MAX_FIELDS_PER_CLIENT,
+MAX_MEASURE_QUEUE, MAX_OPEN_REQUESTS, RATE_*) are also rows of the table
+``settings`` of the team database and can change while the server runs: read
+them with ``settings.get``, not from here. The values here are the ones a
+setting has without a row."""
 
 from __future__ import annotations
 

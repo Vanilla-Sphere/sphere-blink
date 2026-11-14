@@ -7,6 +7,7 @@ sphere-blink/
 ├── sphereblink/            Python package: the service
 │   ├── __init__.py         pins numeric libraries to one thread per process
 │   ├── config.py           settings from environment variables
+│   ├── settings.py         limits changed while the server runs (table settings of the database)
 │   ├── sia.py              exposure search (IRSA SIA v2)
 │   ├── cutout.py           FITS range reader, masking, resampling, aperture photometry
 │   ├── worker.py           tasks that run in the imaging worker processes
@@ -50,6 +51,7 @@ of HTML, CSS and JavaScript in the viewer.
 | Module | Lines | Responsibility | Main names |
 | --- | --- | --- | --- |
 | `config.py` | 59 | All tunable settings, read once from the environment | `COLLECTIONS`, `S3_HTTP_BASE`, `CACHE_DIR`, `MAX_FOV_ARCMIN`, `FETCH_PROCS`, `BAD_FLAG_NAMES` |
+| `settings.py` | 262 | The limits that are rows of the table `settings`: the range each may take, the rule that holds the memory together, reading the table twice a minute in a thread of its own, the values that stay in force without the database | `SETTINGS`, `get`, `on_change`, `effective`, `refresh`, `status` |
 | `sia.py` | 175 | Query the archive for exposures covering one or many points; parse CSV or VOTable | `Exposure`, `find_exposures_at`, `parse_sia_csv` |
 | `cutout.py` | 455 | The view grid; four-request FITS reader; Rice decoding of flags; masking; sky plane; resampling; aperture flux; wavelength maps | `Grid`, `Frame`, `cut_async`, `detector_coords`, `aperture_flux`, `wave_map_from_file`, `cache_key` |
 | `worker.py` | 77 | Code executed inside worker processes: per-process event loop and HTTP client, chunk cutting with retries, traffic metering | `init`, `cut_chunk`, `cut_one`, `Meter` |
@@ -88,8 +90,12 @@ of HTML, CSS and JavaScript in the viewer.
   `measure.measure_all` returns a plain dictionary.
 - `measure.py` reuses the byte-level FITS helpers of `cutout.py` rather than
   duplicating them.
-- Only `measurements.py` talks to Postgres, and it imports the driver lazily so
-  the service runs without it when no database is configured.
+- Only `measurements.py` and `settings.py` talk to Postgres, and they import the
+  driver lazily so the service runs without it when no database is configured.
+- A limit that is a row of the table `settings` is read with
+  `settings.get("active_views")` at the moment it is needed, never copied at
+  import: that is what lets it change while the server runs. Its value
+  without a row is still the name in `config`.
 - State that must be shared (jobs, fields, caches) is held by the single
   `Service` and `Fields` instances created in `main.py`.
 
@@ -141,6 +147,7 @@ stubbed HTTP clients, need no network, and finish in about three seconds.
 | File | Tests | Covers |
 | --- | --- | --- |
 | `tests/test_guard.py` | 22 | Caller identity; token buckets; security headers and CORS; refusal of non-positions; the measurement name rule; job and queue caps; the pipeline queue (views worked on at a time, positions, callers taking turns, the first exposures of a waiting view, the memory budget for wide fields, two measurements at a time); disk cache eviction and pinning; name cache; second source for files; stale exposure lists |
+| `tests/test_settings.py` | 18 | The limits kept in the database: a row sets the value, one outside its range is moved to the nearest end, one that is not a number is ignored; the three settings that fill the memory never come to more than the machine was sized for; a database that does not answer changes nothing; a changed limit reaches the queue of views, the allowances of a caller and the measuring processes; `sql/settings.sql` is the list of the code with the values of `render.yaml`. One test runs against a real Postgres when `SPHEREX_TEST_DATABASE_URL` is set |
 | `tests/test_offline.py` | 29 | Coordinate parsing; proper-motion propagation of the featured targets; grid geometry; FITS header scanning; aperture photometry; sky plane; epoch grouping; median difference; cube round trip; PNG and GIF rendering; colour borrowing and white balance; disk and memory eviction; cell grid and stages; exactness of the coarse-lattice pixel mapping; binning; half-precision storage; SIA CSV parsing; wing photometry |
 | `tests/test_atlas.py` | 10 | The sky photograph kept on disk: one fetch then disk; addresses outside the atlas; answers that are not pictures; shared fetches; a silent archive; eviction that spares the kept orders; filling after a start; a nearly full disk; the two endpoints, their headers and allowances; the page's two sources |
 | `tests/test_measure.py` | 18 | Parallax factors; PSF fit accuracy; neighbour handling; wing fallback; track recovery with parallax; stacks for faint movers; light curve; storage and database synchronisation; saturated stars |
