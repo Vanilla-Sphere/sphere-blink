@@ -224,9 +224,13 @@ SPHEREx has six detectors:
 
 The Bands control offers:
 
-- **RGB (default).** False colour with the longest wavelengths in red:
-  red = D6 (or D5), green = D4 (or D3), blue = D2 (or D1). Each channel uses
-  its preferred detector and falls back to the neighbouring one.
+- **RGB simulation (default).** False colour with the longest wavelengths in
+  red: red = D6 (or D5), green = D4 (or D3), blue = D2 (or D1). Each channel
+  uses its preferred detector and falls back to the neighbouring one. The
+  button was labelled "RGB" until 2026-11-14; Duy asked for "RGB simulation"
+  because every SPHEREx band lies beyond 0.75 um, so a true-colour picture
+  cannot be made, and the bare word "RGB" suggests one. The value in links and
+  in the API stays `det=rgb`.
 - **All bands.** The six detectors averaged after per-frame noise normalisation.
 - **Any subset of D1-D6.** For example D5 and D6 to look for very cold objects.
 
@@ -237,6 +241,22 @@ metadata of each epoch records the detector and date of every channel and
 whether it was borrowed; the interface shows this under "This frame", and
 rendered PNG and GIF frames mark a borrowed channel with an asterisk. A frame is
 never presented as a simultaneous three-colour observation.
+
+An (i) beside the "Bands" label (asked by MiLy, 2026-11-14) explains the RGB
+simulation in five short parts: why it is not true colour; which band is
+which colour, with the wavelengths of `DETECTOR_RANGE_UM`; how the bands are
+chosen (the order of wavelength is kept as in the eye; the six bands form a
+short, a middle and a long pair, one pair per colour, so the three colours
+cover the whole range; in a pair the longer band is used and the other stands
+in); the white balance (each band on one scale, so the brightest stars come
+out near white and a colour is a difference between bands); and the borrowing
+of a channel from another date. The note states only what `render.py` does:
+signal-to-noise is not a criterion of the choice. Because the left column
+scrolls and would cut the note, it is laid over the page beside the column
+(`placeTip` in `web/app.js`, class `out` on the note). The legend of a frame
+under "This frame" is headed "RGB simulation" (it was "Colours"), and the
+"What am I looking at?" note of Simple says that the picture is not true
+colour.
 
 Each detector is put on a common display scale (its median sky at zero, its
 bright stars at one) so that a channel keeps its level when the detector feeding

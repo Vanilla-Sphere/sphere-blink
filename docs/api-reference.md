@@ -31,7 +31,7 @@ resolved position and `fov` address the same view and share its cached data.
 
 | Parameter | Values | Default | Description |
 | --- | --- | --- | --- |
-| `det` | `rgb`, `all`, or a list such as `1,2,6` or `D5,D6` | `rgb` | `rgb` is false colour (R = D6 or D5, G = D4 or D3, B = D2 or D1); `all` averages the six detectors |
+| `det` | `rgb`, `all`, or a list such as `1,2,6` or `D5,D6` | `rgb` | `rgb` is the RGB simulation, a false-colour composite of three infrared bands (R = D6 or D5, G = D4 or D3, B = D2 or D1); `all` averages the six detectors |
 | `band` | `RGB`, `D1` ... `D6` | - | Alternative spelling of `det`; takes precedence when given |
 | `group` | `exposure`, `day`, `visit` | `day` | One epoch per exposure, per UTC day, or per sky pass |
 | `diff` | boolean | `false` | Subtract the median of all epochs (PNG and GIF endpoints) |

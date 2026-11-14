@@ -116,7 +116,7 @@
 
     <section class="panel">
       <h2>Display</h2>
-      <div class="ctl"><span class="lab" id="lab-dets">Bands</span>
+      <div class="ctl"><div class="headtip labtip"><span class="lab" id="lab-dets">Bands</span><div class="tip out"><button type="button" class="tipbtn" aria-label="What RGB simulation is and how its bands are chosen" aria-describedby="tip-rgb"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-rgb"><p><b>RGB simulation is not true colour</b>Every SPHEREx band lies in the infrared, beyond 0.75 µm, where the eye sees nothing. Three bands are shown as red, green and blue, so that a difference between bands is seen as a colour.</p><p><b>Which band is which colour</b><span class="measure rgbmap"><i class="sw r"></i>R = D6 4.42–5.00 µm, else D5 3.83–4.41<br><i class="sw g"></i>G = D4 2.42–3.82 µm, else D3 1.63–2.42<br><i class="sw b"></i>B = D2 1.10–1.62 µm, else D1 0.75–1.09</span></p><p><b>How they are chosen</b>The order of the wavelengths is kept, as in the eye: the longest in red, the shortest in blue. The six bands form three pairs, short, middle and long, one pair for each colour, so the three colours cover the whole range. In a pair the longer band is used; where it did not see the place, the other stands in.</p><p><b>White balance</b>Each band is set on one scale, from its sky to its bright stars, so the brightest stars come out near white. Redder than them means relatively brighter at the long wavelengths, as cool or dust-covered objects are; bluer, at the short ones.</p><p><b>Not one moment</b>SPHEREx sees a place with one or two bands on a day. A colour missing on a date is taken from the nearest date that has it, and is marked with * on the picture and "(from date)" under "This frame".</p></div></div></div>
         <div id="dets" class="dets" role="group" aria-labelledby="lab-dets"></div>
       </div>
       <div class="ctl"><span class="lab" id="lab-group">One frame per</span>
@@ -188,7 +188,7 @@
 
   <aside class="simplepanel simple" id="simplepanel" aria-label="About this place">
     <div class="shead">
-      <div class="who"><h1 id="sname"></h1><div class="tip"><button type="button" class="tipbtn" aria-label="What am I looking at?" aria-describedby="swhat"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="swhat"><p>These are real photos from NASA's SPHEREx space telescope, one for each day it looked at this spot.</p><p>SPHEREx sees infrared light, which our eyes cannot; the three colours stand for three infrared bands. Dark brown patches have no data yet.</p></div></div></div>
+      <div class="who"><h1 id="sname"></h1><div class="tip"><button type="button" class="tipbtn" aria-label="What am I looking at?" aria-describedby="swhat"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="swhat"><p>These are real photos from NASA's SPHEREx space telescope, one for each day it looked at this spot.</p><p>SPHEREx sees infrared light, which our eyes cannot, so this is not a true-colour picture: red, green and blue stand for three infrared bands (an RGB simulation). Dark brown patches have no data yet.</p></div></div></div>
       <p id="skind" class="skind"></p>
     </div>
     <div class="sbody">
@@ -332,7 +332,7 @@
         <li><b>Subtract the background.</b> A plane (a level and a slope) is fitted to the sky of each cutout with 2.5σ clipping and taken away. This removes the zodiacal light, which is far brighter than most sources and different in every exposure.</li>
         <li><b>Align.</b> Each cutout is resampled through its own astrometry onto one grid: north up, east left, centred on the position, with 3.075″ pixels (6.15″ for fields wider than 12′).</li>
         <li><b>Group.</b> Exposures are shown one by one, or combined by day or by sky pass. Each is divided by its own noise first, so bands of very different brightness can share a frame.</li>
-        <li><b>Show.</b> One asinh stretch is used for the whole sequence. In colour, red is D6, green is D4 and blue is D2.</li>
+        <li><b>Show.</b> One asinh stretch is used for the whole sequence. In the RGB simulation (not true colour: every band is infrared), red is D6, green is D4 and blue is D2.</li>
       </ol>
 
       <h3>Measurements</h3>
