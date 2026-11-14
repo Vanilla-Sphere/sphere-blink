@@ -36,4 +36,4 @@
 .sheetbody .cp-table th{color:var(--color-muted)}
 .sheetbody .cp-grid2 td:not(:first-child){text-align:center;padding:4px 2px;color:var(--color-ink);background:color-mix(in oklab,var(--color-accent) calc(var(--cp-v,0)*62%),transparent)}
 .complete .note{margin-top:10px}
-@media (max-width:560px){.cp-more{overflow-x:auto}.cp-tile b{font-size:21px}}
+@media (max-width:560px){.cp-more{overflow-x:auto}.cp-tile b{font-size:21px}.cp-tile:last-child:nth-child(odd){grid-column:1/-1}}
