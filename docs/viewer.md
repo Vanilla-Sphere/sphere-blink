@@ -329,9 +329,7 @@ coordinates.
   nearer the pointer keeps its own note, so Polaris can still be pointed at.
   `SkyMap.axis("sky" | "view" | "off")` switches it; `"view"` draws the
   straight line down the middle of the map instead, which stays put while the
-  sky turns past it. Until its look is approved the axis shows on the dev
-  site only, and `?axis=sky`, `?axis=view` or `?axis=off` in the address
-  tries it anywhere.
+  sky turns past it.
 - **Input.** Pointer events for drag, pinch and click; wheel zoom about the
   pointer so the sky under it stays under it; keyboard pan, zoom and select.
 - **Drawing** is batched with `requestAnimationFrame` and only runs while the
