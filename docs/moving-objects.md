@@ -11,6 +11,7 @@ are already known, and lets visitors say whether a path looks real.
 - Store: `sphereblink/mover_store.py` (local SQLite, `movers.sqlite` in the cache directory).
 - Service and endpoints: `sphereblink/movers_api.py`.
 - Names of known objects: `sphereblink/known_objects.py`.
+- In the viewer: `web/movers.js` ([features](features.md#17-blind-search-for-moving-objects)).
 
 ## What it works on
 

@@ -25,7 +25,7 @@ implements it. Implementation detail is in [imaging engine](imaging-engine.md),
 | 14 | Per-frame quality flags and provenance | Advanced | `cutout.py`, `render.Epoch.meta` |
 | 15 | Share links, embeddable GIF and PNG, data API | Simple, Advanced | `main.py`, `web/app.js` (`writeUrl`) |
 | 16 | Featured targets | Simple, Advanced | `resolve.FEATURED`, `refcat.TARGETS` |
-| 17 | Blind search for moving objects, with a log, names and votes (API; the viewer part follows) | - | `movers.py`, `mover_store.py`, `movers_api.py`, `known_objects.py` |
+| 17 | Blind search for moving objects, with a log ("Discoveries"), names, follow and votes | Advanced | `movers.py`, `mover_store.py`, `movers_api.py`, `known_objects.py`, `web/movers.js` |
 
 ## 1. Sky map start screen
 
@@ -479,4 +479,29 @@ direction, the exposures it was seen in, and the name when it is a known
 asteroid or comet. Visitors can say whether a path looks real
 (`POST /api/movers/{id}/vote`), without an account. The algorithm, its
 validation on 3I/ATLAS and twelve asteroid tracks, and its limits are in
-[moving objects](moving-objects.md). The viewer does not show the log yet.
+[moving objects](moving-objects.md).
+
+In the viewer (Advanced, `web/movers.js`):
+
+- **"Moving objects" card** of a progressive field, under "Measured in this
+  field". While the field is searched it says so; then it lists what was
+  found in two groups, **fast** (20 arcsec per hour and more) and **slow**
+  (below 20), fastest first. A row gives the name (or the id `VS-...` when no
+  catalogue knows the object), "known asteroid", "known comet", "not in the
+  catalogues" or "not yet compared with the
+  catalogues", the speed, the position angle of the motion,
+  at how many exposure times it was seen, the date, and the votes.
+- **Paths on the image** (overlay "Moving objects"): a line with an arrowhead
+  along the part of the path that was seen, and a ring where the object is in
+  the frame on screen. Selecting a row opens the object: the movie goes to the
+  frame nearest to it, its detections are drawn, and the address gains
+  `mover=<id>`, so the link opens the same object.
+- **Votes**: "Real motion" and "False alarm". One vote per browser; choosing
+  the same button again takes it back.
+- **Follow**: kept in this browser only (`localStorage`), marked with a star.
+- **"Discoveries"** (top bar, and "All discoveries" in the card): everything
+  found so far anywhere on the map, with the tabs All, Fast, Slow and
+  Following. Selecting an object opens the field it was found in.
+
+Objects slower than 2 arcsec per hour (which need two passes of the telescope
+months apart) are not searched.
