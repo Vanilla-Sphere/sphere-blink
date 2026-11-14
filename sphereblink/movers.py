@@ -40,8 +40,9 @@ from dataclasses import asdict, dataclass, field
 import numpy as np
 from scipy import ndimage as ndi
 
-VERSION = 4  # 2: a sighting must be a compact source; 3: curved paths, and three visits for a path without a name;
-# 4: four visits of any size count too, and twice as many detections per pass take part in the linking
+VERSION = 5  # 2: a sighting must be a compact source; 3: curved paths, and three visits for a path without a name;
+# 4: four visits of any size count too, and twice as many detections per pass take part in the linking;
+# 5: a stray detection in one of its pieces no longer keeps a curved path in two
 
 MIN_SNR = 5.0  # peak of a detection, in units of the local noise
 GROW_SNR = 2.5  # pixels joined to a peak
@@ -93,6 +94,7 @@ CURVE_GAIN = 0.7  # and only when the curve leaves less than this share of the s
 CURVE_MIN = 1.0  # ... and by at least this many arcsec: a line that fits needs no curve
 CURVE_MAX = 0.2  # arcsec per hour squared the curve may have (measured: 0.03 for Astraea, 0.04 for Nha)
 JOIN_GAP_H = 48.0  # pieces of one curved path may be this far apart in time
+JOIN_STRAYS = 0.03  # share of the detections of two pieces that may lie off their common path (one at least)
 MERGE_SEP = 25.0  # arcsec: two tracks this close with the same motion are one object
 MERGE_RATE = 0.1  # relative difference in speed (or 3 arcsec per hour) that still is the same motion
 FAST_RATE = 20.0  # arcsec per hour: speed classes of the result
@@ -614,7 +616,14 @@ def joined(a: Track, b: Track, tol: float = TOL, tol_max: float = TOL_MAX, max_g
     if abs(a.rate - b.rate) > max(5.0, 0.35 * min(a.rate, b.rate)):
         return None
     have = {d.key() for d in a.detections}
-    both = _track_of(a.detections + [d for d in b.detections if d.key() not in have])
+    dets = a.detections + [d for d in b.detections if d.key() not in have]
+    both = _track_of(dets)
+    if both.curved and both.rms_arcsec <= tol:
+        off = both.residuals() > tol_max
+        if off.any() and int(off.sum()) <= max(1, int(JOIN_STRAYS * len(dets))):
+            # A piece linked as a straight line takes up a detection beside the path now and then (a leftover of a
+            # star, a noise peak). It is left out of the common path; it does not undo it.
+            both = _track_of([d for d, o in zip(both.detections, off) if not o])
     if not both.curved or both.rms_arcsec > tol or float(both.residuals().max()) > tol_max:
         return None
     both.extra = {**b.extra, **a.extra}
@@ -627,7 +636,18 @@ def same_object(a: Track, b: Track, sep: float = MERGE_SEP, rate: float = MERGE_
     path passes the other where the other was measured (a comet's coma and
     core link separately), or all their detections lie on one curved path
     (the pieces of a path that bends over days link separately too)."""
-    return _continues(a, b, sep, rate, max_gap_h) or (curved and joined(a, b) is not None)
+    return united(a, b, sep, rate, max_gap_h, curved) is not None
+
+
+def united(a: Track, b: Track, sep: float = MERGE_SEP, rate: float = MERGE_RATE, max_gap_h: float = 24.0,
+           curved: bool = True) -> Track | None:
+    """The one track of two that describe one object (``same_object``), None when they do not."""
+    if _continues(a, b, sep, rate, max_gap_h):
+        have = {d.key() for d in a.detections}
+        both = _track_of(a.detections + [d for d in b.detections if d.key() not in have])
+        both.extra = {**b.extra, **a.extra}
+        return both
+    return joined(a, b) if curved else None
 
 
 def _continues(a: Track, b: Track, sep: float, rate: float, max_gap_h: float) -> bool:
@@ -654,10 +674,8 @@ def merge(tracks: list[Track], **kw) -> list[Track]:
         kept: list[Track] = []
         for t in out:
             for i, o in enumerate(kept):
-                if same_object(o, t, **kw):
-                    have = {d.key() for d in o.detections}
-                    both = _track_of(o.detections + [d for d in t.detections if d.key() not in have])
-                    both.extra = {**t.extra, **o.extra}
+                both = united(o, t, **kw)
+                if both is not None:
                     kept[i] = both
                     break
             else:
@@ -837,7 +855,9 @@ def candidates(dets: list[Detection], cube, frames: list[dict], wcs, sky: Static
     for t in whole:
         if not any(t is k for k in kept):
             have = {d.key() for d in t.detections}
-            parts = [k for k in kept if all(d.key() in have for d in k.detections)]
+            # its pieces: a piece may have left a stray detection behind when it was joined
+            parts = [k for k in kept if sum(d.key() not in have for d in k.detections) <= max(1, int(JOIN_STRAYS * len(k.detections)))
+                     and any(d.key() in have for d in k.detections)]
             t.extra.update(confirm(t, cube, frames, wcs, sky, scale_arcsec), pieces=len(parts),
                            strong_piece=any(strong(k.extra) for k in parts))
     whole.sort(key=lambda k: (-k.n_times, k.rms_arcsec))
