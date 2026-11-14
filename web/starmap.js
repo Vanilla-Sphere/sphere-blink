@@ -12,6 +12,16 @@ const SkyMap = (() => {
   let cv, ctx, wrap, opt = {}, C = {};
   let W = 0, H = 0, dpr = 1, s0 = 1, cx = 0, cy = 0;
   const view = {ra: 0, dec: 0, k: 1};
+  /* The first view: the centre of the Milky Way, close enough that the sky photograph shows at full
+     strength, with Sagittarius to the left and Antares and Scorpius to the right. The zoom is set by
+     how much sky fits: `across` degrees over the width, never less than `tall` degrees over the
+     height, and at least `least` times the whole-sky zoom (where the photograph is fully in).
+     `fresh` is true until the visitor moves the map; the heading stays on the map that long. */
+  const OPEN = {ra: 266.4, dec: -29, across: 64, tall: 28, least: 4};
+  /* Stars down to the third magnitude get their names this many times closer than the whole sky.
+     The first view stays just short of it, so it opens with the map, not with a page of names. */
+  const NAMES_ALL = 6;
+  let fresh = false, wasFresh = null;
   let rot = null;                       // cos/sin of the centre, set once per frame
   let sky = null, stars = null, mw = null, cons = [], names = [], cells = null;
   let pins = [], mark = null, hover = null, hoverPin = null, hoverCon = null, hoverStar = null, busyAt = null, labels = false, wasZoomed = null;
@@ -158,6 +168,7 @@ const SkyMap = (() => {
   }
   /* The smallest zoom shows the whole sky; on a tall screen it starts closer so the sky is not a thin strip. */
   function homeZoom() { return Math.max(1, Math.min(3.2, 0.58 * H / (2 * R2 * s0))); }
+  function openZoom() { const h = homeZoom(); return Math.max(OPEN.least * h, Math.min(0.97 * NAMES_ALL * h, Math.min(W / OPEN.across, H / OPEN.tall) / (s0 * D))); }
   function redraw() { if (!dirty) { dirty = true; requestAnimationFrame(draw); } }
   /* which stars are drawn at this zoom, and how large */
   const magLimit = () => Math.min(6.5, (W < 700 ? 4.4 : 4.9) + 1.15 * Math.log2(view.k));
@@ -224,7 +235,7 @@ const SkyMap = (() => {
     dirty = false;
     if (!cv || !W || !shown) return;
     const zoomed = view.k > homeZoom() * 1.35;
-    if (zoomed !== wasZoomed) { wasZoomed = zoomed; if (opt.onView) opt.onView({zoomed}); }
+    if (zoomed !== wasZoomed || fresh !== wasFresh) { wasZoomed = zoomed; wasFresh = fresh; if (opt.onView) opt.onView({zoomed, opening: fresh}); }
     setRot();
     const s = s0 * view.k, p = [0, 0, 0], q = [0, 0, 0];
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -369,10 +380,12 @@ const SkyMap = (() => {
       }
       if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
     }
-    if (view.k >= 2.4) {
+    // (counted from the whole-sky zoom, so a phone, which starts closer, does not fill up with names)
+    const closer = view.k / homeZoom();
+    if (closer >= 2.4) {
       ctx.font = `11.5px ${C.sans}`; ctx.textAlign = "left";
       for (const n of names) {
-        if (n.mag > (view.k >= 6 ? 3 : 1.6)) continue;
+        if (n.mag > (closer >= NAMES_ALL ? 3 : 1.6)) continue;
         project(n.v[0], n.v[1], n.v[2], p);
         if (onScreen(p, 10)) halo(n.name, p[0] + Math.max(8, 1.5 * starRadius(n.mag, grow) + 4), p[1] + 4, C.ink2);
       }
@@ -423,14 +436,14 @@ const SkyMap = (() => {
   function pan(dx, dy) {
     const s = s0 * view.k;
     view.ra += dx / s / D / Math.max(0.25, Math.cos(view.dec * D));
-    view.dec += dy / s / D;
+    view.dec += dy / s / D; fresh = false;
     clampView(); redraw();
   }
   /* zoom about a canvas point: the sky under it stays under it */
   function zoomAt(factor, px, py) {
     setRot();
     const before = unproject(px, py), k0 = view.k;
-    view.k *= factor; clampView();
+    view.k *= factor; clampView(); fresh = false;
     if (before && view.k !== k0) {
       for (let pass = 0; pass < 3; pass++) {
         setRot();
@@ -544,18 +557,18 @@ const SkyMap = (() => {
       theme(); wire(); loadData().catch(() => {});
       if (document.fonts && document.fonts.ready) document.fonts.ready.then(redraw);
     },
-    show(on) { shown = on; if (on) { busyAt = null; resize(); if (view.k === 1 && !view.set) { view.k = homeZoom(); view.set = true; } redraw(); } },
+    show(on) { shown = on; if (on) { busyAt = null; resize(); if (view.k === 1 && !view.set) { view.ra = OPEN.ra; view.dec = OPEN.dec; view.k = openZoom(); view.set = true; fresh = true; } redraw(); } },
     setPins(list) { pins = list; redraw(); },
     setMark(ra, dec) { mark = ra === null ? null : {ra, dec}; redraw(); },
-    lookAt(ra, dec, k) { view.ra = ra; view.dec = dec; if (k) view.k = k; view.set = true; clampView(); redraw(); },
+    lookAt(ra, dec, k) { view.ra = ra; view.dec = dec; if (k) view.k = k; view.set = true; fresh = false; clampView(); redraw(); },
     highlight(pin) { hoverPin = pin; redraw(); },
     idle() { busyAt = null; redraw(); },
     zoom(f) { zoomAt(f, cx, cy); },
-    home() { view.k = homeZoom(); view.dec = 0; redraw(); },
+    home() { view.k = homeZoom(); view.dec = 0; fresh = false; redraw(); },   // the whole sky
     constellation, redraw,
     /* for ambient.js: what the map shows now, where a sky position is on the canvas, a slow turn, and "nobody is pointing" */
     attach(o) { fx = o; redraw(); },
-    state() { const s = s0 * view.k; return {W, H, cx, cy, rx: 2 * R2 * s, ry: R2 * s, ra: view.ra, dec: view.dec, zoomed: !!wasZoomed, shown, busy: busyAt, hover: hoverPin ? null : hover, pin: hoverPin, star: hoverPin ? null : hoverStar, pins}; },
+    state() { const s = s0 * view.k; return {W, H, cx, cy, rx: 2 * R2 * s, ry: R2 * s, ra: view.ra, dec: view.dec, k: view.k, home: homeZoom(), zoomed: !!wasZoomed, shown, busy: busyAt, hover: hoverPin ? null : hover, pin: hoverPin, star: hoverPin ? null : hoverStar, pins}; },
     toXY(ra, dec) { setRot(); const p = project(...vec(ra, dec), [0, 0, 0]); return [p[0], p[1]]; },
     turn(dra) { view.ra += dra; clampView(); redraw(); },
     rest() { if (hover || hoverPin) tell(null); },
