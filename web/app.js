@@ -440,7 +440,8 @@ function showTarget(t) {
   $("tcoords").textContent = `${t.ra.toFixed(5)}° ${t.dec >= 0 ? "+" : "−"}${Math.abs(t.dec).toFixed(5)}°`;
   $("tdeci").textContent = $("tcoords").textContent; $("tsexa").textContent = sexa(t.ra, t.dec);
   $("tnote").textContent = (t.note ? t.note + " " : "") + (pm > 1 ? `Centred on its predicted position for late 2025 (it moves ${(pm / 1000).toFixed(2)}″/yr).` : "");
-  $("tnote").title = $("tnote").textContent;
+  $("tnotetip").hidden = !$("tnote").textContent;
+  if (t.source === "featured") $("q").value = t.name;
   const q = `${t.ra.toFixed(5)}%20${t.dec >= 0 ? "%2B" : ""}${t.dec.toFixed(5)}`;
   $("l-wiseview").href = `http://byw.tools/wiseview#ra=${t.ra.toFixed(5)}&dec=${t.dec.toFixed(5)}&size=${Math.round(S.fov * 60)}&band=3`;
   $("l-simbad").href = `https://simbad.cds.unistra.fr/simbad/sim-coo?Coord=${q}&Radius=1&Radius.unit=arcmin`;
@@ -509,9 +510,9 @@ function drawPlot() {
   const lc = S.plotmode === "lc";
   $("spectitle").textContent = lc ? "Light curve at the crosshair" : "Spectrum at the crosshair";
   const sans = `12px ${T.sans}`, mono = `11px ${T.mono}`;
-  cv.classList.toggle("none", !pts.length);
+  cv.classList.toggle("none", !pts.length); $("specempty").hidden = !!pts.length; $("spectip").hidden = !pts.length;
   if (!pts.length) {
-    $("specnote").textContent = "No clean flux measurement at the crosshair: the pixels there are saturated, masked or off the detector. Double-click a fainter source to measure it.";
+    $("specempty").textContent = "No clean flux here: the pixels are saturated, masked or off the detector.";
     $("legend").innerHTML = ""; return;
   }
   const visits = []; let lastM = -1e9;
@@ -563,7 +564,7 @@ function drawPlot() {
   $("legend").innerHTML = items.slice(0, 8).map(([name, col]) => `<span>${swatch(col)}${name}</span>`).join("") + `<span><i class="sw hollow"></i>flagged pixels</span>`;
   $("specnote").textContent = lc
     ? `${pts.length} measurements, coloured by detector. Each exposure samples a different wavelength, so compare points of one colour.`
-    : `${pts.length} points built on the fly: each exposure sees the target through a different slice of the variable filter. A change between sky passes means variability.`;
+    : `${pts.length} points built on the fly: each exposure sees the target through a different slice of the variable filter. Colours are sky passes; a change between passes means variability. Hollow points have flagged pixels in the aperture.`;
 }
 
 /* ------------------------------------------------------------------ transport */
@@ -642,7 +643,15 @@ function init() {
   cv.addEventListener("mousemove", (ev) => { if (!S.meta) return; const [ra, dec] = toSky(...pos(ev), cv); $("cursor").classList.remove("hint"); $("cursor").textContent = `${ra.toFixed(5)}° ${dec >= 0 ? "+" : "−"}${Math.abs(dec).toFixed(5)}°`; });
   cv.addEventListener("mouseleave", hint);
   cv.addEventListener("dblclick", (ev) => { if (!S.meta) return; const [ra, dec] = toSky(...pos(ev), cv); S.ra = ra; S.dec = dec; S.byCoords = true; S.target = null; $("q").value = `${ra.toFixed(5)} ${dec >= 0 ? "+" : ""}${dec.toFixed(5)}`; load(); });
+  // (i) notes: shown on hover and focus; a tap toggles them where there is no hover
+  const closeTips = () => { for (const t of document.querySelectorAll(".tip.open")) t.classList.remove("open"); };
+  for (const t of document.querySelectorAll(".tip")) t.querySelector(".tipbtn").addEventListener("click", (ev) => {
+    ev.stopPropagation(); const open = t.classList.contains("open"); closeTips();
+    if (open) ev.currentTarget.blur(); else t.classList.add("open");
+  });
+  document.addEventListener("click", closeTips);
   document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") { closeTips(); if (document.activeElement.classList.contains("tipbtn")) document.activeElement.blur(); }
     if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName) && document.activeElement.type !== "range") return;
     if (ev.key === " ") { ev.preventDefault(); S.playing ? stop() : play(); }
     if (ev.key === "ArrowRight") { stop(); step(1); }

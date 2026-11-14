@@ -29,6 +29,7 @@
   <nav class="barlinks" aria-label="Project">
     <a href="/docs">API</a>
     <a href="https://github.com/Vanilla-Sphere/sphere-blink" target="_blank" rel="noopener">Source</a>
+    <div class="tip"><button type="button" class="tipbtn" aria-label="Data sources and credits" aria-describedby="tip-credits"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-credits"><p><b>Images</b> NASA SPHEREx Level 2 spectral images (DR1, QR3), NASA/IPAC Infrared Science Archive, read on demand from the AWS Open Data mirror.</p><p><b>Overlays</b> ESA Gaia DR3 and CatWISE2020, through IRSA.</p><p><b>Team</b> Vanilla Sphere, 2026 NASA Space Apps Challenge, “Planet X and SPHEREx”.</p></div></div>
   </nav>
 </header>
 
@@ -77,8 +78,8 @@
 
   <section class="stage" aria-label="Image sequence">
     <div class="stagehead" id="targetcard" hidden>
-      <h1 id="tname"></h1><p id="tcoords" class="measure"></p>
-      <p id="tnote" class="muted"></p>
+      <div class="who"><h1 id="tname"></h1><div class="tip" id="tnotetip" hidden><button type="button" class="tipbtn" aria-label="About this target" aria-describedby="tnote"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tnote"></div></div></div>
+      <p id="tcoords" class="measure"></p>
     </div>
 
     <div class="well ticks">
@@ -86,7 +87,7 @@
         <canvas id="sky" width="640" height="640" tabindex="0" aria-label="SPHEREx image"></canvas>
         <div id="intro" class="intro">
           <h1>Every SPHEREx image of one patch of sky, played in order.</h1>
-          <p>Enter a position or pick a challenge target. Anything that moves or changes brightness between frames stands out.</p>
+          <p>Enter a position or pick a challenge target.</p>
           <div class="examples" aria-label="Accepted input, select to try">
             <button type="button" data-example="269.4486 +4.7387"><span>Decimal degrees</span><span class="measure">269.4486 +4.7387</span></button>
             <button type="button" data-example="08h55m10.8s -07d14m42.5s"><span>Sexagesimal</span><span class="measure">08h55m10.8s -07d14m42.5s</span></button>
@@ -114,11 +115,11 @@
 
   <aside class="analysis" aria-label="Measurements">
     <section class="panel" id="speccard" hidden>
-      <div class="panelhead"><h2 id="spectitle">Spectrum at the crosshair</h2>
+      <div class="panelhead"><div class="headtip"><h2 id="spectitle">Spectrum at the crosshair</h2><div class="tip" id="spectip"><button type="button" class="tipbtn" aria-label="How to read this plot" aria-describedby="specnote"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="specnote"></div></div></div>
         <div class="seg" id="plotmode"><button data-v="spec" class="on">Spectrum</button><button data-v="lc">Light curve</button></div></div>
       <canvas id="plot" aria-label="Spectrum plot"></canvas>
       <div id="legend" class="legend measure"></div>
-      <p class="muted note" id="specnote"></p>
+      <p class="muted note" id="specempty" hidden></p>
     </section>
 
     <section class="panel" id="epochcard" hidden>
@@ -141,29 +142,25 @@
     </section>
 
     <section class="panel" id="sharecard" hidden>
-      <h2>Link or embed this view</h2>
+      <div class="headtip"><h2>Link or embed this view</h2><div class="tip"><button type="button" class="tipbtn" aria-label="About these links" aria-describedby="tip-share"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-share">The coordinates live in the URL, so any view can be linked or embedded. The same parameters return a PNG, a GIF or the measurements; see API.</div></div></div>
       <div class="share"><label for="s-page">Page</label><input id="s-page" class="measure" readonly><button data-copy="s-page" class="btn quiet">Copy</button></div>
       <div class="share"><label for="s-gif">GIF</label><input id="s-gif" class="measure" readonly><button data-copy="s-gif" class="btn quiet">Copy</button></div>
       <div class="share"><label for="s-api">Data</label><input id="s-api" class="measure" readonly><button data-copy="s-api" class="btn quiet">Copy</button></div>
-      <p class="muted note">The coordinates live in the URL, so any view can be linked or embedded. Every endpoint is documented at <a href="/docs">/docs</a>.</p>
     </section>
 
     <section class="panel" id="analysishint">
-      <h2>What to try once a field is loaded</h2>
+      <h2>What to try</h2>
       <dl class="howto">
-        <dt>Blink</dt><dd>Play the frames. A nearby star or a Solar System body jumps from one sky pass to the next.</dd>
-        <dt>− Median</dt><dd>Subtract the median of all frames. Everything that stays put disappears; what moved or changed remains.</dd>
-        <dt>Spectrum</dt><dd>Each exposure sees the crosshair at one wavelength, so together they give its 0.75–5.0 µm spectrum and a light curve.</dd>
-        <dt>Overlays</dt><dd>Gaia DR3 and CatWISE sources, moved by their proper motion to the date of each frame.</dd>
-        <dt>Link</dt><dd>Every view is a URL. The same parameters return a PNG, a GIF or the measurements.</dd>
+        <dt>Blink</dt><dd>Play the frames; whatever moves, jumps.</dd>
+        <dt>− Median</dt><dd>Remove everything that stays put.</dd>
+        <dt>Spectrum</dt><dd>0.75–5.0 µm at the crosshair.</dd>
+        <dt>Overlays</dt><dd>Gaia DR3, CatWISE, team tracks.</dd>
+        <dt>Link</dt><dd>Every view is a URL, a PNG or a GIF.</dd>
       </dl>
     </section>
   </aside>
 </main>
 
-<footer class="credits">
-  <p>Images: NASA SPHEREx Level 2 spectral images (DR1, QR3), NASA/IPAC Infrared Science Archive, read on demand from the AWS Open Data mirror. Overlays: ESA Gaia DR3, CatWISE2020. Team Vanilla Sphere, 2026 NASA Space Apps Challenge.</p>
-</footer>
 <script src="/static/app.js"></script>
 </body>
 </html>
