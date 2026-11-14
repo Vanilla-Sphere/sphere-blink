@@ -26,6 +26,8 @@ services:
         - tests/**
         - scripts/**
         - "**/*.md"
+        - .github/**
+        - render.dev.yaml   # the dev service, see docs/environments.md
     domains:
       - vanillasphere.com
       - www.vanillasphere.com

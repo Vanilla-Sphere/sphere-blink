@@ -1,0 +1,48 @@
+# What a change has to pass on its way to production (docs/environments.md):
+# the tests, on every pull request to develop or main, and the rule that
+# main only takes what has been on the dev site first.
+name: checks
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"   # the version of render.yaml
+          cache: pip
+      - run: pip install -r requirements.txt pytest pyyaml
+      - run: python -m pytest -q
+        env:
+          SPHEREX_AUTO_MEASURE: "0"
+
+  promotion:
+    # main is production. It is only ever given what develop holds (and so
+    # what the dev site runs), or a hotfix branch for an urgent repair.
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: The pull request to main comes from develop or hotfix/*
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          case "$HEAD_REF" in
+            develop|hotfix/*) echo "ok: $HEAD_REF may be merged to main" ;;
+            *) echo "::error::Pull requests go to develop first. Change the base of this one to develop; main only takes develop (or hotfix/*). See docs/environments.md."
+               exit 1 ;;
+          esac

@@ -24,6 +24,9 @@ to them under a different `method`.
 - `schema.sql`: tables, indexes, cone-search function, row level security.
 - `roles.sql`: `blink_loader` (read + write) and `blink_web` (read only).
 - `example_insert.sql`: copy-paste upserts for the three tables.
+- `dev.sql`: the dev environment's copy of the three tables in a schema `dev`,
+  and the role `blink_dev` that can reach only that schema (see
+  `docs/environments.md`).
 
 ## Loading data
 

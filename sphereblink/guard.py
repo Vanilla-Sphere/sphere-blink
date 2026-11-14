@@ -169,6 +169,8 @@ ALWAYS = [
 
 def security_headers(path: str, content_type: bytes) -> list[tuple[bytes, bytes]]:
     out = list(ALWAYS)
+    if not config.PRODUCTION:  # a test copy of the site: not for search engines
+        out.append((b"x-robots-tag", b"noindex, nofollow"))
     if content_type.startswith(b"text/html"):
         docs = path in ("/docs", "/redoc") or path.startswith("/docs/")
         out += [

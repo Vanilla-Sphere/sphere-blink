@@ -77,6 +77,42 @@ def test_every_answer_carries_the_security_headers(client):
     assert "cdn.jsdelivr.net" in docs.headers["content-security-policy"]  # the API pages load Swagger UI
 
 
+def test_a_copy_that_is_not_production_keeps_search_engines_out(client, monkeypatch):
+    live = client.get("/")
+    assert "x-robots-tag" not in live.headers
+    assert "Allow: /" in client.get("/robots.txt").text
+    assert client.get("/api/health").json()["env"] == "production"
+    monkeypatch.setattr(config, "ENV", "dev")
+    monkeypatch.setattr(config, "PRODUCTION", False)
+    for r in (client.get("/"), client.get("/api/health"), client.get("/static/app.js")):
+        assert r.headers["x-robots-tag"] == "noindex, nofollow"
+    assert client.get("/robots.txt").text == "User-agent: *\nDisallow: /\n"
+    assert client.get("/api/health").json()["env"] == "dev"
+
+
+def test_the_dev_service_is_the_production_service_but_for_what_must_differ():
+    """render.dev.yaml (branch develop) has to stay a copy of render.yaml:
+    what passes on dev is only worth something if dev runs the same thing."""
+    yaml = pytest.importorskip("yaml")
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    prod, dev = (yaml.safe_load((root / f).read_text())["services"] for f in ("render.yaml", "render.dev.yaml"))
+    assert len(prod) == len(dev) == 1
+    prod, dev = dict(prod[0]), dict(dev[0])
+    assert dev.pop("name") == prod.pop("name") + "-dev"
+    assert dev.pop("branch") == "develop" and prod.pop("branch", "main") == "main"
+    assert "vanillasphere.com" in prod.pop("domains")
+    assert all(d.startswith("dev.") for d in dev.pop("domains", []))  # never a name of the live site
+    env_prod, env_dev = ({e["key"]: e.get("value", e.get("sync")) for e in s.pop("envVars")} for s in (prod, dev))
+    assert env_dev.pop("SPHEREX_ENV") == "dev" and "SPHEREX_ENV" not in env_prod
+    assert env_dev == env_prod
+    assert env_dev["DATABASE_URL"] is False  # sync: false, the secret is typed into the dashboard
+    for s in (prod, dev):  # each file is ignored by the other service
+        s["buildFilter"] = sorted(set(s["buildFilter"]["ignoredPaths"]) - {"render.yaml", "render.dev.yaml"})
+    assert dev == prod
+
+
 def test_other_sites_may_read_but_only_read(client):
     r = client.get("/api/health", headers={"Origin": "https://example.org"})
     assert r.headers["access-control-allow-origin"] == "*" and "access-control-allow-credentials" not in r.headers
