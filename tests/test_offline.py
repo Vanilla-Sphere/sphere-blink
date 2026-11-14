@@ -279,3 +279,26 @@ def test_wide_frames_survive_half_precision_storage(tmp_path):
     assert back.dtype == np.float32 and np.isnan(back[5, 5]) and back[7, 7] == pytest.approx(812.5)
     assert np.nanmax(np.abs(back - img)) < 0.02 * 0.01 + 0.3  # noise is kept to a small fraction of itself
     assert np.nanstd(back - img) < 0.02 / 500
+
+
+def test_archive_csv_answer_gives_exposures_and_skips_other_products():
+    from sphereblink import sia
+
+    cloud = '{"aws": {"bucket_name": "nasa-irsa-spherex", "key": "qr3/level2/2025W33_2C/l2b/x_D3.fits", "region": "us-east-1"}}'
+    head = "s_ra,s_dec,dataproduct_subtype,dataproduct_type,energy_bandpassname,obs_id,em_min,em_max,access_url,s_region,obs_collection,t_min,t_max,cloud_access"
+    rows = [
+        ["150.1", "2.2", "science", "image", "SPHEREx-D3", "2025W33_2C_0321_1", "1.64e-06", "2.42e-06",
+         "https://irsa.ipac.caltech.edu/ibe/data/spherex/qr3/x_D3.fits", "POLYGON ICRS 1 2 3 4 5 6", "", "60900.5", "60900.6", cloud],
+        ["150.1", "2.2", "calibration", "image", "SPHEREx-D3", "cal", "1e-06", "2e-06", "u", "r", "", "1", "2", ""],
+    ]
+    import csv as _csv
+    import io as _io
+
+    buf = _io.StringIO()
+    buf.write(head + "\n")
+    _csv.writer(buf).writerows(rows)
+    found = sia.parse_sia(buf.getvalue().encode(), "text/csv;charset=UTF-8", "spherex_qr3")
+    assert len(found) == 1
+    e = found[0]
+    assert (e.uid, e.collection, e.s3_key) == ("2025W33_2C_0321_1_D3", "spherex_qr3", "qr3/level2/2025W33_2C/l2b/x_D3.fits")
+    assert e.wave_min_um == pytest.approx(1.64) and e.mjd == pytest.approx(60900.55)
