@@ -14,7 +14,7 @@ often it reports a path where nothing moves (its false alarms).
 
 ## Results
 
-Search version 4, measured on 2026-11-14: 240 rounds in three fields, 1,440 fake asteroids (983 of them could be seen at 8 exposure times or more and count) and 1,440 fake bodies without heat (938 count). The figures are about the asteroids unless a line says otherwise.
+Search version 4, measured on 2026-11-14: 240 rounds in three fields, 1,440 fake asteroids (983 of them could be seen at 8 exposure times or more and count) and 1,440 fake bodies without heat (938 count). The figures are about the asteroids unless a line says otherwise. Search version 5, which the site runs since the same night, finds the same: on the 36 rounds repeated on it (12 per field, 432 fakes) every fake comes out as on version 4, found or not, strong or not.
 
 | | Few stars | More stars | Crowded | The three together |
 | --- | --- | --- | --- | --- |
@@ -55,10 +55,12 @@ The fields: **Few stars**: RA 167.1, Dec +5.22, Leo, 57° from the plane of the 
   limit of 250 per frame and 5000 detections per pass the same 12 rounds
   find 33 of 44 bright fakes instead of 22. They also gave one false path
   with the evidence asked of a nameless one: two leftovers of stars hours
-  apart whose line passes a bright fast fake of the day before. The limit
-  is therefore not raised yet; a rule that keeps that path out (detections
-  at five or more exposure times, which 748 of the 753 strong fakes have)
-  is being tested by the thread that owns the search.
+  apart whose line passes a bright fast fake of the day before. Searches of
+  the same field with the times shuffled gave a second one. The limit was
+  therefore not raised. A rule that keeps both out (detections at six or
+  more exposure times for a path without a name; 743 of the 753 strong
+  fakes have them) would have been made to fit two cases, and was not taken
+  ([what was tried](moving-objects.md#one-stray-detection-kept-astraea-in-two-version-5)).
 - **A path without a name is held to more, and that costs 7 to 10 points**
   (75, 81 and 49 % strong). Version 4 asks for three visits with two
   sightings each, or four visits with any sighting. The second half of the
@@ -67,11 +69,17 @@ The fields: **Few stars**: RA 167.1, Dec +5.22, Leo, 57° from the plane of the 
   cross the 50 arcmin field in a few hours and are seen in fewer visits:
   at 100 to 400 arcsec per hour 16 of the 25 brightest (V below 16.5) are
   found.
-- **Direction does not matter where stars are few or moderately many** (82
-  to 95 %). In the
-  crowded field fakes moving east or west are found less often than those
-  moving north or south (48 % of 81 against 72 % of 65). The cause is not
-  known.
+- **Direction does not matter** where stars are few or moderately many (82
+  to 95 %). In the crowded field the asteroids moving east or west are found
+  less often than those moving north or south (48 % of 81 against 72 % of
+  65), but this is the draw and not the search. The bodies without heat of
+  the same rounds show no difference (44 % of 73 and 44 % of 62). The
+  east-west asteroids that count happened to have fewer exposures (18 times
+  against 22, median), and at an equal number of detections both directions
+  are found alike (8 to 11 detection times: 31 of 37 against 28 of 30, both
+  kinds of fake together). Over all 960 fakes of the field the number of
+  exposure times does not depend on the direction (17.5 against 17.3,
+  mean).
 - **A body without heat of its own gives nearly the same** where stars are
   few (86 % of the bright ones, half at V 18.3, range 18.25 to 18.32). Where
   they crowd the heat helps: 59 % of the asteroids against 44 % of the
@@ -100,6 +108,7 @@ and each time it changed the next one.
 | Version 2, 120 rounds, bodies without heat only | 85, 85, 45 % | 81, 80, 43 % | Two false paths with the evidence then asked of a nameless one, both seen at 8 of 8 times. An earlier round had shown how: two fakes that hardly move, hours apart, joined into one fast path seen in two visits ([the static pair](moving-objects.md#the-static-pair-why-a-path-without-a-name-needs-three-visits)). |
 | Version 3, 240 rounds | 85, 87, 56 % | 72, 77, 44 % | No false path any more. But the three visits with two sightings each cost 10 to 13 points: where a visit gives one exposure time, a fake seen at 11 of 11 times in 9 visits failed the rule. And in the crowded field half of the bright ones are lost. |
 | Version 4, 240 rounds (this page; bodies without heat: 86, 82, 44 % found) | 85, 88, 59 % | 75, 81, 49 % | On the 36 rounds run on both versions with the same fakes: 7 more found and 12 more strong, none lost, no false path. The limit with more stars moved from V 17.6 to 17.9, because twice as many detections are linked per pass. |
+| Version 5, 36 of the rounds of version 4 | the same | the same | Version 5 joins two pieces of a curved path that a stray detection kept apart; what is found does not change. All 432 fakes of the 36 rounds come out as on version 4, and no path with the evidence of a nameless object appears. In the field with more stars the search without fakes now gives 7 paths where it gave 8: the two pieces of (5) Astraea are one path of 77 detections. |
 
 ![Share of the fake asteroids found, by brightness and field, and by brightness and speed](img/mover-completeness.png)
 
@@ -295,3 +304,9 @@ started again; rounds are numbered and each has its own seed, so the same
 round gives the same fakes. `--search stack` and `--search both` measure the
 shift and stack search with the same fakes. This is hours of computing: it
 runs on a workstation, never on the server of the site.
+
+Every round records the version of the search that made it, and the report
+writes that version into the result file. When a later version only has to
+be shown to find the same, run it on some of the same rounds with another
+`--tag`, compare fake by fake, and name it in the report with
+`--same-on VERSION ROUNDS`; the block on the site then says so.

@@ -116,7 +116,7 @@ def _round(job: tuple) -> dict:
     out = mc.trial(f["cube"], f["frames"], grid.wcs, grid.scale_arcsec, fakes, search=searcher(kind), seed=seed,
                    noise=f.get("noise"), baseline=f.get("baseline"))
     stats = {k: v for k, v in out["stats"].items() if isinstance(v, (int, float))}
-    return {"field": f["name"], "round": index, "seed": seed, "search": kind, "seconds": round(time.time() - t0, 1),
+    return {"field": f["name"], "round": index, "seed": seed, "search": kind, "version": movers.VERSION, "seconds": round(time.time() - t0, 1),
             "baseline": len(f.get("baseline") or []), "baseline_found": out["baseline_found"], "others": out["others"],
             "stats": stats, "fakes": out["fakes"]}
 
@@ -203,6 +203,10 @@ def main() -> None:
     s.add_argument("--out", type=Path, default=Path("web/data/mover-completeness.json"))
     s.add_argument("--plot", type=Path, default=None)
     s.add_argument("--made", default=time.strftime("%Y-%m-%d"), help="date of the measurement")
+    s.add_argument("--version", type=int, default=None,
+                   help="version of the search the rounds were made with, when they do not say (rounds written before version 5)")
+    s.add_argument("--same-on", type=int, nargs=2, default=None, metavar=("VERSION", "ROUNDS"),
+                   help="a later version of the search that gave the same on that many of the rounds, fake by fake")
     args = p.parse_args()
     args.dir.mkdir(parents=True, exist_ok=True)
     {"fetch": fetch, "prepare": prepare, "run": run, "shuffle": shuffle, "report": report}[args.command](args)
