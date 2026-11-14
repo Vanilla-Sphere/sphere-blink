@@ -305,7 +305,15 @@ spectral data product.
   by a double stroke (`groupedAxis` in `web/overtime.js`; groups are separated
   by gaps of more than 20 days). Since each exposure samples a different
   wavelength, the spread inside a group is the object's spectrum; a change of
-  the object shows as one colour shifting from group to group.
+  the object shows as one colour shifting from group to group. Inside each
+  group a line joins the points of one detector in order of time (Duy's idea),
+  so a colour can be followed; no line crosses the months cut out.
+- **One group at a time.** A click on a group of days enlarges it to the whole
+  width of the plot, at the same flux scale; a second click brings all groups
+  back. The row under the plot (`#otnav`: previous, next, "All groups") steps
+  through the groups and names the one on screen with its dates (`showGroups`,
+  `stepGroup`, `plotClick` in `web/app.js`; the enlarged group is `S.otZoom`,
+  forgotten when a new view is loaded). The PNG export saves what is on screen.
 - **Did it change?** A line under the Over time plot answers in words
   (`brightnessChange` in `web/overtime.js`, the method of the pipeline's
   [light curve](measurement-pipeline.md#6-light-curve) applied to the points of
