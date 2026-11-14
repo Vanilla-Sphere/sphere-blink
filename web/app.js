@@ -960,6 +960,7 @@ function mapTag(x, y, html) {
 }
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
 function mapHover(h) {
+  if (SkyMap.state().busy) return;      // a place is being opened: its note stays
   if (!h) { $("maptag").hidden = true; $("mapread").textContent = ""; return; }
   const con = h.con ? h.con.la : "";
   $("mapread").innerHTML = `${h.ra.toFixed(2)}° ${h.dec >= 0 ? "+" : "−"}${Math.abs(h.dec).toFixed(2)}°` + (con ? ` · <i>${esc(con)}</i>` : "");
@@ -974,7 +975,9 @@ function mapHover(h) {
   else $("maptag").hidden = true;
 }
 function mapPick(hit) {
-  mapTag(hit.x, hit.y, `<span>${esc(tr("map.open"))}</span>`);
+  const at = hit.pin || hit;
+  mapTag(hit.x, hit.y, `<b class="measure" id="mapcoord">${Ambient.text(at.ra, at.dec)}</b><span>${esc(tr("map.open"))}</span>`);
+  Ambient.roll($("mapcoord"), at.ra, at.dec);
   if (hit.pin) return openFeatured(hit.pin.f);
   $("q").value = `${hit.ra.toFixed(4)} ${hit.dec >= 0 ? "+" : ""}${hit.dec.toFixed(4)}`;
   load({ra: hit.ra, dec: hit.dec, byCoords: true, target: null, ...(S.ui === "simple" ? {levels: 0, fov: 8} : fieldChoice())});

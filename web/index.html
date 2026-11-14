@@ -55,9 +55,11 @@
 </header>
 
 <main class="mapscreen" id="mapscreen" aria-label="Sky map">
+  <div class="mapbg" id="mapbg" aria-hidden="true"><i class="neb"></i><i class="skyglow"></i><canvas></canvas></div>
   <canvas id="map" tabindex="0" aria-label="Map of the whole sky. Drag to turn it, scroll to zoom, select a point to open it."></canvas>
+  <div class="mapfx" id="mapfx" aria-hidden="true"><i class="meteor"></i><div class="reticle"><i></i><i></i><i></i><i></i><b></b></div></div>
   <div class="maphead">
-    <h1>Pick a spot in the sky</h1>
+    <h1>Pick a spot in the sky<span class="blinkmark" aria-hidden="true"><i></i><i></i></span></h1>
     <p class="simple"><span class="long">NASA's SPHEREx telescope photographs the whole sky again and again. </span>Tap or click anywhere to watch that place change.</p>
   </div>
   <section class="mapstart" aria-labelledby="mapstart-h">
@@ -215,6 +217,7 @@
 <script src="/static/lore.js?v=20"></script>
 <script src="/static/hints.js?v=20"></script>
 <script src="/static/starmap.js?v=20"></script>
+<script src="/static/ambient.js?v=20"></script>
 <script src="/static/app.js?v=20"></script>
 <p id="netnote" class="netnote" role="status" hidden>Updating the site, back in a moment…</p>
 </body>
