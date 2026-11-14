@@ -332,6 +332,13 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 /* ------------------------------------------------------------------ analysis */
 #plot{display:block;width:100%;height:clamp(220px,34vh,320px)}
 #plot.none{display:none}
+.otnav{display:flex;align-items:center;gap:6px;margin-top:8px;color:var(--color-ink-2)}
+.otnav .btn{min-width:30px;height:26px;padding:0 8px;font-size:12px}
+.otnav .btn svg{width:10px;height:10px}
+.otnav #otlabel{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.otnav #otall{margin-left:auto}
+#plot.zoomin{cursor:zoom-in}
+#plot.zoomout{cursor:zoom-out}
 .verdict{margin-top:10px;padding-left:10px;border-left:2px solid var(--color-rule);font-size:12.5px;line-height:1.45;color:var(--color-ink-2);max-width:68ch;text-wrap:pretty}
 .verdict b{font-weight:600;color:var(--color-ink)}
 .verdict b::after{content:"."}

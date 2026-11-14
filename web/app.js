@@ -964,8 +964,9 @@ function drawPlot(out) {
   if (!out) {
     $("spectitle").textContent = tr(lc ? "plot.lc" : "plot.spec");
     cv.classList.toggle("none", !pts.length); $("specempty").hidden = !!pts.length; $("spectip").hidden = !pts.length; $("plotdl").hidden = !pts.length;
-    if (!pts.length) { $("specempty").textContent = tr("plot.none"); $("legend").innerHTML = ""; showChange(null); }
+    if (!pts.length) { $("specempty").textContent = tr("plot.none"); $("legend").innerHTML = ""; showChange(null); $("otnav").hidden = true; }
     $("plot").setAttribute("aria-label", tr(lc ? "plot.lc.aria" : "plot.spec.aria"));
+    if (!lc) { $("otnav").hidden = true; cv.classList.remove("zoomin", "zoomout"); }
   }
   if (!pts.length) return null;
   const visits = []; let lastM = -1e9;
@@ -980,7 +981,13 @@ function drawPlot(out) {
   if (ymax <= 0) ymax = -0.05 * ymin;   // every flux below zero (the sky ring is brighter than the spot): the axis still ends above them
   if (ymax <= ymin) ymax = ymin + 1;
   // over time: one stretch of the axis per group of days, the empty months between them cut out
-  const axis = lc ? groupedAxis(xs, ml, W - mr) : null, xmin = 0.7, xmax = 5.1;
+  // One group can be enlarged (S.otZoom = its first date): then it alone fills the axis, at the same flux scale.
+  const whole = lc ? groupedAxis(xs, ml, W - mr) : null, xmin = 0.7, xmax = 5.1;
+  if (S.otFor !== S.spectrum) { S.otFor = S.spectrum; S.otZoom = null; }
+  const zoom = lc ? whole.panels.findIndex((p) => p.t0 === S.otZoom) : -1, zp = zoom >= 0 ? whole.panels[zoom] : null;
+  const view = zp ? pts.filter((p) => p.mjd >= zp.t0 && p.mjd <= zp.t1) : pts;
+  const axis = zp ? groupedAxis(view.map((p) => p.mjd), ml, W - mr, {gap: 1e9}) : whole;
+  if (lc && !out) { S.otPanels = whole.panels; showGroups(whole.panels, zoom); }
   const X = lc ? axis.X : (v) => ml + (v - xmin) / (xmax - xmin) * (W - ml - mr), Y = (v) => H - mb - (v - ymin) / (ymax - ymin) * (H - mt - mb);
   const hair = (x0, y0, x1, y1, color) => { ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(Math.round(x0) + 0.5, Math.round(y0) + 0.5); ctx.lineTo(Math.round(x1) + 0.5, Math.round(y1) + 0.5); ctx.stroke(); };
   ctx.font = mono; ctx.textAlign = "right";
@@ -1034,7 +1041,7 @@ function drawPlot(out) {
     ctx.save(); ctx.beginPath(); ctx.rect(ml, mt, W - ml - mr, base - mt); ctx.clip();
     ctx.lineWidth = 1.25; ctx.lineJoin = "round"; ctx.globalAlpha = 0.6;
     for (const panel of axis.panels) for (let dn = 1; dn <= 6; dn++) {
-      const run = pts.filter((p) => p.detector === dn && p.mjd >= panel.t0 && p.mjd <= panel.t1).sort((u, v) => u.mjd - v.mjd);
+      const run = view.filter((p) => p.detector === dn && p.mjd >= panel.t0 && p.mjd <= panel.t1).sort((u, v) => u.mjd - v.mjd);
       if (run.length < 2) continue;
       ctx.strokeStyle = DET_COLOR[dn]; ctx.beginPath();
       run.forEach((p, k) => { const x = X(p.mjd), y = Y(p.flux_ujy / unit); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
@@ -1043,7 +1050,7 @@ function drawPlot(out) {
     ctx.restore();
   }
   let nWings = 0, nExtra = 0, nDirty = 0;
-  for (const p of pts) {
+  for (const p of view) {
     const x = X(lc ? p.mjd : p.wave_um), y = Y(p.flux_ujy / unit);
     if (y < mt - 2 || y > base + 2) continue;
     const col = lc ? DET_COLOR[p.detector] : VISIT_COLORS[p.visit % VISIT_COLORS.length];
@@ -1071,6 +1078,33 @@ function drawPlot(out) {
   if (nWings) notes.push(tr("plot.note.wings") + (nExtra ? " " + tr("plot.note.extra") : ""));
   $("specnote").replaceChildren(...notes.map((text) => { const el = document.createElement("p"); el.textContent = text; return el; }));
   return {items: key};
+}
+/* The row under the Over time plot that steps through the groups of days: all of them side by side, or one enlarged. */
+function showGroups(panels, zoom) {
+  const many = panels.length > 1, day = (m) => mjdDate(m).toISOString().slice(0, 10);
+  $("otnav").hidden = !many; $("plot").classList.toggle("zoomin", many && zoom < 0); $("plot").classList.toggle("zoomout", zoom >= 0);
+  if (!many) return;
+  const p = panels[zoom];
+  $("otlabel").textContent = zoom < 0 ? tr("ot.groups", {n: panels.length})
+    : tr("ot.group", {i: zoom + 1, n: panels.length, from: day(p.t0), to: day(p.t1).slice(day(p.t0).slice(0, 4) === day(p.t1).slice(0, 4) ? 5 : 0)});
+  $("otall").hidden = zoom < 0;
+}
+/* step = +1 or -1 moves to the next or the previous group (from the whole view: the first or the last); 0 shows all. */
+function stepGroup(step) {
+  const panels = S.otPanels || [];
+  if (panels.length < 2) return;
+  const now = panels.findIndex((p) => p.t0 === S.otZoom);
+  const next = step === 0 ? -1 : now < 0 ? (step > 0 ? 0 : panels.length - 1) : (now + step + panels.length) % panels.length;
+  S.otZoom = next < 0 ? null : panels[next].t0; drawPlot();
+}
+/* A click on a group of days enlarges it; a click on the enlarged group brings all of them back. */
+function plotClick(ev) {
+  const panels = S.otPanels || [];
+  if (S.plotmode !== "lc" || panels.length < 2) return;
+  if (S.otZoom != null && panels.some((p) => p.t0 === S.otZoom)) { S.otZoom = null; drawPlot(); return; }
+  const x = ev.clientX - $("plot").getBoundingClientRect().left;
+  const hit = panels.reduce((a, p) => (Math.abs((p.x0 + p.x1) / 2 - x) - (p.x1 - p.x0) / 2 < Math.abs((a.x0 + a.x1) / 2 - x) - (a.x1 - a.x0) / 2 ? p : a));
+  S.otZoom = hit.t0; drawPlot();
 }
 /* The comparison of the visits, worked out once for each set of points. */
 function changeOf() {
@@ -1291,6 +1325,8 @@ function init() {
   seg("group", "group", reloadCube);
   seg("mode", "mode", () => { $("refrow").hidden = S.mode !== "diffref"; S.limits = null; if (S.mode === "stack") stop(); draw(); writeUrl(); });
   seg("plotmode", "plotmode", () => drawPlot());
+  $("plot").addEventListener("click", plotClick);
+  $("otprev").addEventListener("click", () => stepGroup(-1)); $("otnext").addEventListener("click", () => stepGroup(1)); $("otall").addEventListener("click", () => stepGroup(0));
   initExports();
   initMovers();
   initDepth();
