@@ -1,6 +1,7 @@
 """The blind search for moving objects, its store and its endpoints: everything offline."""
 
 import math
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -193,6 +194,14 @@ def test_a_path_followed_over_days_is_curved():
     assert one.curved and len(one.detections) == 130 and one.rms_arcsec < 0.5
     far = movers._track_of(bent([h + 400.0 for h in visits[:50]], tag="D"))  # two weeks later: not joined on a guess
     assert movers.joined(first, far) is None
+    # One piece took up a detection beside the path, as a straight piece does now and then: on prod this kept
+    # Astraea in two pieces (one detection in 78 lay 15.8 arcsec off). It is left out, the path is one.
+    def beside(n):
+        return [replace(d, exposure=f"S{k}", dec=d.dec + 20.0 / 3600.0) for k, d in enumerate(bent(visits[10:10 + n], tag="S"))]
+
+    (one,) = movers.merge([movers._track_of(bent(visits[:50]) + beside(1)), second])
+    assert one.curved and len(one.detections) == 130 and not any(d.exposure.startswith("S") for d in one.detections)
+    assert len(movers.merge([movers._track_of(bent(visits[:50]) + beside(8)), second])) == 2  # many of them: not one path
     # the store gives the path back as it was
     back = mover_store._track(one.to_dict())
     assert back.curved and np.allclose(back.at(61004.0), one.at(61004.0), atol=1e-6)
@@ -277,6 +286,21 @@ def test_an_object_keeps_its_id_and_grows_when_a_neighbouring_field_finds_more_o
     assert "icrs012-v1-1250-0833" in store.coverage()["cells"]
     listed = store.listing(150.0, 10.0, 1.0)
     assert [m["id"] for m in listed] == ids and "detections" not in listed[0]
+
+
+def test_two_paths_of_one_search_never_share_an_id(store):
+    """An id is made from a path's first detection. Two paths of one search that begin with the same detection
+    (or one stored under the other's id) must both stay in the log."""
+    a = found(shift_h=0.0)
+    east = a["tracks"][0]
+    start = min(east.detections, key=lambda d: d.mjd)
+    north = movers._track_of([start] + [replace(d, exposure=f"N{k}", ra=start.ra, dec=start.dec + (d.mjd - start.mjd) * 24.0 * 40.0 / 3600.0)
+                                        for k, d in enumerate(east.detections[1:])])
+    north.extra = dict(east.extra)
+    assert not movers.same_object(east, north)
+    ids = store.save_field("fieldA", 150.0, 10.0, 50.4, 100, {**a, "tracks": [east, north]})
+    assert len(set(ids)) == 2 and store.count() == 2
+    assert store._new_id(north, taken=()) == ids[0] != ids[1]
 
 
 def test_what_an_earlier_search_found_is_shown_again_only_when_the_new_search_finds_it(store, monkeypatch):
