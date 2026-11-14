@@ -1,6 +1,5 @@
 # What a change has to pass on its way to production (docs/environments.md):
-# the tests, on every pull request to develop or main, and the rule that
-# main only takes what has been on the dev site first.
+# the tests, the branch names, and the rule that main only takes develop.
 name: checks
 
 on:
@@ -31,18 +30,27 @@ jobs:
         env:
           SPHEREX_AUTO_MEASURE: "0"
 
-  promotion:
-    # main is production. It is only ever given what develop holds (and so
-    # what the dev site runs), or a hotfix branch for an urgent repair.
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+  branch:
+    # Work branches are named after the kind of change: feat/, fix/ or
+    # chore/. main is production and only ever takes develop.
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: The pull request to main comes from develop or hotfix/*
+      - name: The branch may be merged here
         env:
           HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          case "$HEAD_REF" in
-            develop|hotfix/*) echo "ok: $HEAD_REF may be merged to main" ;;
-            *) echo "::error::Pull requests go to develop first. Change the base of this one to develop; main only takes develop (or hotfix/*). See docs/environments.md."
-               exit 1 ;;
-          esac
+          if [ "$BASE_REF" = main ]; then
+            case "$HEAD_REF" in
+              develop) echo "ok: develop is promoted to main" ;;
+              *) echo "::error::main only takes develop. Change the base of this pull request to develop. See docs/environments.md."
+                 exit 1 ;;
+            esac
+          else
+            case "$HEAD_REF" in
+              feat/*|fix/*|chore/*|main) echo "ok: $HEAD_REF" ;;
+              *) echo "::error::Name the branch feat/..., fix/... or chore/... (this one is $HEAD_REF). See docs/environments.md."
+                 exit 1 ;;
+            esac
+          fi

@@ -354,7 +354,7 @@ INSTANCE = f"{os.getpid()}-{int(time.time())}"
 
 @app.get("/api/health")
 async def health():
-    return {"ok": True, "collections": config.COLLECTIONS, "instance": INSTANCE, "env": config.ENV}
+    return {"ok": True, "collections": config.COLLECTIONS, "instance": INSTANCE}
 
 
 @app.get("/api/featured")
@@ -621,10 +621,8 @@ if WEB.exists():
 
     @app.api_route("/robots.txt", methods=["GET", "HEAD"], include_in_schema=False)
     async def robots():
-        # pages may be indexed; the API is for the viewer (every call can start an archive read).
-        # A copy that is not production (SPHEREX_ENV) is closed to crawlers altogether.
-        rules = "Allow: /\nDisallow: /api/\n" if config.PRODUCTION else "Disallow: /\n"
-        return PlainTextResponse("User-agent: *\n" + rules, headers={"Cache-Control": "public, max-age=86400"})
+        # pages may be indexed; the API is for the viewer (every call can start an archive read)
+        return PlainTextResponse("User-agent: *\nAllow: /\nDisallow: /api/\n", headers={"Cache-Control": "public, max-age=86400"})
 
     @app.api_route("/favicon.ico", methods=["GET", "HEAD"], include_in_schema=False)
     async def favicon():
