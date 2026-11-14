@@ -178,7 +178,9 @@ async function load(next, nopush) {
     setProgress(job.total ? job.done / job.total : 0,
       job.status === "ready" ? tr("load.done", {n: job.frames, s: job.elapsed_s}) :
       job.queue ? queueText(job) :
-      job.total ? tr("load.read", {done: job.done, total: job.total}) : tr("load.search"));
+      job.total ? tr("load.read", {done: job.done, total: job.total}) :
+      tr(job.status === "searching" && job.elapsed_s > 8 ? "load.search.slow" : "load.search"));
+    if (!job.total && !$("empty").hidden) $("empty").textContent = $("ptext").textContent;  // nothing to show yet: the frame says the same as the line below it
     if (job.status === "ready") break;
     await sleep(job.done === last ? 900 : 1300);
     last = job.done;
@@ -534,11 +536,17 @@ async function measureHere(at) {
   } finally { if (S.measuring === id) S.measuring = null; }
 }
 
+/* A view that could not be read: what went wrong in a sentence, and a button that asks again
+   (most failures are an archive that is away for a moment). */
 function fail(e, id) {
   if (id !== S.loadId) return;
   $("progress").hidden = true;
-  $("empty").hidden = false;
-  $("empty").textContent = tr("load.fail", {msg: e.message || e});
+  const el = $("empty"), again = document.createElement("button");
+  el.hidden = false;
+  el.textContent = tr("load.fail", {msg: e.message || e});
+  again.type = "button"; again.className = "btn again"; again.textContent = tr("load.again");
+  again.onclick = () => load();
+  el.appendChild(again);
 }
 function setProgress(f, text) { $("bar").style.width = Math.round(100 * f) + "%"; $("ptext").textContent = text; }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

@@ -11,6 +11,8 @@ import math
 
 import httpx
 
+from . import retry
+
 TAP_URL = "https://irsa.ipac.caltech.edu/TAP/sync"
 
 QUERIES = {
@@ -114,22 +116,22 @@ GATOR_COLUMNS = "source_name,ra,dec,pmra,pmdec,sigpmra,sigpmdec,w2mpro,meanobsmj
 GATOR_NAMES = {"source_name": "id", "sigpmra": "epmra", "sigpmdec": "epmdec", "w2mpro": "mag"}
 
 
-def _timeout(seconds: float) -> httpx.Timeout:
-    return httpx.Timeout(seconds, connect=min(8.0, seconds))
+AGAIN_S = 8.0  # a gateway error or a dropped connection is asked again for this long, then the other service is tried
+
+
+def _get(url: str, params: dict, service: str, timeout: float) -> httpx.Response:
+    return retry.get(url, params, service=service, timeout=timeout, budget=min(AGAIN_S, timeout))
 
 
 def _irsa_tap(cat: str, ra: float, dec: float, radius_deg: float, top: int, timeout: float) -> list[dict]:
     adql = QUERIES[cat].format(top=int(top), ra=f"{ra:.6f}", dec=f"{dec:.6f}", r=f"{radius_deg:.5f}")
-    r = httpx.get(TAP_URL, params={"QUERY": adql, "FORMAT": "CSV"}, timeout=_timeout(timeout), follow_redirects=True)
-    r.raise_for_status()
+    r = _get(TAP_URL, {"QUERY": adql, "FORMAT": "CSV"}, "IRSA's catalogue service", timeout)
     return list(csv.DictReader(io.StringIO(r.text)))
 
 
 def _esa_gaia(cat: str, ra: float, dec: float, radius_deg: float, top: int, timeout: float) -> list[dict]:
     adql = ESA_GAIA.format(top=int(top), ra=f"{ra:.6f}", dec=f"{dec:.6f}", r=f"{radius_deg:.5f}")
-    r = httpx.get(ESA_TAP_URL, params={"REQUEST": "doQuery", "LANG": "ADQL", "FORMAT": "csv", "QUERY": adql},
-                  timeout=_timeout(timeout), follow_redirects=True)
-    r.raise_for_status()
+    r = _get(ESA_TAP_URL, {"REQUEST": "doQuery", "LANG": "ADQL", "FORMAT": "csv", "QUERY": adql}, "The Gaia archive", timeout)
     rows = list(csv.DictReader(io.StringIO(r.text)))
     if rows and "ra" not in rows[0]:
         raise ValueError("unexpected answer from the Gaia archive")
@@ -165,8 +167,7 @@ def _gator_catwise(cat: str, ra: float, dec: float, radius_deg: float, top: int,
                   "radius": f"{radius_deg * 3600.0:.1f}", "radunits": "arcsec", "outfmt": "1", "selcols": GATOR_COLUMNS}
         if cut is not None:
             params["constraints"] = f"w2mpro<{cut}"
-        r = httpx.get(GATOR_URL, params=params, timeout=_timeout(timeout), follow_redirects=True)
-        r.raise_for_status()
+        r = _get(GATOR_URL, params, "IRSA's cone search", timeout)
         rows = parse_ipac_table(r.text)
         if len(rows) >= top:
             break
