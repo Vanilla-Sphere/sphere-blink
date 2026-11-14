@@ -1,6 +1,5 @@
-/* Vanilla Sphere - the two languages of the interface.
-   Fixed text in index.html is English and carries data-i18n="key"; the Vietnamese for that key
-   lives in STR.vi. Text put on the page by script exists in both tables and is read with tr(). */
+/* Vanilla Sphere - the text of the interface that script puts on the page.
+   Fixed text lives in index.html; everything a script writes is read from this table with tr(). */
 "use strict";
 
 const STR = {
@@ -92,142 +91,11 @@ const STR = {
     "tip.simbad": "What is already catalogued at this position",
     "tip.aladin": "This position in an interactive sky atlas",
   },
-  vi: {
-    "go": "Xem", "go.busy": "Đang tìm…",
-    "q.adv": "RA Dec hoặc tên thiên thể", "q.simple": "Tìm một ngôi sao hay thiên hà theo tên",
-    "load.search": "Đang tìm trong kho ảnh SPHEREx…",
-    "load.read": "Đang đọc lần phơi sáng {done} / {total} từ kho của NASA…",
-    "load.done": "{n} lần phơi sáng trong {s} giây",
-    "load.frames": "Đang tải khung hình…",
-    "load.fail": "Không thực hiện được: {msg}",
-    "load.none": "SPHEREx chưa có ảnh dùng được ở vị trí này cho các đầu thu đã chọn.",
-    "load.none.simple": "SPHEREx chưa có ảnh của điểm này. Hãy quay lại bản đồ sao và thử điểm khác.",
-    "err.name": "Không tìm thấy thiên thể tên “{name}”. Hãy kiểm tra chính tả, hoặc nhập toạ độ như 269.4486 +4.7387.",
-    "err.name.simple": "Không tìm thấy “{name}”. Hãy kiểm tra chính tả, hoặc chọn một điểm trên bản đồ sao.",
-    "field.cell": "{n} ô", "field.cells": "{n} ô",
-    "field.done": "{cells} · {n} lần phơi sáng trong {s} giây", "field.shown": "đang hiện {cells} · ",
-    "field.read": "đang đọc lần phơi sáng {done} / {total} cho {cells}…", "field.search": "đang tìm trong kho ảnh cho {cells}…",
-    "cat.loading": "Đang tải {cat}…", "cat.failed": "{cat} không phản hồi. Bỏ chọn rồi chọn lại để thử lần nữa.",
-    "track.pos": "{n} vị trí", "track.poss": "{n} vị trí",
-    "hud.sum": "tổng {n} khung hình", "hud.median": " − trung vị", "hud.exp": "{n} lần phơi sáng", "hud.exps": "{n} lần phơi sáng",
-    "ep.date": "Ngày (UTC)", "ep.det": "Đầu thu", "ep.col": "Màu", "ep.exp": "Số lần phơi sáng", "ep.cov": "Độ phủ",
-    "ep.covv": "{p}% vùng ảnh", "ep.flags": "Cờ tại mục tiêu", "ep.clean": "sạch", "ep.from": " (lấy từ {date})", "ep.nodata": "không có dữ liệu",
-    "hint.recentre": "Nhấp đúp vào ảnh để đặt lại tâm", "hint.cell": "Nhấp đúp một ô để mở ở độ chi tiết đầy đủ",
-    "plot.spec": "Phổ tại tâm ngắm", "plot.lc": "Đường cong sáng tại tâm ngắm",
-    "plot.none": "Không có thông lượng sạch ở đây: điểm ảnh bị bão hoà, bị che hoặc nằm ngoài đầu thu.",
-    "plot.x.lc": "Ngày (UTC)", "plot.x.spec": "Bước sóng (µm)", "plot.y": "Mật độ thông lượng (mJy)", "plot.y.jy": "Mật độ thông lượng (Jy)",
-    "plot.wings": "lõi bão hoà: đo từ quầng sao, ±25%", "plot.extra": "vượt vùng đã hiệu chuẩn, ±50%",
-    "plot.note.wings": "Hình thoi: ngôi sao làm bão hoà đầu thu ở lõi, nên thông lượng được đo từ quầng sáng quanh nó, sai số hệ thống 20 đến 25%.",
-    "plot.note.extra": "Hình thoi rỗng sáng hơn vùng đã hiệu chuẩn: chỉ nên đọc như độ sáng tương đối.",
-    "plot.pass": "lượt {m}", "plot.flagged": "điểm ảnh bị gắn cờ",
-    "plot.note.lc": "{n} phép đo, tô màu theo đầu thu. Mỗi lần phơi sáng lấy một bước sóng khác nhau, nên hãy so các điểm cùng màu.",
-    "plot.note.spec": "{n} điểm được dựng tức thời: mỗi lần phơi sáng nhìn mục tiêu qua một lát khác nhau của kính lọc biến thiên. Màu là các lượt quét bầu trời; khác nhau giữa các lượt nghĩa là có biến thiên. Điểm rỗng có điểm ảnh bị gắn cờ trong khẩu độ.",
-    "play": "Phát", "pause": "Dừng", "copy": "Chép", "copied": "Đã chép",
-    "det.rgb.t": "Màu giả: đỏ = D6 (hoặc D5), lục = D4 (hoặc D3), lam = D2 (hoặc D1). Kênh không được chụp trong ngày sẽ mượn từ ngày gần nhất và có đánh dấu.",
-    "det.all": "Mọi dải", "det.all.t": "Trung bình cả sáu đầu thu, 0,75-5,0 µm",
-    "target.pm": "Đặt tâm tại vị trí dự đoán cuối năm 2025 (nó dịch {v}″ mỗi năm).",
-    "simple.photo": "Ảnh {i} / {n}",
-    "simple.spot": "Bầu trời trong chòm {con}", "simple.spot.none": "Một điểm trên bầu trời",
-    "simple.story.spot": "Bạn đã chọn một điểm trong chòm sao {con}. Bấm phát: các ngôi sao xa sẽ đứng yên. Thứ gì di chuyển hoặc nhấp nháy thì đáng để nhìn kĩ hơn.",
-    "simple.story.named": "{name} nằm trong chòm sao {con}. Bấm phát: các ngôi sao xa sẽ đứng yên. Thứ gì di chuyển hoặc nhấp nháy thì đáng để nhìn kĩ hơn.",
-    "simple.shared": "Đã chép liên kết",
-    "story.barnard": "Một ngôi sao đỏ nhỏ chỉ cách chúng ta 6 năm ánh sáng. Không ngôi sao nào trôi trên bầu trời nhanh bằng nó. Bấm phát và xem nó trượt qua những ngôi sao xa phía sau.",
-    "story.eps-indi-b": "Hai sao lùn nâu, những thiên thể quá nhỏ để tự cháy sáng như một ngôi sao, quay quanh sao Epsilon Indi cách ta 12 năm ánh sáng. Hãy nhìn kĩ vào tâm ảnh: mỗi năm chúng dịch khoảng một điểm ảnh.",
-    "story.wise-0855": "Sao lùn nâu lạnh nhất từng biết: lạnh hơn cả nước đá, và chỉ cách ta 7 năm ánh sáng. Nó cực kì mờ nên có thể khó thấy, nhưng lại là một trong những thiên thể trôi nhanh nhất trên bầu trời.",
-    "story.rw-aur": "Một ngôi sao mới sinh, vẫn đang hút khí và bụi quanh nó. Thỉnh thoảng nó mờ đi suốt nhiều tháng, có lẽ do bụi che ngang. Nó đứng yên: hãy xem độ sáng của nó thay đổi.",
-    "story.r-dra": "Một sao khổng lồ đỏ già, phồng lên rồi co lại như nhịp tim chậm, cứ khoảng 8 tháng lại sáng lên rồi mờ đi. Nó đứng yên: hãy xem nó sáng tối theo nhịp.",
-    "kind.barnard": "Ngôi sao trôi nhanh nhất", "kind.eps-indi-b": "Cặp sao lùn nâu", "kind.wise-0855": "Sao lùn nâu lạnh nhất",
-    "kind.rw-aur": "Sao trẻ chập chờn", "kind.r-dra": "Sao khổng lồ đỏ co giãn",
-    "map.aria": "Bản đồ cả bầu trời. Kéo để xoay, cuộn để phóng to, chọn một điểm để mở.",
-    "map.open": "Đang mở…",
-    "det.one.t": "Chỉ đầu thu {n}, {range} µm",
-
-    /* one-line notes on the controls (hints.js) */
-    "tip.brand": "Về màn hình đầu",
-    "tip.map": "Quay lại bản đồ sao để chọn điểm khác",
-    "tip.field": "Vùng trời hiển thị rộng bao nhiêu. ′ là phút cung; Mặt Trăng tròn rộng khoảng 30′.",
-    "tip.go": "Tìm nội dung vừa nhập và mở ảnh",
-    "tip.simple": "Cho mọi người: ảnh, lời kể ngắn, phát và chia sẻ",
-    "tip.adv": "Cho người làm thiên văn: dải phổ, phép tính ảnh, phổ, danh mục sao",
-    "tip.api": "Lấy các góc nhìn này dưới dạng PNG, GIF hoặc dữ liệu từ mã của bạn",
-    "tip.source": "Mã nguồn của trang này trên GitHub",
-    "tip.prev": "Khung hình trước (phím ←)", "tip.next": "Khung hình sau (phím →)", "tip.play": "Phát hoặc dừng đoạn phim (phím cách)",
-    "tip.prev.a": "Khung hình trước", "tip.next.a": "Khung hình sau",
-    "tip.slider": "Kéo để đi qua thời gian",
-    "tip.fps": "Số khung hình hiện ra mỗi giây khi phát",
-    "tip.timeline": "Mỗi vạch là một ngày SPHEREx nhìn vào đây. Bấm để nhảy tới ngày đó.",
-    "tip.share": "Chép liên kết mở đúng góc nhìn này",
-    "tip.gif": "Lưu đoạn phim này thành ảnh động",
-    "tip.visit": "Mỗi lượt quét bầu trời một khung hình, cách nhau khoảng 6 tháng: ảnh sâu nhất",
-    "tip.day": "Mỗi ngày UTC một khung hình, chồng mọi lần phơi sáng trong ngày",
-    "tip.exposure": "Mỗi lần phơi sáng một khung hình: bước thời gian mịn nhất",
-    "tip.blink": "Ảnh gốc, nối tiếp nhau",
-    "tip.median": "Mỗi khung hình trừ trung vị của tất cả: thứ gì đứng yên sẽ biến mất",
-    "tip.ref": "Mỗi khung hình trừ một ảnh mốc: hiện những gì đã thay đổi từ đó",
-    "tip.sum": "Cộng mọi khung hình thành một ảnh sâu",
-    "tip.useref": "Lấy khung hình đang hiện làm ảnh mốc",
-    "tip.gain": "Kéo sang phải để làm rõ những thứ mờ hơn",
-    "tip.resetgain": "Về tương phản tự động",
-    "tip.gaia": "Khoanh tròn các sao đã được Gaia của ESA đo (DR3)",
-    "tip.catwise": "Đánh dấu các nguồn hồng ngoại từ WISE của NASA (CatWISE2020)",
-    "tip.cross": "Đánh dấu tâm vùng ảnh, nơi đo phổ",
-    "tip.smooth": "Hoà các điểm ảnh cạnh nhau; bỏ chọn để thấy điểm ảnh thật",
-    "tip.tiles": "Viền các ô 0,12° của vùng rộng và cho biết ô nào đã tải xong",
-    "tip.tracks": "Vị trí và quỹ đạo khớp mà đội đã đo trong vùng này",
-    "tip.spectrum": "Độ sáng theo bước sóng: dấu vân tay hồng ngoại của thiên thể",
-    "tip.lc": "Độ sáng theo thời gian: cho thấy chập chờn hoặc mờ dần",
-    "tip.wiseview": "Vùng này trong ảnh WISE từ năm 2010, để kiểm tra chuyển động",
-    "tip.simbad": "Những gì đã có trong danh mục tại vị trí này",
-    "tip.aladin": "Vị trí này trên tập bản đồ sao tương tác",
-
-    /* fixed text of index.html */
-    "h.map": "Bản đồ sao", "h.simple": "Đơn giản", "h.adv": "Chuyên sâu", "h.field": "Vùng",
-    "h.api": "API", "h.source": "Mã nguồn",
-    "h.credits": "<p><b>Ảnh</b> Ảnh phổ SPHEREx Level 2 của NASA (DR1, QR3), NASA/IPAC Infrared Science Archive, đọc trực tiếp từ bản sao AWS Open Data.</p><p><b>Lớp phủ</b> ESA Gaia DR3 và CatWISE2020, qua IRSA.</p><p><b>Bản đồ sao</b> Dữ liệu sao, chòm sao và dải Ngân Hà từ d3-celestial (Olaf Frohn, BSD-3).</p><p><b>Đội</b> Vanilla Sphere, NASA Space Apps Challenge 2026, “Planet X and SPHEREx”.</p>",
-    "map.title": "Chọn một điểm trên bầu trời",
-    "map.sub": "Kính SPHEREx của NASA chụp đi chụp lại cả bầu trời. Bấm vào bất cứ đâu để xem nơi đó thay đổi.",
-    "map.start": "Bắt đầu từ đây", "map.hint": "Kéo để xoay · cuộn để phóng to · bấm để xem kĩ",
-    "map.in": "Phóng to", "map.out": "Thu nhỏ", "map.reset": "Xem cả bầu trời",
-    "r.targets": "Mục tiêu của đề bài", "r.display": "Hiển thị", "r.bands": "Dải phổ", "r.group": "Mỗi khung hình là",
-    "r.visit": "Lượt quét", "r.day": "Ngày", "r.exposure": "Phơi sáng", "r.math": "Phép tính ảnh",
-    "r.blink": "Nháy ảnh", "r.median": "− Trung vị", "r.ref": "− Ảnh mốc", "r.sum": "Cộng tất cả", "r.useref": "Dùng khung hình này",
-    "r.contrast": "Tương phản", "r.reset": "Đặt lại", "r.overlays": "Lớp phủ", "r.cross": "Tâm ngắm", "r.smooth": "Làm mịn ảnh",
-    "r.tiles": "Lưới ô", "r.tracks": "Quỹ đạo đã đo",
-    "t.speed": "Tốc độ", "a.spectrum": "Phổ", "a.lc": "Đường cong sáng", "a.frame": "Khung hình này", "a.measured": "Đã đo trong vùng này",
-    "a.pos": "Vị trí tâm ngắm", "a.dec": "Thập phân", "a.sexa": "Lục thập phân", "a.same": "Cùng vùng này trên",
-    "a.share": "Liên kết hoặc nhúng", "a.page": "Trang", "a.gif": "GIF", "a.data": "Dữ liệu",
-    "a.sharetip": "Toạ độ nằm ngay trong URL nên mọi góc nhìn đều có thể gửi hoặc nhúng. Cùng tham số đó trả về PNG, GIF hoặc số đo; xem API.",
-    "a.try": "Gợi ý", "a.try1": "Phát các khung hình; thứ gì di chuyển sẽ nhảy.", "a.try2": "Xoá mọi thứ đứng yên.",
-    "a.try3": "0,75–5,0 µm tại tâm ngắm.", "a.try4": "Gaia DR3, CatWISE, quỹ đạo của đội.", "a.try5": "Mỗi góc nhìn là một URL, một PNG hoặc một GIF.",
-    "a.link": "Liên kết",
-    "s.what": "<p>Đây là ảnh thật từ kính không gian SPHEREx của NASA, mỗi ảnh ứng với một ngày kính nhìn vào điểm này.</p><p>SPHEREx thấy ánh sáng hồng ngoại mà mắt ta không thấy; ba màu trong ảnh thay cho ba dải hồng ngoại. Vùng nâu sẫm là nơi chưa có dữ liệu.</p>",
-    "s.share": "Chia sẻ", "s.gif": "Tải GIF", "s.toadv": "Xem số đo, dải phổ và phổ ở chế độ Chuyên sâu",
-  },
 };
 
-let LANG = "en";
 /* Text for script-made strings: tr("load.read", {done: 3, total: 9}). */
 function tr(key, vars) {
-  let s = STR[LANG][key];
-  if (s === undefined) s = STR.en[key];
+  const s = STR.en[key];
   if (s === undefined) return key;
   return vars ? s.replace(/\{(\w+)\}/g, (_, k) => (vars[k] !== undefined ? vars[k] : "")) : s;
-}
-/* Swap the fixed text of the page. English is what index.html holds, kept aside on first use. */
-function applyLang(lang) {
-  LANG = lang === "vi" ? "vi" : "en";
-  document.documentElement.lang = LANG;
-  for (const el of document.querySelectorAll("[data-i18n]")) {
-    if (el.dataset.en === undefined) el.dataset.en = el.innerHTML;
-    const v = LANG === "vi" ? STR.vi[el.dataset.i18n] : undefined;
-    el.innerHTML = v !== undefined ? v : el.dataset.en;
-  }
-  for (const attr of ["title", "aria-label", "placeholder"]) {
-    for (const el of document.querySelectorAll(`[data-i18n-${attr}]`)) {
-      const keep = "en" + attr.replace("-", "");
-      if (el.dataset[keep] === undefined) el.dataset[keep] = el.getAttribute(attr) || "";
-      const v = LANG === "vi" ? STR.vi[el.getAttribute(`data-i18n-${attr}`)] : undefined;
-      el.setAttribute(attr, v !== undefined ? v : el.dataset[keep]);
-    }
-  }
 }

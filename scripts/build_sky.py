@@ -10,7 +10,7 @@ and mw.json.
 Output layout (angles in degrees, J2000):
     stars  flat [ra*100, dec*100, mag*10, bv*10, ...], brightest first
     names  [[ra, dec, mag, name], ...] proper names of stars to magnitude 3
-    cons   [{id, la, vi, at: [ra, dec], lines: [[[ra, dec], ...], ...]}]
+    cons   [{id, la, at: [ra, dec], lines: [[[ra, dec], ...], ...]}]
     mw     flat [ra*10, dec*10, level, ...], a dot grid aligned with the
            galactic plane; level 1 (faint edge) to 5 (bright core)
     grid   run-length list [index into cons ids, run, ...] over 1 degree
@@ -24,28 +24,6 @@ from pathlib import Path
 import astropy.units as u
 import numpy as np
 from astropy.coordinates import Galactic, SkyCoord, get_constellation
-
-VI = {
-    "And": "Tiên Nữ", "Ant": "Tức Đồng", "Aps": "Thiên Yến", "Aqr": "Bảo Bình", "Aql": "Thiên Ưng",
-    "Ara": "Thiên Đàn", "Ari": "Bạch Dương", "Aur": "Ngự Phu", "Boo": "Mục Phu", "Cae": "Điêu Cụ",
-    "Cam": "Lộc Báo", "Cnc": "Cự Giải", "CVn": "Lạp Khuyển", "CMa": "Đại Khuyển", "CMi": "Tiểu Khuyển",
-    "Cap": "Ma Kết", "Car": "Thuyền Để", "Cas": "Thiên Hậu", "Cen": "Bán Nhân Mã", "Cep": "Thiên Vương",
-    "Cet": "Kình Ngư", "Cha": "Yển Diên", "Cir": "Viên Quy", "Col": "Thiên Cáp", "Com": "Hậu Phát",
-    "CrA": "Nam Miện", "CrB": "Bắc Miện", "Crv": "Ô Nha", "Crt": "Cự Tước", "Cru": "Nam Thập Tự",
-    "Cyg": "Thiên Nga", "Del": "Hải Đồn", "Dor": "Kiếm Ngư", "Dra": "Thiên Long", "Equ": "Tiểu Mã",
-    "Eri": "Ba Giang", "For": "Thiên Lô", "Gem": "Song Tử", "Gru": "Thiên Hạc", "Her": "Vũ Tiên",
-    "Hor": "Thời Chung", "Hya": "Trường Xà", "Hyi": "Thủy Xà", "Ind": "Ấn Đệ An", "Lac": "Hiết Hổ",
-    "Leo": "Sư Tử", "LMi": "Tiểu Sư", "Lep": "Thiên Thố", "Lib": "Thiên Bình", "Lup": "Sài Lang",
-    "Lyn": "Thiên Miêu", "Lyr": "Thiên Cầm", "Men": "Sơn Án", "Mic": "Hiển Vi Kính", "Mon": "Kỳ Lân",
-    "Mus": "Thương Dăng", "Nor": "Củ Xích", "Oct": "Nam Cực", "Oph": "Xà Phu", "Ori": "Lạp Hộ",
-    "Pav": "Khổng Tước", "Peg": "Phi Mã", "Per": "Anh Tiên", "Phe": "Phượng Hoàng", "Pic": "Hội Giá",
-    "Psc": "Song Ngư", "PsA": "Nam Ngư", "Pup": "Thuyền Vĩ", "Pyx": "La Bàn", "Ret": "Võng Cổ",
-    "Sge": "Thiên Tiễn", "Sgr": "Nhân Mã", "Sco": "Thiên Yết", "Scl": "Ngọc Phu", "Sct": "Thuẫn Bài",
-    "Ser": "Cự Xà", "Sex": "Lục Phân Nghi", "Tau": "Kim Ngưu", "Tel": "Viễn Vọng Kính", "Tri": "Tam Giác",
-    "TrA": "Nam Tam Giác", "Tuc": "Đỗ Quyên", "UMa": "Đại Hùng", "UMi": "Tiểu Hùng", "Vel": "Thuyền Phàm",
-    "Vir": "Xử Nữ", "Vol": "Phi Ngư", "Vul": "Hồ Ly",
-}
-
 
 def inside(lon, lat, ring):
     """Even-odd test of points against one ring given in degrees."""
@@ -87,9 +65,8 @@ def main(src):
     cons, ids = [], []
     for f in load("constellations.json")["features"]:
         cid = f["id"]
-        short = cid[:3]
         lon, lat = f["geometry"]["coordinates"]
-        entry = {"id": cid, "la": f["properties"]["name"], "vi": VI[short], "at": [round(lon % 360, 1), round(lat, 1)],
+        entry = {"id": cid, "la": f["properties"]["name"], "at": [round(lon % 360, 1), round(lat, 1)],
                  "lines": [[[round(p[0] % 360, 2), round(p[1], 2)] for p in seg] for seg in lines.get(cid, [])]}
         cons.append(entry)
         ids.append(cid)

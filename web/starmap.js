@@ -14,7 +14,7 @@ const SkyMap = (() => {
   const view = {ra: 0, dec: 0, k: 1};
   let rot = null;                       // cos/sin of the centre, set once per frame
   let sky = null, stars = null, mw = null, cons = [], names = [], cells = null;
-  let pins = [], mark = null, hover = null, hoverPin = null, busyAt = null, lang = "en", labels = false;
+  let pins = [], mark = null, hover = null, hoverPin = null, busyAt = null, labels = false;
   let dirty = false, shown = false;
 
   /* ---------------------------------------------------------------- geometry */
@@ -67,7 +67,7 @@ const SkyMap = (() => {
     const m = d.mw.length / 3;
     mw = {n: m, v: new Float32Array(m * 3), lv: new Uint8Array(m)};
     for (let i = 0; i < m; i++) { mw.v.set(vec(d.mw[3 * i] / 10, d.mw[3 * i + 1] / 10), 3 * i); mw.lv[i] = d.mw[3 * i + 2]; }
-    cons = d.cons.map((c) => ({id: c.id, la: c.la, vi: c.vi, at: vec(c.at[0], c.at[1]), lines: c.lines.map((seg) => seg.map((p) => vec(p[0], p[1])))}));
+    cons = d.cons.map((c) => ({id: c.id, la: c.la, at: vec(c.at[0], c.at[1]), lines: c.lines.map((seg) => seg.map((p) => vec(p[0], p[1])))}));
     names = d.names.map((s) => ({v: vec(s[0], s[1]), mag: s[2], name: s[3]}));
     cells = new Uint8Array(64800);
     for (let i = 0, o = 0; i < d.grid.length; i += 2) { cells.fill(d.grid[i], o, o + d.grid[i + 1]); o += d.grid[i + 1]; }
@@ -169,7 +169,7 @@ const SkyMap = (() => {
       if ("letterSpacing" in ctx) ctx.letterSpacing = "0.08em";
       for (const c of cons) {
         project(c.at[0], c.at[1], c.at[2], p);
-        if (onScreen(p, 40)) halo((lang === "vi" ? c.vi : c.la).toUpperCase(), p[0], p[1], C.muted);
+        if (onScreen(p, 40)) halo(c.la.toUpperCase(), p[0], p[1], C.muted);
       }
       if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
     }
@@ -315,7 +315,6 @@ const SkyMap = (() => {
     },
     show(on) { shown = on; if (on) { busyAt = null; resize(); if (view.k === 1 && !view.set) { view.k = homeZoom(); view.set = true; } redraw(); } },
     setPins(list) { pins = list; redraw(); },
-    setLang(l) { lang = l; redraw(); },
     setMark(ra, dec) { mark = ra === null ? null : {ra, dec}; redraw(); },
     lookAt(ra, dec, k) { view.ra = ra; view.dec = dec; if (k) view.k = k; view.set = true; clampView(); redraw(); },
     highlight(pin) { hoverPin = pin; redraw(); },

@@ -111,7 +111,7 @@ browser ──> FastAPI ──> IRSA SIA v2            which exposures cover (RA
 | `sphereblink/service.py` | background jobs and cache |
 | `sphereblink/tiles.py` | fixed 0.12 degree cell grid, progressive fields |
 | `sphereblink/main.py` | HTTP API |
-| `web/` | the viewer (plain HTML/JS, no build step): `app.js` the views, `starmap.js` the sky map, `i18n.js` English and Vietnamese text |
+| `web/` | the viewer (plain HTML/JS, no build step): `app.js` the views, `starmap.js` the sky map, `i18n.js` the interface text, `hints.js` the notes on the controls |
 | `sql/` | optional shared Postgres schema for measured positions and tracks |
 
 ## Measurements

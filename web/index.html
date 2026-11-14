@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 <link rel="preload" href="/static/fonts/HankenGrotesk.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/GeistMono.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/static/style.css?v=14">
+<link rel="stylesheet" href="/static/style.css?v=15">
 </head>
 <body>
 <header class="bar">
@@ -19,9 +19,9 @@
     <span>Vanilla Sphere</span>
   </a>
   <form id="search" autocomplete="off" role="search">
-    <button type="button" class="btn" id="tomap" data-hint="tip.map"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 2 1 8l6 6v-4h8V6H7z"/></svg><span data-i18n="h.map">Sky map</span></button>
+    <button type="button" class="btn" id="tomap" data-hint="tip.map"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 2 1 8l6 6v-4h8V6H7z"/></svg><span>Sky map</span></button>
     <input id="q" type="text" placeholder="RA Dec or an object name" aria-label="Coordinates or object name" spellcheck="false" required>
-    <label class="fov adv" data-hint="tip.field"><span data-i18n="h.field">Field</span>
+    <label class="fov adv" data-hint="tip.field"><span>Field</span>
       <select id="fov" aria-label="Field of view">
         <option value="4">4′</option><option value="8" selected>8′</option><option value="15">15′</option><option value="30">30′</option>
         <option value="p1" title="Progressive field: the 0.12° cell of the position, then the ring of 8 cells around it">22′ · 3×3 cells</option>
@@ -32,32 +32,31 @@
     <p id="searcherr" class="searcherr" role="alert" hidden></p>
   </form>
   <div class="seg modes" id="ui" role="group" aria-label="Interface">
-    <button data-v="simple" class="on" data-hint="tip.simple" data-i18n="h.simple">Simple</button>
-    <button data-v="adv" data-hint="tip.adv" data-i18n="h.adv">Advanced</button>
+    <button data-v="simple" class="on" data-hint="tip.simple">Simple</button>
+    <button data-v="adv" data-hint="tip.adv">Advanced</button>
   </div>
   <nav class="barlinks" aria-label="Project">
-    <a href="/docs" class="adv" data-hint="tip.api" data-i18n="h.api">API</a>
-    <a href="https://github.com/Vanilla-Sphere/sphere-blink" target="_blank" rel="noopener" class="adv" data-hint="tip.source" data-i18n="h.source">Source</a>
-    <div class="seg lang" id="lang" role="group" aria-label="Language"><button data-v="en" class="on" lang="en" data-hint-text="Show the site in English">EN</button><button data-v="vi" lang="vi" data-hint-text="Hiển thị trang bằng tiếng Việt">VI</button></div>
-    <div class="tip"><button type="button" class="tipbtn" aria-label="Data sources and credits" aria-describedby="tip-credits"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-credits" data-i18n="h.credits"><p><b>Images</b> NASA SPHEREx Level 2 spectral images (DR1, QR3), NASA/IPAC Infrared Science Archive, read on demand from the AWS Open Data mirror.</p><p><b>Overlays</b> ESA Gaia DR3 and CatWISE2020, through IRSA.</p><p><b>Sky map</b> Star, constellation and Milky Way data from d3-celestial (Olaf Frohn, BSD-3).</p><p><b>Team</b> Vanilla Sphere, 2026 NASA Space Apps Challenge, “Planet X and SPHEREx”.</p></div></div>
+    <a href="/docs" class="adv" data-hint="tip.api">API</a>
+    <a href="https://github.com/Vanilla-Sphere/sphere-blink" target="_blank" rel="noopener" class="adv" data-hint="tip.source">Source</a>
+    <div class="tip"><button type="button" class="tipbtn" aria-label="Data sources and credits" aria-describedby="tip-credits"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-credits"><p><b>Images</b> NASA SPHEREx Level 2 spectral images (DR1, QR3), NASA/IPAC Infrared Science Archive, read on demand from the AWS Open Data mirror.</p><p><b>Overlays</b> ESA Gaia DR3 and CatWISE2020, through IRSA.</p><p><b>Sky map</b> Star, constellation and Milky Way data from d3-celestial (Olaf Frohn, BSD-3).</p><p><b>Team</b> Vanilla Sphere, 2026 NASA Space Apps Challenge, “Planet X and SPHEREx”.</p></div></div>
   </nav>
 </header>
 
 <main class="mapscreen" id="mapscreen" aria-label="Sky map">
-  <canvas id="map" tabindex="0" aria-label="Map of the whole sky. Drag to turn it, scroll to zoom, select a point to open it." data-i18n-aria-label="map.aria"></canvas>
+  <canvas id="map" tabindex="0" aria-label="Map of the whole sky. Drag to turn it, scroll to zoom, select a point to open it."></canvas>
   <div class="maphead">
-    <h1 data-i18n="map.title">Pick a spot in the sky</h1>
-    <p class="simple" data-i18n="map.sub">NASA's SPHEREx telescope photographs the whole sky again and again. Click anywhere to watch that place change.</p>
+    <h1>Pick a spot in the sky</h1>
+    <p class="simple">NASA's SPHEREx telescope photographs the whole sky again and again. Click anywhere to watch that place change.</p>
   </div>
   <section class="mapstart" aria-labelledby="mapstart-h">
-    <h2 id="mapstart-h"><span class="simple" data-i18n="map.start">Start here</span><span class="adv" data-i18n="r.targets">Challenge targets</span></h2>
+    <h2 id="mapstart-h"><span class="simple">Start here</span><span class="adv">Challenge targets</span></h2>
     <div id="mapfeatured" class="targets"></div>
   </section>
-  <div class="mapfoot measure"><span id="mapread"></span><span class="hint" data-i18n="map.hint">Drag to turn · scroll to zoom · click to look closer</span></div>
+  <div class="mapfoot measure"><span id="mapread"></span><span class="hint">Drag to turn · scroll to zoom · click to look closer</span></div>
   <div class="mapzoom">
-    <button class="btn icon" id="map-in" data-hint="map.in" aria-label="Zoom in" data-i18n-aria-label="map.in"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 2h2v5h5v2H9v5H7V9H2V7h5z"/></svg></button>
-    <button class="btn icon" id="map-out" data-hint="map.out" aria-label="Zoom out" data-i18n-aria-label="map.out"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 7h12v2H2z"/></svg></button>
-    <button class="btn icon" id="map-home" data-hint="map.reset" aria-label="Whole sky" data-i18n-aria-label="map.reset"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 5V1h4v2H3v2zM11 1h4v4h-2V3h-2zM15 11v4h-4v-2h2v-2zM5 15H1v-4h2v2h2z"/></svg></button>
+    <button class="btn icon" id="map-in" data-hint="map.in" aria-label="Zoom in"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 2h2v5h5v2H9v5H7V9H2V7h5z"/></svg></button>
+    <button class="btn icon" id="map-out" data-hint="map.out" aria-label="Zoom out"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 7h12v2H2z"/></svg></button>
+    <button class="btn icon" id="map-home" data-hint="map.reset" aria-label="Whole sky"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 5V1h4v2H3v2zM11 1h4v4h-2V3h-2zM15 11v4h-4v-2h2v-2zM5 15H1v-4h2v2h2z"/></svg></button>
   </div>
   <div id="maptag" class="maptag" hidden></div>
 </main>
@@ -65,43 +64,43 @@
 <main class="shell">
   <aside class="rail adv" aria-label="Targets and display settings" data-hint-side="right">
     <section class="panel">
-      <h2 data-i18n="r.targets">Challenge targets</h2>
+      <h2>Challenge targets</h2>
       <div id="featured" class="targets"></div>
     </section>
 
     <section class="panel">
-      <h2 data-i18n="r.display">Display</h2>
-      <div class="ctl"><span class="lab" id="lab-dets" data-i18n="r.bands">Bands</span>
+      <h2>Display</h2>
+      <div class="ctl"><span class="lab" id="lab-dets">Bands</span>
         <div id="dets" class="dets" role="group" aria-labelledby="lab-dets"></div>
       </div>
-      <div class="ctl"><span class="lab" id="lab-group" data-i18n="r.group">One frame per</span>
+      <div class="ctl"><span class="lab" id="lab-group">One frame per</span>
         <div class="seg" id="group" role="group" aria-labelledby="lab-group">
-          <button data-v="visit" data-hint="tip.visit" data-i18n="r.visit">Sky pass</button>
-          <button data-v="day" class="on" data-hint="tip.day" data-i18n="r.day">Day</button>
-          <button data-v="exposure" data-hint="tip.exposure" data-i18n="r.exposure">Exposure</button>
+          <button data-v="visit" data-hint="tip.visit">Sky pass</button>
+          <button data-v="day" class="on" data-hint="tip.day">Day</button>
+          <button data-v="exposure" data-hint="tip.exposure">Exposure</button>
         </div>
       </div>
-      <div class="ctl"><span class="lab" id="lab-mode" data-i18n="r.math">Image math</span>
+      <div class="ctl"><span class="lab" id="lab-mode">Image math</span>
         <div class="seg wrap" id="mode" role="group" aria-labelledby="lab-mode">
-          <button data-v="blink" class="on" data-hint="tip.blink" data-i18n="r.blink">Blink</button>
-          <button data-v="diffmed" data-hint="tip.median" data-i18n="r.median">− Median</button>
-          <button data-v="diffref" data-hint="tip.ref" data-i18n="r.ref">− Reference</button>
-          <button data-v="stack" data-hint="tip.sum" data-i18n="r.sum">Sum all</button>
+          <button data-v="blink" class="on" data-hint="tip.blink">Blink</button>
+          <button data-v="diffmed" data-hint="tip.median">− Median</button>
+          <button data-v="diffref" data-hint="tip.ref">− Reference</button>
+          <button data-v="stack" data-hint="tip.sum">Sum all</button>
         </div>
-        <div class="inline" id="refrow" hidden><button id="setref" class="btn quiet" data-hint="tip.useref" data-i18n="r.useref">Use current frame</button><span id="reflabel" class="measure muted"></span></div>
+        <div class="inline" id="refrow" hidden><button id="setref" class="btn quiet" data-hint="tip.useref">Use current frame</button><span id="reflabel" class="measure muted"></span></div>
       </div>
-      <div class="ctl"><label class="lab" for="gain" data-i18n="r.contrast">Contrast</label>
-        <div class="inline"><input id="gain" type="range" min="-150" max="150" value="0" data-hint="tip.gain"><button id="resetgain" class="btn quiet" data-hint="tip.resetgain" data-i18n="r.reset">Reset</button></div>
+      <div class="ctl"><label class="lab" for="gain">Contrast</label>
+        <div class="inline"><input id="gain" type="range" min="-150" max="150" value="0" data-hint="tip.gain"><button id="resetgain" class="btn quiet" data-hint="tip.resetgain">Reset</button></div>
       </div>
-      <div class="ctl"><span class="lab" data-i18n="r.overlays">Overlays</span>
+      <div class="ctl"><span class="lab">Overlays</span>
         <div class="checks">
           <label data-hint="tip.gaia"><input type="checkbox" id="ov-gaia"><span>Gaia DR3</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="var(--color-accent-2)"/></svg></label>
           <label data-hint="tip.catwise"><input type="checkbox" id="ov-catwise"><span>CatWISE</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="var(--color-ink-2)"/></svg></label>
-          <label data-hint="tip.cross"><input type="checkbox" id="ov-cross" checked><span data-i18n="r.cross">Crosshair</span></label>
-          <label data-hint="tip.smooth"><input type="checkbox" id="ov-smooth"><span data-i18n="r.smooth">Smooth pixels</span></label>
-          <label class="wide" id="tileopt" hidden data-hint="tip.tiles"><input type="checkbox" id="ov-tiles" checked><span data-i18n="r.tiles">Cell grid</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 1.5h9v9h-9zM6 1.5v9M1.5 6h9" fill="none" stroke="var(--color-accent-2)"/></svg></label>
+          <label data-hint="tip.cross"><input type="checkbox" id="ov-cross" checked><span>Crosshair</span></label>
+          <label data-hint="tip.smooth"><input type="checkbox" id="ov-smooth"><span>Smooth pixels</span></label>
+          <label class="wide" id="tileopt" hidden data-hint="tip.tiles"><input type="checkbox" id="ov-tiles" checked><span>Cell grid</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 1.5h9v9h-9zM6 1.5v9M1.5 6h9" fill="none" stroke="var(--color-accent-2)"/></svg></label>
           <p id="ovstatus" class="wide muted note" role="status" hidden></p>
-          <label class="wide" id="trackopt" hidden data-hint="tip.tracks"><input type="checkbox" id="ov-tracks" checked><span data-i18n="r.tracks">Measured tracks</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1l5 5-5 5-5-5z" fill="none" stroke="var(--color-measured)"/></svg></label>
+          <label class="wide" id="trackopt" hidden data-hint="tip.tracks"><input type="checkbox" id="ov-tracks" checked><span>Measured tracks</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1l5 5-5 5-5-5z" fill="none" stroke="var(--color-measured)"/></svg></label>
         </div>
       </div>
     </section>
@@ -124,83 +123,83 @@
 
     <div class="transport">
       <div class="keys">
-        <button id="prev" class="btn icon" data-hint="tip.prev" aria-label="Previous frame" data-i18n-aria-label="tip.prev.a"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h2v12H3zM13 2v12L6 8z"/></svg></button>
+        <button id="prev" class="btn icon" data-hint="tip.prev" aria-label="Previous frame"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h2v12H3zM13 2v12L6 8z"/></svg></button>
         <button id="play" class="btn primary" data-hint="tip.play"><svg class="i-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2l10 6-10 6z"/></svg><svg class="i-pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h4v12H3zM9 2h4v12H9z"/></svg><span id="playlabel">Play</span></button>
-        <button id="next" class="btn icon" data-hint="tip.next" aria-label="Next frame" data-i18n-aria-label="tip.next.a"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 2h2v12h-2zM3 2v12l7-6z"/></svg></button>
+        <button id="next" class="btn icon" data-hint="tip.next" aria-label="Next frame"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 2h2v12h-2zM3 2v12l7-6z"/></svg></button>
       </div>
       <input id="slider" type="range" min="0" max="0" value="0" aria-label="Frame" data-hint="tip.slider">
       <span id="count" class="measure adv">0 / 0</span>
-      <label class="speed adv" data-hint="tip.fps"><span data-i18n="t.speed">Speed</span><select id="fps"><option value="1">1 fps</option><option value="3" selected>3 fps</option><option value="6">6 fps</option><option value="12">12 fps</option></select></label>
+      <label class="speed adv" data-hint="tip.fps"><span>Speed</span><select id="fps"><option value="1">1 fps</option><option value="3" selected>3 fps</option><option value="6">6 fps</option><option value="12">12 fps</option></select></label>
     </div>
     <div class="timeline adv" id="timeline" data-hint="tip.timeline" role="img" aria-label="Observation dates in UTC. Select a date to jump to its frame."></div>
   </section>
 
   <aside class="simplepanel simple" id="simplepanel" aria-label="About this place">
     <div class="shead">
-      <div class="who"><h1 id="sname"></h1><div class="tip"><button type="button" class="tipbtn" aria-label="What am I looking at?" aria-describedby="swhat"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="swhat" data-i18n="s.what"><p>These are real photos from NASA's SPHEREx space telescope, one for each day it looked at this spot.</p><p>SPHEREx sees infrared light, which our eyes cannot; the three colours stand for three infrared bands. Dark brown patches have no data yet.</p></div></div></div>
+      <div class="who"><h1 id="sname"></h1><div class="tip"><button type="button" class="tipbtn" aria-label="What am I looking at?" aria-describedby="swhat"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="swhat"><p>These are real photos from NASA's SPHEREx space telescope, one for each day it looked at this spot.</p><p>SPHEREx sees infrared light, which our eyes cannot; the three colours stand for three infrared bands. Dark brown patches have no data yet.</p></div></div></div>
       <p id="skind" class="skind"></p>
     </div>
     <div class="sbody">
       <p id="sstory" class="story"></p>
       <div class="sactions" data-hint-side="top">
-        <button type="button" class="btn" id="sshare" data-hint="tip.share"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 1l6 6-6 6V9C5 9 3 10.500 1 13c0-5 3-8 8-8z"/></svg><span id="ssharelabel" data-i18n="s.share">Share</span></button>
-        <a class="btn" id="sgif" target="_blank" rel="noopener" data-hint="tip.gif"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 1h2v7l3-3 1.500 1.500L8 12 2.500 6.500 4 5l3 3zM2 13h12v2H2z"/></svg><span data-i18n="s.gif">Download GIF</span></a>
+        <button type="button" class="btn" id="sshare" data-hint="tip.share"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 1l6 6-6 6V9C5 9 3 10.500 1 13c0-5 3-8 8-8z"/></svg><span id="ssharelabel">Share</span></button>
+        <a class="btn" id="sgif" target="_blank" rel="noopener" data-hint="tip.gif"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 1h2v7l3-3 1.500 1.500L8 12 2.500 6.500 4 5l3 3zM2 13h12v2H2z"/></svg><span>Download GIF</span></a>
       </div>
-      <button type="button" class="toadv" id="toadv"><span data-i18n="s.toadv">See the measurements, bands and spectrum in Advanced</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 2l6 6-6 6V10H1V6h8z"/></svg></button>
+      <button type="button" class="toadv" id="toadv"><span>See the measurements, bands and spectrum in Advanced</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 2l6 6-6 6V10H1V6h8z"/></svg></button>
     </div>
   </aside>
 
   <aside class="analysis adv" aria-label="Measurements">
     <section class="panel" id="speccard" hidden>
       <div class="panelhead"><div class="headtip"><h2 id="spectitle">Spectrum at the crosshair</h2><div class="tip" id="spectip"><button type="button" class="tipbtn" aria-label="How to read this plot" aria-describedby="specnote"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="specnote"></div></div></div>
-        <div class="seg" id="plotmode"><button data-v="spec" class="on" data-hint="tip.spectrum" data-i18n="a.spectrum">Spectrum</button><button data-v="lc" data-hint="tip.lc" data-i18n="a.lc">Light curve</button></div></div>
+        <div class="seg" id="plotmode"><button data-v="spec" class="on" data-hint="tip.spectrum">Spectrum</button><button data-v="lc" data-hint="tip.lc">Light curve</button></div></div>
       <canvas id="plot" aria-label="Spectrum plot"></canvas>
       <div id="legend" class="legend measure"></div>
       <p class="muted note" id="specempty" hidden></p>
     </section>
 
     <section class="panel" id="epochcard" hidden>
-      <h2 data-i18n="a.frame">This frame</h2>
+      <h2>This frame</h2>
       <dl id="einfo"></dl>
     </section>
 
     <section class="panel" id="trackcard" hidden>
-      <h2 data-i18n="a.measured">Measured in this field</h2>
+      <h2>Measured in this field</h2>
       <dl id="tracklist"></dl>
     </section>
 
     <section class="panel" id="linkcard" hidden>
-      <h2 data-i18n="a.pos">Position of the crosshair</h2>
+      <h2>Position of the crosshair</h2>
       <dl>
-        <dt data-i18n="a.dec">Decimal</dt><dd id="tdeci"></dd>
-        <dt data-i18n="a.sexa">Sexagesimal</dt><dd id="tsexa"></dd>
-        <dt data-i18n="a.same">Same field in</dt><dd class="links"><a id="l-wiseview" target="_blank" rel="noopener" data-hint="tip.wiseview">WiseView</a><a id="l-simbad" target="_blank" rel="noopener" data-hint="tip.simbad">SIMBAD</a><a id="l-aladin" target="_blank" rel="noopener" data-hint="tip.aladin">Aladin Lite</a></dd>
+        <dt>Decimal</dt><dd id="tdeci"></dd>
+        <dt>Sexagesimal</dt><dd id="tsexa"></dd>
+        <dt>Same field in</dt><dd class="links"><a id="l-wiseview" target="_blank" rel="noopener" data-hint="tip.wiseview">WiseView</a><a id="l-simbad" target="_blank" rel="noopener" data-hint="tip.simbad">SIMBAD</a><a id="l-aladin" target="_blank" rel="noopener" data-hint="tip.aladin">Aladin Lite</a></dd>
       </dl>
     </section>
 
     <section class="panel" id="sharecard" hidden>
-      <div class="headtip"><h2 data-i18n="a.share">Link or embed this view</h2><div class="tip"><button type="button" class="tipbtn" aria-label="About these links" aria-describedby="tip-share"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-share" data-i18n="a.sharetip">The coordinates live in the URL, so any view can be linked or embedded. The same parameters return a PNG, a GIF or the measurements; see API.</div></div></div>
-      <div class="share"><label for="s-page" data-i18n="a.page">Page</label><input id="s-page" class="measure" readonly><button data-copy="s-page" class="btn quiet" data-i18n="copy">Copy</button></div>
-      <div class="share"><label for="s-gif">GIF</label><input id="s-gif" class="measure" readonly><button data-copy="s-gif" class="btn quiet" data-i18n="copy">Copy</button></div>
-      <div class="share"><label for="s-api" data-i18n="a.data">Data</label><input id="s-api" class="measure" readonly><button data-copy="s-api" class="btn quiet" data-i18n="copy">Copy</button></div>
+      <div class="headtip"><h2>Link or embed this view</h2><div class="tip"><button type="button" class="tipbtn" aria-label="About these links" aria-describedby="tip-share"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-share">The coordinates live in the URL, so any view can be linked or embedded. The same parameters return a PNG, a GIF or the measurements; see API.</div></div></div>
+      <div class="share"><label for="s-page">Page</label><input id="s-page" class="measure" readonly><button data-copy="s-page" class="btn quiet">Copy</button></div>
+      <div class="share"><label for="s-gif">GIF</label><input id="s-gif" class="measure" readonly><button data-copy="s-gif" class="btn quiet">Copy</button></div>
+      <div class="share"><label for="s-api">Data</label><input id="s-api" class="measure" readonly><button data-copy="s-api" class="btn quiet">Copy</button></div>
     </section>
 
     <section class="panel" id="analysishint">
-      <h2 data-i18n="a.try">What to try</h2>
+      <h2>What to try</h2>
       <dl class="howto">
-        <dt data-i18n="r.blink">Blink</dt><dd data-i18n="a.try1">Play the frames; whatever moves, jumps.</dd>
-        <dt data-i18n="r.median">− Median</dt><dd data-i18n="a.try2">Remove everything that stays put.</dd>
-        <dt data-i18n="a.spectrum">Spectrum</dt><dd data-i18n="a.try3">0.75–5.0 µm at the crosshair.</dd>
-        <dt data-i18n="r.overlays">Overlays</dt><dd data-i18n="a.try4">Gaia DR3, CatWISE, team tracks.</dd>
-        <dt data-i18n="a.link">Link</dt><dd data-i18n="a.try5">Every view is a URL, a PNG or a GIF.</dd>
+        <dt>Blink</dt><dd>Play the frames; whatever moves, jumps.</dd>
+        <dt>− Median</dt><dd>Remove everything that stays put.</dd>
+        <dt>Spectrum</dt><dd>0.75–5.0 µm at the crosshair.</dd>
+        <dt>Overlays</dt><dd>Gaia DR3, CatWISE, team tracks.</dd>
+        <dt>Link</dt><dd>Every view is a URL, a PNG or a GIF.</dd>
       </dl>
     </section>
   </aside>
 </main>
 
-<script src="/static/i18n.js?v=14"></script>
-<script src="/static/hints.js?v=14"></script>
-<script src="/static/starmap.js?v=14"></script>
-<script src="/static/app.js?v=14"></script>
+<script src="/static/i18n.js?v=15"></script>
+<script src="/static/hints.js?v=15"></script>
+<script src="/static/starmap.js?v=15"></script>
+<script src="/static/app.js?v=15"></script>
 </body>
 </html>

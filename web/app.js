@@ -24,7 +24,7 @@ const S = {
   cube: null, meta: null, npix: 0, planes: 1, limits: null, median: null, stack: null,
   spectrum: null, plotmode: "spec", catalogs: {}, tracks: null, loadId: 0, timer: null,
   levels: 0, field: null, stage: null,  // progressive field: rings of 0.12° cells, the server's report, the stage on screen
-  ui: "simple", lang: "en", screen: "map",  // Simple or Advanced ("adv"), English or Vietnamese, sky map or view
+  ui: "simple", screen: "map",  // Simple or Advanced ("adv"), sky map or view
   t: null, featured: [], keep: null, url: "",
 };
 /* Where the challenge targets sit on the sky map (degrees, late 2025; the server holds the exact positions). */
@@ -48,14 +48,13 @@ function readUrl() {
   if (p.get("catwise") === "1") $("ov-catwise").checked = true;
   if (p.get("tracks") === "0") $("ov-tracks").checked = false;
 }
-/* Interface mode and language: the link decides, then what this browser used last, then the defaults.
+/* Interface mode: the link decides, then what this browser used last, then the defaults.
    A link made before modes existed that carries display settings is an Advanced link. */
 function readPrefs() {
   const p = new URLSearchParams(location.search);
   const old = ["det", "group", "mode", "gaia", "catwise", "levels"].some((k) => p.get(k) !== null);
   const ui = p.get("ui") || (old ? "adv" : store.get("ui")) || "simple";
-  const lang = p.get("lang") || store.get("lang") || ((navigator.language || "").toLowerCase().startsWith("vi") ? "vi" : "en");
-  return {ui: ui === "adv" ? "adv" : "simple", lang: lang === "vi" ? "vi" : "en"};
+  return {ui: ui === "adv" ? "adv" : "simple"};
 }
 function paramsOf(v, extra = {}) {
   const p = new URLSearchParams();
@@ -82,7 +81,6 @@ function writeUrl(push) {
   if ($("ov-catwise").checked) p.set("catwise", "1");
   if (S.tracks && !$("ov-tracks").checked) p.set("tracks", "0");
   p.set("ui", S.ui);
-  if (S.lang !== "en") p.set("lang", S.lang);
   S.url = "?" + p.toString();
   if (S.screen === "view" || push) history[push ? "pushState" : "replaceState"](null, "", S.url);
   const base = location.origin;
@@ -444,7 +442,7 @@ function draw() {
     `<span class="chans">${chans}</span>` +
     (e.wave_um ? `<span class="wave">${e.wave_um[0].toFixed(2)}–${e.wave_um[1].toFixed(2)} µm</span>` : "") +
     `<span class="nexp">${tr(e.n_exposures > 1 ? "hud.exps" : "hud.exp", {n: e.n_exposures})}</span>`;
-  $("sdate").textContent = new Intl.DateTimeFormat(S.lang === "vi" ? "vi-VN" : "en-GB", {day: "numeric", month: "long", year: "numeric", timeZone: "UTC"}).format(mjdDate(e.mjd));
+  $("sdate").textContent = new Intl.DateTimeFormat("en-GB", {day: "numeric", month: "long", year: "numeric", timeZone: "UTC"}).format(mjdDate(e.mjd));
   $("scount").textContent = tr("simple.photo", {i: S.i + 1, n: ne});
   showEpoch(e);
   for (const el of document.querySelectorAll("#timeline i")) el.classList.toggle("cur", +el.dataset.i === S.i);
@@ -608,7 +606,7 @@ function showTarget(t) {
 /* Simple mode: a name anyone can read and two sentences on what to look for. */
 function showStory(t) {
   const f = S.featured.find((x) => x.name === t.name || x.key === S.target);
-  const c = SkyMap.constellation(t.ra, t.dec), con = c ? (S.lang === "vi" ? c.vi : c.la) : "";
+  const c = SkyMap.constellation(t.ra, t.dec), con = c ? c.la : "";
   const spot = !f && (S.byCoords || /^RA /.test(t.name));
   const plain = t.name.replace(/\s*\([^)]*\)\s*$/, "");  // "Vega (* alf Lyr)" reads as "Vega" here
   $("sname").textContent = f ? f.name : spot ? (con ? tr("simple.spot", {con}) : tr("simple.spot.none")) : plain;
@@ -782,7 +780,7 @@ function labelDets() {
     const v = b.dataset.v;
     if (v === "rgb") b.dataset.hintText = tr("det.rgb.t");
     else if (v === "all") { b.textContent = tr("det.all"); b.dataset.hintText = tr("det.all.t"); }
-    else b.dataset.hintText = tr("det.one.t", {n: v, range: LANG === "vi" ? DET[v].replace(/\./g, ",") : DET[v]});
+    else b.dataset.hintText = tr("det.one.t", {n: v, range: DET[v]});
   }
 }
 /* The challenge targets: a list in the Advanced rail, and pins plus a list on the sky map. */
@@ -815,7 +813,7 @@ async function buildFeatured() {
 }
 function labelFeatured() { for (const el of document.querySelectorAll("#mapfeatured .nt")) el.textContent = tr("kind." + el.dataset.key); }
 
-/* ------------------------------------------------------------------ sky map, modes, language */
+/* ------------------------------------------------------------------ sky map and modes */
 const HOME_TITLE = document.title;
 function showScreen(name) {
   S.screen = name; document.documentElement.dataset.screen = name;
@@ -848,7 +846,7 @@ function mapTag(x, y, html) {
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
 function mapHover(h) {
   if (!h) { $("maptag").hidden = true; $("mapread").textContent = ""; return; }
-  const con = h.con ? (S.lang === "vi" ? h.con.vi : h.con.la) : "";
+  const con = h.con ? h.con.la : "";
   $("mapread").innerHTML = `${h.ra.toFixed(2)}° ${h.dec >= 0 ? "+" : "−"}${Math.abs(h.dec).toFixed(2)}°` + (con ? ` · <i>${esc(con)}</i>` : "");
   if (h.pin) mapTag(h.x, h.y, `<b>${esc(h.pin.name)}</b><span>${esc(tr("kind." + h.pin.key))}</span>`);
   else if (con) mapTag(h.x, h.y, `<span>${esc(con)}</span>`);
@@ -889,19 +887,6 @@ function setUi(ui, first) {
   if (S.meta) writeUrl();
   requestAnimationFrame(() => { fitCanvas(); if (S.meta) { buildTimeline(); draw(); } if (S.spectrum) drawPlot(); });
 }
-function setLang(lang, first) {
-  S.lang = lang === "vi" ? "vi" : "en"; store.set("lang", S.lang);
-  applyLang(S.lang);
-  for (const b of $("lang").children) { b.classList.toggle("on", b.dataset.v === S.lang); b.setAttribute("aria-pressed", b.dataset.v === S.lang); }
-  $("q").placeholder = tr(S.ui === "simple" ? "q.simple" : "q.adv");
-  $("go").textContent = tr("go"); $("playlabel").textContent = tr(S.playing ? "pause" : "play");
-  SkyMap.setLang(S.lang);
-  if (first) return;
-  labelDets(); labelFeatured();
-  if (S.t) showTarget(S.t);
-  if (S.meta) { draw(); hint(); ovStatus(); writeUrl(); }
-  if (S.spectrum) drawPlot();
-}
 
 /* The field menu holds plain views (arcmin) and progressive fields ("p3" = 3 rings of cells). */
 function fieldChoice() { const v = $("fov").value; return v[0] === "p" ? {levels: +v.slice(1)} : {levels: 0, fov: +v}; }
@@ -914,11 +899,10 @@ function init() {
   seg("mode", "mode", () => { $("refrow").hidden = S.mode !== "diffref"; S.limits = null; if (S.mode === "stack") stop(); draw(); writeUrl(); });
   seg("plotmode", "plotmode", drawPlot);
   $("refrow").hidden = S.mode !== "diffref";
-  setLang(prefs.lang, true); setUi(prefs.ui, true);
+  setUi(prefs.ui, true);
   SkyMap.init($("map"), {coords: () => S.ui === "adv", onPick: mapPick, onHover: mapHover, onReady: () => { if (S.t) showStory(S.t); }});
   buildFeatured();
   $("ui").addEventListener("click", (ev) => { const b = ev.target.closest("button"); if (b && b.dataset.v !== S.ui) setUi(b.dataset.v); });
-  $("lang").addEventListener("click", (ev) => { const b = ev.target.closest("button"); if (b && b.dataset.v !== S.lang) setLang(b.dataset.v); });
   $("toadv").addEventListener("click", () => setUi("adv"));
   $("tomap").addEventListener("click", () => { history.pushState(null, "", location.pathname); showScreen("map"); });
   $("map-in").addEventListener("click", () => SkyMap.zoom(1.6));
