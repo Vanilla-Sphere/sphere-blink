@@ -38,14 +38,15 @@ function readUrl() {
   if (p.get("catwise") === "1") $("ov-catwise").checked = true;
   if (p.get("tracks") === "0") $("ov-tracks").checked = false;
 }
-function viewParams(extra = {}) {
+function paramsOf(v, extra = {}) {
   const p = new URLSearchParams();
-  if (S.target) p.set("target", S.target);
-  if (S.ra !== null && (!S.target || S.byCoords)) { p.delete("target"); p.set("ra", S.ra.toFixed(6)); p.set("dec", S.dec.toFixed(6)); }
-  p.set("fov", S.fov);
-  for (const [k, v] of Object.entries(extra)) p.set(k, v);
+  if (v.target) p.set("target", v.target);
+  if (v.ra !== null && (!v.target || v.byCoords)) { p.delete("target"); p.set("ra", v.ra.toFixed(6)); p.set("dec", v.dec.toFixed(6)); }
+  p.set("fov", v.fov);
+  for (const [k, val] of Object.entries(extra)) p.set(k, val);
   return p;
 }
+function viewParams(extra = {}) { return paramsOf(S, extra); }
 function writeUrl() {
   const p = viewParams();
   if (S.det !== "rgb") p.set("det", S.det);
@@ -64,21 +65,40 @@ function writeUrl() {
 }
 
 /* ------------------------------------------------------------------ loading */
-async function load() {
-  const id = ++S.loadId;
-  stop();
-  S.cube = null; S.meta = null; S.median = null; S.stack = null; S.spectrum = null; S.catalogs = {}; S.i = 0; S.ref = 0;
-  S.tracks = null; $("trackopt").hidden = true; $("trackcard").hidden = true;
-  $("intro").hidden = true; $("analysishint").hidden = true;
-  $("empty").hidden = false; $("empty").textContent = "Searching the SPHEREx archive…";
-  $("progress").hidden = false; setProgress(0, "Searching the SPHEREx archive…");
-  let view;
+/* Switch to another view (`next` holds what changes) or reload the current one.
+   The position is checked first; the view on screen is only replaced once that worked,
+   so a mistyped name costs nothing. */
+async function load(next) {
+  const want = Object.assign({target: S.target, ra: S.ra, dec: S.dec, byCoords: S.byCoords, fov: S.fov}, next || {});
+  const id = ++S.loadId, first = !S.meta;
+  searchError(""); $("search").classList.add("busy"); $("go").disabled = true; $("go").textContent = "Searching…";
+  if (first) {
+    $("intro").hidden = true;
+    $("empty").hidden = false; $("empty").textContent = "Searching the SPHEREx archive…";
+    $("progress").hidden = false; setProgress(0, "Searching the SPHEREx archive…");
+  }
+  let view, error = null;
   try {
-    const r = await fetch("/api/view?" + viewParams());
+    const r = await fetch("/api/view?" + paramsOf(want));
     view = await r.json();
     if (!r.ok) throw new Error(view.detail || r.statusText);
-  } catch (e) { return fail(e, id); }
+  } catch (e) { error = e; }
   if (id !== S.loadId) return;
+  $("search").classList.remove("busy"); $("go").disabled = false; $("go").textContent = "Show sky";
+  if (error) {
+    if (first) { $("intro").hidden = false; $("empty").hidden = true; $("progress").hidden = true; }
+    return searchError(error.message || String(error), want.target);
+  }
+
+  stop();
+  Object.assign(S, want);
+  S.cube = null; S.meta = null; S.median = null; S.stack = null; S.spectrum = null; S.catalogs = {}; S.i = 0; S.ref = 0; S.busy = 0;
+  S.tracks = null; $("trackopt").hidden = true; $("trackcard").hidden = true;
+  for (const c of ["speccard", "epochcard"]) $(c).hidden = true;
+  $("intro").hidden = true; $("analysishint").hidden = true; $("timeline").innerHTML = ""; $("cursor").textContent = "";
+  $("empty").hidden = false; $("empty").textContent = "Searching the SPHEREx archive…";
+  $("progress").hidden = false; $("progress").classList.remove("busy"); setProgress(0, "Searching the SPHEREx archive…");
+  ovStatus(); draw();
   const t = view.target;
   S.ra = t.ra; S.dec = t.dec; S.grid = view.grid;
   showTarget(t); writeUrl();
@@ -99,17 +119,24 @@ async function load() {
     await sleep(job.done === last ? 900 : 1300);
     last = job.done;
   }
-  setTimeout(() => { if (id === S.loadId) $("progress").hidden = true; }, 2500);
+  setTimeout(() => { if (id === S.loadId && !S.busy) $("progress").hidden = true; }, 2500);
   loadSpectrum(id);
   loadCatalogs();
   loadTracks();
 }
+function searchError(message, what) {
+  const el = $("searcherr");
+  el.hidden = !message;
+  el.textContent = !message ? "" : /^could not resolve/i.test(message)
+    ? `No object called “${what}” was found. Check the spelling, or enter coordinates such as 269.4486 +4.7387.`
+    : message;
+}
 
-async function fetchCube(id, keepIndex) {
+async function fetchCube(id, keepIndex, seq) {
   const r = await fetch("/api/cube?" + viewParams({det: S.det, group: S.group}));
   if (!r.ok) { let d = {}; try { d = await r.json(); } catch (_) {} throw new Error(d.detail || r.statusText); }
   const buf = await r.arrayBuffer();
-  if (id !== S.loadId) return null;
+  if (id !== S.loadId || (seq && seq !== S.busy)) return null;  // a newer request has taken over
   const dv = new DataView(buf);
   const n = dv.getUint32(0, true);
   const meta = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, n)));
@@ -131,35 +158,61 @@ async function fetchCube(id, keepIndex) {
   return meta.job;
 }
 
+/* Bands or grouping changed: fetch the frames again, and say so while it takes time
+   (a field shown exposure by exposure is tens of megabytes). */
 async function reloadCube() {
   if (!S.meta) return;
-  try { await fetchCube(S.loadId, true); } catch (e) { fail(e, S.loadId); }
+  const id = S.loadId, seq = S.busy = (S.busy || 0) + 1;
   writeUrl();
+  $("progress").hidden = false; $("progress").classList.add("busy"); $("ptext").textContent = "Loading frames…";
+  $("sky").parentElement.classList.add("busy");
+  try { await fetchCube(id, true, seq); } catch (e) { if (seq === S.busy) fail(e, id); }
+  if (id !== S.loadId || seq !== S.busy) return;
+  S.busy = 0;
+  $("progress").classList.remove("busy"); $("progress").hidden = true; $("sky").parentElement.classList.remove("busy");
 }
 
-async function loadSpectrum(id) {
+/* The spectrum needs every exposure; if the server is still gathering them, ask again. */
+async function loadSpectrum(id, attempt = 0) {
+  let d = null;
   try {
     const r = await fetch("/api/spectrum?" + viewParams());
-    if (!r.ok) return;
-    const d = await r.json();
-    if (id !== S.loadId) return;
-    S.spectrum = d.points; $("speccard").hidden = false; drawPlot();
+    if (r.ok) d = await r.json();
   } catch (_) {}
+  if (id !== S.loadId) return;
+  if ((!d || (d.job && d.job.status !== "ready" && d.job.status !== "error")) && attempt < 30) {
+    await sleep(2000);
+    return id === S.loadId ? loadSpectrum(id, attempt + 1) : undefined;
+  }
+  if (!d) return;
+  S.spectrum = d.points; $("speccard").hidden = false; drawPlot();
 }
 
+const CAT_NAME = {gaia: "Gaia DR3", catwise: "CatWISE"};
+function ovStatus() {
+  const parts = [];
+  for (const cat of ["gaia", "catwise"]) {
+    if (!$("ov-" + cat).checked) continue;
+    if (S.catalogs[cat] === "loading") parts.push(`Loading ${CAT_NAME[cat]}…`);
+    if (S.catalogs[cat] === "failed") parts.push(`${CAT_NAME[cat]} did not answer. Untick and tick to try again.`);
+  }
+  $("ovstatus").textContent = parts.join(" "); $("ovstatus").hidden = !parts.length;
+}
 async function loadCatalogs() {
   for (const cat of ["gaia", "catwise"]) {
-    if (!$("ov-" + cat).checked || S.catalogs[cat]) continue;
+    if (!$("ov-" + cat).checked || Array.isArray(S.catalogs[cat]) || S.catalogs[cat] === "loading") continue;
     const id = S.loadId;
-    S.catalogs[cat] = "loading";
-    try {
-      const r = await fetch("/api/catalog?" + viewParams({cat}));
-      const d = await r.json();
+    S.catalogs[cat] = "loading"; ovStatus();
+    let sources = null;  // the catalogue service is slow on the first query of a field and sometimes fails: try three times
+    for (let attempt = 0; attempt < 3 && !sources; attempt++) {
+      if (attempt) await sleep(2500);
+      try { const r = await fetch("/api/catalog?" + viewParams({cat})); if (r.ok) sources = (await r.json()).sources; } catch (_) {}
       if (id !== S.loadId) return;
-      S.catalogs[cat] = r.ok ? d.sources : null;
-    } catch (_) { S.catalogs[cat] = null; }
-    draw();
+    }
+    S.catalogs[cat] = sources || "failed";
+    ovStatus(); draw();
   }
+  ovStatus();
 }
 
 /* Objects the team has measured in this field (optional: the server may have no database). */
@@ -321,7 +374,7 @@ function draw() {
     : e.detectors.map((x) => `<span>${swatch(DET_COLOR[x])}D${x}</span>`).join("");
   $("hud").innerHTML = `<span class="when">${fmtLabel(what)}${S.mode === "stack" ? "" : `<span class="zone">UTC</span>`}${modeTxt}</span>` +
     `<span class="chans">${chans}</span>` +
-    (e.wave_um ? `<span class="wave">${e.wave_um[0]}–${e.wave_um[1]} µm</span>` : "") +
+    (e.wave_um ? `<span class="wave">${e.wave_um[0].toFixed(2)}–${e.wave_um[1].toFixed(2)} µm</span>` : "") +
     `<span class="nexp">${e.n_exposures} exposure${e.n_exposures > 1 ? "s" : ""}</span>`;
   showEpoch(e);
   for (const el of document.querySelectorAll("#timeline i")) el.classList.toggle("cur", +el.dataset.i === S.i);
@@ -606,7 +659,7 @@ async function buildFeatured() {
     for (const f of list) {
       const b = document.createElement("button"); b.className = "target"; b.title = f.note; b.dataset.name = f.name; b.setAttribute("aria-pressed", "false");
       for (const [cls, txt] of [["nm", f.name], ["nt", f.note]]) { const sp = document.createElement("span"); sp.className = cls; sp.textContent = txt; b.appendChild(sp); }
-      b.addEventListener("click", () => { S.target = f.key; S.byCoords = false; S.ra = S.dec = null; $("q").value = f.name; load(); });
+      b.addEventListener("click", () => { $("q").value = f.name; load({target: f.key, byCoords: false, ra: null, dec: null}); });
       el.appendChild(b);
     }
   } catch (_) {}
@@ -620,8 +673,9 @@ function init() {
   seg("mode", "mode", () => { $("refrow").hidden = S.mode !== "diffref"; S.limits = null; if (S.mode === "stack") stop(); draw(); writeUrl(); });
   seg("plotmode", "plotmode", drawPlot);
   $("refrow").hidden = S.mode !== "diffref";
-  $("search").addEventListener("submit", (ev) => { ev.preventDefault(); S.target = $("q").value.trim(); S.byCoords = false; S.ra = S.dec = null; S.fov = +$("fov").value; load(); });
-  $("fov").addEventListener("change", () => { S.fov = +$("fov").value; if (S.meta) load(); });
+  $("search").addEventListener("submit", (ev) => { ev.preventDefault(); const q = $("q").value.trim(); if (q) load({target: q, byCoords: false, ra: null, dec: null, fov: +$("fov").value}); });
+  $("q").addEventListener("input", () => searchError(""));
+  $("fov").addEventListener("change", () => { if (S.meta) load({fov: +$("fov").value}); else S.fov = +$("fov").value; });
   $("play").addEventListener("click", () => (S.playing ? stop() : play()));
   $("prev").addEventListener("click", () => { stop(); step(-1); });
   $("next").addEventListener("click", () => { stop(); step(1); });
@@ -630,7 +684,7 @@ function init() {
   $("gain").addEventListener("input", (ev) => { S.gain = +ev.target.value; draw(); });
   $("resetgain").addEventListener("click", () => { S.gain = 0; $("gain").value = 0; draw(); });
   $("setref").addEventListener("click", () => { S.ref = S.i; S.limits = null; $("reflabel").textContent = fmtLabel(S.meta.epochs[S.ref].label) + " UTC"; draw(); });
-  for (const c of ["gaia", "catwise", "cross", "smooth", "tracks"]) $("ov-" + c).addEventListener("change", () => { loadCatalogs(); if (S.meta) { draw(); writeUrl(); } });
+  for (const c of ["gaia", "catwise", "cross", "smooth", "tracks"]) $("ov-" + c).addEventListener("change", () => { if (S.meta) { loadCatalogs(); draw(); writeUrl(); } });
   $("timeline").addEventListener("pointerdown", (ev) => { $("timeline").setPointerCapture(ev.pointerId); scrubTimeline(ev); });
   $("timeline").addEventListener("pointermove", (ev) => { if (ev.buttons & 1) scrubTimeline(ev); });
   for (const b of document.querySelectorAll("[data-example]")) b.addEventListener("click", () => { $("q").value = b.dataset.example; $("search").requestSubmit(); });
@@ -642,7 +696,7 @@ function init() {
   const pos = (ev) => { const r = cv.getBoundingClientRect(); return [(ev.clientX - r.left) * cv.width / r.width, (ev.clientY - r.top) * cv.height / r.height]; };
   cv.addEventListener("mousemove", (ev) => { if (!S.meta) return; const [ra, dec] = toSky(...pos(ev), cv); $("cursor").classList.remove("hint"); $("cursor").textContent = `${ra.toFixed(5)}° ${dec >= 0 ? "+" : "−"}${Math.abs(dec).toFixed(5)}°`; });
   cv.addEventListener("mouseleave", hint);
-  cv.addEventListener("dblclick", (ev) => { if (!S.meta) return; const [ra, dec] = toSky(...pos(ev), cv); S.ra = ra; S.dec = dec; S.byCoords = true; S.target = null; $("q").value = `${ra.toFixed(5)} ${dec >= 0 ? "+" : ""}${dec.toFixed(5)}`; load(); });
+  cv.addEventListener("dblclick", (ev) => { if (!S.meta) return; const [ra, dec] = toSky(...pos(ev), cv); $("q").value = `${ra.toFixed(5)} ${dec >= 0 ? "+" : ""}${dec.toFixed(5)}`; load({ra, dec, byCoords: true, target: null}); });
   // (i) notes: shown on hover and focus; a tap toggles them where there is no hover
   const closeTips = () => { for (const t of document.querySelectorAll(".tip.open")) t.classList.remove("open"); };
   for (const t of document.querySelectorAll(".tip")) t.querySelector(".tipbtn").addEventListener("click", (ev) => {
@@ -652,7 +706,10 @@ function init() {
   document.addEventListener("click", closeTips);
   document.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") { closeTips(); if (document.activeElement.classList.contains("tipbtn")) document.activeElement.blur(); }
-    if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName) && document.activeElement.type !== "range") return;
+    // a focused field or slider keeps its own keys; a focused button keeps the space bar
+    const el = document.activeElement;
+    if (["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName) && el.type !== "checkbox") return;
+    if (ev.key === " " && (el.tagName === "BUTTON" || el.type === "checkbox")) return;
     if (ev.key === " ") { ev.preventDefault(); S.playing ? stop() : play(); }
     if (ev.key === "ArrowRight") { stop(); step(1); }
     if (ev.key === "ArrowLeft") { stop(); step(-1); }
