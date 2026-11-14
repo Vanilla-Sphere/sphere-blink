@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import json
 import struct
+import threading
 import time
+from collections import OrderedDict
 from functools import lru_cache
 from pathlib import Path
 
@@ -21,19 +23,20 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import catalogs, config, measurements, render
+from . import catalogs, config, measurements, render, tiles
 from .cutout import Grid
-from .resolve import FEATURED, Target, resolve
+from .resolve import FEATURED, ResolverUnavailable, Target, resolve
 from .service import Service
 
 WEB = Path(__file__).resolve().parent.parent / "web"
 CUBE_BUDGET = 40_000_000  # max pixels (epochs * npix^2) sent to a browser at once
 
-app = FastAPI(title="SPHEREx Blink", version="0.2.0", description=__doc__)
+app = FastAPI(title="Vanilla Sphere", version="0.2.0", description=__doc__)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"],
                    expose_headers=["X-Job"])
-app.add_middleware(GZipMiddleware, minimum_size=2000)
+app.add_middleware(GZipMiddleware, minimum_size=2000, compresslevel=4)  # cubes are large: speed over the last few %
 svc = Service()
+fields = tiles.Fields(svc)
 
 
 # --------------------------------------------------------------------------- helpers
@@ -52,6 +55,8 @@ def _target(target: str | None, ra: float | None, dec: float | None) -> Target:
         if target:
             return _resolve_cached(target.strip())
         raise ValueError("give target=<name or coordinates> or ra=&dec=")
+    except ResolverUnavailable as exc:  # the name services are down: not the caller's mistake
+        raise HTTPException(503, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -82,6 +87,11 @@ def _frames(grid: Grid, wait: float, partial: bool = False):
     """Frames of a view. Returns (frames | None, job)."""
     job = svc.start(grid)
     t0 = time.time()
+    # A view that was dropped from memory (or belongs to a server that has just
+    # restarted) is back from the disk cache within a moment: wait for that
+    # instead of answering with an empty partial result.
+    while (job.status in ("queued", "searching") or job.resuming) and time.time() - t0 < max(wait, 6.0):
+        time.sleep(0.05)
     while job.status not in ("ready", "error") and time.time() - t0 < wait:
         time.sleep(0.2)
     if job.status == "error":
@@ -91,15 +101,34 @@ def _frames(grid: Grid, wait: float, partial: bool = False):
     return job.snapshot(), job
 
 
-def _epochs(frames, det, group, diff=False):
+_epoch_cache: "OrderedDict[tuple, list]" = OrderedDict()
+_epoch_lock = threading.Lock()
+EPOCH_CACHE_BYTES = 500e6
+
+
+def _epochs(frames, det, group, diff=False, grid: Grid | None = None):
     if group not in ("exposure", "day", "visit"):
         raise HTTPException(400, "group must be exposure, day or visit")
+    # Stacking the frames of a wide mosaic takes seconds, and the page asks for
+    # the same epochs several times (cube, picture, movie): keep the last few.
+    key = (grid.key(), len(frames), det.strip().lower(), group, diff) if grid is not None and frames else None
+    if key is not None:
+        with _epoch_lock:
+            if key in _epoch_cache:
+                _epoch_cache.move_to_end(key)
+                return _epoch_cache[key]
     if det.strip().lower() == "rgb":
         eps = render.build_color_epochs(frames, group)
     else:
         eps = render.build_epochs(frames, _dets(det), group)
     if diff:
         eps = render.difference(eps)
+    if key is not None:
+        with _epoch_lock:
+            _epoch_cache[key] = eps
+            size = lambda v: sum(e.image.nbytes for e in v)  # noqa: E731
+            while len(_epoch_cache) > 1 and sum(size(v) for v in _epoch_cache.values()) > EPOCH_CACHE_BYTES:
+                _epoch_cache.popitem(last=False)
     return eps
 
 
@@ -144,6 +173,32 @@ def api_view(target: str | None = None, ra: float | None = None, dec: float | No
     return {"target": t.to_dict(), "grid": grid.to_dict(), "job": job.public()}
 
 
+@app.get("/api/tiles")
+def api_tiles(
+    target: str | None = None, ra: float | None = None, dec: float | None = None,
+    levels: int = Query(3, ge=0, le=tiles.MAX_LEVELS, description="rings of cells around the seed cell (3 = 7 x 7 cells)"),
+    neighbors: int | None = Query(None, ge=0, le=tiles.MAX_LEVELS, description="same as levels"),
+    tile_id: str | None = Query(None, description="seed cell by id instead of a position, e.g. icrs012-v1-2245-0789"),
+):
+    """A progressive field on the fixed 0.12 degree cell grid (icrs012-v1).
+
+    Starts loading the seed cell, then its first ring, then the whole block of
+    (2 x levels + 1)^2 cells, and reports how far it is. Each stage is an
+    ordinary view (``ra``, ``dec``, ``fov`` in ``stages``), so every other
+    endpoint - cube, frame.png, movie.gif, epochs - works on it. Poll until
+    ``status`` is ``ready``.
+    """
+    try:
+        if tile_id:
+            ra, dec = tiles.center(*tiles.parse_tile_id(tile_id))
+            target = None
+        t = _target(target, ra, dec)
+        field = fields.start(t.ra, t.dec, neighbors if neighbors is not None else levels)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"target": t.to_dict(), **field.public()}
+
+
 @app.get("/api/cube")
 def api_cube(
     target: str | None = None,
@@ -153,6 +208,7 @@ def api_cube(
     det: str = DET,
     group: str = "day",
     band: str | None = BAND,
+    bin: int = Query(1, ge=1, le=4, description="average bin x bin pixels (overview of a wide mosaic)"),
 ):
     """All epochs of a view in one binary blob for the interactive viewer.
 
@@ -162,13 +218,16 @@ def api_cube(
     """
     t, grid = _view(target, ra, dec, fov)
     frames, job = _frames(grid, 0, partial=True)
-    eps = _epochs(frames, _band(det, band), group)
-    if eps and len(eps) * eps[0].planes * grid.npix**2 > CUBE_BUDGET:
+    eps = render.binned(_epochs(frames, _band(det, band), group, grid=grid), bin)
+    if eps and len(eps) * eps[0].planes * eps[0].image.shape[-1] ** 2 > CUBE_BUDGET:
         raise HTTPException(413, "too many pixels: reduce the field of view, group by day/visit, or pick one detector")
     blob, enc = render.encode_cube(eps)
+    g = grid.to_dict()
+    if eps and bin > 1:
+        g.update(npix=int(eps[0].image.shape[-1]), scale_arcsec=grid.scale_arcsec * bin, native_npix=grid.npix)
     meta = {
         "target": t.to_dict(),
-        "grid": grid.to_dict(),
+        "grid": g,
         "job": job.public(),
         "encoding": enc,
         "epochs": [e.meta() for e in eps],
@@ -188,7 +247,7 @@ def api_epochs(
     frames, job = _frames(grid, wait)
     if frames is None:
         return _pending(job)
-    eps = _epochs(frames, _band(det, band), group)
+    eps = _epochs(frames, _band(det, band), group, grid=grid)
     return {"target": t.to_dict(), "grid": grid.to_dict(), "job": job.public(), "epochs": [e.meta() for e in eps]}
 
 
@@ -203,7 +262,7 @@ def api_frame(
     frames, job = _frames(grid, wait)
     if frames is None:
         return _pending(job)
-    eps = _epochs(frames, _band(det, band), group, diff)
+    eps = _epochs(frames, _band(det, band), group, diff, grid=grid)
     if not eps:
         raise HTTPException(404, "no SPHEREx data at this position")
     i = max(0, min(i, len(eps) - 1)) if i >= 0 else max(0, len(eps) + i)
@@ -223,7 +282,7 @@ def api_movie(
     frames, job = _frames(grid, wait)
     if frames is None:
         return _pending(job)
-    eps = _epochs(frames, _band(det, band), group, diff)
+    eps = _epochs(frames, _band(det, band), group, diff, grid=grid)
     if not eps:
         raise HTTPException(404, "no SPHEREx data at this position")
     limits = render.shared_limits(eps, diff)

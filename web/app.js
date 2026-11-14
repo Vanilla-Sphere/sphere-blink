@@ -23,6 +23,7 @@ const S = {
   i: 0, ref: 0, playing: false, fps: 3, gain: 0,
   cube: null, meta: null, npix: 0, planes: 1, limits: null, median: null, stack: null,
   spectrum: null, plotmode: "spec", catalogs: {}, tracks: null, loadId: 0, timer: null,
+  levels: 0, field: null, stage: null,  // progressive field: rings of 0.12° cells, the server's report, the stage on screen
 };
 
 /* ------------------------------------------------------------------ URL state */
@@ -31,6 +32,7 @@ function readUrl() {
   if (p.get("ra") !== null && p.get("dec") !== null) { S.ra = parseFloat(p.get("ra")); S.dec = parseFloat(p.get("dec")); }
   if (p.get("target")) S.target = p.get("target");
   if (p.get("fov")) S.fov = Math.min(30, Math.max(1, parseFloat(p.get("fov")) || 8));
+  if (p.get("levels")) S.levels = Math.min(3, Math.max(0, parseInt(p.get("levels"), 10) || 0));
   if (p.get("det")) S.det = p.get("det");
   if (["day", "visit", "exposure"].includes(p.get("group"))) S.group = p.get("group");
   if (["blink", "diffmed", "diffref", "stack"].includes(p.get("mode"))) S.mode = p.get("mode");
@@ -42,13 +44,20 @@ function paramsOf(v, extra = {}) {
   const p = new URLSearchParams();
   if (v.target) p.set("target", v.target);
   if (v.ra !== null && (!v.target || v.byCoords)) { p.delete("target"); p.set("ra", v.ra.toFixed(6)); p.set("dec", v.dec.toFixed(6)); }
-  p.set("fov", v.fov);
+  if (v.levels) p.set("levels", v.levels); else p.set("fov", v.fov);  // a progressive field or a plain view
   for (const [k, val] of Object.entries(extra)) p.set(k, val);
   return p;
 }
-function viewParams(extra = {}) { return paramsOf(S, extra); }
+/* The view the images come from. In a progressive field that is the stage on
+   screen: a mosaic centred on the seed cell, not on the target itself. */
+function viewParams(extra = {}) {
+  if (!S.stage) return paramsOf(S, extra);
+  const p = new URLSearchParams({ra: S.stage.ra, dec: S.stage.dec, fov: S.stage.fov});
+  for (const [k, val] of Object.entries(extra)) p.set(k, val);
+  return p;
+}
 function writeUrl() {
-  const p = viewParams();
+  const p = paramsOf(S);
   if (S.det !== "rgb") p.set("det", S.det);
   if (S.group !== "day") p.set("group", S.group);
   if (S.mode !== "blink") p.set("mode", S.mode);
@@ -69,7 +78,7 @@ function writeUrl() {
    The position is checked first; the view on screen is only replaced once that worked,
    so a mistyped name costs nothing. */
 async function load(next) {
-  const want = Object.assign({target: S.target, ra: S.ra, dec: S.dec, byCoords: S.byCoords, fov: S.fov}, next || {});
+  const want = Object.assign({target: S.target, ra: S.ra, dec: S.dec, byCoords: S.byCoords, fov: S.fov, levels: S.levels}, next || {});
   const id = ++S.loadId, first = !S.meta;
   searchError(""); $("search").classList.add("busy"); $("go").disabled = true; $("go").textContent = "Searching…";
   if (first) {
@@ -79,7 +88,7 @@ async function load(next) {
   }
   let view, error = null;
   try {
-    const r = await fetch("/api/view?" + paramsOf(want));
+    const r = await fetch((want.levels ? "/api/tiles?" : "/api/view?") + paramsOf(want));
     view = await r.json();
     if (!r.ok) throw new Error(view.detail || r.statusText);
   } catch (e) { error = e; }
@@ -94,6 +103,7 @@ async function load(next) {
   Object.assign(S, want);
   S.cube = null; S.meta = null; S.median = null; S.stack = null; S.spectrum = null; S.catalogs = {}; S.i = 0; S.ref = 0; S.busy = 0;
   S.tracks = null; $("trackopt").hidden = true; $("trackcard").hidden = true;
+  S.field = null; S.stage = null; $("tileopt").hidden = !S.levels;
   for (const c of ["speccard", "epochcard"]) $(c).hidden = true;
   $("intro").hidden = true; $("analysishint").hidden = true; $("timeline").innerHTML = ""; $("cursor").textContent = "";
   $("empty").hidden = false; $("empty").textContent = "Searching the SPHEREx archive…";
@@ -103,6 +113,7 @@ async function load(next) {
   S.ra = t.ra; S.dec = t.dec; S.grid = view.grid;
   showTarget(t); writeUrl();
   $("sharecard").hidden = false;
+  if (S.levels) return loadField(id, view);
 
   // poll: the cube grows while exposures are being fetched
   let last = -1;
@@ -132,8 +143,39 @@ function searchError(message, what) {
     : message;
 }
 
+/* A progressive field: the seed cell first, then its ring, then the whole block.
+   The picture on screen is always the widest stage that has finished. */
+async function loadField(id, f) {
+  let shown = -1;
+  for (;;) {
+    S.field = f;
+    const done = f.stages.filter((s) => s.status === "ready").pop(), next = f.stages.find((s) => s.status !== "ready");
+    const bad = f.stages.find((s) => s.status === "error");
+    if (bad) return fail(new Error(bad.job ? bad.job.error : "the archive could not be read"), id);
+    try {
+      if (done && done.level !== shown) { S.stage = done; if (!(await fetchCube(id, shown >= 0))) return; shown = done.level; S.catalogs = {}; loadCatalogs(); writeUrl(); }
+      else if (!done) { S.stage = f.stages[0]; if (!(await fetchCube(id, false))) return; writeUrl(); }  // the first cell grows as its exposures arrive
+      else draw();
+    } catch (e) { return fail(e, id); }
+    if (id !== S.loadId) return;
+    const cells = (s) => `${s.tiles} cell${s.tiles > 1 ? "s" : ""}`, j = next && next.job;
+    if (!next) { setProgress(1, `${cells(done)} · ${done.job.frames} exposures in ${f.elapsed_s}s`); break; }
+    setProgress(j && j.total ? j.done / j.total : 0,
+      (done ? `${cells(done)} shown · ` : "") + (j && j.total ? `reading exposure ${j.done} of ${j.total} for ${cells(next)}…` : `searching the archive for ${cells(next)}…`));
+    await sleep(done ? 1000 : 1300);
+    try {
+      const r = await fetch("/api/tiles?" + paramsOf(S)); f = await r.json();
+      if (!r.ok) throw new Error(f.detail || r.statusText);
+    } catch (e) { return fail(e, id); }
+    if (id !== S.loadId) return;
+  }
+  setTimeout(() => { if (id === S.loadId && !S.busy) $("progress").hidden = true; }, 4000);
+  loadTracks();
+}
+
 async function fetchCube(id, keepIndex, seq) {
-  const r = await fetch("/api/cube?" + viewParams({det: S.det, group: S.group}));
+  const wide = S.stage && S.stage.npix > 300;  // a wide mosaic comes at overview resolution; open a cell for full detail
+  const r = await fetch("/api/cube?" + viewParams(wide ? {det: S.det, group: S.group, bin: 2} : {det: S.det, group: S.group}));
   if (!r.ok) { let d = {}; try { d = await r.json(); } catch (_) {} throw new Error(d.detail || r.statusText); }
   const buf = await r.arrayBuffer();
   if (id !== S.loadId || (seq && seq !== S.busy)) return null;  // a newer request has taken over
@@ -146,7 +188,7 @@ async function fetchCube(id, keepIndex, seq) {
   const k = (a_hi - a_lo) / 65534;
   for (let j = 0; j < q.length; j++) cube[j] = q[j] === 0 ? NaN : Math.sinh(a_lo + (q[j] - 1) * k);
   const oldLabel = S.meta && S.meta.epochs[S.i] ? S.meta.epochs[S.i].label : null;
-  S.cube = cube; S.meta = meta; S.npix = meta.grid.npix; S.planes = meta.encoding.planes || 1; S.median = null; S.stack = null;
+  S.cube = cube; S.meta = meta; S.grid = meta.grid; S.npix = meta.grid.npix; S.planes = meta.encoding.planes || 1; S.median = null; S.stack = null;
   S.limits = null;
   const ne = meta.epochs.length;
   if (keepIndex && oldLabel) { const f = meta.epochs.findIndex((e) => e.label === oldLabel); S.i = f >= 0 ? f : 0; }
@@ -409,11 +451,14 @@ function drawOverlays(ctx, cv) {
   // text and marks get a thin dark edge so they stay readable over bright pixels
   const text = (t, x, y, color) => { ctx.font = font; ctx.lineJoin = "round"; ctx.lineWidth = 3 * u; ctx.strokeStyle = "rgba(8,6,4,.7)"; ctx.strokeText(t, x, y); ctx.fillStyle = color; ctx.fillText(t, x, y); };
   const line = (color, width, path) => { for (const [c, w] of [["rgba(8,6,4,.55)", width + 2], [color, width]]) { ctx.strokeStyle = c; ctx.lineWidth = w * u; ctx.beginPath(); path(); ctx.stroke(); } };
+  if (S.field && $("ov-tiles").checked) drawCells(ctx, cv, u);
   if ($("ov-cross").checked) {
-    const c = W / 2, g = W * 0.035, L = W * 0.05;
+    // a progressive field is centred on its seed cell; the crosshair stays on the target
+    const [cx0, cy0] = S.field ? toPixel(S.ra, S.dec, cv) : [W / 2, W / 2];
+    const k = S.field ? Math.min(1, 12.8 / S.grid.fov_arcmin) : 1, g = W * 0.035 * k, L = W * 0.05 * k;
     line(T.accent, 1.5, () => {
-      ctx.moveTo(c - g - L, c); ctx.lineTo(c - g, c); ctx.moveTo(c + g, c); ctx.lineTo(c + g + L, c);
-      ctx.moveTo(c, c - g - L); ctx.lineTo(c, c - g); ctx.moveTo(c, c + g); ctx.lineTo(c, c + g + L);
+      ctx.moveTo(cx0 - g - L, cy0); ctx.lineTo(cx0 - g, cy0); ctx.moveTo(cx0 + g, cy0); ctx.lineTo(cx0 + g + L, cy0);
+      ctx.moveTo(cx0, cy0 - g - L); ctx.lineTo(cx0, cy0 - g); ctx.moveTo(cx0, cy0 + g); ctx.lineTo(cx0, cy0 + g + L);
     });
   }
   const styles = {gaia: T.accent2, catwise: T.ink2};
@@ -472,7 +517,35 @@ function drawOverlays(ctx, cv) {
   line(T.ink, 1, () => { ctx.moveTo(cx, cy); ctx.lineTo(cx, cy - 22 * u); ctx.moveTo(cx, cy); ctx.lineTo(cx - 22 * u, cy); });
   ctx.textAlign = "center"; text("N", cx, cy - 27 * u, T.ink); text("E", cx - 31 * u, cy + 4 * u, T.ink); ctx.textAlign = "left";
 }
-function hint() { const c = $("cursor"); c.classList.add("hint"); c.textContent = S.meta ? "Double-click the image to recentre" : ""; }
+/* The 0.12° cells of a progressive field: their outlines on the sky, and a
+   small map of the block that fills in as the rings arrive. */
+function drawCells(ctx, cv, u) {
+  const W = cv.width, tiles = S.field.tiles;
+  ctx.save();
+  for (const t of tiles) {
+    const c = [[t.ra_min, t.dec_min], [t.ra_max, t.dec_min], [t.ra_max, t.dec_max], [t.ra_min, t.dec_max]].map(([a, d]) => toPixel(a, d, cv));
+    if (c.every(([x, y]) => x < 0 || y < 0 || x > W || y > W)) continue;
+    ctx.globalAlpha = t.level === 0 ? 0.9 : 0.4; ctx.strokeStyle = t.level === 0 ? T.accent2 : T.ink2; ctx.lineWidth = u;
+    ctx.beginPath(); c.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.stroke();
+  }
+  ctx.restore();
+  // block map, north up and east left like the image
+  const n = 2 * S.field.levels + 1, s = 9 * u, gap = 2 * u, x0 = 14 * u, y0 = 16 * u;
+  const [sx, sy] = S.field.seed.tile_id.split("-").slice(2).map(Number);
+  ctx.fillStyle = "rgba(8,6,4,.6)"; ctx.fillRect(x0 - 5 * u, y0 - 5 * u, n * (s + gap) + 8 * u, n * (s + gap) + 8 * u);
+  for (const t of tiles) {
+    const [x, y] = t.tile_id.split("-").slice(2).map(Number);
+    let dx = x - sx; if (dx > 1500) dx -= 3000; if (dx < -1500) dx += 3000;
+    const px = x0 + (S.field.levels - dx) * (s + gap), py = y0 + (S.field.levels - (y - sy)) * (s + gap);
+    if (t.status === "done") { ctx.fillStyle = t.level === 0 ? T.accent : T.accent2; ctx.fillRect(px, py, s, s); }
+    else { ctx.strokeStyle = t.status === "loading" ? T.accent : T.muted; ctx.lineWidth = u; ctx.strokeRect(px + u / 2, py + u / 2, s - u, s - u); }
+  }
+}
+function cellAt(ra, dec) {
+  const x = Math.floor((((ra % 360) + 360) % 360) / 0.12) % 3000, y = Math.min(1499, Math.floor((dec + 90) / 0.12));
+  return `icrs012-v1-${String(x).padStart(4, "0")}-${String(y).padStart(4, "0")}`;
+}
+function hint() { const c = $("cursor"); c.classList.add("hint"); c.textContent = !S.meta ? "" : S.field ? "Double-click a cell to open it at full detail" : "Double-click the image to recentre"; }
 /* The canvas is as many device pixels as it covers, so overlays are sharp on any screen. */
 function fitCanvas() {
   const cv = $("sky"), w = Math.min(1800, Math.round(cv.clientWidth * (window.devicePixelRatio || 1)));
@@ -665,17 +738,19 @@ async function buildFeatured() {
   } catch (_) {}
 }
 
+/* The field menu holds plain views (arcmin) and progressive fields ("p3" = 3 rings of cells). */
+function fieldChoice() { const v = $("fov").value; return v[0] === "p" ? {levels: +v.slice(1)} : {levels: 0, fov: +v}; }
 function init() {
   readUrl();
-  $("fov").value = [4, 8, 15, 30].includes(S.fov) ? S.fov : 8;
+  $("fov").value = S.levels ? "p" + S.levels : [4, 8, 15, 30].includes(S.fov) ? S.fov : 8;
   buildDets(); buildFeatured();
   seg("group", "group", reloadCube);
   seg("mode", "mode", () => { $("refrow").hidden = S.mode !== "diffref"; S.limits = null; if (S.mode === "stack") stop(); draw(); writeUrl(); });
   seg("plotmode", "plotmode", drawPlot);
   $("refrow").hidden = S.mode !== "diffref";
-  $("search").addEventListener("submit", (ev) => { ev.preventDefault(); const q = $("q").value.trim(); if (q) load({target: q, byCoords: false, ra: null, dec: null, fov: +$("fov").value}); });
+  $("search").addEventListener("submit", (ev) => { ev.preventDefault(); const q = $("q").value.trim(); if (q) load({target: q, byCoords: false, ra: null, dec: null, ...fieldChoice()}); });
   $("q").addEventListener("input", () => searchError(""));
-  $("fov").addEventListener("change", () => { if (S.meta) load({fov: +$("fov").value}); else S.fov = +$("fov").value; });
+  $("fov").addEventListener("change", () => { if (S.meta) load(fieldChoice()); else Object.assign(S, fieldChoice()); });
   $("play").addEventListener("click", () => (S.playing ? stop() : play()));
   $("prev").addEventListener("click", () => { stop(); step(-1); });
   $("next").addEventListener("click", () => { stop(); step(1); });
@@ -684,7 +759,7 @@ function init() {
   $("gain").addEventListener("input", (ev) => { S.gain = +ev.target.value; draw(); });
   $("resetgain").addEventListener("click", () => { S.gain = 0; $("gain").value = 0; draw(); });
   $("setref").addEventListener("click", () => { S.ref = S.i; S.limits = null; $("reflabel").textContent = fmtLabel(S.meta.epochs[S.ref].label) + " UTC"; draw(); });
-  for (const c of ["gaia", "catwise", "cross", "smooth", "tracks"]) $("ov-" + c).addEventListener("change", () => { if (S.meta) { loadCatalogs(); draw(); writeUrl(); } });
+  for (const c of ["gaia", "catwise", "cross", "smooth", "tracks", "tiles"]) $("ov-" + c).addEventListener("change", () => { if (S.meta) { loadCatalogs(); draw(); writeUrl(); } });
   $("timeline").addEventListener("pointerdown", (ev) => { $("timeline").setPointerCapture(ev.pointerId); scrubTimeline(ev); });
   $("timeline").addEventListener("pointermove", (ev) => { if (ev.buttons & 1) scrubTimeline(ev); });
   for (const b of document.querySelectorAll("[data-example]")) b.addEventListener("click", () => { $("q").value = b.dataset.example; $("search").requestSubmit(); });
@@ -694,9 +769,9 @@ function init() {
   for (const b of document.querySelectorAll("[data-copy]")) b.addEventListener("click", () => { const inp = $(b.dataset.copy); inp.select(); navigator.clipboard && navigator.clipboard.writeText(inp.value); b.textContent = "Copied"; setTimeout(() => (b.textContent = "Copy"), 1200); });
   const cv = $("sky");
   const pos = (ev) => { const r = cv.getBoundingClientRect(); return [(ev.clientX - r.left) * cv.width / r.width, (ev.clientY - r.top) * cv.height / r.height]; };
-  cv.addEventListener("mousemove", (ev) => { if (!S.meta) return; const [ra, dec] = toSky(...pos(ev), cv); $("cursor").classList.remove("hint"); $("cursor").textContent = `${ra.toFixed(5)}° ${dec >= 0 ? "+" : "−"}${Math.abs(dec).toFixed(5)}°`; });
+  cv.addEventListener("mousemove", (ev) => { if (!S.meta) return; const [ra, dec] = toSky(...pos(ev), cv); $("cursor").classList.remove("hint"); $("cursor").textContent = `${ra.toFixed(5)}° ${dec >= 0 ? "+" : "−"}${Math.abs(dec).toFixed(5)}°` + (S.field ? ` · ${cellAt(ra, dec)}` : ""); });
   cv.addEventListener("mouseleave", hint);
-  cv.addEventListener("dblclick", (ev) => { if (!S.meta) return; const [ra, dec] = toSky(...pos(ev), cv); $("q").value = `${ra.toFixed(5)} ${dec >= 0 ? "+" : ""}${dec.toFixed(5)}`; load({ra, dec, byCoords: true, target: null}); });
+  cv.addEventListener("dblclick", (ev) => { if (!S.meta) return; const [ra, dec] = toSky(...pos(ev), cv); $("q").value = `${ra.toFixed(5)} ${dec >= 0 ? "+" : ""}${dec.toFixed(5)}`; if (S.levels) $("fov").value = 8; load({ra, dec, byCoords: true, target: null, ...(S.levels ? {levels: 0, fov: 8} : {})}); });
   // (i) notes: shown on hover and focus; a tap toggles them where there is no hover
   const closeTips = () => { for (const t of document.querySelectorAll(".tip.open")) t.classList.remove("open"); };
   for (const t of document.querySelectorAll(".tip")) t.querySelector(".tipbtn").addEventListener("click", (ev) => {

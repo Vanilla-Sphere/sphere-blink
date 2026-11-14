@@ -26,6 +26,7 @@ import httpx
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import FITSFixedWarning, WCS
+from scipy.interpolate import RectBivariateSpline
 from scipy.ndimage import label, map_coordinates
 
 from . import config
@@ -81,6 +82,26 @@ class Grid:
     @property
     def fov_arcmin(self) -> float:
         return self.npix * self.scale_arcsec / 60.0
+
+    def search_points(self) -> list[tuple[float, float]]:
+        """Positions whose exposures make up this view.
+
+        Views up to WIDE_FOV_ARCMIN use the exposures that contain the centre
+        (every frame then covers most of the view). Wider ones are mosaics and
+        also take exposures that cover only a part: every exposure containing
+        any point of a lattice over the view (a 3.5 degree detector footprint
+        cannot slip between points ~12 arcmin apart except by a corner tip).
+        One archive query per point, run in parallel, is ~10x faster than one
+        query for the whole area.
+        """
+        fov = self.fov_arcmin
+        if fov <= config.WIDE_FOV_ARCMIN:
+            return [(self.ra, self.dec)]
+        k = 3 if fov <= 26 else 5
+        t = np.linspace(0, self.npix - 1, k)
+        lx, ly = np.meshgrid(t, t)
+        ra, dec = self.wcs.pixel_to_world_values(lx.ravel(), ly.ravel())
+        return [(float(a) % 360.0, float(d)) for a, d in zip(ra, dec)]
 
     def key(self) -> str:
         return f"{self.ra:.6f}_{self.dec:.6f}_{self.npix}_{self.scale_arcsec:.3f}"
@@ -213,6 +234,38 @@ def wavelength_at(wmap: np.ndarray | None, x: float, y: float) -> tuple[float, f
 
 
 # ----------------------------------------------------------------------------- the cutout
+EXACT_MAP_NPIX = 200  # grids up to this size get the exact transform for every pixel
+MAP_STEP = 16  # wider grids: exact every 16 pixels, cubic interpolation between
+
+
+def detector_coords(grid: Grid, wcs: WCS) -> tuple[np.ndarray, np.ndarray]:
+    """Detector pixel (x, y) of every pixel of ``grid``.
+
+    The distortion polynomial is inverted iteratively, ~0.4 us per point.
+    That is nothing for a small view and a third of all CPU for a 7 x 7 cell
+    mosaic, so wide grids evaluate it on a coarse lattice. The mapping is a
+    smooth low-order polynomial; the interpolation error is below 1/1000 pixel
+    (checked in tests/test_offline.py).
+    """
+    n = grid.npix
+    if n > EXACT_MAP_NPIX:
+        k = int(np.ceil((n - 1) / MAP_STEP)) + 1
+        t = np.linspace(0, n - 1, k)
+        ly, lx = np.meshgrid(t, t, indexing="ij")
+        ra, dec = grid.wcs.pixel_to_world_values(lx, ly)
+        try:
+            cx, cy = wcs.world_to_pixel_values(ra, dec)
+        except Exception:  # no convergence far outside the detector: do it exactly
+            cx = None
+        if cx is not None and np.isfinite(cx).all() and np.isfinite(cy).all():
+            every = np.arange(n, dtype=float)
+            return (RectBivariateSpline(t, t, cx)(every, every),
+                    RectBivariateSpline(t, t, cy)(every, every))
+    yy, xx = np.mgrid[0:n, 0:n]
+    ra, dec = grid.wcs.pixel_to_world_values(xx, yy)
+    return wcs.world_to_pixel_values(ra, dec)
+
+
 async def cut_async(
     client: httpx.AsyncClient,
     exposure: Exposure,
@@ -239,10 +292,7 @@ async def cut_async(
     wcs = WCS(hdr)
 
     # Map every output pixel into the detector's pixel frame (SIP included).
-    n = grid.npix
-    yy, xx = np.mgrid[0:n, 0:n]
-    ra_o, dec_o = grid.wcs.pixel_to_world_values(xx, yy)
-    px, py = wcs.world_to_pixel_values(ra_o, dec_o)
+    px, py = detector_coords(grid, wcs)
     inside = (px > -0.5) & (px < DET_SIZE - 0.5) & (py > -0.5) & (py < DET_SIZE - 0.5)
     if not inside.any():
         return None
@@ -349,16 +399,23 @@ def _background_plane(data: np.ndarray) -> np.ndarray:
     if min(data.shape) < 60:
         return np.full_like(data, med)
     yy, xx = np.mgrid[0 : data.shape[0], 0 : data.shape[1]]
+    # A plane has three parameters: ~40 000 evenly spread pixels pin it down
+    # as well as the half million of a wide cutout.
+    step = max(1, int(np.ceil(np.sqrt(data.size / 40_000))))
+    d, x, y = data[::step, ::step], xx[::step, ::step], yy[::step, ::step]
+    ok = np.isfinite(d)
+    if ok.sum() < 30:
+        return np.full_like(data, med)
     sel = ok
     coef = np.array([med, 0.0, 0.0])
     for _ in range(3):
-        resid = data - (coef[0] + coef[1] * xx + coef[2] * yy)
+        resid = d - (coef[0] + coef[1] * x + coef[2] * y)
         s = 1.4826 * np.nanmedian(np.abs(resid[sel] - np.nanmedian(resid[sel])))
         sel = ok & (np.abs(resid) < 2.5 * max(s, 1e-12))
         if sel.sum() < 30:
             break
-        A = np.column_stack([np.ones(sel.sum()), xx[sel], yy[sel]])
-        coef, *_ = np.linalg.lstsq(A, data[sel], rcond=None)
+        A = np.column_stack([np.ones(sel.sum()), x[sel], y[sel]])
+        coef, *_ = np.linalg.lstsq(A, d[sel], rcond=None)
     return (coef[0] + coef[1] * xx + coef[2] * yy).astype(np.float32)
 
 
