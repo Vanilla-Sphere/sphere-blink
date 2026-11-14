@@ -9,17 +9,18 @@ as static files.
 | `index.html` | 225 lines | Page structure for both screens and both modes; all fixed text |
 | `style.css` | 507 lines | Design tokens, layout, components, responsive rules |
 | `app.js` | about 1100 lines | State, URL handling, loading, image arithmetic, drawing, plots, routing |
-| `starmap.js` | about 510 lines | The sky map (`SkyMap`): projection, drawing, pan and zoom, picking |
+| `starmap.js` | about 570 lines | The sky map (`SkyMap`): projection, drawing, pan and zoom, picking |
 | `ambient.js` | about 330 lines | The motion of the sky map screen (`Ambient`): deep star field, rim glow, slow turn, aiming frame, pings, meteors |
 | `atlas.js` | 220 lines | The photograph of the real sky behind the zoomed-in map (`Atlas`): tiles of the 2MASS atlas, fetched from NASA/IPAC IRSA and drawn through the map's projection |
+| `exports.js` | about 230 lines | What a researcher takes away: the plot's points as CSV, the plot as PNG with the credit, the "Source files" panel listing the Level 2 exposures with their IRSA links, its download script, URL list and table, and the "About the data" page |
 | `i18n.js` | 107 lines | Text that scripts put on the page (`STR.en`) and the `tr()` formatter |
 | `hints.js` | 74 lines | One-line notes on controls, shown on hover and keyboard focus |
 | `lore.js` | 130 lines | What the sky map says about each of the 88 constellations and 31 famous stars under the pointer (`LORE`) |
 | `data/sky.json` | - | Compact star chart: stars, names, constellations, Milky Way, boundary grid |
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
-Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `app.js`.
-Asset URLs carry a version query (`?v=27`) that is raised when a file changes,
+Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `exports.js`, `app.js`.
+Asset URLs carry a version query (`?v=30`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -54,7 +55,7 @@ Three columns under a fixed top bar:
 
 | Region | Content |
 | --- | --- |
-| Top bar | Brand, "Sky map" button, search box, Field menu, "Show sky", Simple/Advanced switch, API and Source links, credits note |
+| Top bar | Brand, "Sky map" button, search box, Field menu, "Show sky", Simple/Advanced switch, API link, credits note |
 | Left rail | Featured targets; Display panel: Bands, One frame per, Image math, Contrast, Overlays |
 | Stage | Target name and coordinates; the image; progress bar; a status strip with date, channels, wavelength range, exposure count and pointer coordinates; transport; timeline |
 | Right column | Spectrum or light curve; "This frame"; "Measured in this field"; "Position of the crosshair" with cross-links; "Link or embed this view" |
@@ -196,16 +197,33 @@ the fluxes exceeds 1 Jy.
 `lookAt`, `setMark`, `setPins`, `highlight`, `idle` and `constellation` (and
 `attach`, `state`, `toXY`, `turn` and `rest` for `ambient.js`), and
 takes the callbacks `onPick`, `onHover`, `onView` and `onReady`. `onHover` reports
-the sky position, the constellation, a target pin and the star the pointer has
-snapped to; `app.js` turns that into the map tag (pin, then a star with a name
-or a designation, then constellation, with the text from `lore.js`), and the
-map brightens the figure of the constellation under the pointer.
+the sky position, the constellation, a target pin, the star the pointer has
+snapped to and the celestial pole whose mark it is on; `app.js` turns that into
+the map tag (pin, then a pole, then a star with a name or a designation, then
+constellation, with the text from `lore.js`), and the map brightens the figure
+of the constellation under the pointer.
+
+**The first view.** The first time the map is shown it looks at the centre of
+the Milky Way (`OPEN` in `starmap.js`: RA 266.4, Dec -29) instead of the whole
+sky, so the photograph of the real sky is on screen from the start. The zoom
+(`openZoom`) is set by how much sky fits: 64 degrees across the width, never
+less than 28 degrees over the height, at least 4 times the whole-sky zoom
+(where the photograph is fully in) and just short of 6 times, where every
+star to the third magnitude would get its name. That is 5.2 times the
+whole-sky zoom at 1440 x 900, 5.6 at 1920 x 1000 and 4 on a phone. A view
+asked for by `lookAt` before the map is shown wins over it. Until the visitor
+moves the map, `onView` reports `opening: true` and `app.js` keeps the class
+`opening` on `#mapscreen`, which keeps the heading on the map although it is
+zoomed in. Zooming out is not limited: the whole sky is one button or a few
+wheel steps away. Star names are counted from the whole-sky zoom
+(`view.k / homeZoom()`), so a phone, which starts closer, does not fill up
+with names.
 
 **Snapping to stars.** Pointing and picking snap to the nearest drawn star
 (`starAt`): the aiming frame jumps onto it, the readout shows the star's own
 coordinates and a click opens the star, not a place a few pixels beside it. A
-star is within reach when the pointer is within 6 px of its disc at the opening
-zoom, growing by 3 px for each doubling of the zoom up to 16 px, and 1.6 times
+star is within reach when the pointer is within 6 px of its disc at the
+whole-sky zoom, growing by 3 px for each doubling of the zoom up to 16 px, and 1.6 times
 that for a finger; a finger also prefers the brighter of two close stars.
 Holding Alt points and picks freely, between the stars. A star with a proper
 name (493 of them) is opened by that name, so the view carries the name and the
@@ -298,6 +316,22 @@ coordinates.
   The page's content security policy allows pictures from
   `irsa.ipac.caltech.edu` for this and nothing else from outside
   ([security](security.md#response-headers)).
+- **The axis of the sky.** The map can be turned and tilted freely, and a
+  tilted whole-sky oval is hard to read: nothing says where north went (an
+  astronomer who tried it lost his bearings after one turn). So the two
+  celestial poles are marked, N beside Polaris and S, and one dashed line
+  runs from pole to pole. The line is the meridian of 0h right ascension,
+  which is fixed among the stars: it turns with the sky and shows how far the
+  map has been turned, and with the map level and centred on 0h it is the
+  straight line down the middle. A pole on the far side of a tilted map falls
+  on the cut of the projection, so it is marked on both rims (it is one point
+  of the sky). Pointing at a mark gives a note saying what it is; a star
+  nearer the pointer keeps its own note, so Polaris can still be pointed at.
+  `SkyMap.axis("sky" | "view" | "off")` switches it; `"view"` draws the
+  straight line down the middle of the map instead, which stays put while the
+  sky turns past it. Until its look is approved the axis shows on the dev
+  site only, and `?axis=sky`, `?axis=view` or `?axis=off` in the address
+  tries it anywhere.
 - **Input.** Pointer events for drag, pinch and click; wheel zoom about the
   pointer so the sky under it stays under it; keyboard pan, zoom and select.
 - **Drawing** is batched with `requestAnimationFrame` and only runs while the
