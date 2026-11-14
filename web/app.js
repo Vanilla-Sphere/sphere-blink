@@ -930,6 +930,20 @@ function labelFeatured() { for (const el of document.querySelectorAll("#mapfeatu
 
 /* ------------------------------------------------------------------ sky map and modes */
 const HOME_TITLE = document.title;
+/* Full screen for the sky map: the map alone fills the screen. The page does it by itself (style.css), and the browser's own
+   full screen is asked for on top where it exists. An iPhone has none, and a frame may refuse it: the map still covers the page. */
+const fullEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+function mapFull(on) {
+  const root = document.documentElement, b = $("map-full");
+  if (root.hasAttribute("data-mapfull") === on) return;
+  root.toggleAttribute("data-mapfull", on);
+  b.setAttribute("aria-pressed", on); b.dataset.hint = on ? "map.full.exit" : "map.full";
+  try {
+    const ask = root.requestFullscreen || root.webkitRequestFullscreen, leave = document.exitFullscreen || document.webkitExitFullscreen;
+    const p = on ? (!fullEl() && ask ? ask.call(root) : null) : (fullEl() && leave ? leave.call(document) : null);
+    if (p && p.catch) p.catch(() => {});
+  } catch (_) {}
+}
 function showScreen(name) {
   S.screen = name; document.documentElement.dataset.screen = name;
   $("maptag").hidden = true;
@@ -1030,6 +1044,8 @@ function init() {
   $("map-in").addEventListener("click", () => SkyMap.zoom(1.6));
   $("map-out").addEventListener("click", () => SkyMap.zoom(1 / 1.6));
   $("map-home").addEventListener("click", () => SkyMap.home());
+  $("map-full").addEventListener("click", () => mapFull(!document.documentElement.hasAttribute("data-mapfull")));
+  for (const name of ["fullscreenchange", "webkitfullscreenchange"]) document.addEventListener(name, () => { if (!fullEl()) mapFull(false); });  // left with Esc or the browser's own control
   window.addEventListener("popstate", route);
   $("sshare").addEventListener("click", async () => {
     const url = $("s-page").value;
@@ -1075,7 +1091,7 @@ function init() {
   document.addEventListener("click", closeTips);
   document.addEventListener("click", (ev) => { if (!$("searcherr").hidden && !ev.target.closest("#search")) searchError(""); });
   document.addEventListener("keydown", (ev) => {
-    if (ev.key === "Escape") { searchError(""); closeTips(); if (document.activeElement.classList.contains("tipbtn")) document.activeElement.blur(); }
+    if (ev.key === "Escape") { searchError(""); closeTips(); if (S.screen === "map") mapFull(false); if (document.activeElement.classList.contains("tipbtn")) document.activeElement.blur(); }
     if (S.screen !== "view") return;
     // a focused field or slider keeps its own keys; a focused button keeps the space bar
     const el = document.activeElement;
