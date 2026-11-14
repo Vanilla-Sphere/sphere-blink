@@ -16,6 +16,7 @@ const SkyMap = (() => {
   let sky = null, stars = null, mw = null, cons = [], names = [], cells = null;
   let pins = [], mark = null, hover = null, hoverPin = null, hoverCon = null, hoverStar = null, busyAt = null, labels = false, wasZoomed = null;
   let dirty = false, shown = false;
+  let mwCv = null, mwCtx = null, MW_SOFT = 1, MW_GLOW = 1;   // the Milky Way's small canvas; how blurred and how bright it is
   let fx = null;                        // ambient.js, when it is loaded: it draws the aiming frame and follows every redraw
 
   /* ---------------------------------------------------------------- geometry */
@@ -187,18 +188,29 @@ const SkyMap = (() => {
     for (let d = -90 + stepG; d < 90; d += stepG) { const pts = []; for (let ra = 0; ra <= 360; ra += 3) pts.push(vec(ra, d)); polyline(pts); }
     ctx.stroke();
 
-    // Milky Way: a halftone of squares laid along the galactic plane
-    const cell = 1.25 * D * s;
+    // Milky Way: a soft glow along the galactic plane. The cells of the data are painted on a small
+    // black canvas, each as a patch as bright as its level (the brighter of two overlapping patches
+    // wins), and the canvas is stretched back over the map as light: the stretch blurs the patches
+    // into one cloud.
+    const cell = 1.25 * D * s, mq = Math.max(2, cell / MW_SOFT), mwW = Math.ceil(W / mq) + 2, mwH = Math.ceil(H / mq) + 2;
+    if (!mwCv) { mwCv = document.createElement("canvas"); mwCtx = mwCv.getContext("2d"); }
+    if (mwCv.width !== mwW || mwCv.height !== mwH) { mwCv.width = mwW; mwCv.height = mwH; }
+    mwCtx.globalCompositeOperation = "source-over"; mwCtx.fillStyle = "#000"; mwCtx.fillRect(0, 0, mwW, mwH);
+    mwCtx.globalCompositeOperation = "lighten";
+    const patch = 1.7 * cell / mq, half = patch / 2;
     for (let lv = 1; lv <= 5; lv++) {
-      const size = Math.max(1, cell * (0.22 + 0.11 * lv)), h = size / 2;
-      ctx.fillStyle = C.ink2; ctx.globalAlpha = Math.min(0.5, (0.07 + 0.055 * lv) * (cell > 7 ? Math.pow(7 / cell, 0.8) : 1) * (cell < 4 ? 1.5 : 1));
+      const t = MW_GLOW * (0.012 + 0.03 * lv + 0.0024 * lv * lv);
+      mwCtx.fillStyle = `rgb(${Math.round(196 * t)},${Math.round(200 * t)},${Math.round(240 * t)})`;
       for (let i = 0; i < mw.n; i++) {
         if (mw.lv[i] !== lv) continue;
         project(mw.v[3 * i], mw.v[3 * i + 1], mw.v[3 * i + 2], p);
-        if (onScreen(p, size)) ctx.fillRect(p[0] - h, p[1] - h, size, size);
+        if (onScreen(p, 2 * cell)) mwCtx.fillRect(p[0] / mq + 1 - half, p[1] / mq + 1 - half, patch, patch);
       }
     }
-    ctx.globalAlpha = 1;
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.globalCompositeOperation = "lighter";
+    ctx.drawImage(mwCv, -mq, -mq, mwW * mq, mwH * mq);
+    ctx.globalCompositeOperation = "source-over";
 
     // constellation figures
     ctx.strokeStyle = C.muted2; ctx.globalAlpha = 0.55; ctx.lineWidth = 1; ctx.beginPath();
@@ -473,6 +485,7 @@ const SkyMap = (() => {
     toXY(ra, dec) { setRot(); const p = project(...vec(ra, dec), [0, 0, 0]); return [p[0], p[1]]; },
     turn(dra) { view.ra += dra; clampView(); redraw(); },
     rest() { if (hover || hoverPin) tell(null); },
+    milky(soft, glow) { MW_SOFT = soft; MW_GLOW = glow; redraw(); },
     look(v) { LOOK = Math.max(0, Math.min(1, v)); starColours(); redraw(); },   // how strong the halo, spikes and colour of the stars are
     get ready() { return !!sky; },
   };
