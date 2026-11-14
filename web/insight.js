@@ -16,7 +16,9 @@
       2.7 um), methane (3.3 um), water ice (3.0 um), carbon dioxide (4.27 um), lines of hydrogen,
       helium, sulphur and iron, the 3.3 um PAH band. Given a published redshift, the lines are looked
       for where it puts them (and the lines of the visible and ultraviolet come into range); the
-      bands of stars and ices are then left out.
+      bands of stars and ices are then left out. Where web/redshift.js read a firm redshift off the
+      lines of the spectrum and the published one is missing or disagrees, the caller hands over
+      that one (opts.measured) and the reading says so first.
    The reading then names the kinds of object that give such a curve. It is a description, not a
    classification: a 12 arcsec aperture, 20-25 % errors on bright stars and a resolving power of
    35-130 leave many objects looking alike. The limits that apply are listed with every reading.
@@ -243,10 +245,15 @@ const Insight = (() => {
   /* ---------------------------------------------------------------- the reading */
   function analyse(points, opts) {
     const all = prepare(points);
-    // a published redshift, when the caller has one: it moves the lines, it is never measured here
+    // a redshift, when the caller has one: it moves the lines, it is never measured here. It is the published one, or
+    // (opts.measured) the one web/redshift.js read off the emission lines of this very spectrum, which the caller hands
+    // over where that estimate is firm and the published value is missing or disagrees with it
     const z = opts && fin(opts.z) && opts.z > -0.01 && opts.z < 20 ? opts.z : null, zf = 1 + (z || 0);
     const far = z !== null && z >= 0.01, zText = far ? `z = ${z.toFixed(3)}` : "", zSrc = (opts && opts.zSource) || "the literature";
-    const out = {version: VERSION, state: "none", confidence: "low", headline: "", plain: "", findings: [], caveats: [], features: [], tested: [], sources: [], redshift: z, metrics: {points: all.length}};
+    const own = far && opts.measured ? opts.measured : null, pub = own && own.published && fin(own.published.z) ? own.published : null;
+    const zWhat = own ? "the redshift read off its own lines" : "the published redshift";
+    const zOwn = own ? `${zText}${fin(own.zErr) ? " ± " + own.zErr.toFixed(3) : ""}${own.quality ? `, quality ${own.quality} of 4` : ""}` : "";
+    const out = {version: VERSION, state: "none", confidence: "low", headline: "", plain: "", findings: [], caveats: [], features: [], tested: [], sources: [], redshift: z, redshiftFrom: own ? "lines" : far ? "published" : null, metrics: {points: all.length}};
     const find = (key, text) => out.findings.push({key, text});
     if (all.length < 12) {
       out.headline = "Too few points to read a spectrum here.";
@@ -377,11 +384,11 @@ const Insight = (() => {
       find("saturated", `Most of its points are above the brightness range for which the halo of a saturated star was calibrated; the middle of the curve is at about ${flux(bright)}. The points give its rough brightness, not its colour or temperature.`);
     } else if (emission) {
       kind = "emission";
-      out.headline = far ? (lines.length > 1 ? `Emission lines stand above the continuum where the published redshift (${zText}) puts them.` : `An emission line stands above the continuum where the published redshift (${zText}) puts ${lines[0].name}.`) : "Emission lines of ionised gas stand above the continuum.";
+      out.headline = far ? (lines.length > 1 ? `Emission lines stand above the continuum where ${zWhat} (${zText}) puts them.` : `An emission line stands above the continuum where ${zWhat} (${zText}) puts ${lines[0].name}.`) : "Emission lines of ionised gas stand above the continuum.";
       out.plain = far ? "Glowing gas in a distant galaxy: bright lines of hot gas, moved to longer wavelengths on the way here." : "Glowing gas: this light carries the sharp colours of hot hydrogen, as in a nebula.";
       find("lines", cap(`${list(lines.map((l) => `${where(l)} (×${l.m.ratio.toFixed(1)} the continuum, ${sig(l.m.snr)})`))}.`));
       find("gas", far
-        ? `At ${zText} such lines come from gas around an active galaxy nucleus (a quasar) or from star-forming gas in a distant galaxy. The redshift is the published one (${zSrc}): this reading uses it, it does not measure it.`
+        ? `At ${zText} such lines come from gas around an active galaxy nucleus (a quasar) or from star-forming gas in a distant galaxy. ` + (own ? "The redshift is our own reading of these same lines, not a published value." : `The redshift is the published one (${zSrc}): this reading uses it, it does not measure it.`)
         : "Hydrogen recombination lines come from gas ionised by a hot source: an H II region, a planetary nebula, a young or active star, or an active galaxy nucleus near enough for the lines to sit at their rest wavelengths.");
       if (pah) find("pah", "The 3.3 µm band of polycyclic aromatic hydrocarbons is in emission too: carbon-rich dust lit by ultraviolet light.");
     } else if (ice || (dryIce && rising)) {
@@ -439,6 +446,8 @@ const Insight = (() => {
       out.plain = "There is a source here, but its light does not match a simple pattern.";
     }
     M.kind = kind;
+    // a redshift read off the lines is used only where this reading, with its own test, finds emission lines at it too
+    if (own && kind !== "emission") return analyse(points, pub ? {z: pub.z, zSource: pub.source} : null);
     if (far && kind !== "emission" && kind !== "saturated" && kind !== "partial") {
       // the words above are those of a source at rest; this one is known to be a galaxy or a quasar
       out.headline = out.headline.replace(/: (the infrared tail of a hot photosphere|the light of a cool photosphere)\.$/, ".");
@@ -485,7 +494,19 @@ const Insight = (() => {
     out.sources = Object.keys(CAT.sources).filter((k) => used.has(k)).map((k) => ({short: CAT.sources[k].short, cite: CAT.sources[k].cite, doi: CAT.sources[k].doi, url: CAT.sources[k].url}));
 
     /* limits of this reading */
-    if (far) out.caveats.push(`Lines are looked for where the published redshift (${zText}, ${zSrc}) puts them; the bands of cool stars and of ices are not tested for such a source. If the redshift belongs to another object in the aperture, these places are wrong.`);
+    if (own) {
+      // which redshift, and why not the published one: said first, before anything is read at it
+      let why = "No published redshift is at hand for this object.";
+      if (pub) {
+        const there = analyse(points, {z: pub.z, zSource: pub.source});      // what the published value would have shown
+        why = `The published redshift, z = ${pub.z.toFixed(3)} (${pub.source || "the literature"}), disagrees with the one read off the emission lines of this spectrum.`
+          + (there.metrics.kind !== "emission" ? " Where the published value would put the lines, the spectrum shows no firm one." : "");
+      }
+      const oth = own.other && fin(own.other.z) ? own.other : null;
+      out.findings.unshift({key: "measured_z", text: `${why} The lines are looked for at the measured one (${zOwn}).`
+        + (oth ? ` ${oth.source || "Another catalogue"} lists z = ${oth.z.toFixed(3)}, ${Math.abs(oth.z - z) / zf < 0.02 ? "which agrees with the measured value" : !pub ? "which does not agree with it" : Math.abs(oth.z - pub.z) / (1 + pub.z) < 0.02 ? "close to the published value, not to the measured one" : "which agrees with neither"}.` : "")});
+      out.caveats.push(`Lines are looked for where a redshift read off this same spectrum (${zOwn}) puts them: an estimate of ours, not a published measurement. The bands of cool stars and of ices are not tested for such a source.`);
+    } else if (far) out.caveats.push(`Lines are looked for where the published redshift (${zText}, ${zSrc}) puts them; the bands of cool stars and of ices are not tested for such a source. If the redshift belongs to another object in the aperture, these places are wrong.`);
     if (pick.dropped) out.caveats.push(pick.droppedKind === "wings"
       ? `${pick.dropped} points measured from the halo of a saturated core read ×${pick.ratio.toFixed(1)} the direct points at the same wavelengths and were left out. ` + (pick.ratio >= 3 ? "A halo that bright is not one star: the object is extended (a galaxy or nebula) or the field is crowded." : "The source is near the brightness where the detector starts to saturate.")
       : `${pick.dropped} direct points read ×${(1 / pick.ratio).toFixed(1)} the halo points at the same wavelengths and were left out; near saturation neither kind is secure.`);
@@ -534,7 +555,8 @@ function showReading(r) {
   fill("readcaveats", r.caveats);
   const far = r.redshift !== null && r.redshift !== undefined && r.redshift >= 0.01;
   const foot = document.getElementById("readfoot");
-  if (foot) foot.textContent = far ? "Automatic, from this curve and the published redshift of the object. Not a classification." : "Automatic, from this curve alone. Not a classification.";
+  if (foot) foot.textContent = r.redshiftFrom === "lines" ? "Automatic, from this curve and the redshift read off its own lines. Not a classification."
+    : far ? "Automatic, from this curve and the published redshift of the object. Not a classification." : "Automatic, from this curve alone. Not a classification.";
   showReferences(r, far);
 }
 

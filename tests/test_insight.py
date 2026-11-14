@@ -96,6 +96,19 @@ def readings():
     spectra.append({"name": "shifted@z", "points": shifted, "opts": {"z": 2.0}})
     spectra.append({"name": "shifted@wrong", "points": shifted, "opts": {"z": 2.6}})
     spectra.append({"name": "hot@z", "points": made_up(CASES["hot"]), "opts": {"z": 1.5}})
+    # a redshift read off the lines (web/redshift.js) against a published one: SIMBAD lists this quasar at z = 4.3436
+    wrong = json.loads((HERE / "data" / "redshift" / "sdss-j1528-3637.json").read_text())
+    quasar = [{"wave_um": w, "bandwidth_um": bw, "flux_ujy": f, "flux_err_ujy": e, "method": "aperture", "mjd": mjd, "flags": ["SOURCE"]}
+              for w, bw, f, e, mjd in wrong["points"]]
+    listed = {"z": wrong["z_simbad"], "source": "SIMBAD"}
+    spectra.append({"name": "j1528@published", "points": quasar, "opts": {"z": listed["z"], "zSource": "SIMBAD"}})
+    spectra.append({"name": "j1528@measured", "points": quasar, "opts": {"z": 2.406, "measured": {
+        "zErr": 0.014, "quality": 4, "published": listed, "other": {"z": 2.4129, "source": "NED"}}}})
+    spectra.append({"name": "j1528@unlisted", "points": quasar, "opts": {"z": 2.406, "measured": {"zErr": 0.014, "quality": 4, "published": None}}})
+    spectra.append({"name": "hot@measured", "points": made_up(CASES["hot"]), "opts": {"z": 2.5, "measured": {
+        "zErr": 0.01, "quality": 4, "published": {"z": 1.5, "source": "SIMBAD"}}}})
+    spectra.append({"name": "hot@simbad", "points": made_up(CASES["hot"]), "opts": {"z": 1.5, "zSource": "SIMBAD"}})
+    spectra.append({"name": "hot@measured-alone", "points": made_up(CASES["hot"]), "opts": {"z": 2.5, "measured": {"zErr": 0.01, "quality": 4, "published": None}}})
     spectra.append({"name": "few", "points": made_up(lambda w: planck(w, 5000), n=8)})
     spectra.append({"name": "nothing", "points": []})
     run = subprocess.run(["node", str(HERE / "insight_runner.js")], input=json.dumps(spectra), capture_output=True, text=True, timeout=120)
@@ -336,3 +349,33 @@ def test_a_redshifted_source_is_not_called_a_star(readings):
     assert r["metrics"]["kind"] == "hot" and not r["features"]
     assert "photosphere" not in r["headline"] and "star" not in r["plain"]
     assert any(f["key"] == "redshift" for f in r["findings"])
+
+
+# ---------------------------------------------------------------- with a redshift read off the lines
+
+def test_a_measured_redshift_replaces_a_published_one_that_finds_nothing(readings):
+    listed, measured = readings["j1528@published"], readings["j1528@measured"]
+    assert listed["metrics"]["kind"] != "emission"            # at z = 4.34 the lines of the catalogue fall on bare continuum
+    assert measured["metrics"]["kind"] == "emission" and "h_alpha" in features(measured)
+    assert measured["redshift"] == 2.406 and measured["redshiftFrom"] == "lines" and listed["redshiftFrom"] == "published"
+    assert "read off its own lines" in measured["headline"] and "published" not in measured["headline"]
+    first = measured["findings"][0]                           # which redshift, and why, before anything read at it
+    assert first["key"] == "measured_z"
+    for words in ("z = 4.344 (SIMBAD)", "disagrees", "no firm one", "z = 2.406 ± 0.014, quality 4 of 4", "NED lists z = 2.413, which agrees with the measured value"):
+        assert words in first["text"], words
+    assert any("an estimate of ours, not a published measurement" in c for c in measured["caveats"])
+    assert not any("published redshift" in c for c in measured["caveats"])
+
+
+def test_a_measured_redshift_is_used_where_nothing_is_published(readings):
+    r = readings["j1528@unlisted"]
+    assert r["metrics"]["kind"] == "emission" and r["redshiftFrom"] == "lines"
+    assert r["findings"][0]["text"].startswith("No published redshift is at hand")
+
+
+def test_a_measured_redshift_without_lines_in_the_reading_is_dropped(readings):
+    r = readings["hot@measured"]                              # the reading finds no line there: back to the published one
+    assert r["redshift"] == 1.5 and r["redshiftFrom"] == "published"
+    assert r == readings["hot@simbad"]
+    alone = readings["hot@measured-alone"]                    # and with nothing published, to the plain reading
+    assert alone["redshift"] is None and alone["redshiftFrom"] is None and alone == readings["hot"]
