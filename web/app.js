@@ -610,9 +610,10 @@ function showStory(t) {
   const f = S.featured.find((x) => x.name === t.name || x.key === S.target);
   const c = SkyMap.constellation(t.ra, t.dec), con = c ? (S.lang === "vi" ? c.vi : c.la) : "";
   const spot = !f && (S.byCoords || /^RA /.test(t.name));
-  $("sname").textContent = f ? f.name : spot ? (con ? tr("simple.spot", {con}) : tr("simple.spot.none")) : t.name;
+  const plain = t.name.replace(/\s*\([^)]*\)\s*$/, "");  // "Vega (* alf Lyr)" reads as "Vega" here
+  $("sname").textContent = f ? f.name : spot ? (con ? tr("simple.spot", {con}) : tr("simple.spot.none")) : plain;
   $("skind").textContent = f ? tr("kind." + f.key) : ""; $("skind").hidden = !f;
-  $("sstory").textContent = f ? tr("story." + f.key) : tr(spot ? "simple.story.spot" : "simple.story.named", {name: t.name, con});
+  $("sstory").textContent = f ? tr("story." + f.key) : tr(spot ? "simple.story.spot" : "simple.story.named", {name: plain, con});
 }
 function showEpoch(e) {
   $("epochcard").hidden = false;
@@ -642,7 +643,7 @@ function buildTimeline() {
     add("b", "pass", X(ep[start].mjd)).style.width = (X(ep[i - 1].mjd) - X(ep[start].mjd)) + "%";
     start = i;
   }
-  ep.forEach((e, i) => { const el = add("i", "", X(e.mjd)); el.dataset.i = i; el.title = fmtLabel(e.label) + " UTC"; });
+  ep.forEach((e, i) => { const el = add("i", "", X(e.mjd)); el.dataset.i = i; el.dataset.hintText = fmtLabel(e.label) + " UTC"; });
   const months = [], d = mjdDate(a);
   for (let t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1); t / 864e5 + 40587 <= b; ) {
     const m = new Date(t); months.push(m); t = Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + 1, 1);
@@ -766,9 +767,9 @@ function buildDets() {
 function labelDets() {
   for (const b of $("dets").children) {
     const v = b.dataset.v;
-    if (v === "rgb") b.title = tr("det.rgb.t");
-    else if (v === "all") { b.textContent = tr("det.all"); b.title = tr("det.all.t"); }
-    else b.title = DET[v] + " µm";
+    if (v === "rgb") b.dataset.hintText = tr("det.rgb.t");
+    else if (v === "all") { b.textContent = tr("det.all"); b.dataset.hintText = tr("det.all.t"); }
+    else b.dataset.hintText = tr("det.one.t", {n: v, range: LANG === "vi" ? DET[v].replace(/\./g, ",") : DET[v]});
   }
 }
 /* The challenge targets: a list in the Advanced rail, and pins plus a list on the sky map. */
@@ -786,7 +787,7 @@ async function buildFeatured() {
   };
   const pins = [];
   for (const f of S.featured) {
-    const b = row(f, f.note); b.title = f.note; b.setAttribute("aria-pressed", "false");
+    const b = row(f, f.note); if (STR.en["kind." + f.key]) b.dataset.hint = "kind." + f.key; else b.dataset.hintText = f.note; b.setAttribute("aria-pressed", "false");
     $("featured").appendChild(b);
     if (!FEATURED_AT[f.key]) continue;
     const pin = {key: f.key, name: f.name, ra: FEATURED_AT[f.key][0], dec: FEATURED_AT[f.key][1], f};
