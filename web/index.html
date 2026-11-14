@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SPHEREx Blink - watch the infrared sky change</title>
+<title>Vanilla Sphere - watch the infrared sky change</title>
 <meta name="description" content="Enter sky coordinates and watch NASA SPHEREx images of that patch play as a movie. Spot moving and variable objects, read their spectra.">
 <meta name="theme-color" content="#0b0a08">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0a08'/%3E%3Crect x='6' y='13' width='9' height='9' fill='%23f47a3c'/%3E%3Crect x='17.5' y='9.5' width='8' height='8' fill='none' stroke='%237fb2f0'/%3E%3C/svg%3E">
@@ -13,18 +13,21 @@
 </head>
 <body>
 <header class="bar">
-  <a class="brand" href="/" aria-label="SPHEREx Blink, start page">
+  <a class="brand" href="/" aria-label="Vanilla Sphere, start page">
     <svg viewBox="0 0 28 28" width="22" height="22" aria-hidden="true"><rect x="4.5" y="11.5" width="9" height="9" fill="var(--color-accent)"/><rect x="15" y="7" width="8" height="8" fill="none" stroke="var(--color-accent-2)"/><path d="M.5 5V.5H5M23 27.5h4.5V23" fill="none" stroke="var(--color-muted)"/></svg>
-    <span>SPHEREx Blink</span>
+    <span>Vanilla Sphere</span>
   </a>
   <form id="search" autocomplete="off" role="search">
     <input id="q" type="text" placeholder="RA Dec or an object name" aria-label="Coordinates or object name" spellcheck="false" required>
     <label class="fov"><span>Field</span>
       <select id="fov" aria-label="Field of view">
         <option value="4">4′</option><option value="8" selected>8′</option><option value="15">15′</option><option value="30">30′</option>
+        <option value="p1" title="Progressive field: the 0.12° cell of the position, then the ring of 8 cells around it">22′ · 3×3 cells</option>
+        <option value="p3" title="Progressive field: the cell of the position, then ring by ring out to 7×7 cells">50′ · 7×7 cells</option>
       </select>
     </label>
-    <button type="submit" class="btn primary">Show sky</button>
+    <button type="submit" class="btn primary" id="go">Show sky</button>
+    <p id="searcherr" class="searcherr" role="alert" hidden></p>
   </form>
   <nav class="barlinks" aria-label="Project">
     <a href="/docs">API</a>
@@ -70,6 +73,8 @@
           <label><input type="checkbox" id="ov-catwise"><span>CatWISE</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="var(--color-ink-2)"/></svg></label>
           <label><input type="checkbox" id="ov-cross" checked><span>Crosshair</span></label>
           <label><input type="checkbox" id="ov-smooth"><span>Smooth pixels</span></label>
+          <label class="wide" id="tileopt" hidden title="Outlines of the 0.12° cells of the progressive field, and a map of the block that fills in as the rings arrive"><input type="checkbox" id="ov-tiles" checked><span>Cell grid</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 1.5h9v9h-9zM6 1.5v9M1.5 6h9" fill="none" stroke="var(--color-accent-2)"/></svg></label>
+          <p id="ovstatus" class="wide muted note" role="status" hidden></p>
           <label class="wide" id="trackopt" hidden title="Positions and fitted tracks the team has measured in this field"><input type="checkbox" id="ov-tracks" checked><span>Measured tracks</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1l5 5-5 5-5-5z" fill="none" stroke="var(--color-measured)"/></svg></label>
         </div>
       </div>

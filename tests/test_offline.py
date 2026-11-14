@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from astropy.io import fits
 
-from sphereblink import cutout, render, resolve
+from sphereblink import config, cutout, render, resolve, tiles
 from sphereblink.cutout import Frame, Grid
 from sphereblink.sia import Exposure
 
@@ -50,7 +50,7 @@ def test_grid_is_odd_north_up_and_centred():
     _, dec_up = g.wcs.pixel_to_world_values(c, c + 1)
     ra_right, _ = g.wcs.pixel_to_world_values(c + 1, c)
     assert dec_up > 20.0 and ra_right < 10.0  # north up, east left
-    assert Grid.from_fov(0, 0, 500).fov_arcmin <= 30.5
+    assert Grid.from_fov(0, 0, 500).fov_arcmin <= config.MAX_FOV_ARCMIN + 0.5
 
 
 def test_header_end_and_card_filter():
@@ -204,3 +204,78 @@ def test_memory_budget_forgets_least_recently_used_views(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "RAM_BUDGET_MB", 0.45)
     svc._forget(keep=jobs[2])
     assert set(svc.jobs) == {"j1", "j2"} and set(svc.by_view) == {"view1", "view2"}
+
+
+# ----------------------------------------------------------------------------- progressive fields
+def test_cells_follow_the_fixed_grid_and_grow_ring_by_ring():
+    # ids and centres of the team's icrs012-v1 grid (Barnard's Star, Fairall 9)
+    assert tiles.tile_id(*tiles.cell_of(269.452, 4.693)) == "icrs012-v1-2245-0789"
+    assert tiles.tile_id(*tiles.cell_of(20.94, -58.81)) == "icrs012-v1-0174-0259"
+    assert tiles.parse_tile_id("icrs012-v1-2245-0789") == (2245, 789)
+    with pytest.raises(ValueError):
+        tiles.parse_tile_id("icrs012-v1-9999-0789")
+    block = tiles.block(269.452, 4.693, 3)
+    assert len(block) == 49 and len({t["tile_id"] for t in block}) == 49
+    assert [sum(1 for t in block if t["level"] == lv) for lv in range(4)] == [1, 8, 16, 24]
+    assert [t["level"] for t in block] == sorted(t["level"] for t in block)  # centre first
+    seed = block[0]
+    assert seed["ra_c"] == pytest.approx(2245.5 * 0.12) and seed["dec_c"] == pytest.approx(789.5 * 0.12 - 90)
+    assert seed["ra_min"] <= 269.452 < seed["ra_max"] and seed["dec_min"] <= 4.693 < seed["dec_max"]
+    # the grid wraps in RA and stops at the pole
+    assert {t["tile_id"].split("-")[2] for t in tiles.block(0.01, 0.0, 1)} == {"2999", "0000", "0001"}
+    assert len(tiles.block(10.0, 89.99, 1)) == 6
+
+
+def test_stages_cover_the_block_and_share_one_centre():
+    assert tiles.stage_levels(3) == [0, 1, 3] and tiles.stage_levels(1) == [0, 1] and tiles.stage_levels(0) == [0]
+    g0, g3 = tiles.stage_grid(269.46, 4.74, 0), tiles.stage_grid(269.46, 4.74, 3)
+    assert (g0.ra, g0.dec) == (g3.ra, g3.dec)
+    assert g0.fov_arcmin == pytest.approx(7.2, abs=0.1) and g3.fov_arcmin == pytest.approx(50.4, abs=0.2)
+    assert len(g0.search_points()) == 1  # one cell: exposures that contain the centre
+    pts = g3.search_points()  # a mosaic: a lattice that reaches the corners
+    assert len(pts) == 25
+    assert max(abs(d - g3.dec) for _, d in pts) == pytest.approx(0.42, abs=0.01)
+
+
+def test_wide_grids_map_pixels_to_the_detector_as_exactly_as_small_ones():
+    from astropy.wcs import WCS
+
+    hdr = fits.Header()
+    hdr.update(NAXIS=2, NAXIS1=2040, NAXIS2=2040, CTYPE1="RA---TAN-SIP", CTYPE2="DEC--TAN-SIP", CRPIX1=1020.5,
+               CRPIX2=1020.5, CRVAL1=150.3, CRVAL2=2.1, CD1_1=-1.2e-3, CD1_2=1.2e-3, CD2_1=1.2e-3, CD2_2=1.2e-3,
+               A_ORDER=3, B_ORDER=3, A_2_0=2e-6, A_0_2=-1e-6, A_1_1=1.5e-6, A_3_0=3e-10, B_2_0=-2e-6, B_0_2=1e-6,
+               B_1_1=-1e-6, B_0_3=-2e-10)
+    wcs = WCS(hdr)
+    g = Grid.from_fov(150.4, 2.2, 50.4)
+    assert g.npix > cutout.EXACT_MAP_NPIX
+    px, py = cutout.detector_coords(g, wcs)
+    yy, xx = np.mgrid[0 : g.npix, 0 : g.npix]
+    ex, ey = wcs.world_to_pixel_values(*g.wcs.pixel_to_world_values(xx, yy))
+    assert np.abs(px - ex).max() < 1e-3 and np.abs(py - ey).max() < 1e-3
+
+
+def test_binned_epochs_average_only_real_pixels():
+    img = np.arange(36, dtype=np.float32).reshape(6, 6)
+    img[0, 0] = np.nan
+    e = render.Epoch("2026-01-01", 61000.0, np.stack([img, img, img]), [], [])
+    (b,) = render.binned([e], 2)
+    assert b.image.shape == (3, 3, 3)
+    assert b.image[0, 0, 0] == pytest.approx((1 + 6 + 7) / 3) and b.image[0, 2, 2] == pytest.approx(31.5)
+    assert render.binned([e], 1)[0] is e
+
+
+def test_wide_frames_survive_half_precision_storage(tmp_path):
+    from sphereblink.service import HALF_PRECISION_NPIX, Store
+
+    store = Store(tmp_path / "c.sqlite")
+    g = Grid.from_fov(10.0, 20.0, 50.4)
+    assert g.npix > HALF_PRECISION_NPIX
+    rng = np.random.default_rng(1)
+    img = rng.normal(0, 0.02, (g.npix, g.npix)).astype(np.float32)
+    img[5, 5], img[7, 7] = np.nan, 812.5
+    e = exposure(61000.0)
+    store.put_frames(g, [("k", e, Frame(e, img, 1.0, 0.1, 5.0, 1.0))])
+    back = store.get_frame("k", e).image
+    assert back.dtype == np.float32 and np.isnan(back[5, 5]) and back[7, 7] == pytest.approx(812.5)
+    assert np.nanmax(np.abs(back - img)) < 0.02 * 0.01 + 0.3  # noise is kept to a small fraction of itself
+    assert np.nanstd(back - img) < 0.02 / 500

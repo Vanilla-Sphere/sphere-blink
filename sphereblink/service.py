@@ -18,9 +18,10 @@ import numpy as np
 
 from . import config, worker
 from .cutout import Frame, Grid, cache_key, wave_map_from_file
-from .sia import Exposure, find_exposures
+from .sia import Exposure, find_exposures_at
 
 EXPOSURE_TTL_S = 24 * 3600
+HALF_PRECISION_NPIX = 200  # frames wider than this are stored as float16
 
 
 class Store:
@@ -122,7 +123,12 @@ class Store:
             else:
                 meta = frame.meta()
                 buf = io.BytesIO()
-                np.save(buf, frame.image.astype(np.float32))
+                if frame.image.shape[0] > HALF_PRECISION_NPIX:
+                    # wide mosaics: half precision is ~4 significant digits, far
+                    # below the noise, and halves the largest items on disk
+                    np.save(buf, np.clip(frame.image, -6e4, 6e4).astype(np.float16))
+                else:
+                    np.save(buf, frame.image.astype(np.float32))
                 blob = buf.getvalue()
             rows.append((key, exposure.uid, grid.key(), now, json.dumps(meta), blob))
         with self._conn() as c:
@@ -163,6 +169,7 @@ class Job:
     finished: float = 0.0
     last_used: float = field(default_factory=time.time)
     stats: dict = field(default_factory=dict)  # where the time went (seconds, MB)
+    resuming: bool = True  # still looking up what the disk cache already has
     frames: list[Frame] = field(default_factory=list)  # grows while fetching
 
     def public(self) -> dict:
@@ -193,22 +200,40 @@ class Service:
         self.lock = threading.Lock()
         self._wave: dict[str, np.ndarray | None] = {}
         self._wave_locks: dict[str, threading.Lock] = {}
+        self._search_locks: dict[str, threading.Lock] = {}
         self._procs: ProcessPoolExecutor | None = None
 
     # ------------------------------------------------------------------ search
     def exposures(self, ra: float, dec: float) -> list[Exposure]:
-        key = f"{ra:.5f}_{dec:.5f}_{','.join(config.COLLECTIONS)}"
-        exps = self.store.get_exposures(key)
-        if exps is None:
-            try:
-                exps = find_exposures(ra, dec)
-            except Exception:
-                # Archive search is down: fall back to a stale list if we have one.
-                exps = self.store.get_exposures(key, max_age=float("inf"))
-                if exps is None:
-                    raise
-                return exps
-            self.store.put_exposures(key, exps)
+        """Exposures that cover a position."""
+        return self._exposures(f"{ra:.5f}_{dec:.5f}", [(ra, dec)])
+
+    def view_exposures(self, grid: Grid) -> list[Exposure]:
+        """Exposures that make up a view (wide views: also partial coverage)."""
+        pts = grid.search_points()
+        if len(pts) == 1:
+            return self.exposures(grid.ra, grid.dec)
+        return self._exposures(f"view_{grid.key()}_{len(pts)}", pts)
+
+    def _exposures(self, where: str, points: list[tuple[float, float]]) -> list[Exposure]:
+        key = f"{where}_{','.join(config.COLLECTIONS)}"
+        with self.lock:
+            lk = self._search_locks.setdefault(key, threading.Lock())
+        with lk:  # a search that is already running is waited for, not repeated
+            exps = self.store.get_exposures(key)
+            if exps is None:
+                try:
+                    exps = find_exposures_at(points)
+                except Exception:
+                    # Archive search is down: fall back to a stale list if we have one.
+                    exps = self.store.get_exposures(key, max_age=float("inf"))
+                    if exps is None:
+                        raise
+                    return exps
+                self.store.put_exposures(key, exps)
+        with self.lock:
+            if len(self._search_locks) > 2000:
+                self._search_locks.clear()
         return exps
 
     # ------------------------------------------------------------------ wavelength
@@ -246,6 +271,12 @@ class Service:
         threading.Thread(target=self._run, args=(job, grid), daemon=True).start()
         return job
 
+    def peek(self, grid: Grid) -> Job | None:
+        """The job of a view if it is in memory (never starts one)."""
+        with self.lock:
+            jid = self.by_view.get(grid.key())
+            return self.jobs.get(jid) if jid else None
+
     def _forget(self, keep: Job) -> None:
         """Keep the frames held in memory under the budget: forget the views
         nobody opened for the longest time (their frames stay on disk)."""
@@ -266,7 +297,7 @@ class Service:
         try:
             job.status = "searching"
             t0 = time.time()
-            exps = self.exposures(grid.ra, grid.dec)
+            exps = self.view_exposures(grid)
             job.stats["search_s"] = time.time() - t0
             if len(exps) > config.MAX_FRAMES:  # deep fields: thin evenly in time, keep first and last
                 step = (len(exps) - 1) / (config.MAX_FRAMES - 1)
@@ -283,6 +314,7 @@ class Service:
                     job.done += 1
                     if got is not False:
                         job.frames.append(got)
+            job.resuming = False
             if todo:
                 # wavelength maps: one per release+detector, fetched once ever
                 t0 = time.time()
@@ -308,6 +340,7 @@ class Service:
             job.status = "error"
             job.error = f"{type(exc).__name__}: {exc}"
         finally:
+            job.resuming = False
             job.finished = time.time()
             self._forget(keep=job)
 
