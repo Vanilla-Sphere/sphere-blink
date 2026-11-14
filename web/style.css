@@ -111,10 +111,9 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 .fov,.speed{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--color-muted);white-space:nowrap}
 .barlinks{position:relative;display:flex;align-items:center;gap:20px;padding:0 var(--pad) 0 24px;font-size:13px;font-weight:500}
 .barlinks a{color:var(--color-ink-2)}
-/* Simple or Advanced, and the language: small segmented switches, the current one underlined in orange */
-.modes button,.lang button{height:28px;font-size:12.5px}
+/* Simple or Advanced: a small segmented switch, the current one underlined in orange */
+.modes button{height:28px;font-size:12.5px}
 .modes{margin-left:16px}
-.lang button{padding:0 8px}
 #tomap{flex:none}
 [data-ui="simple"] .bar,[data-screen="map"] .bar{grid-template-columns:auto minmax(0,1fr) auto auto}
 
@@ -410,7 +409,5 @@ dd{margin:0;font-family:var(--font-measure);font-variant-numeric:tabular-nums;fo
   .mapfoot .hint{display:none}
 }
 
-/* Geist Mono has no Vietnamese letters: where a readout mixes words and numbers, Vietnamese uses the text face */
-:lang(vi) :is(.legend,.hud .nexp,.hud .when,.scap,#ptext,#einfo dd,#tracklist dd,.cursor.hint){font-family:var(--font-display);font-variant-numeric:tabular-nums}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important}.hintbox{animation:none}.progress.busy #bar{animation:none;left:0;width:100%!important}}
