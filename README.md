@@ -34,7 +34,8 @@ viewer, code structure, data sources, performance and deployment.
   subtract a chosen reference epoch, or add everything together.
 - **Spectrum on the fly.** Each exposure sees the target through a different
   slice of the linear variable filter, so the exposures together give a
-  0.75-5.0 um spectrum, plus a light curve per detector.
+  0.75-5.0 um spectrum, plus the flux over time with a line saying whether
+  the object changed between visits.
 - **A first reading of the spectrum.** Under the plot the viewer says what the
   curve shows: where it peaks, how it slopes, which bands and lines stand at
   their rest wavelengths (water vapour, methane, water and carbon dioxide ice,

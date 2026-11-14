@@ -21,6 +21,10 @@ sphere-blink/
 │   ├── refcat.py           reference astrometry for the measurement pipeline
 │   ├── measure_api.py      measurement jobs and endpoints
 │   ├── measurements.py     result stores: local SQLite and team Postgres
+│   ├── movers.py           blind search for moving objects: detect, link, confirm
+│   ├── mover_store.py      detections, moving objects and votes (local SQLite)
+│   ├── movers_api.py       search jobs and the /api/movers endpoints
+│   ├── known_objects.py    names of known asteroids and comets (SkyBoT, JPL)
 │   └── main.py             FastAPI application: endpoints and static files
 ├── web/                    the viewer (static; see viewer.md)
 ├── sql/                    schema and roles of the measurement database
@@ -58,6 +62,10 @@ of HTML, CSS and JavaScript in the viewer.
 | `refcat.py` | 117 | Catalogue astrometry of the featured targets; Gaia cone query with fallback; matching a request to a catalogue object | `TARGETS`, `gaia_cone`, `body_for` |
 | `measure_api.py` | 204 | Measurement job runner, automatic measurement of the featured targets, the two measurement endpoints | `router`, `start`, `run`, `VERSION` |
 | `measurements.py` | 280 | Local result store; Postgres reader and writer; merged cone search | `save_local`, `save_db`, `sync_db`, `near` |
+| `movers.py` | 702 | The blind search; no HTTP, no storage | `Detection`, `Track`, `detect`, `link`, `confirm`, `candidates`, `chance_tracks`, `search`, `same_object` |
+| `mover_store.py` | 298 | Stored detections by sky cell, objects, votes; identity of an object found again | `save_field`, `detections_around`, `listing`, `get`, `vote`, `coverage` |
+| `movers_api.py` | 330 | Search jobs in a process of their own, started when a field completes; the four mover endpoints | `router`, `attach`, `start`, `run`, `free_mb` |
+| `known_objects.py` | 215 | Asks SkyBoT, then JPL, for the known objects of a field and matches tracks to them | `identify`, `match`, `parse_skybot`, `parse_jpl` |
 | `main.py` | 397 | Application object, middleware, parameter handling, all other endpoints, epoch cache, static mount | `app`, `svc`, `fields` |
 
 ## Dependency rules
@@ -69,7 +77,7 @@ of HTML, CSS and JavaScript in the viewer.
 
 *Figure: Dependency layers of the package. Source: [`diagrams/code-layers.html`](diagrams/code-layers.html).*
 
-- Only `main.py` and `measure_api.py` import FastAPI.
+- Only `main.py`, `measure_api.py` and `movers_api.py` import FastAPI.
 - `cutout`, `render`, `wings`, `tiles` and `measure` are pure functions and data
   classes over NumPy arrays; they can be used from a script or a notebook.
   `measure.measure_all` returns a plain dictionary.
@@ -126,6 +134,7 @@ stubbed HTTP clients, need no network, and finish in about three seconds.
 | `tests/test_offline.py` | 29 | Coordinate parsing; proper-motion propagation of the featured targets; grid geometry; FITS header scanning; aperture photometry; sky plane; epoch grouping; median difference; cube round trip; PNG and GIF rendering; colour borrowing and white balance; disk and memory eviction; cell grid and stages; exactness of the coarse-lattice pixel mapping; binning; half-precision storage; SIA CSV parsing; wing photometry |
 | `tests/test_atlas.py` | 10 | The sky photograph kept on disk: one fetch then disk; addresses outside the atlas; answers that are not pictures; shared fetches; a silent archive; eviction that spares the kept orders; filling after a start; a nearly full disk; the two endpoints, their headers and allowances; the page's two sources |
 | `tests/test_measure.py` | 18 | Parallax factors; PSF fit accuracy; neighbour handling; wing fallback; track recovery with parallax; stacks for faint movers; light curve; storage and database synchronisation; saturated stars |
+| `tests/test_overtime_js.py` | 1 | Runs `tests/overtime_cases.js` with node on `web/overtime.js`: groups of days, the cut time axis, and the comparison of visits (steady, fading, saturated star, long stay, one visit, too few points, noise only) |
 | `tests/test_resolve_names.py` | 12 | Name resolution paths: Sesame, mirrors, redirects, SIMBAD fallback, spellings, "not found" against "unavailable", no network for built-in targets |
 | `tests/test_insight.py` | 16 | The preliminary reading of a spectrum (`web/insight.js`, run under Node by `tests/insight_runner.js`): 14 real spectra kept in `tests/data/spectra/` (brown dwarf, ices, planetary nebula, white dwarf, cold neighbour, cool star, quasar, extended galaxy, saturated stars, empty sky) and made-up curves (blackbodies, a power law, ice bands, emission lines, noise); no band or line from noise; nothing claimed from too few points. Skipped where Node is not installed |
 

@@ -39,6 +39,7 @@ never limited. The code is `sphereblink/guard.py`.
 | Catalogue and archive queries that go out | 60 per minute | `SPHEREX_RATE_CATALOGS_PER_MIN` | 429 |
 | New measurements | 6 at once, then 30 per hour | `SPHEREX_RATE_MEASURES_BURST`, `SPHEREX_RATE_MEASURES_PER_HOUR` | 429 |
 | Measurements waiting or running | 12 in total | `SPHEREX_MAX_MEASURE_QUEUE` | 503 |
+| Votes on moving objects | 20 per minute per caller; 8 browser ids per address and object | `SPHEREX_RATE_VOTES_PER_MIN`, `SPHEREX_MAX_VOTERS_PER_ADDRESS` | 429 |
 
 The numbers are far above what a person needs, and above what a classroom
 behind one address needs; they exist to stop a script. Only work that really
@@ -122,7 +123,7 @@ endpoint is `GET`; nothing else is accepted.
 | IRSA SIA (exposure search) | Finding the exposures of a position | The stored list of that position is used, whatever its age. A position never opened before cannot be opened until the archive answers |
 | IRSA as a whole | Search and second copy of the files | Everything already on disk still opens, including the 8 arcmin views of the five featured targets, which are fetched at start and never evicted |
 | CDS Sesame | Object names | Second host (Harvard), then SIMBAD TAP on two hosts, then the answer stored on disk (kept 30 days, used at any age when no service answers). Coordinates and the featured targets need no service |
-| IRSA HiPS tiles (2MASS atlas) | The photograph behind the zoomed-in sky map | The server keeps every tile it has fetched, and the whole sky at orders 0-5, on its disk: those are shown without the archive. A tile that is not on disk is refused at once while the archive is down (after five failures in a row it is left alone for 30 s). If the server itself cannot give a tile, the browser asks the archive directly; with both away the drawn map stays as it is. Nothing else depends on it |
+| IRSA HiPS tiles (2MASS atlas) | The photograph behind the zoomed-in sky map | The server keeps every tile it has fetched, and the whole sky at orders 0-6, on its disk: those are shown without the archive. A tile that is not on disk is refused at once while the archive is down (after five failures in a row it is left alone for 30 s). If the server itself cannot give a tile, the browser asks the archive directly; with both away the drawn map stays as it is. Nothing else depends on it |
 | ESA Gaia archive, IRSA Gator | Catalogue overlays | Each catalogue has two services; the overlays of the featured targets are stored at start. See [data and sources](data-sources.md#external-services) |
 | Supabase Postgres | Team measurements | The service's own results are also in a local store and are served from there |
 | The server itself (Render) | Everything | One instance: a deploy or a crash interrupts the site. The server now stops at once instead of after 30 s, which leaves the 27 s the host needs to start the new instance (measured 2026-11-14); the viewer retries by itself, and a worker process that dies is replaced. A second server was considered on 2026-11-14 and not taken |

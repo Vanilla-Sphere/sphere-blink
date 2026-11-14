@@ -31,7 +31,7 @@ derives:
 - a **blink movie** in false colour or any detector band, with a shared contrast
   stretch so that brightness changes are real;
 - **image arithmetic** that removes everything static, leaving movers and variables;
-- a **spectrum** from 0.75 to 5.0 um and a **light curve** at the centre of the view;
+- a **spectrum** from 0.75 to 5.0 um and the **flux over time** at the centre of the view, with a line saying whether the object changed between visits;
 - **catalogue overlays** (Gaia DR3, CatWISE2020) moved by proper motion to the
   date of each frame;
 - **measured positions, proper motion and brightness** of the object, produced
@@ -54,7 +54,7 @@ the date of the frame, the measured track, and the spectrum at the crosshair.*
 | User | Need | How the product serves it |
 | --- | --- | --- |
 | Member of the public, student | See what SPHEREx sees; understand that the sky changes | Simple mode: sky map, one picture, a short description, play, share, download GIF. No settings. |
-| Amateur or professional astronomer | Inspect a target across time and wavelength; check a candidate | Advanced mode: bands, grouping, image arithmetic, spectrum, light curve, overlays, quality flags, measured track |
+| Amateur or professional astronomer | Inspect a target across time and wavelength; check a candidate | Advanced mode: bands, grouping, image arithmetic, spectrum, flux over time, overlays, quality flags, measured track |
 | Search team (the challenge use case) | Survey areas for moving or variable sources on a common grid | Progressive fields on the `icrs012-v1` cell grid; measurement pipeline; shared measurement database |
 | Developer, educator | Reuse images and measurements elsewhere | Stable URL parameters; PNG, GIF, JSON and binary endpoints; open CORS |
 

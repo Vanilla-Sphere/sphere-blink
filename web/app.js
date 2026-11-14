@@ -81,6 +81,7 @@ function writeUrl(push) {
   if ($("ov-gaia").checked) p.set("gaia", "1");
   if ($("ov-catwise").checked) p.set("catwise", "1");
   if (S.tracks && !$("ov-tracks").checked) p.set("tracks", "0");
+  if (MV.sel) p.set("mover", MV.sel);
   p.set("ui", S.ui);
   S.url = "?" + p.toString();
   if (S.screen === "view" || push) history[push ? "pushState" : "replaceState"](null, "", S.url);
@@ -149,7 +150,7 @@ async function load(next, nopush) {
   Object.assign(S, want);
   S.cube = null; S.meta = null; S.saturated = null; S.median = null; S.stack = null; S.spectrum = null; S.insight = null; showReading(null); S.files = null; S.catalogs = {}; S.i = 0; S.ref = 0; S.busy = 0;
   S.tracks = null; S.measuring = null; $("trackopt").hidden = true; $("trackcard").hidden = true;
-  S.field = null; S.stage = null; $("tileopt").hidden = !S.levels;
+  S.field = null; S.stage = null; $("tileopt").hidden = !S.levels; clearMovers();
   for (const c of ["speccard", "epochcard"]) $(c).hidden = true;
   $("analysishint").hidden = true; $("timeline").innerHTML = ""; $("cursor").textContent = "";
   $("empty").hidden = false; $("empty").textContent = tr("load.search");
@@ -232,6 +233,7 @@ async function loadField(id, f) {
   }
   setTimeout(() => { if (id === S.loadId && !S.busy) $("progress").hidden = true; }, 4000);
   loadTracks();
+  loadMovers();  // the server searches a finished field for moving objects
 }
 
 async function fetchCube(id, keepIndex, seq) {
@@ -800,6 +802,7 @@ function drawOverlays(ctx, cv) {
       text(s.name, x + 11 * u, y + 16 * u, M);
     }
   }
+  drawMovers(ctx, cv, u, line, text);
   // scale bar + compass
   const arcmin = S.grid.fov_arcmin / S.zoom, bar = arcmin >= 20 ? 5 : arcmin >= 10 ? 2 : arcmin >= 4 ? 1 : arcmin >= 2 ? 0.5 : arcmin >= 0.7 ? 1 / 6 : 1 / 12, len = W * bar / arcmin;
   const bx = 14 * u, by = W - 16 * u, t = 4 * u;
@@ -938,7 +941,7 @@ function scrubTimeline(ev) {
   if (best !== S.i) { stop(); S.i = best; draw(); }
 }
 
-/* ------------------------------------------------------------------ spectrum / light curve */
+/* ------------------------------------------------------------------ spectrum / flux over time */
 /* Draws on the page, or, given out = {ctx, W, H}, on a canvas of the caller (the PNG export): then the page is left
    alone and the key comes back as [name, colour, shape] rows. */
 function drawPlot(out) {
@@ -959,12 +962,13 @@ function drawPlot(out) {
   if (!out) {
     $("spectitle").textContent = tr(lc ? "plot.lc" : "plot.spec");
     cv.classList.toggle("none", !pts.length); $("specempty").hidden = !!pts.length; $("spectip").hidden = !pts.length; $("plotdl").hidden = !pts.length;
-    if (!pts.length) { $("specempty").textContent = tr("plot.none"); $("legend").innerHTML = ""; }
+    if (!pts.length) { $("specempty").textContent = tr("plot.none"); $("legend").innerHTML = ""; showChange(null); }
+    $("plot").setAttribute("aria-label", tr(lc ? "plot.lc.aria" : "plot.spec.aria"));
   }
   if (!pts.length) return null;
   const visits = []; let lastM = -1e9;
   [...pts].sort((a, b) => a.mjd - b.mjd).forEach((p) => { if (p.mjd - lastM > 20) visits.push(p.mjd); p.visit = visits.length - 1; lastM = p.mjd; });
-  const ml = 56, mr = 10, mt = 8, mb = 40;
+  const ml = 56, mr = 10, mt = 8, mb = lc ? 54 : 40;
   // bright stars reach tens of Jy: the axis reads in Jy once the 98th percentile passes 1000 mJy
   const top = [...pts.map((p) => p.flux_ujy)].sort((a, b) => a - b)[Math.min(pts.length - 1, Math.floor(pts.length * 0.98))];
   const unit = top >= 1e6 ? 1e6 : 1000;
@@ -972,32 +976,53 @@ function drawPlot(out) {
   const sorted = [...ys].sort((a, b) => a - b);
   let ymin = Math.min(0, sorted[Math.floor(sorted.length * 0.02)]), ymax = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.98))] * 1.25;
   if (ymax <= ymin) ymax = ymin + 1;
-  const xmin = lc ? Math.min(...xs) - 5 : 0.7, xmax = lc ? Math.max(...xs) + 5 : 5.1;
-  const X = (v) => ml + (v - xmin) / (xmax - xmin) * (W - ml - mr), Y = (v) => H - mb - (v - ymin) / (ymax - ymin) * (H - mt - mb);
+  // over time: one stretch of the axis per group of days, the empty months between them cut out
+  const axis = lc ? groupedAxis(xs, ml, W - mr) : null, xmin = 0.7, xmax = 5.1;
+  const X = lc ? axis.X : (v) => ml + (v - xmin) / (xmax - xmin) * (W - ml - mr), Y = (v) => H - mb - (v - ymin) / (ymax - ymin) * (H - mt - mb);
   const hair = (x0, y0, x1, y1, color) => { ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(Math.round(x0) + 0.5, Math.round(y0) + 0.5); ctx.lineTo(Math.round(x1) + 0.5, Math.round(y1) + 0.5); ctx.stroke(); };
   ctx.font = mono; ctx.textAlign = "right";
   const raw = (ymax - ymin) / 4, mag = Math.pow(10, Math.floor(Math.log10(raw))), stepY = [1, 2, 2.5, 5, 10].map((f) => f * mag).find((v) => v >= raw);
   const dec = Math.max(0, Math.min(3, -Math.floor(Math.log10(stepY) + 1e-9) + (stepY / mag === 2.5 ? 1 : 0)));
-  hair(ml, H - mb, W - mr, H - mb, T.rule);
+  const spans = lc ? axis.panels.map((p) => [p.x0, p.x1]) : [[ml, W - mr]];
+  for (const [a, b] of spans) hair(a, H - mb, b, H - mb, T.rule);
   for (let v = Math.ceil(ymin / stepY) * stepY; v <= ymax + 1e-9; v += stepY) {
     const y = Y(v);
-    if (y < H - mb - 1) hair(ml, y, W - mr, y, T.rule2);
+    if (y < H - mb - 1) for (const [a, b] of spans) hair(a, y, b, y, T.rule2);
     ctx.fillStyle = T.muted; ctx.fillText(v.toFixed(dec), ml - 8, y + 4);
   }
   ctx.textAlign = "center";
   const base = H - mb;
   if (lc) {
-    const d = mjdDate(xmin), months = [];
-    for (let t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1); t / 864e5 + 40587 <= xmax; ) { const m = new Date(t); months.push(m); t = Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + 1, 1); }
-    const every = Math.max(1, Math.ceil(months.length / Math.max(2, Math.floor((W - ml - mr) / 90))));
-    months.filter((_, k) => k % every === 0).forEach((m) => { const x = X(m / 864e5 + 40587); hair(x, base, x, base + 5, T.rule); ctx.fillStyle = T.muted; ctx.fillText(m.toISOString().slice(0, 7), x, base + 18); });
+    // each group of days carries its own dates; a pair of strokes marks the months cut out between two groups
+    const labels = []; let lastYear = null;
+    axis.panels.forEach((p, k) => {
+      const perDay = (p.x1 - p.x0) / (p.b - p.a), stepD = [1, 2, 5, 10, 20, 40, 80].find((v) => v * perDay >= 44) || 160;
+      const ticks = [];
+      for (let m = Math.ceil(p.a / stepD) * stepD; m <= p.b; m += stepD) ticks.push(m);
+      if (!ticks.length) ticks.push((p.a + p.b) / 2);
+      const mid = (p.a + p.b) / 2, first = ticks.reduce((u, v) => (Math.abs(v - mid) < Math.abs(u - mid) ? v : u));
+      for (const m of ticks) {
+        const text = mjdDate(m).toISOString().slice(5, 10), half = ctx.measureText(text).width / 2;
+        hair(X(m), base, X(m), base + 5, T.rule);
+        labels.push({x: Math.min(Math.max(X(m), ml + half - 8), W - half), half, text, first: m === first});
+      }
+      const year = mjdDate(p.t0).getUTCFullYear();
+      if (year !== lastYear) { ctx.textAlign = "left"; ctx.fillStyle = T.ink2; ctx.fillText(String(year), p.x0, base + 32); ctx.textAlign = "center"; lastYear = year; }
+      if (k) { const g = (axis.panels[k - 1].x1 + p.x0) / 2; hair(g - 4, base + 4, g - 1, base - 4, T.muted); hair(g + 1, base + 4, g + 4, base - 4, T.muted); }
+    });
+    // every group gets one date before any group gets a second
+    const placed = [];
+    for (const l of labels.filter((v) => v.first).concat(labels.filter((v) => !v.first))) {
+      if (placed.some((q) => Math.abs(q.x - l.x) < q.half + l.half + 6)) continue;
+      placed.push(l); ctx.fillStyle = T.muted; ctx.fillText(l.text, l.x, base + 18);
+    }
   } else {
     // the six detector bands along the axis, in the colours of the band buttons
     for (let dn = 1; dn <= 6; dn++) { const [w0, w1] = DET[dn].split("-").map(Number); ctx.fillStyle = DET_COLOR[dn]; ctx.fillRect(X(w0) + 1, base + 1, X(w1) - X(w0) - 2, 3); }
     for (let v = 1; v <= 5; v++) { hair(X(v), base + 4, X(v), base + 8, T.rule); ctx.fillStyle = T.muted; ctx.fillText(v.toFixed(1), X(v), base + 20); }
   }
   ctx.font = sans; ctx.fillStyle = T.muted;
-  ctx.fillText(tr(lc ? "plot.x.lc" : "plot.x.spec"), (ml + W - mr) / 2, H - 4);
+  ctx.fillText(tr(lc ? (axis.panels.length > 1 ? "plot.x.lc.cut" : "plot.x.lc") : "plot.x.spec"), (ml + W - mr) / 2, H - 4);
   ctx.save(); ctx.translate(12, (mt + base) / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(tr(unit === 1e6 ? "plot.y.jy" : "plot.y"), 0, 0); ctx.restore();
   if (lc && S.meta && S.meta.epochs[S.i]) { const x = X(S.meta.epochs[S.i].mjd); hair(x, mt, x, base, T.accent); }
   // dot = aperture flux; diamond = saturated core, flux from the halo; hollow = flagged pixels or above the calibrated range
@@ -1018,13 +1043,49 @@ function drawPlot(out) {
   }
   ctx.globalAlpha = 1;
   if (!lc && S.insight) markFeatures(ctx, S.insight.features, X, mt, base, {font: mono, absorption: T.ink2, emission: T.accent2});
+  if (!out) $("reading").hidden = lc || !S.insight;  // the reading is of the spectrum: it goes with that plot
   const items = lc ? [1, 2, 3, 4, 5, 6].map((dn) => ["D" + dn, DET_COLOR[dn]]) : visits.map((m, k) => [tr("plot.pass", {m: mjdDate(m).toISOString().slice(0, 7)}), VISIT_COLORS[k % VISIT_COLORS.length]]);
   const key = items.slice(0, 8).map(([name, col]) => [name, col, ""])
     .concat(nDirty || !nWings ? [[tr("plot.flagged"), T.muted, "hollow"]] : [], nWings ? [[tr("plot.wings"), T.ink2, "dia"]] : [], nExtra ? [[tr("plot.extra"), T.ink2, "dia hollow"]] : []);
-  if (out) return {items: key};
+  const change = lc ? changeText(changeOf()) : null;
+  if (out) return {items: key, verdict: change && change.text};
+  showChange(change);
   $("legend").innerHTML = key.map(([name, col, shape]) => `<span>${shape ? `<i class="sw ${shape}"></i>` : swatch(col)}${name}</span>`).join("");
-  $("specnote").textContent = tr(lc ? "plot.note.lc" : "plot.note.spec", {n: pts.length}) + (nWings ? " " + tr("plot.note.wings") : "") + (nExtra ? " " + tr("plot.note.extra") : "");
+  const notes = (lc ? ["plot.note.lc", "plot.note.lc.b", "plot.note.lc.c"] : ["plot.note.spec"]).map((k) => tr(k, {n: pts.length}));
+  if (nWings) notes.push(tr("plot.note.wings") + (nExtra ? " " + tr("plot.note.extra") : ""));
+  $("specnote").replaceChildren(...notes.map((text) => { const el = document.createElement("p"); el.textContent = text; return el; }));
   return {items: key};
+}
+/* The comparison of the visits, worked out once for each set of points. */
+function changeOf() {
+  if (S.changeFor !== S.spectrum) { S.changeFor = S.spectrum; S.change = S.spectrum && S.spectrum.length ? brightnessChange(S.spectrum) : null; }
+  return S.change;
+}
+/* What that comparison says, in words: {state, head, body, text}; null when there is nothing to say. */
+function changeText(c) {
+  if (!c || c.state === "few") return null;
+  const month = (m) => mjdDate(m).toISOString().slice(0, 7), sig = (v) => v.toFixed(1);
+  let head, body;
+  if (c.state === "faint") { head = tr("ot.faint"); body = tr("ot.faint.b"); }
+  else if (c.state === "one") { head = tr("ot.one"); body = tr("ot.one.b"); }
+  else {
+    const first = c.visits[0], last = c.visits[c.visits.length - 1];
+    if (c.state === "varies") { head = tr("ot.varies"); body = tr("ot.varies.b", {a: (c.kind === "wings" ? tr("ot.about") : "") + "×" + c.ratio.toFixed(c.ratio < 10 ? 1 : 0), hi: month(c.hi.mjd), lo: month(c.lo.mjd), s: sig(c.sigma)}); }
+    else { head = tr("ot.steady"); body = tr("ot.steady.b", {from: month(first.mjd), to: month(last.mjd), p: Math.round((c.ratio - 1) * 100), s: sig(c.sigma)}); }
+    if (c.kind === "wings") body += " " + tr("ot.wings", {p: Math.round(c.floor * 100)});
+  }
+  return {state: c.state, head, body, text: head + ". " + body};
+}
+function showChange(change) {
+  const el = $("plotverdict"), tab = document.querySelector('#plotmode button[data-v="lc"]');
+  el.hidden = !change;
+  // the tab carries a mark when the object changed, whichever plot is open
+  const c = changeOf(), varies = !!c && c.state === "varies";
+  tab.classList.toggle("flag", varies); tab.dataset.hint = varies ? "tip.lc.varies" : "tip.lc";
+  if (!change) return;
+  el.dataset.state = change.state;
+  const b = document.createElement("b"); b.textContent = change.head;
+  el.replaceChildren(b, " " + change.body);
 }
 
 /* ------------------------------------------------------------------ transport */
@@ -1213,6 +1274,7 @@ function init() {
   seg("mode", "mode", () => { $("refrow").hidden = S.mode !== "diffref"; S.limits = null; if (S.mode === "stack") stop(); draw(); writeUrl(); });
   seg("plotmode", "plotmode", () => drawPlot());
   initExports();
+  initMovers();
   $("refrow").hidden = S.mode !== "diffref";
   setUi(prefs.ui, true);
   SkyMap.init($("map"), {coords: () => S.ui === "adv", onPick: mapPick, onHover: mapHover, onReady: () => { if (S.t) showStory(S.t); },

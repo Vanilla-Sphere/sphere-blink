@@ -11,18 +11,18 @@
 <meta property="og:title" content="Vanilla Sphere - watch the infrared sky change">
 <meta property="og:description" content="Pick any spot on the sky map and watch NASA SPHEREx images of it play as a movie.">
 <meta property="og:url" content="https://vanillasphere.com/">
-<meta property="og:image" content="https://vanillasphere.com/static/og.png?v=35">
+<meta property="og:image" content="https://vanillasphere.com/static/og.png?v=38">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Vanilla Sphere - watch the infrared sky change">
 <meta name="twitter:description" content="Pick any spot on the sky map and watch NASA SPHEREx images of it play as a movie.">
-<meta name="twitter:image" content="https://vanillasphere.com/static/og.png?v=35">
-<link rel="icon" href="/static/favicon.svg?v=35" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=35">
+<meta name="twitter:image" content="https://vanillasphere.com/static/og.png?v=38">
+<link rel="icon" href="/static/favicon.svg?v=38" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=38">
 <link rel="preload" href="/static/fonts/HankenGrotesk.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/GeistMono.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/static/style.css?v=35">
+<link rel="stylesheet" href="/static/style.css?v=38">
 </head>
 <body>
 <header class="bar">
@@ -48,6 +48,7 @@
     <button data-v="adv" data-hint="tip.adv">Advanced</button>
   </div>
   <nav class="barlinks" aria-label="Project">
+    <button type="button" class="linkbtn adv" id="openlog" data-hint="tip.discoveries">Discoveries</button>
     <a href="/docs" class="adv" data-hint="tip.api">API</a>
     <div class="tip"><button type="button" class="tipbtn" aria-label="Data sources and credits" aria-describedby="tip-credits"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-credits"><p><b>Images</b> NASA SPHEREx Level 2 spectral images (DR1, QR3), NASA/IPAC Infrared Science Archive, read on demand from the AWS Open Data mirror.</p><p><b>Overlays</b> ESA Gaia DR3 and CatWISE2020, through IRSA.</p><p><b>Sky map</b> Star, constellation and Milky Way data from d3-celestial (Olaf Frohn, BSD-3). The photograph behind the zoomed-in map is the 2MASS near-infrared atlas (University of Massachusetts and IPAC/Caltech, funded by NASA and NSF), in HiPS format by CDS, from NASA/IPAC IRSA (our server keeps a copy of the tiles it has shown). It is a backdrop, not SPHEREx data.</p><p><b>Team</b> Vanilla Sphere, 2026 NASA Space Apps Challenge, “Planet X and SPHEREx”.</p></div></div>
   </nav>
@@ -117,6 +118,7 @@
           <label class="wide" id="tileopt" hidden data-hint="tip.tiles"><input type="checkbox" id="ov-tiles" checked><span>Cell grid</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 1.5h9v9h-9zM6 1.5v9M1.5 6h9" fill="none" stroke="var(--color-accent-2)"/></svg></label>
           <p id="ovstatus" class="wide muted note" role="status" hidden></p>
           <label class="wide" id="trackopt" hidden data-hint="tip.tracks"><input type="checkbox" id="ov-tracks" checked><span>Measured tracks</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1l5 5-5 5-5-5z" fill="none" stroke="var(--color-measured)"/></svg></label>
+          <label class="wide" id="moveropt" hidden data-hint="tip.movers"><input type="checkbox" id="ov-movers" checked><span>Moving objects</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4" fill="none" stroke="var(--color-accent)"/></svg></label>
         </div>
       </div>
     </section>
@@ -175,8 +177,9 @@
   <aside class="analysis adv" aria-label="Measurements">
     <section class="panel" id="speccard" hidden>
       <div class="panelhead"><div class="headtip"><h2 id="spectitle">Spectrum at the crosshair</h2><div class="tip" id="spectip"><button type="button" class="tipbtn" aria-label="How to read this plot" aria-describedby="specnote"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="specnote"></div></div></div>
-        <div class="seg" id="plotmode"><button data-v="spec" class="on" data-hint="tip.spectrum">Spectrum</button><button data-v="lc" data-hint="tip.lc">Light curve</button></div></div>
+        <div class="seg" id="plotmode"><button data-v="spec" class="on" data-hint="tip.spectrum">Spectrum</button><button data-v="lc" data-hint="tip.lc">Over time</button></div></div>
       <canvas id="plot" aria-label="Spectrum plot"></canvas>
+      <p id="plotverdict" class="verdict" data-hint="tip.verdict" hidden></p>
       <div id="legend" class="legend measure"></div>
       <div class="dlrow" id="plotdl" data-hint-side="top"><button type="button" class="btn quiet" id="dl-csv" data-hint="tip.dl.csv"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 1h2v7l3-3 1.500 1.500L8 12 2.500 6.500 4 5l3 3zM2 13h12v2H2z"/></svg><span>CSV</span></button><button type="button" class="btn quiet" id="dl-png" data-hint="tip.dl.png"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 1h2v7l3-3 1.500 1.500L8 12 2.500 6.500 4 5l3 3zM2 13h12v2H2z"/></svg><span>PNG</span></button></div>
       <p class="muted note" id="specempty" hidden></p>
@@ -208,6 +211,13 @@
       <div class="headtip"><h2>Measured in this field</h2><div class="tip"><button type="button" class="tipbtn" aria-label="How the measurement works" aria-describedby="tip-measure"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-measure"><p>The object is found on the detector pixels of every SPHEREx exposure and compared with where the Gaia catalogue says it should be on that date. A straight-line motion is then fitted through the positions.</p><p>Brightness is compared between sky passes, about 6 months apart. A change of 3σ or more counts as variable.</p></div></div></div>
       <dl id="tracklist"></dl>
       <div class="measure-row" id="measurerow" hidden><button type="button" id="measure" class="btn quiet" data-hint="tip.measure">Measure motion and brightness</button><span id="measurestatus" class="muted" role="status"></span><button type="button" id="measurenear" class="btn quiet" data-hint="tip.measurenear" hidden>Measure that source</button></div>
+    </section>
+
+    <section class="panel adv" id="movercard" hidden>
+      <div class="headtip"><h2>Moving objects</h2><div class="tip"><button type="button" class="tipbtn" aria-label="How moving objects are found" aria-describedby="tip-movers"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-movers"><p>When a wide field has finished loading, the server searches its exposures for anything that moves, with no catalogue to guide it: sources that appear in single exposures are linked into straight paths, and each path is then checked in the pixels of every exposure along it.</p><p>What is found is compared with the known asteroids and comets (SkyBoT, JPL). An object that is not listed is a candidate, not a discovery: say whether its motion looks real.</p></div></div></div>
+      <p class="muted note" id="moverstatus" role="status"></p>
+      <ul id="moverlist" class="movers" hidden></ul>
+      <p class="links"><button type="button" class="linkbtn" id="moverlog" data-hint="tip.discoveries">All discoveries</button></p>
     </section>
 
     <section class="panel" id="linkcard" hidden>
@@ -243,7 +253,7 @@
   <div class="sheetpage" role="dialog" aria-modal="true" aria-labelledby="about-h" tabindex="-1">
     <header><h2 id="about-h">About the data</h2><button type="button" class="btn icon" id="about-close" aria-label="Close" data-hint="tip.close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.400 2 4.600 4.600L12.600 2 14 3.400 9.400 8l4.600 4.600L12.600 14 8 9.400 3.400 14 2 12.600 6.600 8 2 3.400z"/></svg></button></header>
     <div class="sheetbody">
-      <p class="lead">Every picture, spectrum and light curve on this site is made from public SPHEREx Level 2 spectral images, at the moment a view is opened. This page says what those files are and what is done to them.</p>
+      <p class="lead">Every picture, spectrum and plot of flux over time on this site is made from public SPHEREx Level 2 spectral images, at the moment a view is opened. This page says what those files are and what is done to them.</p>
 
       <h3>The files</h3>
       <p>SPHEREx looks at the sky through linear variable filters: the wavelength changes across each detector. One exposure shows a star at one wavelength, and many exposures of the same star add up to its spectrum. A position is seen again about every six months, many times during each visit.</p>
@@ -277,7 +287,7 @@
       </ol>
 
       <h3>Measurements</h3>
-      <p>The spectrum and the light curve are aperture photometry on each exposure, before any resampling: a radius of 2 pixels, the sky taken from a ring of 5 to 10 pixels, in microjansky. The wavelength of each point is the one the filter gives at that spot of the detector.</p>
+      <p>The spectrum and the plot over time are aperture photometry on each exposure, before any resampling: a radius of 2 pixels, the sky taken from a ring of 5 to 10 pixels, in microjansky. The wavelength of each point is the one the filter gives at that spot of the detector.</p>
       <p>Stars that saturate are measured from the halo around the core, with a systematic error of 20 to 25%. These are quick-look values, not an official SPHEREx data product. For publication, measure on the original files.</p>
       <p>The preliminary reading under the spectrum is written by fixed rules from those points: where the curve peaks, its slope, the blackbody closest to it, and bands and lines at their rest wavelengths (water vapour at 1.4, 1.9 and 2.7 µm, methane at 3.3 µm, water ice at 3.0 µm, carbon dioxide at 4.27 µm, hydrogen and helium lines, the 3.3 µm PAH band). A band or line counts when it stands at least 4σ from the continuum beside it. The reading describes the curve and lists the kinds of object that fit; it is not a classification, and it says how far it can be trusted.</p>
 
@@ -288,15 +298,28 @@
   </div>
 </div>
 
-<script src="/static/i18n.js?v=35"></script>
-<script src="/static/lore.js?v=35"></script>
-<script src="/static/hints.js?v=35"></script>
-<script src="/static/atlas.js?v=35"></script>
-<script src="/static/starmap.js?v=35"></script>
-<script src="/static/ambient.js?v=35"></script>
-<script src="/static/exports.js?v=35"></script>
-<script src="/static/insight.js?v=35"></script>
-<script src="/static/app.js?v=35"></script>
+<div class="sheet" id="discoveries" hidden>
+  <div class="sheetpage" role="dialog" aria-modal="true" aria-labelledby="log-h" tabindex="-1">
+    <header><h2 id="log-h">Discoveries</h2><div class="seg" id="logtabs"><button type="button" data-v="all" class="on" data-hint="log.all.t">All</button><button type="button" data-v="fast" data-hint="log.fast.t">Fast</button><button type="button" data-v="slow" data-hint="log.slow.t">Slow</button><button type="button" data-v="follow" data-hint="log.follow.t">Following</button></div><button type="button" class="btn icon" id="log-close" aria-label="Close" data-hint="tip.close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.400 2 4.600 4.600L12.600 2 14 3.400 9.400 8l4.600 4.600L12.600 14 8 9.400 3.400 14 2 12.600 6.600 8 2 3.400z"/></svg></button></header>
+    <div class="sheetbody">
+      <p class="lead">Moving objects found in the SPHEREx images as people open wide fields of the map.</p>
+      <p class="muted" id="lognote" role="status"></p>
+      <ul id="loglist" class="movers"></ul>
+    </div>
+  </div>
+</div>
+
+<script src="/static/i18n.js?v=38"></script>
+<script src="/static/lore.js?v=38"></script>
+<script src="/static/hints.js?v=38"></script>
+<script src="/static/atlas.js?v=38"></script>
+<script src="/static/starmap.js?v=38"></script>
+<script src="/static/ambient.js?v=38"></script>
+<script src="/static/overtime.js?v=38"></script>
+<script src="/static/exports.js?v=38"></script>
+<script src="/static/movers.js?v=38"></script>
+<script src="/static/insight.js?v=38"></script>
+<script src="/static/app.js?v=38"></script>
 <p id="netnote" class="netnote" role="status" hidden>Updating the site, back in a moment…</p>
 </body>
 </html>

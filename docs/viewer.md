@@ -12,16 +12,18 @@ as static files.
 | `starmap.js` | about 570 lines | The sky map (`SkyMap`): projection, drawing, pan and zoom, picking |
 | `ambient.js` | about 330 lines | The motion of the sky map screen (`Ambient`): deep star field, rim glow, slow turn, aiming frame, pings, meteors |
 | `atlas.js` | 220 lines | The photograph of the real sky behind the zoomed-in map (`Atlas`): tiles of the 2MASS atlas, from our server's copy (`/api/atlas/2mass/`) or NASA/IPAC IRSA itself, drawn through the map's projection |
+| `movers.js` | about 240 lines | Moving objects found by the blind search: the card of a field, the paths on the image, votes, follow, and the "Discoveries" list |
 | `exports.js` | about 230 lines | What a researcher takes away: the plot's points as CSV, the plot as PNG with the credit, the "Source files" panel listing the Level 2 exposures with their IRSA links, its download script, URL list and table, and the "About the data" page |
 | `insight.js` | about 520 lines | The preliminary reading of a spectrum (`analyseSpectrum`): which points can be read, continuum shape, bands and lines, confidence and limits; `showReading` puts it under the plot and `markFeatures` names the detected features on the plot. Pure rules, no network |
 | `i18n.js` | 107 lines | Text that scripts put on the page (`STR.en`) and the `tr()` formatter |
+| `overtime.js` | about 130 lines | The Over time plot without the page: the time axis cut into groups of days, and the comparison of visits that says whether the object changed. Tested with node (`tests/overtime_cases.js`) |
 | `hints.js` | 74 lines | One-line notes on controls, shown on hover and keyboard focus |
 | `lore.js` | 130 lines | What the sky map says about each of the 88 constellations and 31 famous stars under the pointer (`LORE`) |
 | `data/sky.json` | - | Compact star chart: stars, names, constellations, Milky Way, boundary grid |
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
-Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `exports.js`, `insight.js`, `app.js`.
-Asset URLs carry a version query (`?v=30`) that is raised when a file changes,
+Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `insight.js`, `app.js`.
+Asset URLs carry a version query (`?v=38`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -59,7 +61,7 @@ Three columns under a fixed top bar:
 | Top bar | Brand, "Sky map" button, search box, Field menu, "Show sky", Simple/Advanced switch, API link, credits note |
 | Left rail | Featured targets; Display panel: Bands, One frame per, Image math, Contrast, Overlays |
 | Stage | Target name and coordinates; the image; progress bar; a status strip with date, channels, wavelength range, exposure count and pointer coordinates; transport; timeline |
-| Right column | Spectrum or light curve; "This frame"; "Measured in this field"; "Position of the crosshair" with cross-links; "Link or embed this view" |
+| Right column | Spectrum or flux over time; "This frame"; "Measured in this field"; "Position of the crosshair" with cross-links; "Link or embed this view" |
 
 ### Layout in Simple mode
 
@@ -97,6 +99,7 @@ at start; `writeUrl` keeps it current (`replaceState` for display changes,
 | `mode` | `blink`, `diffmed`, `diffref`, `stack` | `blink` | Image arithmetic |
 | `gaia`, `catwise` | `1` | off | Catalogue overlays |
 | `tracks` | `0` | on | Hide the measured-tracks overlay |
+| `mover` | id (`VS-...`) | - | The moving object that is open in the "Moving objects" card |
 | `ui` | `simple`, `adv` | see below | Interface mode |
 
 Only non-default display values are written. The interface mode is resolved in
@@ -174,6 +177,7 @@ Drawn on the image canvas after every frame by `drawOverlays`:
 | Crosshair | On the target; in a progressive field it stays on the target while the mosaic is centred on the seed cell |
 | Gaia DR3 / CatWISE | Circle or square at the position propagated to the date of the frame; fast, significant movers highlighted with a path and a label |
 | Measured tracks | Every measured position as a dot, the fitted track as a line, a diamond on positions measured in the frame on screen, the object's name |
+| Moving objects (progressive fields, `drawMovers` in `movers.js`) | Each object's path over the time it was seen, with an arrowhead and its name; a ring where it is in the frame on screen; the detections of the open object |
 | Scale bar and compass | 1, 2 or 5 arcmin bar depending on the field; N up, E left |
 
 In Advanced both catalogues are fetched as soon as a view opens (`loadCatalogs`),
@@ -183,14 +187,30 @@ Marks and text keep a constant size in CSS pixels on any display density and
 carry a thin dark edge so they remain legible over bright pixels. Canvas colours
 are read from the CSS custom properties, so the canvas follows the design tokens.
 
+### Moving objects
+
+`movers.js` is loaded before `app.js`, which calls four of its functions:
+`initMovers()` once, `clearMovers()` when a new view starts, `loadMovers()`
+when a progressive field has finished loading, and `drawMovers()` with every
+frame. `loadMovers` asks `/api/movers/field` and asks again every 4 seconds
+while the search is queued or running. Its state is the object `MV`. Two
+things are kept in `localStorage`: `vs.voter`, a random id the browser makes
+up once and sends with its votes, and `vs.follow`, the ids of the objects it
+follows. "Discoveries" is a sheet like "About the data"; its Fast and Slow
+tabs filter the list of `/api/movers` at 20 arcsec per hour.
+
 ### Plots
 
-`drawPlot` draws the spectrum or the light curve on a canvas without a charting
+`drawPlot` draws the spectrum or the flux over time on a canvas without a charting
 library: axes with rounded tick steps, points coloured by sky pass (spectrum) or
-by detector (light curve), hollow points for flagged apertures, diamonds for
+by detector (over time), hollow points for flagged apertures, diamonds for
 halo-measured fluxes, hollow diamonds above the calibrated range, and a legend.
 The vertical axis reads in mJy and switches to Jy when the 98th percentile of
-the fluxes exceeds 1 Jy.
+the fluxes exceeds 1 Jy. The time axis of the Over time plot is cut into the
+groups of days in which SPHEREx observed the place (`groupedAxis` in
+`overtime.js`), and `changeText`/`showChange` write the line under it that says
+whether the object changed between visits (`brightnessChange`); see
+[features](features.md#9-spectrum-and-flux-over-time).
 
 ## Sky map
 
@@ -285,7 +305,7 @@ coordinates.
     `Norder{k}/Dir{d}/Npix{n}.jpg`.
   - The tiles come from our own server (`/api/atlas/2mass/`, same layout),
     which fetches a tile from the archive once and keeps it, and holds the
-    whole sky at orders 0-5 from the start
+    whole sky at orders 0-6 from the start
     ([API](api-reference.md#get-apiatlas2mass)). A tile the server cannot
     give is asked of the archive itself; after three such failures in a row
     the archive is asked first for a minute.

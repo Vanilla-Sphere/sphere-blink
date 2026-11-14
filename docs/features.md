@@ -17,7 +17,7 @@ implements it. Implementation detail is in [imaging engine](imaging-engine.md),
 | 6 | Frame grouping: exposure, day, sky pass | Advanced | `render.py` (`_groups`) |
 | 7 | Image arithmetic | Advanced | `web/app.js` (client side), `render.difference` (server side) |
 | 8 | Progressive fields, up to 7 x 7 cells | Advanced | `tiles.py`, `web/app.js` (`loadField`) |
-| 9 | Spectrum and light curve at the crosshair, with a preliminary reading of the spectrum | Advanced (Simple shows one sentence of the reading) | `main.api_spectrum`, `cutout.aperture_flux`, `wings.py`, `web/insight.js` |
+| 9 | Spectrum and flux over time at the crosshair, with a preliminary reading of the spectrum | Advanced (Simple shows one sentence of the reading) | `main.api_spectrum`, `cutout.aperture_flux`, `wings.py`, `web/insight.js` |
 | 10 | Gaia DR3 and CatWISE2020 overlays | Advanced | `catalogs.py`, `web/app.js` (`drawOverlays`) |
 | 11 | Automatic measurement of position, motion, brightness | Advanced | `measure.py`, `refcat.py`, `measure_api.py` |
 | 12 | "Measure motion and brightness" | Advanced | `web/app.js` (`measureHere`), `/api/measure` |
@@ -25,6 +25,7 @@ implements it. Implementation detail is in [imaging engine](imaging-engine.md),
 | 14 | Per-frame quality flags and provenance | Advanced | `cutout.py`, `render.Epoch.meta` |
 | 15 | Share links, embeddable GIF and PNG, data API | Simple, Advanced | `main.py`, `web/app.js` (`writeUrl`) |
 | 16 | Featured targets | Simple, Advanced | `resolve.FEATURED`, `refcat.TARGETS` |
+| 17 | Blind search for moving objects, with a log ("Discoveries"), names, follow and votes | Advanced | `movers.py`, `mover_store.py`, `movers_api.py`, `known_objects.py`, `web/movers.js` |
 
 ## 1. Sky map start screen
 
@@ -123,7 +124,7 @@ overlays, the measured track and the spectrum at the crosshair.*
 | Picture | False colour, one frame per day, 8 arcmin | Any band, grouping, field size or progressive field |
 | Text | Object name, kind, a short description in plain language | Coordinates, epoch metadata, flags |
 | Controls | Play, slider, Share, Download GIF | Bands, grouping, image arithmetic, contrast, overlays, speed, timeline |
-| Analysis | - | Spectrum, light curve, measured tracks, "Measure motion and brightness", cross-links |
+| Analysis | - | Spectrum, flux over time, measured tracks, "Measure motion and brightness", cross-links |
 | Search placeholder | "Search a star or galaxy by name" | "RA Dec or an object name" |
 
 Switching keeps the target and the frame on screen. Settings chosen in Advanced
@@ -279,7 +280,7 @@ minimap at the top left shows which cells have arrived.*
 The stages are ordinary views, so every other endpoint (cube, PNG, GIF, epochs,
 spectrum) works on a stage by passing its `ra`, `dec` and `fov`.
 
-## 9. Spectrum and light curve
+## 9. Spectrum and flux over time
 
 Each exposure sees the target through one narrow slice of a linear variable
 filter. The exposures of a position therefore sample the whole 0.75-5.0 um
@@ -295,8 +296,29 @@ spectral data product.
 - **Spectrum plot.** Flux density against wavelength, coloured by sky pass. A
   change between passes at the same wavelength indicates variability. The axis
   switches from mJy to Jy for bright stars.
-- **Light curve plot.** Flux density against date, coloured by detector. Since
-  each exposure samples a different wavelength, points of one colour are compared.
+- **Over time plot.** Flux density of every exposure against its date, coloured
+  by detector (the tab was called "Light curve" until 2026-11-14). SPHEREx
+  returns to a place about every six months and stays for days to weeks, so the
+  exposures fall into groups of days with empty months between them. The time
+  axis gives every group its own stretch and cuts the empty months out, marked
+  by a double stroke (`groupedAxis` in `web/overtime.js`; groups are separated
+  by gaps of more than 20 days). Since each exposure samples a different
+  wavelength, the spread inside a group is the object's spectrum; a change of
+  the object shows as one colour shifting from group to group.
+- **Did it change?** A line under the Over time plot answers in words
+  (`brightnessChange` in `web/overtime.js`, the method of the pipeline's
+  [light curve](measurement-pipeline.md#6-light-curve) applied to the points of
+  `/api/spectrum`): every flux is divided by the object's own spectrum at its
+  wavelength, the visits (groups of days, a long stay cut into parts of about
+  30 days) are compared, and the brightest is set against the faintest.
+  "Brightness changed" needs 3 sigma, with a floor of 5 % per visit for aperture
+  fluxes and 12 % for the halo fluxes of saturated stars; otherwise the line
+  says "No significant change" and by how much the visits differ, "One visit
+  so far", or "Too faint to compare" (median signal to noise below 3). When
+  the object changed, the Over time tab carries a small mark, whichever plot is
+  open. On 2026-11-14: R Draconis about x1.9 between 2025-06 and 2026-06
+  (3.8 sigma); Barnard's Star, Vega and Epsilon Indi B steady within 4-7 %;
+  RW Aurigae 23 % (1.2 sigma, not significant).
 - **Quality marks.** Points with flagged pixels in the aperture are drawn hollow.
 - **Saturated stars.** Where the core saturates the detector, the flux is
   measured from the star's halo instead (see
@@ -312,7 +334,7 @@ per exposure (wavelength, bandwidth, flux and error in µJy, MJD and UTC date,
 detector, method, flags, the exposure id and the address of its Level 2 file at
 IRSA), under comment lines that give the target, the position, the data
 credit and the link of the view. **PNG** saves the plot on screen, spectrum
-or light curve, with its key and the NASA credit.
+or flux over time (with its line on the change), with its key and the NASA credit.
 
 ### Preliminary reading of the spectrum
 
@@ -542,3 +564,39 @@ motions are held in the service so that they resolve without any network call:
 | `wise-0855` | WISE 0855-0714 | Coldest known brown dwarf, about 8 arcsec/yr, invisible in single exposures |
 | `rw-aur` | RW Aurigae | Young variable star with dimming events |
 | `r-dra` | R Draconis | Mira variable, period about 246 days |
+
+## 17. Blind search for moving objects
+
+Every progressive field that a visitor opens completely is searched for
+objects that move between its exposures, with nothing known beforehand. What
+is found is kept in a log on the server (`/api/movers`): path, speed and
+direction, the exposures it was seen in, and the name when it is a known
+asteroid or comet. Visitors can say whether a path looks real
+(`POST /api/movers/{id}/vote`), without an account. The algorithm, its
+validation on 3I/ATLAS and twelve asteroid tracks, and its limits are in
+[moving objects](moving-objects.md).
+
+In the viewer (Advanced, `web/movers.js`):
+
+- **"Moving objects" card** of a progressive field, under "Measured in this
+  field". While the field is searched it says so; then it lists what was
+  found in two groups, **fast** (20 arcsec per hour and more) and **slow**
+  (below 20), fastest first. A row gives the name (or the id `VS-...` when no
+  catalogue knows the object), "known asteroid", "known comet", "not in the
+  catalogues" or "not yet compared with the
+  catalogues", the speed, the position angle of the motion,
+  at how many exposure times it was seen, the date, and the votes.
+- **Paths on the image** (overlay "Moving objects"): a line with an arrowhead
+  along the part of the path that was seen, and a ring where the object is in
+  the frame on screen. Selecting a row opens the object: the movie goes to the
+  frame nearest to it, its detections are drawn, and the address gains
+  `mover=<id>`, so the link opens the same object.
+- **Votes**: "Real motion" and "False alarm". One vote per browser; choosing
+  the same button again takes it back.
+- **Follow**: kept in this browser only (`localStorage`), marked with a star.
+- **"Discoveries"** (top bar, and "All discoveries" in the card): everything
+  found so far anywhere on the map, with the tabs All, Fast, Slow and
+  Following. Selecting an object opens the field it was found in.
+
+Objects slower than 2 arcsec per hour (which need two passes of the telescope
+months apart) are not searched.
