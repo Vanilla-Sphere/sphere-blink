@@ -99,6 +99,46 @@ def test_four_detections_on_a_line_are_not_yet_an_object():
     assert not movers.confirmed(c)
     assert movers.confirmed({"times_seen": 7, "times_covered": 9})
     assert not movers.confirmed({"times_seen": 7, "times_covered": 20})  # seen at too few of the times it could be
+    # a path no catalogue has an object on must show more
+    assert movers.strong({"times_seen": 9, "times_covered": 10}) and not movers.strong({"times_seen": 7, "times_covered": 7})
+    assert not movers.strong({"times_seen": 9, "times_covered": 12})
+
+
+def test_single_bright_pixels_along_a_path_are_not_sightings():
+    """What passed for an object in a crowded field: detections on a line,
+    and at the other predicted places one pixel above the level, with nothing
+    around it. A real object's light falls on the neighbouring pixels too."""
+    rng = np.random.default_rng(3)
+    n, hours = 81, [0.0, 0.03, 0.06, 1.6, 1.63, 1.66, 3.2, 3.23, 3.26, 4.8, 4.83, 4.86]
+    grid = Grid(ra=150.0, dec=10.0, npix=n, scale_arcsec=SCALE)
+    yy, xx = np.mgrid[0:n, 0:n]
+    frames = [{"exposure": f"E{i:03d}:D2", "mjd": 61000.0 + h / 24.0, "detector": 2, "wave_um": 1.2} for i, h in enumerate(hours)]
+
+    def cube_of(shape):
+        images = []
+        for h in hours:
+            img = rng.normal(0, 1, (n, n))
+            x, y = 12.0 + 10.0 * h, 40.0
+            if shape == "spike":
+                img[int(round(y)), int(round(x))] += 9.0
+            else:
+                img += 9.0 * np.exp(-((xx - x) ** 2 + (yy - y) ** 2) / (2 * 0.8**2))
+            images.append(img.astype(np.float32))
+        return np.stack(images)
+
+    def path(cube):
+        dets = []
+        for i in (0, 3, 6, 9):  # four detections, one in each visit, put where the thing is
+            ra, dec = grid.wcs.pixel_to_world_values(12.0 + 10.0 * hours[i], 40.0)
+            dets.append(movers.Detection(exposure=frames[i]["exposure"], mjd=frames[i]["mjd"], ra=float(ra), dec=float(dec),
+                                         snr=9.0, flux_mjy=1.0, npix=2, detector=2))
+        return movers.confirm(movers._track_of(dets), cube, frames, grid.wcs, movers.static_sky(cube, [2] * len(frames)), SCALE)
+
+    spikes, source = path(cube_of("spike")), path(cube_of("source"))
+    assert all(p["snr"] > 6 for p in spikes["points"])  # by the brightest pixel alone every one of them is a sighting
+    assert spikes["times_seen"] < 6 and not movers.confirmed(spikes)
+    assert source["times_seen"] == 12 and movers.confirmed(source)
+    assert all(p["seen"] and p["core_snr"] > 0.7 * p["snr"] for p in source["points"])
 
 
 def test_pieces_of_one_path_are_joined():
@@ -129,7 +169,7 @@ def found(grid_ra=150.0, shift_h=0.0, n=8):
     t = movers._track_of(dets)
     t.extra.update(covered=n, seen=n, seen_fraction=1.0, times_seen=n, times_covered=n, points=[
         {"mjd": d.mjd, "exposure": d.exposure, "detector": 2, "wave_um": 1.2, "ra": d.ra, "dec": d.dec, "snr": 12.0,
-         "flux_mjy": 2.0, "on_static": False, "counted": True} for d in dets])
+         "core_snr": 9.0, "seen": True, "flux_mjy": 2.0, "on_static": False, "counted": True} for d in dets])
     return {"detections": dets, "tracks": [t], "stats": {"frames": 100, "detections": n, "tracks": 1}, "version": movers.VERSION}
 
 
@@ -154,6 +194,23 @@ def test_an_object_keeps_its_id_and_grows_when_a_neighbouring_field_finds_more_o
     assert "icrs012-v1-1250-0833" in store.coverage()["cells"]
     listed = store.listing(150.0, 10.0, 1.0)
     assert [m["id"] for m in listed] == ids and "detections" not in listed[0]
+
+
+def test_what_an_earlier_search_found_is_shown_again_only_when_the_new_search_finds_it(store, monkeypatch):
+    monkeypatch.setattr(movers, "VERSION", movers.VERSION - 1)
+    (real,) = store.save_field("fieldA", 150.0, 10.0, 50.4, 100, found(shift_h=0.0))
+    (chance,) = store.save_field("fieldB", 200.0, 10.0, 50.4, 100, found(grid_ra=200.0))
+    store.vote(real, "browser-0000000001", "real", "addr1")
+    assert store.count() == 2
+    monkeypatch.setattr(movers, "VERSION", movers.VERSION + 1)  # the rules of the search changed
+    assert store.count() == 0 and store.listing() == [] and store.get(real) is None  # nothing is shown on the old evidence
+    assert not store.searched("fieldA", 100)  # so the field is searched again when it is opened
+    assert store.save_field("fieldA", 150.0, 10.0, 50.4, 100, found(shift_h=0.0)) == [real]  # found again: the same object
+    again = store.get(real)
+    assert again["n_detections"] == 8 and again["fields"] == ["fieldA"] and again["votes"]["real"] == 1
+    empty = {"detections": [], "tracks": [], "stats": {"frames": 100, "detections": 0, "tracks": 0}, "version": movers.VERSION}
+    assert store.save_field("fieldB", 200.0, 10.0, 50.4, 100, empty) == []  # not found again: it stays out of the log
+    assert store.get(chance) is None and [m["id"] for m in store.listing()] == [real]
 
 
 def test_one_voice_per_browser_and_a_few_per_address(store, monkeypatch):

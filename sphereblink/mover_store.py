@@ -153,13 +153,15 @@ def _by_exposure(old: list[dict], new: list[dict]) -> list[dict]:
 def _same(c: sqlite3.Connection, track: Track) -> list[tuple[str, dict]]:
     """Stored objects that are this track: found before, or another part of its path."""
     span = max(1.0, track.span_h / 24.0 + 1.0)
-    rows = c.execute("SELECT id, payload FROM movers WHERE dec BETWEEN ? AND ? AND mjd BETWEEN ? AND ?",
+    rows = c.execute("SELECT id, payload, version FROM movers WHERE dec BETWEEN ? AND ? AND mjd BETWEEN ? AND ?",
                      (track.dec0 - 2.0, track.dec0 + 2.0, track.mjd0 - span - 1.0, track.mjd0 + span + 1.0)).fetchall()
     out = []
-    for mid, text in rows:
+    for mid, text, version in rows:
         payload = json.loads(text)
         if movers.same_object(_track(payload), track):
+            payload["_version"] = version
             out.append((mid, payload))
+    out.sort(key=lambda r: r[1]["_version"] != movers.VERSION)  # what the current search stored comes first
     return out
 
 
@@ -190,7 +192,12 @@ def save_field(key: str, ra: float, dec: float, fov: float, frames: int, result:
             if match:
                 payload["known"] = match
             same = _same(c, track)
-            if same:
+            if same and same[0][1].get("_version") != movers.VERSION:
+                # found by an earlier search, whose evidence was judged by other rules: the object keeps its id,
+                # its age and its votes, the evidence is the new one alone
+                mid = same[0][0]
+                created = c.execute("SELECT created FROM movers WHERE id=?", (mid,)).fetchone()[0]
+            elif same:
                 mid, old = same[0]
                 # the same object from an overlapping or a neighbouring field: one path, all its exposures
                 dets = _by_exposure(old["detections"], payload["detections"])
@@ -198,13 +205,7 @@ def save_field(key: str, ra: float, dec: float, fov: float, frames: int, result:
                     "exposure", "mjd", "ra", "dec", "snr", "flux_mjy", "npix", "detector", "wave_um")}) for d in dets])
                 merged = joined.to_dict()
                 merged["points"] = _by_exposure(old.get("points", []), payload.get("points", []))
-                counted = [p for p in merged["points"] if p.get("counted")]
-                merged["covered"] = len(counted)
-                merged["seen"] = sum(p["snr"] >= movers.SEEN_SNR for p in counted)
-                merged["seen_fraction"] = round(merged["seen"] / len(counted), 3) if counted else None
-                own = {round(d["mjd"], 4) for d in merged["detections"]}  # counted as in movers.confirm
-                merged["times_covered"] = len(own | {round(p["mjd"], 4) for p in counted})
-                merged["times_seen"] = len(own | {round(p["mjd"], 4) for p in counted if p["snr"] >= movers.SEEN_SNR})
+                merged.update(movers.tally([d["mjd"] for d in merged["detections"]], merged["points"]))
                 merged["fields"] = sorted(set(old.get("fields", [])) | {key})
                 merged["known"] = payload.get("known") or old.get("known")
                 payload, track = merged, joined
@@ -240,7 +241,7 @@ def _summary(payload: dict) -> dict:
 
 def get(mid: str, voter: str = "") -> dict | None:
     c = _conn()
-    row = c.execute("SELECT payload, created, updated FROM movers WHERE id=?", (mid,)).fetchone()
+    row = c.execute("SELECT payload, created, updated FROM movers WHERE id=? AND version=?", (mid, movers.VERSION)).fetchone()
     if not row:
         return None
     out = json.loads(row[0])
@@ -259,14 +260,15 @@ def listing(ra: float | None = None, dec: float | None = None, radius_deg: float
         rows = []
         for i in range(0, len(ids), 500):
             part = ids[i : i + 500]
-            rows += c.execute("SELECT id, payload, created, updated FROM movers WHERE id IN (%s)" % ",".join("?" * len(part)),
-                              part).fetchall()
+            rows += c.execute("SELECT id, payload, created, updated FROM movers WHERE version=? AND id IN (%s)"
+                              % ",".join("?" * len(part)), [movers.VERSION, *part]).fetchall()
     elif ra is not None and dec is not None and radius_deg is not None:
-        rows = c.execute("SELECT id, payload, created, updated FROM movers WHERE dec BETWEEN ? AND ? ORDER BY updated DESC",
-                         (dec - radius_deg, dec + radius_deg)).fetchall()
+        rows = c.execute("SELECT id, payload, created, updated FROM movers WHERE version=? AND dec BETWEEN ? AND ? "
+                         "ORDER BY updated DESC", (movers.VERSION, dec - radius_deg, dec + radius_deg)).fetchall()
         rows = [r for r in rows if _sep_arcsec(ra, dec, json.loads(r[1])["ra0"], json.loads(r[1])["dec0"]) <= radius_deg * 3600.0]
     else:
-        rows = c.execute("SELECT id, payload, created, updated FROM movers ORDER BY updated DESC LIMIT ?", (limit,)).fetchall()
+        rows = c.execute("SELECT id, payload, created, updated FROM movers WHERE version=? ORDER BY updated DESC LIMIT ?",
+                         (movers.VERSION, limit)).fetchall()
     out = []
     for mid, text, created, updated in rows[:limit]:
         out.append({**_summary(json.loads(text)), "created": created, "updated": updated, "votes": _tally(c, mid)})
@@ -274,7 +276,7 @@ def listing(ra: float | None = None, dec: float | None = None, radius_deg: float
 
 
 def count() -> int:
-    return _conn().execute("SELECT COUNT(*) FROM movers").fetchone()[0]
+    return _conn().execute("SELECT COUNT(*) FROM movers WHERE version=?", (movers.VERSION,)).fetchone()[0]
 
 
 # ----------------------------------------------------------------------------- what visitors think
