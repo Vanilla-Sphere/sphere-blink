@@ -14,31 +14,31 @@
 </head>
 <body>
 <header class="bar">
-  <a class="brand" href="/" aria-label="Vanilla Sphere, start page">
+  <a class="brand" href="/" aria-label="Vanilla Sphere, start page" data-hint="tip.brand">
     <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true"><path d="M11.5 21 32 60l20.5-39" fill="none" stroke="var(--color-ink)" stroke-width="4" stroke-miterlimit="10"/><circle cx="32" cy="19" r="13" fill="var(--color-accent)"/></svg>
     <span>Vanilla Sphere</span>
   </a>
   <form id="search" autocomplete="off" role="search">
-    <button type="button" class="btn" id="tomap" title="Back to the sky map" data-i18n-title="h.map"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 2 1 8l6 6v-4h8V6H7z"/></svg><span data-i18n="h.map">Sky map</span></button>
+    <button type="button" class="btn" id="tomap" data-hint="tip.map"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 2 1 8l6 6v-4h8V6H7z"/></svg><span data-i18n="h.map">Sky map</span></button>
     <input id="q" type="text" placeholder="RA Dec or an object name" aria-label="Coordinates or object name" spellcheck="false" required>
-    <label class="fov adv"><span data-i18n="h.field">Field</span>
+    <label class="fov adv" data-hint="tip.field"><span data-i18n="h.field">Field</span>
       <select id="fov" aria-label="Field of view">
         <option value="4">4′</option><option value="8" selected>8′</option><option value="15">15′</option><option value="30">30′</option>
         <option value="p1" title="Progressive field: the 0.12° cell of the position, then the ring of 8 cells around it">22′ · 3×3 cells</option>
         <option value="p3" title="Progressive field: the cell of the position, then ring by ring out to 7×7 cells">50′ · 7×7 cells</option>
       </select>
     </label>
-    <button type="submit" class="btn primary" id="go">Show sky</button>
+    <button type="submit" class="btn primary" id="go" data-hint="tip.go">Show sky</button>
     <p id="searcherr" class="searcherr" role="alert" hidden></p>
   </form>
   <div class="seg modes" id="ui" role="group" aria-label="Interface">
-    <button data-v="simple" class="on" title="For everyone: the picture, the story, play and share" data-i18n="h.simple">Simple</button>
-    <button data-v="adv" title="For astronomers: bands, image math, spectrum, catalogues, API" data-i18n="h.adv">Advanced</button>
+    <button data-v="simple" class="on" data-hint="tip.simple" data-i18n="h.simple">Simple</button>
+    <button data-v="adv" data-hint="tip.adv" data-i18n="h.adv">Advanced</button>
   </div>
   <nav class="barlinks" aria-label="Project">
-    <a href="/docs" class="adv" data-i18n="h.api">API</a>
-    <a href="https://github.com/Vanilla-Sphere/sphere-blink" target="_blank" rel="noopener" class="adv" data-i18n="h.source">Source</a>
-    <div class="seg lang" id="lang" role="group" aria-label="Language"><button data-v="en" class="on" lang="en" title="English">EN</button><button data-v="vi" lang="vi" title="Tiếng Việt">VI</button></div>
+    <a href="/docs" class="adv" data-hint="tip.api" data-i18n="h.api">API</a>
+    <a href="https://github.com/Vanilla-Sphere/sphere-blink" target="_blank" rel="noopener" class="adv" data-hint="tip.source" data-i18n="h.source">Source</a>
+    <div class="seg lang" id="lang" role="group" aria-label="Language"><button data-v="en" class="on" lang="en" data-hint-text="Show the site in English">EN</button><button data-v="vi" lang="vi" data-hint-text="Hiển thị trang bằng tiếng Việt">VI</button></div>
     <div class="tip"><button type="button" class="tipbtn" aria-label="Data sources and credits" aria-describedby="tip-credits"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-credits" data-i18n="h.credits"><p><b>Images</b> NASA SPHEREx Level 2 spectral images (DR1, QR3), NASA/IPAC Infrared Science Archive, read on demand from the AWS Open Data mirror.</p><p><b>Overlays</b> ESA Gaia DR3 and CatWISE2020, through IRSA.</p><p><b>Sky map</b> Star, constellation and Milky Way data from d3-celestial (Olaf Frohn, BSD-3).</p><p><b>Team</b> Vanilla Sphere, 2026 NASA Space Apps Challenge, “Planet X and SPHEREx”.</p></div></div>
   </nav>
 </header>
@@ -55,15 +55,15 @@
   </section>
   <div class="mapfoot measure"><span id="mapread"></span><span class="hint" data-i18n="map.hint">Drag to turn · scroll to zoom · click to look closer</span></div>
   <div class="mapzoom">
-    <button class="btn icon" id="map-in" title="Zoom in" data-i18n-title="map.in" aria-label="Zoom in" data-i18n-aria-label="map.in"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 2h2v5h5v2H9v5H7V9H2V7h5z"/></svg></button>
-    <button class="btn icon" id="map-out" title="Zoom out" data-i18n-title="map.out" aria-label="Zoom out" data-i18n-aria-label="map.out"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 7h12v2H2z"/></svg></button>
-    <button class="btn icon" id="map-home" title="Whole sky" data-i18n-title="map.reset" aria-label="Whole sky" data-i18n-aria-label="map.reset"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 5V1h4v2H3v2zM11 1h4v4h-2V3h-2zM15 11v4h-4v-2h2v-2zM5 15H1v-4h2v2h2z"/></svg></button>
+    <button class="btn icon" id="map-in" data-hint="map.in" aria-label="Zoom in" data-i18n-aria-label="map.in"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 2h2v5h5v2H9v5H7V9H2V7h5z"/></svg></button>
+    <button class="btn icon" id="map-out" data-hint="map.out" aria-label="Zoom out" data-i18n-aria-label="map.out"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 7h12v2H2z"/></svg></button>
+    <button class="btn icon" id="map-home" data-hint="map.reset" aria-label="Whole sky" data-i18n-aria-label="map.reset"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 5V1h4v2H3v2zM11 1h4v4h-2V3h-2zM15 11v4h-4v-2h2v-2zM5 15H1v-4h2v2h2z"/></svg></button>
   </div>
   <div id="maptag" class="maptag" hidden></div>
 </main>
 
 <main class="shell">
-  <aside class="rail adv" aria-label="Targets and display settings">
+  <aside class="rail adv" aria-label="Targets and display settings" data-hint-side="right">
     <section class="panel">
       <h2 data-i18n="r.targets">Challenge targets</h2>
       <div id="featured" class="targets"></div>
@@ -76,32 +76,32 @@
       </div>
       <div class="ctl"><span class="lab" id="lab-group" data-i18n="r.group">One frame per</span>
         <div class="seg" id="group" role="group" aria-labelledby="lab-group">
-          <button data-v="visit" title="Each ~6-month sky pass stacked: deepest" data-i18n="r.visit">Sky pass</button>
-          <button data-v="day" class="on" title="All exposures of a UTC day stacked" data-i18n="r.day">Day</button>
-          <button data-v="exposure" title="Every single exposure: finest time sampling" data-i18n="r.exposure">Exposure</button>
+          <button data-v="visit" data-hint="tip.visit" data-i18n="r.visit">Sky pass</button>
+          <button data-v="day" class="on" data-hint="tip.day" data-i18n="r.day">Day</button>
+          <button data-v="exposure" data-hint="tip.exposure" data-i18n="r.exposure">Exposure</button>
         </div>
       </div>
       <div class="ctl"><span class="lab" id="lab-mode" data-i18n="r.math">Image math</span>
         <div class="seg wrap" id="mode" role="group" aria-labelledby="lab-mode">
-          <button data-v="blink" class="on" title="Plain images" data-i18n="r.blink">Blink</button>
-          <button data-v="diffmed" title="Each frame minus the median of all frames: static stars vanish" data-i18n="r.median">− Median</button>
-          <button data-v="diffref" title="Each frame minus the reference frame" data-i18n="r.ref">− Reference</button>
-          <button data-v="stack" title="All frames added together" data-i18n="r.sum">Sum all</button>
+          <button data-v="blink" class="on" data-hint="tip.blink" data-i18n="r.blink">Blink</button>
+          <button data-v="diffmed" data-hint="tip.median" data-i18n="r.median">− Median</button>
+          <button data-v="diffref" data-hint="tip.ref" data-i18n="r.ref">− Reference</button>
+          <button data-v="stack" data-hint="tip.sum" data-i18n="r.sum">Sum all</button>
         </div>
-        <div class="inline" id="refrow" hidden><button id="setref" class="btn quiet" data-i18n="r.useref">Use current frame</button><span id="reflabel" class="measure muted"></span></div>
+        <div class="inline" id="refrow" hidden><button id="setref" class="btn quiet" data-hint="tip.useref" data-i18n="r.useref">Use current frame</button><span id="reflabel" class="measure muted"></span></div>
       </div>
       <div class="ctl"><label class="lab" for="gain" data-i18n="r.contrast">Contrast</label>
-        <div class="inline"><input id="gain" type="range" min="-150" max="150" value="0"><button id="resetgain" class="btn quiet" data-i18n="r.reset">Reset</button></div>
+        <div class="inline"><input id="gain" type="range" min="-150" max="150" value="0" data-hint="tip.gain"><button id="resetgain" class="btn quiet" data-hint="tip.resetgain" data-i18n="r.reset">Reset</button></div>
       </div>
       <div class="ctl"><span class="lab" data-i18n="r.overlays">Overlays</span>
         <div class="checks">
-          <label><input type="checkbox" id="ov-gaia"><span>Gaia DR3</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="var(--color-accent-2)"/></svg></label>
-          <label><input type="checkbox" id="ov-catwise"><span>CatWISE</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="var(--color-ink-2)"/></svg></label>
-          <label><input type="checkbox" id="ov-cross" checked><span data-i18n="r.cross">Crosshair</span></label>
-          <label><input type="checkbox" id="ov-smooth"><span data-i18n="r.smooth">Smooth pixels</span></label>
-          <label class="wide" id="tileopt" hidden title="Outlines of the 0.12° cells of the progressive field, and a map of the block that fills in as the rings arrive"><input type="checkbox" id="ov-tiles" checked><span data-i18n="r.tiles">Cell grid</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 1.5h9v9h-9zM6 1.5v9M1.5 6h9" fill="none" stroke="var(--color-accent-2)"/></svg></label>
+          <label data-hint="tip.gaia"><input type="checkbox" id="ov-gaia"><span>Gaia DR3</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="var(--color-accent-2)"/></svg></label>
+          <label data-hint="tip.catwise"><input type="checkbox" id="ov-catwise"><span>CatWISE</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="var(--color-ink-2)"/></svg></label>
+          <label data-hint="tip.cross"><input type="checkbox" id="ov-cross" checked><span data-i18n="r.cross">Crosshair</span></label>
+          <label data-hint="tip.smooth"><input type="checkbox" id="ov-smooth"><span data-i18n="r.smooth">Smooth pixels</span></label>
+          <label class="wide" id="tileopt" hidden data-hint="tip.tiles"><input type="checkbox" id="ov-tiles" checked><span data-i18n="r.tiles">Cell grid</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 1.5h9v9h-9zM6 1.5v9M1.5 6h9" fill="none" stroke="var(--color-accent-2)"/></svg></label>
           <p id="ovstatus" class="wide muted note" role="status" hidden></p>
-          <label class="wide" id="trackopt" hidden title="Positions and fitted tracks the team has measured in this field"><input type="checkbox" id="ov-tracks" checked><span data-i18n="r.tracks">Measured tracks</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1l5 5-5 5-5-5z" fill="none" stroke="var(--color-measured)"/></svg></label>
+          <label class="wide" id="trackopt" hidden data-hint="tip.tracks"><input type="checkbox" id="ov-tracks" checked><span data-i18n="r.tracks">Measured tracks</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1l5 5-5 5-5-5z" fill="none" stroke="var(--color-measured)"/></svg></label>
         </div>
       </div>
     </section>
@@ -124,15 +124,15 @@
 
     <div class="transport">
       <div class="keys">
-        <button id="prev" class="btn icon" title="Previous frame (←)" aria-label="Previous frame"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h2v12H3zM13 2v12L6 8z"/></svg></button>
-        <button id="play" class="btn primary" title="Play or pause (space)"><svg class="i-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2l10 6-10 6z"/></svg><svg class="i-pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h4v12H3zM9 2h4v12H9z"/></svg><span id="playlabel">Play</span></button>
-        <button id="next" class="btn icon" title="Next frame (→)" aria-label="Next frame"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 2h2v12h-2zM3 2v12l7-6z"/></svg></button>
+        <button id="prev" class="btn icon" data-hint="tip.prev" aria-label="Previous frame" data-i18n-aria-label="tip.prev.a"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h2v12H3zM13 2v12L6 8z"/></svg></button>
+        <button id="play" class="btn primary" data-hint="tip.play"><svg class="i-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2l10 6-10 6z"/></svg><svg class="i-pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h4v12H3zM9 2h4v12H9z"/></svg><span id="playlabel">Play</span></button>
+        <button id="next" class="btn icon" data-hint="tip.next" aria-label="Next frame" data-i18n-aria-label="tip.next.a"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 2h2v12h-2zM3 2v12l7-6z"/></svg></button>
       </div>
-      <input id="slider" type="range" min="0" max="0" value="0" aria-label="Frame">
+      <input id="slider" type="range" min="0" max="0" value="0" aria-label="Frame" data-hint="tip.slider">
       <span id="count" class="measure adv">0 / 0</span>
-      <label class="speed adv"><span data-i18n="t.speed">Speed</span><select id="fps"><option value="1">1 fps</option><option value="3" selected>3 fps</option><option value="6">6 fps</option><option value="12">12 fps</option></select></label>
+      <label class="speed adv" data-hint="tip.fps"><span data-i18n="t.speed">Speed</span><select id="fps"><option value="1">1 fps</option><option value="3" selected>3 fps</option><option value="6">6 fps</option><option value="12">12 fps</option></select></label>
     </div>
-    <div class="timeline adv" id="timeline" role="img" aria-label="Observation dates in UTC. Select a date to jump to its frame."></div>
+    <div class="timeline adv" id="timeline" data-hint="tip.timeline" role="img" aria-label="Observation dates in UTC. Select a date to jump to its frame."></div>
   </section>
 
   <aside class="simplepanel simple" id="simplepanel" aria-label="About this place">
@@ -142,9 +142,9 @@
     </div>
     <div class="sbody">
       <p id="sstory" class="story"></p>
-      <div class="sactions">
-        <button type="button" class="btn" id="sshare"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 1l6 6-6 6V9C5 9 3 10.500 1 13c0-5 3-8 8-8z"/></svg><span id="ssharelabel" data-i18n="s.share">Share</span></button>
-        <a class="btn" id="sgif" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 1h2v7l3-3 1.500 1.500L8 12 2.500 6.500 4 5l3 3zM2 13h12v2H2z"/></svg><span data-i18n="s.gif">Download GIF</span></a>
+      <div class="sactions" data-hint-side="top">
+        <button type="button" class="btn" id="sshare" data-hint="tip.share"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 1l6 6-6 6V9C5 9 3 10.500 1 13c0-5 3-8 8-8z"/></svg><span id="ssharelabel" data-i18n="s.share">Share</span></button>
+        <a class="btn" id="sgif" target="_blank" rel="noopener" data-hint="tip.gif"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 1h2v7l3-3 1.500 1.500L8 12 2.500 6.500 4 5l3 3zM2 13h12v2H2z"/></svg><span data-i18n="s.gif">Download GIF</span></a>
       </div>
       <button type="button" class="toadv" id="toadv"><span data-i18n="s.toadv">See the measurements, bands and spectrum in Advanced</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 2l6 6-6 6V10H1V6h8z"/></svg></button>
     </div>
@@ -153,7 +153,7 @@
   <aside class="analysis adv" aria-label="Measurements">
     <section class="panel" id="speccard" hidden>
       <div class="panelhead"><div class="headtip"><h2 id="spectitle">Spectrum at the crosshair</h2><div class="tip" id="spectip"><button type="button" class="tipbtn" aria-label="How to read this plot" aria-describedby="specnote"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="specnote"></div></div></div>
-        <div class="seg" id="plotmode"><button data-v="spec" class="on" data-i18n="a.spectrum">Spectrum</button><button data-v="lc" data-i18n="a.lc">Light curve</button></div></div>
+        <div class="seg" id="plotmode"><button data-v="spec" class="on" data-hint="tip.spectrum" data-i18n="a.spectrum">Spectrum</button><button data-v="lc" data-hint="tip.lc" data-i18n="a.lc">Light curve</button></div></div>
       <canvas id="plot" aria-label="Spectrum plot"></canvas>
       <div id="legend" class="legend measure"></div>
       <p class="muted note" id="specempty" hidden></p>
@@ -174,7 +174,7 @@
       <dl>
         <dt data-i18n="a.dec">Decimal</dt><dd id="tdeci"></dd>
         <dt data-i18n="a.sexa">Sexagesimal</dt><dd id="tsexa"></dd>
-        <dt data-i18n="a.same">Same field in</dt><dd class="links"><a id="l-wiseview" target="_blank" rel="noopener">WiseView</a><a id="l-simbad" target="_blank" rel="noopener">SIMBAD</a><a id="l-aladin" target="_blank" rel="noopener">Aladin Lite</a></dd>
+        <dt data-i18n="a.same">Same field in</dt><dd class="links"><a id="l-wiseview" target="_blank" rel="noopener" data-hint="tip.wiseview">WiseView</a><a id="l-simbad" target="_blank" rel="noopener" data-hint="tip.simbad">SIMBAD</a><a id="l-aladin" target="_blank" rel="noopener" data-hint="tip.aladin">Aladin Lite</a></dd>
       </dl>
     </section>
 
@@ -199,6 +199,7 @@
 </main>
 
 <script src="/static/i18n.js?v=12"></script>
+<script src="/static/hints.js?v=12"></script>
 <script src="/static/starmap.js?v=12"></script>
 <script src="/static/app.js?v=12"></script>
 </body>
