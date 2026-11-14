@@ -34,7 +34,7 @@
 /* the heading of the map makes way for what the layer shows */
 .mapscreen.zlayer .maptag .more{width:264px}
 @media (max-width:759.98px){
-  .zfilter{top:auto;bottom:256px}
+  .zfilter{top:auto;bottom:301px}
   .zfilter.open{left:0;right:0;bottom:0;z-index:6;align-items:stretch}
   .zfilter.open .zpanel{width:auto;max-width:none;border-width:1px 0 0;background:var(--color-paper);padding-bottom:calc(14px + env(safe-area-inset-bottom, 0px))}
   [data-mapfull] .zfilter:not(.open){bottom:calc(188px + env(safe-area-inset-bottom, 0px))}
@@ -66,6 +66,7 @@
 .cmpslide{flex:1 1 180px;min-width:120px;max-width:300px}
 .cmppub{flex:0 1 auto;font-size:12px}
 .cmprow .linkbtn{font-size:12.5px}
+.cmpest{font-family:var(--font-measure);white-space:nowrap}
 .cmprow .btn.icon{margin-left:auto;border-color:transparent}
 .cmpadd{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:12px}
 .cmpadd input{flex:0 1 320px;min-width:200px;height:32px;padding:0 10px;border:1px solid var(--color-rule);background:var(--color-paper-2);color:var(--color-ink);font:inherit}

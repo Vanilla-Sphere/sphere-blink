@@ -15,6 +15,8 @@ const OT = {
   MIN_SNR: 3,          // median signal to noise of single exposures below which nothing is compared
   SIGMA: 3,            // a change counts from this many sigma
   FLOOR: {aperture: 0.05, wings: 0.12},   // what one visit is good to, whatever the number of exposures
+  // flags of a point that is still a clean one: a bright source sets the last four on its own core, and those pixels are measured
+  CLEAN: ["SOURCE", "FULLSAMPLE", "OVERFLOW", "TRANSIENT", "SUR_ERROR", "BLOOM"],
 };
 
 const otMedian = (a) => { const s = [...a].sort((x, y) => x - y), n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : NaN; };
@@ -76,7 +78,7 @@ function brightnessChange(points) {
   let pts = kinds[kind];
   const out = {state: "few", kind, floor, n: 0, visits: [], hi: null, lo: null, ratio: null, sigma: null};
   if (kind === "aperture") {
-    const clean = pts.filter((p) => !(p.flags || []).some((f) => f !== "SOURCE" && f !== "FULLSAMPLE"));
+    const clean = pts.filter((p) => (p.flags || []).every((f) => OT.CLEAN.includes(f)));
     if (clean.length >= OT.MIN_POINTS) pts = clean;
     const snr = otMedian(pts.filter((p) => p.flux_err_ujy > 0).map((p) => p.flux_ujy / p.flux_err_ujy));
     if (pts.length >= OT.MIN_POINTS && Number.isFinite(snr) && snr < OT.MIN_SNR) { out.state = "faint"; return out; }

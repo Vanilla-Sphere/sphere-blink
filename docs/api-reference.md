@@ -447,8 +447,8 @@ Spectrum and light curve at the centre of the view, one point per exposure.
 | --- | --- |
 | `wave_um`, `bandwidth_um` | Central wavelength and bandwidth of the filter slice at the target in this exposure |
 | `flux_ujy`, `flux_err_ujy` | Flux density and its 1 sigma error in microjansky |
-| `method` | `aperture`: sky-subtracted aperture of radius 2 native pixels. `wings`: the star saturates the core and the flux comes from its halo, with a 20-25 % systematic error included |
-| `flags` | Quality flags in the aperture. `EXTRAPOLATED` is added to wing fluxes above the calibrated range (error 50 %) |
+| `method` | `aperture`: sky-subtracted aperture of radius 2 native pixels. `wings`: pixels of the core are saturated and have no value, so the flux comes from the star's halo, with a 20-25 % systematic error included |
+| `flags` | Quality flags in the aperture. `OVERFLOW`, `TRANSIENT` and `SUR_ERROR` on an `aperture` point do not make it a poor one: a source above about 0.1 Jy sets them itself, and the flagged pixels are part of the sum ([why](imaging-engine.md#flagged-pixels-in-the-aperture)). `PARTIAL` is added, not a flag of the archive, when a pixel at the rim of the aperture was left out of the sum. `EXTRAPOLATED` is added to wing fluxes above the calibrated range (error 50 %) |
 | `mjd`, `detector`, `uid` | When and where the point was taken |
 
 Points are sorted by wavelength. For a spectrum, plot `flux_ujy` against

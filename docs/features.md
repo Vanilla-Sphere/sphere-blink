@@ -26,7 +26,7 @@ implements it. Implementation detail is in [imaging engine](imaging-engine.md),
 | 15 | Share links, embeddable GIF and PNG, data API | Simple, Advanced | `main.py`, `web/app.js` (`writeUrl`) |
 | 16 | Featured targets | Simple, Advanced | `resolve.FEATURED`, `refcat.TARGETS` |
 | 17 | Blind search for moving objects, with a log ("Discoveries"), names, follow and votes | Advanced | `movers.py`, `mover_store.py`, `movers_api.py`, `known_objects.py`, `web/movers.js` |
-| 18 | Distance and redshift: the object of a view, the sky map by redshift, comparing spectra in the rest frame | Simple, Advanced | `distance.py`, `/api/object`, `scripts/build_redshift.py`, `web/depth.js` |
+| 18 | Distance and redshift: the object of a view, the sky map by redshift, comparing spectra in the rest frame, a redshift read from the emission lines of the spectrum | Simple, Advanced | `distance.py`, `/api/object`, `scripts/build_redshift.py`, `web/depth.js`, `web/redshift.js` |
 
 ## 1. Sky map start screen
 
@@ -81,6 +81,26 @@ sky as one oval with the featured targets marked.
 
 Returning from a view to the map centres the map on the position just viewed
 and marks it.
+
+### What you can do here
+
+Under the map, between the start list and the zoom buttons, a strip of six
+cards says what the product does, and each card opens a live example instead
+of describing one (added 2026-11-14 on a teammate's request to list the
+features on the first screen):
+
+| Card | Opens |
+|---|---|
+| Blink the sky | Barnard's Star, in the mode the reader is in |
+| Catch what moves | the Discoveries log of the blind search |
+| Read a spectrum | Epsilon Indi B in Advanced, on the spectrum and its reading |
+| Watch it change | R Draconis in Advanced, on the plot over time |
+| See how far | the redshift layer of the map, from z > 1 |
+| Take the data | the "About the data" page |
+
+The strip fades when the map is zoomed in and is hidden in full screen. On a
+phone it is a row of its own above the start list, scrolled sideways, with the
+titles only. The code is `web/showcase.js`.
 
 ## 2. Search by coordinates or object name
 
@@ -312,7 +332,7 @@ spectral data product.
   width of the plot, at the same flux scale; a second click brings all groups
   back. The row under the plot (`#otnav`: previous, next, "All groups") steps
   through the groups and names the one on screen with its dates (`showGroups`,
-  `stepGroup`, `plotClick` in `web/app.js`; the enlarged group is `S.otZoom`,
+  `stepGroup`, `plotClick` in `web/app.js`; the enlarged group is the one that holds the date `S.otZoom`,
   forgotten when a new view is loaded). The PNG export saves what is on screen.
 - **Did it change?** A line under the Over time plot answers in words
   (`brightnessChange` in `web/overtime.js`, the method of the pipeline's
@@ -328,12 +348,16 @@ spectral data product.
   open. On 2026-11-14: R Draconis about x1.9 between 2025-06 and 2026-06
   (3.8 sigma); Barnard's Star, Vega and Epsilon Indi B steady within 4-7 %;
   RW Aurigae 23 % (1.2 sigma, not significant).
-- **Quality marks.** Points with flagged pixels in the aperture are left out of
-  the plot by default, on the advice of an outside researcher (2026-11-14). A
-  button in the legend ("Show N flagged") brings them back, drawn
-  hollow. If a plot has no other points they are shown anyway. The CSV always
-  holds every point with its flags; the PNG shows what is on screen and says
-  how many points were left out.
+- **Quality marks.** A point is flagged when a pixel of its aperture was left
+  out of the sum (`PARTIAL`) or carries a defect flag such as `HOT` or
+  `PERSIST`. The flags a bright source sets on its own core (`OVERFLOW`,
+  `TRANSIENT`, `SUR_ERROR`, `BLOOM`) do not count: those pixels are measured
+  ([why](imaging-engine.md#flagged-pixels-in-the-aperture)). Flagged points
+  are left out of the plot by default, on the advice of an outside researcher
+  (2026-11-14). A button in the legend ("Show N flagged") brings them back,
+  drawn hollow. If a plot has no other points they are shown anyway. The CSV
+  always holds every point with its flags; the PNG shows what is on screen and
+  says how many points were left out.
 - **Saturated stars.** Where the core saturates the detector, the flux is
   measured from the star's halo instead (see
   [bright-star photometry](measurement-pipeline.md#bright-star-photometry)).
@@ -673,6 +697,12 @@ In the viewer (Advanced, `web/movers.js`):
   view is not. The object stays in its card with the other exposures and a
   "Back to the field" button, the ring and the path stay on the image, and
   the address gains `seen=<exposure>`, so the link opens that very frame.
+  Nothing is drawn inside the ring, so the marks never cover the object; when
+  the bands on screen are not those of the selected exposure, a line under
+  the list says which detector to choose. Going back to the field restores
+  the grouping and bands the field was shown with, because a wide field with
+  one frame per exposure exceeds the size limit of `/api/cube` (413); a link
+  that asks for it anyway is shown by day.
 - **Votes**: "Real motion" and "False alarm". One vote per browser; choosing
   the same button again takes it back.
 - **Follow**: kept in this browser only (`localStorage`), marked with a star.
@@ -686,9 +716,10 @@ months apart) are not searched.
 ## 18. Distance and redshift
 
 How far away the object of a view is, which galaxies and quasars lie at a
-given redshift, and how their SPHEREx spectra compare. All distances and
-redshifts are published values with their source; none is measured from the
-SPHEREx images. The rules, the sources and the checks are in
+given redshift, and how their SPHEREx spectra compare. Distances and
+redshifts are published values with their source. One value is our own and
+labelled so: the redshift read from the emission lines of a SPHEREx spectrum.
+The rules, the sources and the checks are in
 [distance and redshift](distance-redshift.md).
 
 **The object of a view** (`/api/object`):
@@ -709,6 +740,18 @@ SPHEREx images. The rules, the sources and the checks are in
 - When the lookup does not answer, the card falls back to the all-sky list
   below for the objects it holds, and says so.
 
+**A redshift from the lines** (`web/redshift.js`, in the browser):
+
+- Where the spectrum of the view shows emission lines, the card gets the rows
+  "From its lines" (for example "z = 1.343 ± 0.009 · quality 4 of 4 · within
+  0.2 % of the published value") and "Lines found" (each line and where it
+  stands). Two methods have to agree on at least two lines, Hα among them;
+  otherwise nothing is shown.
+- With no published redshift, Simple says it in one sentence that ends "Our
+  own reading, not a published value."
+- Stars never get one. Blazars, faint objects and spectra with a single line
+  get none either.
+
 **The sky map by redshift** (button "Redshift" on the map, both modes):
 
 - Lowest redshift to show: Off, All, z > 0.1, 1, 3, 5, 6 or 7.
@@ -728,5 +771,7 @@ on the distance card and on the redshift panel):
 - Each object has its redshift in a field and on a slider, starting at the
   published value. Moving it shows where the lines would fall; "Reset" goes
   back to the published value.
+- "from its lines" next to the published value is the redshift the spectrum's
+  own lines give, where they give one; pressing it moves the spectrum there.
 - Example "four quasars, z = 0.16 to 6.3": in the rest frame their Hα lines
   fall on one marker.

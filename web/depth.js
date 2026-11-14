@@ -1,15 +1,17 @@
 /* Vanilla Sphere - how far away things are (docs/distance-redshift.md).
 
-   Three things, all from published catalogues and none measured from the SPHEREx images:
+   Three things from published catalogues, and next to them one reading of our own:
    1. the distance or the redshift of the object in a view (a card in Advanced, one line in Simple),
       asked of the server (/api/object: SIMBAD, NED, Gaia DR3);
    2. galaxies and quasars drawn on the sky map by redshift, with a lowest redshift to show
       (web/data/redshift.json, built from SIMBAD by scripts/build_redshift.py);
    3. the SPHEREx spectra of several objects on one plot, as observed or each moved to its rest
-      frame by its redshift, with the wavelengths of the strong emission lines marked.
+      frame by its redshift, with the wavelengths of the strong emission lines marked;
+   4. a redshift read off the emission lines of the SPHEREx spectrum itself (redshift.js), shown only
+      when two methods agree on at least two lines, and always labelled as our estimate.
 
    Loaded before app.js; app.js calls initDepth() once, depthTarget() when a view has its target,
-   clearDepth() when a new view starts, and passes the objects of the map's layer to depthTag() and
+   depthSpectrum() when its spectrum has arrived, clearDepth() when a new view starts, and passes the objects of the map's layer to depthTag() and
    depthOpen(). */
 "use strict";
 
@@ -35,6 +37,13 @@ Object.assign(STR.en, {
   "d.blue": "Blueshift: it is coming towards us.",
   "d.foot.z": "Published values, not measured from SPHEREx. Times and distances from z are computed with the Planck 2018 cosmology.",
   "d.foot.star": "Published values, not measured from SPHEREx.",
+  "d.est": "From its lines", "d.est.lines": "Lines found",
+  "d.est.val": "z = {z} ± {e} · quality {q} of 4",
+  "d.est.same": " · within {p} % of the published value", "d.est.far": " · the published value is {z}",
+  "d.est.left": " · light set out about {t} ago",
+  "d.est.line": "{name} at {w} µm",
+  "d.foot.est": "“From its lines” is our own reading of this SPHEREx spectrum: the mean quasar spectrum laid on it at every redshift, and at least two emission lines found on their places (after Colless et al. 2001). An estimate, not a published measurement.",
+  "s.est": "The lines in its spectrum put it at redshift {z}: its light set out about {t} ago. Our own reading, not a published value.",
   "d.kind.star": "Star", "d.kind.galaxy": "Galaxy", "d.kind.quasar": "Quasar", "d.kind.other": "Object",
   "d.nature.spectroscopic": "spectroscopic", "d.nature.photometric": "photometric",
   "s.star": "About {ly} light-years away, from the parallax in {src}.",
@@ -52,6 +61,7 @@ Object.assign(STR.en, {
   "cmp.open.t": "A large plot of this spectrum, next to those of other objects",
   "cmp.wait": "waiting", "cmp.queue": "in the queue", "cmp.load": "reading exposure {done} of {total}", "cmp.search": "searching the archive",
   "cmp.ready": "{n} points", "cmp.none": "no SPHEREx data here", "cmp.error": "could not be loaded", "cmp.unknown": "not found: check the name",
+  "cmp.est": "from its lines {z}", "cmp.est.t": "Read off this spectrum: {lines} stand where z = {z} ± {e} puts them (quality {q} of 4). Our estimate, not a published value. Click to use it.",
   "cmp.pub": "published {z} ({src})", "cmp.nopub": "no published redshift found", "cmp.zreset": "Reset",
   "cmp.remove": "Remove {name}", "cmp.full": "Six objects at most. Remove one first.",
   "cmp.x.obs": "Observed wavelength (µm)", "cmp.x.rest": "Rest wavelength (µm) = observed / (1 + z)",
@@ -62,7 +72,7 @@ Object.assign(STR.en, {
   "cmp.hint.rest": "Every spectrum is divided by (1 + z) of its object, so the same line falls at the same place. Scroll to zoom, drag to move, double-click for everything.",
 });
 
-const DP = {v: (document.currentScript && document.currentScript.src.split("?")[1]) || "", cat: null, catLoad: null, min: null, key: "", info: null, expect: null};
+const DP = {v: (document.currentScript && document.currentScript.src.split("?")[1]) || "", cat: null, catLoad: null, min: null, key: "", info: null, expect: null, state: "", est: null, tpl: null};
 const CMP = {list: [], axis: "obs", scale: "norm", lines: true, sel: null, xr: null, chain: Promise.resolve(), seq: 0};
 const ADS = (b) => `https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(b)}/abstract`;
 const isBibcode = (s) => /^\d{4}[\w.&]{14}[A-Z.]$/.test(s || "");
@@ -115,14 +125,36 @@ async function depthNearest(ra, dec, within) {
 
 /* ------------------------------------------------------------------ the object of a view */
 function clearDepth() {
-  DP.key = ""; DP.info = null;
+  DP.key = ""; DP.info = null; DP.est = null; DP.state = "";
   $("depthcard").hidden = true; $("sdepth").hidden = true;
+}
+/* ------------------------------------------------------------------ a redshift from the lines of the spectrum */
+function zTemplate() {
+  if (!DP.tpl) DP.tpl = fetch("/static/data/quasar-template.json" + (DP.v ? "?" + DP.v : "")).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .catch((e) => { DP.tpl = null; throw e; });
+  return DP.tpl;
+}
+/* The estimate, when it is good enough to show: quality 3 or 4 (two methods agree on two lines or more). */
+async function zEstimate(points) {
+  if (typeof Redshift === "undefined" || !points || points.length < 60) return null;
+  try { const e = Redshift.estimate(points, await zTemplate()); return e.quality >= 3 && e.z !== null ? e : null; } catch (_) { return null; }
+}
+const zLines = (e) => e.lines.map((l) => l.name);
+const zList = (a) => a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+/* The spectrum of the view has arrived. */
+async function depthSpectrum(points) {
+  const id = S.loadId;
+  DP.est = null;
+  const e = await zEstimate(points);
+  if (id !== S.loadId || !e) return;
+  DP.est = e;
+  if (DP.state !== "wait") showDepth();
 }
 const depthQuery = (t) => (S.target && !S.byCoords ? `target=${encodeURIComponent(S.target)}` : `ra=${t.ra.toFixed(6)}&dec=${t.dec.toFixed(6)}`);
 async function depthTarget(t) {
   const key = `${t.name}|${t.ra.toFixed(5)}|${t.dec.toFixed(5)}`;
   if (key === DP.key) return;
-  DP.key = key; DP.info = null;
+  DP.key = key; DP.info = null; DP.state = "wait";
   $("depthcard").hidden = false; $("depthlist").innerHTML = ""; $("depthfoot").hidden = true;
   $("depthstatus").hidden = false; $("depthstatus").textContent = tr("d.wait"); $("sdepth").hidden = true;
   let d = null, down = false;
@@ -139,16 +171,21 @@ async function depthTarget(t) {
     const o = await depthNearest(t.ra, t.dec, 12 / 3600);
     if (key !== DP.key) return;
     if (o) d = depthFromList(o);
-    else if (down) { $("depthstatus").textContent = tr("d.away"); return; }
-    else { $("depthcard").hidden = true; return; }
   }
-  DP.info = d;
+  DP.info = d; DP.state = d ? "known" : down ? "away" : "absent";
   showDepth();
 }
 function showDepth() {
-  const d = DP.info, dl = $("depthlist"), status = $("depthstatus"), foot = $("depthfoot");
-  dl.innerHTML = "";
-  if (!d) return;
+  const d = DP.info || {}, dl = $("depthlist"), status = $("depthstatus"), foot = $("depthfoot");
+  // a star is not at a cosmological redshift, whatever its spectrum looks like
+  const est = DP.est && !d.distance && d.kind !== "star" ? DP.est : null;
+  dl.innerHTML = ""; $("sdepth").hidden = true;
+  if (!DP.info && !est) {
+    $("depthcard").hidden = DP.state !== "away" && DP.state !== "wait";
+    if (DP.state === "away") { status.hidden = false; status.textContent = tr("d.away"); foot.hidden = true; }
+    return;
+  }
+  $("depthcard").hidden = false;
   const row = (key, value, cls) => {
     const dt = document.createElement("dt"), dd = document.createElement("dd");
     dt.textContent = tr(key); if (cls) dd.className = cls;
@@ -161,7 +198,7 @@ function showDepth() {
     return f;
   };
   const z = d.redshift, star = d.distance, notes = (d.notes || []).slice();
-  if (!d.object && !z && !star) { status.hidden = false; status.textContent = (d.unavailable || []).length ? tr("d.away") : tr("d.none"); foot.hidden = true; $("sdepth").hidden = true; return; }
+  if (!d.object && !z && !star && !est) { status.hidden = false; status.textContent = (d.unavailable || []).length ? tr("d.away") : tr("d.none"); foot.hidden = true; $("sdepth").hidden = true; return; }
   if (d.object) {
     const o = d.object, what = o.type || (d.kind !== "unknown" ? dKind(d.kind) : "");
     row("d.object", [o.name.replace(/^NAME /, ""), what, o.sp_type || o.morph_type || "", o.sep_arcsec > 1.5 ? tr("d.sep", {s: o.sep_arcsec.toFixed(1)}) : ""].filter(Boolean).join(" · "));
@@ -189,15 +226,23 @@ function showDepth() {
     row("d.source", source(z.source, z.bibcode));
   }
   if (d.radial_velocity && !z) row("d.rv", dMinus(tr(d.radial_velocity.km_s < 0 ? "d.rv.to" : "d.rv.away", {v: dFix(Math.abs(d.radial_velocity.km_s), 1)})), "measure");
+  if (est) {
+    const far = est.z >= 0.02 && est.z > 3 * est.zErr, off = z ? Math.abs(est.z - z.z) / (1 + z.z) : null;
+    row("d.est", tr("d.est.val", {z: dMinus(est.z.toFixed(3)), e: est.zErr.toFixed(3), q: est.quality})
+      + (off === null ? (far ? tr("d.est.left", {t: dYears(cosmoOf(est.z).lookback_gyr)}) : "") : off < 0.02 ? tr("d.est.same", {p: (100 * off).toFixed(1)}) : tr("d.est.far", {z: dZ(z.z)})), "measure");
+    row("d.est.lines", est.lines.map((l) => tr("d.est.line", {name: l.name, w: l.wave.toFixed(2)})).join(" · "));
+  }
   if (d.offline) notes.push(tr("d.offline"));
   if ((d.unavailable || []).length) notes.push(tr("d.partial", {who: d.unavailable.join(", ")}));
+  if (!DP.info && DP.state === "away") notes.push(tr("d.away"));
   status.hidden = !notes.length; status.textContent = notes.join(" ");
-  foot.hidden = !(z || star); foot.textContent = tr(z ? "d.foot.z" : "d.foot.star");
+  foot.hidden = !(z || star || est); foot.textContent = [z ? tr("d.foot.z") : star ? tr("d.foot.star") : "", est ? tr("d.foot.est") : ""].filter(Boolean).join(" ");
   // Simple mode: one plain sentence
   const m = d.measured_distance, c = z && z.cosmology;
   const line = star && !star.uncertain ? tr("s.star", {ly: star.pc < 100 ? dFix(star.ly, star.ly < 10 ? 2 : 1) : dSig(star.ly), src: star.source.replace(/ \(.*/, "")})
     : z && z.local && m ? tr("s.near", {ly: dLy(m.mpc * 3.2616e6)})
-    : c && !z.local ? tr("s.far", {t: dYears(c.lookback_gyr), a: dYears(c.age_then_gyr), z: dZ(z.z), src: z.source.replace(/ \(.*/, "")}) : "";
+    : c && !z.local ? tr("s.far", {t: dYears(c.lookback_gyr), a: dYears(c.age_then_gyr), z: dZ(z.z), src: z.source.replace(/ \(.*/, "")})
+    : !z && est && est.z >= 0.02 && est.z > 3 * est.zErr ? tr("s.est", {z: est.z.toFixed(2), t: dYears(cosmoOf(est.z).lookback_gyr)}) : "";
   $("sdepth").textContent = line; $("sdepth").hidden = !line;
 }
 
@@ -324,12 +369,12 @@ async function cmpAddText(text) {
   cmpAdd({name: coords ? `RA ${a.toFixed(4)} Dec ${b >= 0 ? "+" : ""}${b.toFixed(4)}` : tidyName(text), q: coords ? `ra=${a}&dec=${b}` : `target=${encodeURIComponent(text)}`, z: null});
 }
 /* Medians in bins of equal width in log wavelength (R about 45, the resolving power of the instrument
-   at its short end): one exposure gives one noisy point, a bin of them shows the shape. Points on
-   flagged pixels, and those taken from the halo of a saturated core, are left out unless that
+   at its short end): one exposure gives one noisy point, a bin of them shows the shape. Points with a
+   defect flag (OT.CLEAN in overtime.js), and those taken from the halo of a saturated core, are left out unless that
    leaves too few (a very bright object, whose every point is of that kind). */
 function cmpBins(pts) {
   const ok = pts.filter((p) => p.flux_ujy !== null && p.wave_um > 0);
-  const clean = ok.filter((p) => p.method !== "wings" && p.flags.every((f) => f === "SOURCE" || f === "FULLSAMPLE"));
+  const clean = ok.filter((p) => p.method !== "wings" && p.flags.every((f) => OT.CLEAN.includes(f)));
   const use = clean.length > 0.3 * ok.length ? clean : ok, bins = new Map();
   for (const p of use) { const k = Math.floor(Math.log(p.wave_um) * 45); if (!bins.has(k)) bins.set(k, []); bins.get(k).push(p); }
   const med = (a) => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
@@ -444,10 +489,18 @@ function cmpShow() {
     reset.addEventListener("click", () => { it.z = it.z0; it.touched = false; cmpShow(); });
     zin.addEventListener("input", () => setZ(zin.value, zin)); slide.addEventListener("input", () => setZ(slide.value, slide));
     for (const el of [zin, slide]) el.addEventListener("focus", () => { if (CMP.sel !== it.id) { CMP.sel = it.id; for (const r of ul.children) r.classList.toggle("on", r === li); cmpDraw(); } });
+    // the redshift its own lines give, when they give one: one press puts the spectrum there
+    if (it.status === "ready" && it.estOf !== it.pts) { it.estOf = it.pts; it.est = null; zEstimate(it.pts).then((e) => { if (e && CMP.list.includes(it) && it.estOf === it.pts) { it.est = e; cmpShow(); } }); }
+    const own = document.createElement("button"); own.type = "button"; own.className = "linkbtn cmpest"; own.hidden = !it.est || it.kind === "star"; own.dataset.cmp = "est"; own.dataset.id = it.id;
+    if (!own.hidden) {
+      own.textContent = tr("cmp.est", {z: dMinus(it.est.z.toFixed(3))});
+      own.title = tr("cmp.est.t", {lines: zList(zLines(it.est)), z: dMinus(it.est.z.toFixed(3)), e: it.est.zErr.toFixed(3), q: it.est.quality});
+      own.addEventListener("click", () => { it.z = it.est.z; it.touched = true; CMP.sel = it.id; cmpShow(); });
+    }
     const rm = document.createElement("button"); rm.type = "button"; rm.className = "btn icon quiet"; rm.setAttribute("aria-label", tr("cmp.remove", {name: it.name}));
     rm.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.400 2 4.600 4.600L12.600 2 14 3.400 9.400 8l4.600 4.600L12.600 14 8 9.400 3.400 14 2 12.600 6.600 8 2 3.400z"/></svg>';
     rm.addEventListener("click", () => { CMP.list = CMP.list.filter((x) => x !== it); CMP.xr = null; $("cmpmsg").textContent = ""; cmpShow(); });
-    li.append(pick, zbox, slide, pub, reset, rm);
+    li.append(pick, zbox, slide, pub, own, reset, rm);
     ul.appendChild(li);
   }
   if (keep && keep[0]) { const el = ul.querySelector(`[data-cmp="${keep[0]}"][data-id="${keep[1]}"]`); if (el) el.focus({preventScroll: true}); }
