@@ -374,7 +374,7 @@ const Insight = (() => {
       kind = "saturated";
       out.headline = "Too bright for a reliable spectrum: the source saturates the detector.";
       out.plain = "Too bright: this object overloads the SPHEREx detectors, so its light cannot be read reliably here.";
-      find("saturated", `The source is at about ${flux(bright)}, above the range in which the halo of a saturated star was calibrated (0.15 to 40 Jy). The points give its rough brightness, not its colour or temperature.`);
+      find("saturated", `Most of its points are above the brightness range for which the halo of a saturated star was calibrated; the middle of the curve is at about ${flux(bright)}. The points give its rough brightness, not its colour or temperature.`);
     } else if (emission) {
       kind = "emission";
       out.headline = far ? (lines.length > 1 ? `Emission lines stand above the continuum where the published redshift (${zText}) puts them.` : `An emission line stands above the continuum where the published redshift (${zText}) puts ${lines[0].name}.`) : "Emission lines of ionised gas stand above the continuum.";

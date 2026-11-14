@@ -260,7 +260,8 @@ The vertical axis reads in mJy and switches to Jy when the 98th percentile of
 the fluxes exceeds 1 Jy. The time axis of the Over time plot is cut into the
 groups of days in which SPHEREx observed the place (`groupedAxis` in
 `overtime.js`), and `changeText`/`showChange` write the line under it that says
-whether the object changed between visits (`brightnessChange`); see
+whether the object changed between visits (`brightnessChange`, and band by
+band `bandChanges` when the total is steady); see
 [features](features.md#9-spectrum-and-flux-over-time).
 
 ## Sky map
