@@ -255,6 +255,46 @@ track's own reference time.
   inside the range given. 20 found fakes got no distance: 11 were found in
   the four-day windows, which are too short for the bend to show.
 
+### The same, measured independently on three other fields
+
+The bench of [how much the search finds](mover-completeness.md#shift-and-stack-distant-bodies)
+(`scripts/mover_completeness_far.py`) drew fakes
+by the same recipe in three fields this search was not developed on (a
+sparse one, a medium one and the crowded field of Barnard's star), ran the
+linker first and this search with `exclude`, and counted the 529 fakes
+whose place was seen at 12 exposure times or more. Its numbers are lower
+than the ones above, and they are the ones to quote:
+
+| V | Fakes | Found | Of them at 7.5 sigma |
+|---|---|---|---|
+| 16.5 to 17.5 | 138 | 112 | 112 |
+| 17.5 to 18.5 | 121 | 84 | 82 |
+| 18.5 to 19.0 | 66 | 40 | 35 |
+| 19.0 to 19.5 | 71 | 33 | 19 |
+| 19.5 to 20.0 | 75 | 6 | 1 |
+| 20.0 to 20.5 | 58 | 2 | 0 |
+
+- **277 of 529 found**, 249 of them at 7.5 sigma. Brighter than V 19: 236
+  of 325. The linker: 15 of 529.
+- **The pass decides.** In a pass of 300 hours or more, for a body that
+  moves 40 arcsec or more in it: 269 of 472, and 229 of 290 brighter than
+  V 19. In a pass shorter than 300 hours: 5 of 41. The two fields above
+  have such long passes; the sparse field here has one of 47 and one of
+  206 hours.
+- **No false path** in the three fields without fakes.
+- **A path can leave its object.** 16 of the 293 tracks found with fakes
+  matched no fake by place and motion, 9 of them at 7.5 sigma. None is made
+  of nothing: each lies on a fake for part of its points, half of them for
+  two thirds or more, and is then 57 to 223 arcsec off at one end. The path
+  was fitted to one group of visits and carried wrong to visits days away.
+  Their distances are wrong too (14 to 22 au for fakes at 30 to 109 au).
+  Such a track marks a real object at the right place while the visits lie
+  together; its motion and distance are not to be trusted. Why it happens,
+  and why the search was left as it is, is under
+  [Passes with a long gap](#passes-with-a-long-gap).
+- **Distance** on the matched tracks: 238 given, 227 ranges hold the true
+  distance. Nine of the eleven that miss put the body too near.
+
 ### Time
 
 One to three minutes for a field (417 to 716 frames), on one core: the
@@ -265,13 +305,44 @@ whole-pass search, which finds the distant bodies, always runs.
 
 ## Limits
 
-- **How faint.** Half of the fakes are found at V 19.5, nine in ten
-  brighter than V 19; the gain over single exposures is about 1.5
-  magnitudes. That holds for a body with the colour of sunlight that all
-  frames of a pass cover. Eris (V 18.7) comes out at 5.6 sigma only. Its
-  surface is methane ice, which absorbs over much of the range, as on
-  Makemake, and at 1 micron the stack measures it at AB magnitude 19.3. Sedna (20.8) and Gonggong (21.5) are
-  out of reach.
+- **How faint.** Half of the fakes are found at about V 19, three in four
+  brighter than V 19 (nine in ten in a field watched for two weeks without
+  a break); the gain over single exposures is about 1.5 magnitudes. That
+  holds for a body with the colour of sunlight that all frames of a pass
+  cover. Eris (V 18.7) comes out at 5.6 sigma only. Its surface is methane
+  ice, which absorbs over much of the range, as on Makemake, and at
+  1 micron the stack measures it at AB magnitude 19.3. Sedna (20.8) and
+  Gonggong (21.5) are out of reach.
+- **Short passes.** A pass shorter than 300 hours finds almost nothing (5
+  of 41 fakes): the stack is too shallow and the path too short.
+- <a id="passes-with-a-long-gap"></a>**Passes with a long gap.** Where
+  one visit stands alone five or six days after the others, the group
+  fixes the path and the lone visit hardly weighs: a path that fits the
+  group and misses the body by 13 to 77 pixels at the lone visit stacks
+  almost as well as the true one, and noise decides between them. In such
+  a pass the bend is small, the steps of the distance are wide, and the
+  search then also tries paths at 7 to 10 au, nearer than the 17 au it is
+  meant for; a distance given at the near end of the range (14 au) comes
+  from there and is wrong. Rebuilt here with 240 fakes in four passes:
+  nine such tracks, six of them in a pass with visits at 0 to 62 hours and
+  one at 204, none in the long pass of Barnard's field. One of the nine
+  reached 7.5 sigma; it left its fake, in a pass of 116 hours, for what a
+  star had left behind. Two rules were tried and not taken. Asking each third of the
+  time to show the body takes the stray paths away on fakes, which are
+  bright at every wavelength, but real bodies are not: SPHEREx moves a
+  place across its detectors within a pass, so each third sees other
+  wavelengths, and Haumea (9.6 sigma) and Chiron (8.5) would no longer
+  stand without their catalogue name. Keeping the tried distances beyond
+  17 au took the three stray paths of three rounds away, brought a new one
+  at 9.4 sigma, and lost three bodies found before, two of them bright
+  (V 16.6 and 16.8): in such a pass they had been reached through a path
+  at a wrong distance, which the centroids then put right. What is missing
+  is a step that fits the path again at the lone visit; the search is
+  version 1 as measured.
+- **Faster than the whole-pass search.** A body nearer than 40 au that
+  moves 1.25 to 2 arcsec per hour is above the whole-pass search, and a
+  pass with a gap has no four-day window for it. A slow path can then
+  catch it in two visits and report it weakly, with a wrong motion.
 - **How far.** A path must cover 18 arcsec within a pass. Beyond about 250 au
   a body's own motion and the bend together stay below that. A planet at 500
   au does not move measurably within two weeks. It would stand still in each
