@@ -109,6 +109,8 @@ Errors are JSON of the form `{"detail": "message"}`.
 | [`/api/tracks`](#get-apitracks) | JSON | Measured objects in the field |
 | [`/api/measure`](#get-apimeasure) | JSON | Measure an object; job status and result |
 | [`/api/measured`](#get-apimeasured) | JSON | Everything measured so far |
+| [`/api/atlas/2mass/...`](#get-apiatlas2mass) | JPEG | One tile of the sky photograph behind the map |
+| [`/api/atlas`](#get-apiatlas) | JSON | What the server keeps of the sky photograph |
 | `/` | HTML | The viewer; accepts the URL parameters in [viewer](viewer.md#url-state) |
 | `/static/*` | files | Viewer assets |
 
@@ -660,6 +662,46 @@ Every object the pipeline has measured, without per-exposure detections.
 
 `running` maps job keys to the status of measurements in progress. `database`
 states whether a team database is configured.
+
+## The sky photograph
+
+### GET /api/atlas/2mass
+
+`/api/atlas/2mass/Norder{k}/Dir{d}/Npix{n}.jpg`: one tile of the photograph
+behind the zoomed-in sky map. It is the 2MASS colour atlas (J, H and K bands)
+in the HiPS layout: order `k` from 0 to 9, tile number `n` below 12 x 4^k,
+`d` = `n` rounded down to a multiple of 10000. The answer is the 512 pixel
+JPEG exactly as the NASA/IPAC Infrared Science Archive serves it, so any HiPS
+client can read tiles from this address.
+
+A tile the server has on disk is answered from disk (`X-Atlas: kept`); any
+other is fetched from the archive once and kept (`X-Atlas: fetched`). Tiles
+may be cached for 30 days. `404`: no such tile. `503` with `Retry-After`: the
+tile is not on disk and the archive does not answer. `429`: the caller's
+allowance for tiles is used up ([security](security.md#request-limits)).
+
+It is a backdrop, not SPHEREx data. Credit: 2MASS, University of
+Massachusetts and IPAC/Caltech, funded by NASA and NSF; HiPS by CDS
+(CNRS/Unistra, ODbL-1.0).
+
+### GET /api/atlas
+
+What the server keeps of the photograph.
+
+```json
+{
+  "upstream": "https://irsa.ipac.caltech.edu/data/hips/CDS/2MASS/Color",
+  "credit": "2MASS colour atlas (J, H, K): ...",
+  "tiles": 16402, "bytes": 1652000000, "budget_bytes": 4000000000, "disk_free_bytes": 9100000000,
+  "kept_orders": [0, 5], "kept_tiles": 16380, "kept_tiles_wanted": 16380,
+  "counted": true, "seeding": null,
+  "from_disk": 5120, "fetched": 22, "dropped": 0, "archive_resting": false
+}
+```
+
+`kept_orders` are never deleted; `seeding` says which order is being filled
+after a start and how many tiles are left. `from_disk`, `fetched` and
+`dropped` count since the server started. The numbers above are illustrative.
 
 ## Examples
 

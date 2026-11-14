@@ -43,8 +43,8 @@ services:
       # measures). Set it in the Render dashboard, never in this file.
       - key: DATABASE_URL
         sync: false
-      # Keep these three in step with the plan and the disk below:
-      # processes = CPUs of the plan, disk budget = about 80% of the disk.
+      # Keep these in step with the plan and the disk below: processes = CPUs
+      # of the plan, the two disk budgets together = about 85% of the disk.
       - key: SPHEREX_FETCH_PROCS
         value: "4"
       # Frames kept in the server's memory. With the four fetch processes,
@@ -69,8 +69,22 @@ services:
       # glibc otherwise keeps one heap per thread and hands little back
       - key: MALLOC_ARENA_MAX
         value: "2"
+      # The disk is shared by the frame cache (DISK_BUDGET) and the tiles of
+      # the sky photograph (ATLAS_BUDGET): together 17 of its 20 GB.
       - key: SPHEREX_DISK_BUDGET_GB
-        value: "16"
+        value: "13"
+      # The photograph behind the sky map (sphereblink/atlas.py): tiles of
+      # the 2MASS atlas fetched from the archive once and kept. Orders 0-5
+      # (the whole sky, 16 380 tiles, 1.65 GB) are fetched after a start and
+      # never dropped; the deeper tiles share what is left of the budget,
+      # least recently asked for out first. One more order kept would be
+      # 5.5 GB more: the whole atlas is 445 GB and must not be copied.
+      - key: SPHEREX_ATLAS_BUDGET_GB
+        value: "4"
+      - key: SPHEREX_ATLAS_KEEP_ORDER
+        value: "5"
+      - key: SPHEREX_ATLAS_SEED
+        value: "1"
     disk:
       name: cache
       mountPath: /var/data
