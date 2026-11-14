@@ -80,6 +80,128 @@ def test_aperture_flux_recovers_a_point_source():
     assert cutout.aperture_flux(data, flags, {"HOT": 1024}, 20, 20, 3.0)[2] == ["HOT"]
 
 
+CORE_PLANES = {"TRANSIENT": 1, "OVERFLOW": 2, "SUR_ERROR": 4, "HOT": 1024}
+TO_UJY = cutout.config.NATIVE_PIXEL_ARCSEC**2 * cutout.ARCSEC2_TO_SR * 1e12
+
+
+def _core(peak: float, x: float = 20.0, y: float = 20.0, sigma: float = 0.6):
+    """A star on a flat sky of 5: the archive's pixels, and its true flux in an aperture of 2 pixels."""
+    yy, xx = np.mgrid[0:41, 0:41]
+    star = np.exp(-((xx - x) ** 2 + (yy - y) ** 2) / (2 * sigma**2))
+    star *= peak / star.max()
+    return (star + 5.0).astype(np.float32), float(star[(xx - x) ** 2 + (yy - y) ** 2 <= 4].sum()) * TO_UJY
+
+
+def _measure(raw, flags, x=20.0, y=20.0):
+    """Aperture flux the way the engine asks for it: flagged pixels masked in one array, kept in the other."""
+    data = np.where(flags != 0, np.nan, raw).astype(np.float32)
+    return cutout.aperture_flux(data, flags, CORE_PLANES, x, y, 2.0, raw=raw)
+
+
+def test_flags_a_bright_star_sets_on_its_own_core_do_not_hide_it():
+    raw, true = _core(400.0, 20.2, 19.9)
+    flags = np.zeros(raw.shape, np.int32)
+    flags[20, 20] = 2  # the brightest pixel overflowed...
+    flags[19:22, 19:22] |= 1 | 4  # ...and the on-board fit complains about its neighbours
+    flux, err, names = _measure(raw, flags, x=20.2, y=19.9)
+    assert flux == pytest.approx(true, rel=1e-3) and err >= 0
+    assert names == ["OVERFLOW", "SUR_ERROR", "TRANSIENT"]  # the flags are still reported
+    # one flagged pixel is enough to show what hiding it did: the rest of the aperture, scaled
+    # by area as before, is far below the star
+    one = np.zeros(raw.shape, np.int32)
+    one[20, 20] = 2
+    assert _measure(raw, one, x=20.2, y=19.9)[0] == pytest.approx(true, rel=1e-3)
+    old = np.where(one != 0, np.nan, raw)
+    yy, xx = np.mgrid[0:41, 0:41]
+    ap = (xx - 20.2) ** 2 + (yy - 19.9) ** 2 <= 4
+    assert np.nansum(old[ap] - 5.0) * ap.sum() / np.isfinite(old[ap]).sum() * TO_UJY < 0.7 * true
+
+
+def test_a_saturated_core_has_no_aperture_flux():
+    raw, _ = _core(900.0)
+    flags = np.zeros(raw.shape, np.int32)
+    flags[19:22, 19:22] = 2 | 4
+    hole = raw.copy()
+    hole[20, 20] = np.nan  # the archive gives a pixel that filled up no value
+    flux, _, names = _measure(hole, flags)
+    assert np.isnan(flux) and "OVERFLOW" in names
+    # the same when the target is put a pixel and a half beside the star
+    assert np.isnan(_measure(hole, flags, x=21.4, y=20.6)[0])
+    # and when the overflow has spread over the core: the charge of the brightest pixel is in its neighbours too
+    raw, true = _core(900.0)
+    assert np.isnan(_measure(raw, flags)[0])  # nine overflow pixels
+    few = np.zeros(raw.shape, np.int32)
+    few[20, 19:22] = 2 | 4
+    assert _measure(raw, few)[0] == pytest.approx(true, rel=1e-3)  # three
+    # and when no pixel is empty but the brightest is above the level up to which pixels were checked
+    flags = few
+    raw, true = _core(1900.0)
+    assert _measure(raw, flags)[0] == pytest.approx(true, rel=1e-3)
+    raw, _ = _core(2500.0)
+    assert np.isnan(_measure(raw, flags)[0])
+
+
+def test_a_cosmic_ray_hit_is_not_taken_for_a_star():
+    raw, true = _core(8.0)  # a faint source...
+    hit = raw.copy()
+    hit[20, 20] += 300.0  # ...with a hit on its central pixel: nearly all the light in one pixel
+    flags = np.zeros(raw.shape, np.int32)
+    flags[20, 20] = 1 | 2
+    assert np.isnan(_measure(hit, flags)[0])  # the central pixel cannot be guessed from the others
+    # a hit at the rim of the aperture is left out and the rest still measures the source
+    hit = raw.copy()
+    hit[20, 22] += 300.0
+    flags[:] = 0
+    flags[20, 22] = 1
+    flux, _, names = _measure(hit, flags)
+    assert flux == pytest.approx(true, rel=0.01) and names == ["PARTIAL", "TRANSIENT"]  # and says so
+    # most flagged pixels of a faint source are not hits at all: the pixel has its value and is summed
+    flags[:] = 0
+    flags[20, 20] = flags[21, 20] = 1 | 4
+    assert _measure(raw, flags)[0] == pytest.approx(true, rel=1e-3)
+    # a flag that is not one of the on-board fit (a hot pixel) always hides its pixel
+    flags[20, 20] = 1024
+    assert np.isnan(_measure(raw, flags)[0])
+
+
+def test_spectrum_points_use_the_halo_only_when_the_core_has_no_flux():
+    from sphereblink import main
+    from sphereblink.cutout import Frame
+
+    halo = _star_with_halo(2.0)
+
+    def frame(flux, flags):
+        return Frame(exposure(60900.0, 3), halo, wave_um=2.2, bandwidth_um=0.054, flux_ujy=flux, flux_err_ujy=900.0,
+                     flags_at_target=flags)
+
+    # flags on the core, and a flux: the aperture measured it
+    assert main._point_flux(frame(2.4e5, ["OVERFLOW", "SOURCE"]), 3.075)[:3] == (2.4e5, 900.0, "aperture")
+    # no flux because the core is saturated: the halo
+    flux, err, method, flags = main._point_flux(frame(float("nan"), ["OVERFLOW", "SOURCE"]), 3.075)
+    assert method == "wings" and flux > 1e6 and err / flux >= 0.2 and flags == ["OVERFLOW", "SOURCE"]
+    # no flux for another reason (a dead pixel on a faint source): no point
+    assert main._point_flux(frame(float("nan"), ["NONFUNC", "SOURCE"]), 3.075) is None
+
+
+def test_a_stray_halo_point_among_direct_points_is_left_out():
+    from sphereblink import main
+
+    def pt(wave, method):
+        return {"wave_um": wave, "bandwidth_um": 0.05, "flux_ujy": 1.0, "method": method}
+
+    direct = [pt(2.00 + 0.02 * k, "aperture") for k in range(10)]  # 2.00 to 2.18 um
+    # 2.05 lies among direct points; 2.26 has only two of them within two bandwidths; 3.0 has none
+    halo = [pt(2.05, "wings"), pt(2.26, "wings"), pt(3.0, "wings")]
+    kept = main._drop_stray_halo_points(direct + halo)
+    assert [p["wave_um"] for p in kept if p["method"] == "wings"] == [2.26, 3.0]
+    assert len([p for p in kept if p["method"] == "aperture"]) == 10
+    # a saturated star has only halo points: all of them stay
+    assert main._drop_stray_halo_points(halo) == halo
+    # a star at the saturation limit has both kinds mixed: both stay
+    mixed = direct + [pt(2.01 + 0.04 * k, "wings") for k in range(5)]
+    assert len(main._drop_stray_halo_points(mixed)) == 15
+
+
 def test_background_plane_removes_gradient():
     yy, xx = np.mgrid[0:80, 0:80]
     data = (3.0 + 0.05 * xx - 0.02 * yy).astype(np.float32)

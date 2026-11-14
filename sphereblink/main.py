@@ -521,6 +521,52 @@ def api_movie(
     return Response(render.gif_bytes(ims, fps), media_type="image/gif", headers={"Cache-Control": "public, max-age=3600"})
 
 
+def _point_flux(f, scale_arcsec: float) -> tuple[float, float, str, list[str]] | None:
+    """Flux of the source at the centre of one frame: (flux, error, method,
+    flags), or None when the frame does not measure it."""
+    flux, err, flags = f.flux_ujy, f.flux_err_ujy, f.flags_at_target
+    if np.isfinite(flux):
+        return flux, err, "aperture", flags
+    if not any(x in flags for x in wings.SATURATION_FLAGS):
+        return None
+    # The core has pixels without a value: the star saturates them, and only
+    # its halo still measures it. A core that merely carries flags is summed
+    # by the aperture (cutout.aperture_flux) and never comes here: the halo
+    # is 1 % of the light, so whatever else lies around the source (a host
+    # galaxy, a nebula, a neighbour) counts many times over in a halo flux.
+    w = wings.measure(f.image, scale_arcsec, f.wave_um, f.bandwidth_um)
+    if w is None:
+        return None
+    return w["flux_ujy"], w["flux_err_ujy"], "wings", flags + (["EXTRAPOLATED"] if w["extrapolated"] else [])
+
+
+def _drop_stray_halo_points(pts: list[dict]) -> list[dict]:
+    """Leave out the few halo points that stand among direct ones.
+
+    A source the aperture measures still gets a halo point now and then: a
+    cosmic-ray hit fills a pixel of its core in one exposure. Around
+    anything but a single star that point reads high (the halo is 1 % of the
+    light), and one such point in a curve of direct ones looks like a
+    feature. So a halo point is dropped where, within two bandwidths, direct
+    points outnumber halo points four to one. Where the two kinds are mixed
+    (a star at the saturation limit, measured directly only when it falls
+    between pixels) both stay: each fills gaps the other leaves.
+    """
+    wave = np.array([p["wave_um"] for p in pts])
+    halo = np.array([p["method"] == "wings" for p in pts])
+    if not halo.any() or halo.all():
+        return pts
+    keep = []
+    for p, w, is_halo in zip(pts, wave, halo):
+        if is_halo:
+            near = np.abs(wave - w) <= 2.0 * (p["bandwidth_um"] or w / 41.0)
+            direct = int(np.count_nonzero(near & ~halo))
+            if direct >= 3 and direct >= 4 * int(np.count_nonzero(near & halo)):
+                continue
+        keep.append(p)
+    return keep
+
+
 @app.get("/api/spectrum")
 def api_spectrum(
     target: str | None = None, ra: float | None = None, dec: float | None = None, fov: float = FOV,
@@ -531,9 +577,11 @@ def api_spectrum(
     Each exposure sees the target through one narrow slice of a linear
     variable filter, so all exposures together sample 0.75-5.0 um. Points are
     aperture fluxes (r = 2 native pixels) with empirical sky-noise errors.
-    Where the star saturates the detector the point comes from its halo
-    instead (``method`` = "wings", see ``sphereblink/wings.py``): good to
-    about 20-25 %, and flagged EXTRAPOLATED beyond the calibrated range.
+    Where the core has no usable value because the star saturates the
+    detector, the point comes from its halo instead (``method`` = "wings",
+    see ``sphereblink/wings.py``): good to about 20-25 % for a single star,
+    and flagged EXTRAPOLATED beyond the calibrated range. A stray halo point
+    among aperture points is left out.
     """
     t, grid = _view(target, ra, dec, fov)
     frames, job = _frames(grid, wait, partial=partial)
@@ -543,17 +591,10 @@ def api_spectrum(
     for f in frames:
         if not np.isfinite(f.wave_um):
             continue
-        flux, err, method, flags = f.flux_ujy, f.flux_err_ujy, "aperture", f.flags_at_target
-        if any(x in flags for x in wings.SATURATION_FLAGS):
-            # The core is saturated: an aperture on it reads 2-5 times low
-            # (checked against 2MASS). Measure the star from its halo instead.
-            w = wings.measure(f.image, grid.scale_arcsec, f.wave_um, f.bandwidth_um)
-            if w is None:
-                continue
-            flux, err, method = w["flux_ujy"], w["flux_err_ujy"], "wings"
-            flags = flags + (["EXTRAPOLATED"] if w["extrapolated"] else [])
-        if not np.isfinite(flux):
+        got = _point_flux(f, grid.scale_arcsec)
+        if got is None:
             continue
+        flux, err, method, flags = got
         pts.append({
             "wave_um": round(f.wave_um, 4),
             "bandwidth_um": round(f.bandwidth_um, 4) if np.isfinite(f.bandwidth_um) else None,
@@ -565,6 +606,7 @@ def api_spectrum(
             "uid": f.exposure.uid,
             "flags": flags,
         })
+    pts = _drop_stray_halo_points(pts)
     pts.sort(key=lambda p: p["wave_um"])
     return {"target": t.to_dict(), "job": job.public(), "units": {"flux": "uJy", "wave": "um"}, "points": pts}
 

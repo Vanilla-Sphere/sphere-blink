@@ -82,6 +82,26 @@ sky as one oval with the featured targets marked.
 Returning from a view to the map centres the map on the position just viewed
 and marks it.
 
+### What you can do here
+
+Under the map, between the start list and the zoom buttons, a strip of six
+cards says what the product does, and each card opens a live example instead
+of describing one (added 2026-11-14 on a teammate's request to list the
+features on the first screen):
+
+| Card | Opens |
+|---|---|
+| Blink the sky | Barnard's Star, in the mode the reader is in |
+| Catch what moves | the Discoveries log of the blind search |
+| Read a spectrum | Epsilon Indi B in Advanced, on the spectrum and its reading |
+| Watch it change | R Draconis in Advanced, on the plot over time |
+| See how far | the redshift layer of the map, from z > 1 |
+| Take the data | the "About the data" page |
+
+The strip fades when the map is zoomed in and is hidden in full screen. On a
+phone it is a row of its own above the start list, scrolled sideways, with the
+titles only. The code is `web/showcase.js`.
+
 ## 2. Search by coordinates or object name
 
 The search box accepts three kinds of input, resolved by
@@ -312,7 +332,7 @@ spectral data product.
   width of the plot, at the same flux scale; a second click brings all groups
   back. The row under the plot (`#otnav`: previous, next, "All groups") steps
   through the groups and names the one on screen with its dates (`showGroups`,
-  `stepGroup`, `plotClick` in `web/app.js`; the enlarged group is `S.otZoom`,
+  `stepGroup`, `plotClick` in `web/app.js`; the enlarged group is the one that holds the date `S.otZoom`,
   forgotten when a new view is loaded). The PNG export saves what is on screen.
 - **Did it change?** A line under the Over time plot answers in words
   (`brightnessChange` in `web/overtime.js`, the method of the pipeline's
@@ -328,12 +348,16 @@ spectral data product.
   open. On 2026-11-14: R Draconis about x1.9 between 2025-06 and 2026-06
   (3.8 sigma); Barnard's Star, Vega and Epsilon Indi B steady within 4-7 %;
   RW Aurigae 23 % (1.2 sigma, not significant).
-- **Quality marks.** Points with flagged pixels in the aperture are left out of
-  the plot by default, on the advice of an outside researcher (2026-11-14). A
-  button in the legend ("Show N flagged") brings them back, drawn
-  hollow. If a plot has no other points they are shown anyway. The CSV always
-  holds every point with its flags; the PNG shows what is on screen and says
-  how many points were left out.
+- **Quality marks.** A point is flagged when a pixel of its aperture was left
+  out of the sum (`PARTIAL`) or carries a defect flag such as `HOT` or
+  `PERSIST`. The flags a bright source sets on its own core (`OVERFLOW`,
+  `TRANSIENT`, `SUR_ERROR`, `BLOOM`) do not count: those pixels are measured
+  ([why](imaging-engine.md#flagged-pixels-in-the-aperture)). Flagged points
+  are left out of the plot by default, on the advice of an outside researcher
+  (2026-11-14). A button in the legend ("Show N flagged") brings them back,
+  drawn hollow. If a plot has no other points they are shown anyway. The CSV
+  always holds every point with its flags; the PNG shows what is on screen and
+  says how many points were left out.
 - **Saturated stars.** Where the core saturates the detector, the flux is
   measured from the star's halo instead (see
   [bright-star photometry](measurement-pipeline.md#bright-star-photometry)).
@@ -673,6 +697,12 @@ In the viewer (Advanced, `web/movers.js`):
   view is not. The object stays in its card with the other exposures and a
   "Back to the field" button, the ring and the path stay on the image, and
   the address gains `seen=<exposure>`, so the link opens that very frame.
+  Nothing is drawn inside the ring, so the marks never cover the object; when
+  the bands on screen are not those of the selected exposure, a line under
+  the list says which detector to choose. Going back to the field restores
+  the grouping and bands the field was shown with, because a wide field with
+  one frame per exposure exceeds the size limit of `/api/cube` (413); a link
+  that asks for it anyway is shown by day.
 - **Votes**: "Real motion" and "False alarm". One vote per browser; choosing
   the same button again takes it back.
 - **Follow**: kept in this browser only (`localStorage`), marked with a star.

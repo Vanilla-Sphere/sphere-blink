@@ -47,7 +47,27 @@ ROW_BYTES = DET_SIZE * 4
 FIRST_FETCH = 12 * BLOCK  # primary HDU + IMAGE header (25920 bytes in DR1/QR3)
 FLAGS_FETCH = 14 * BLOCK  # FLAGS header + row index (17280 + 16320 bytes)
 SATURATION_FLAGS = ("OVERFLOW", "NONLINEAR")
-
+# OVERFLOW, TRANSIENT and SUR_ERROR come from the on-board fit of the charge
+# ramp. They do not mean that the pixel has no value: the archive gives one,
+# and it is nearly always a good one. A star above about 0.1 Jy sets them on
+# its own core, and for 38 isolated 2MASS stars of 0.06-3.2 Jy (J and Ks) the
+# aperture flux that keeps those pixels is 0.91-1.02 of the 2MASS flux, with
+# 2-12 % scatter from exposure to exposure, the same as for cores without
+# flags (docs/imaging-engine.md). On fainter sources four in five flagged
+# pixels are within the noise of their neighbours; the rest are cosmic-ray
+# hits. A pixel that really saturates has no value at all (NaN).
+CORE_FLAGS = ("OVERFLOW", "TRANSIENT", "SUR_ERROR")
+# Brightest pixel [MJy/sr above the sky] up to which this was checked against
+# 2MASS (0.93-0.99 in every step of brightness from 30 to 2000). The archive
+# has values up to about 3000; pixels above that have none.
+CORE_MAX = 2000.0
+# With more overflow pixels than this in the aperture the sum reads high (25 %
+# with six or more, against exposures of the same star at the same wavelength
+# with one or none): the brightest pixel filled up and its charge spilled into
+# the neighbours, where it is counted a second time. Up to four it is 0.99-1.02.
+CORE_OVERFLOWS = 4
+CORE_SHARE = 0.8  # of the aperture's light in one pixel: more than a star puts there (0.75 at most), so a cosmic-ray hit
+CORE_REACH = 1.5  # pixels around the target that hold the star's brightest pixel, and where no pixel may be missing
 
 @dataclass
 class Grid:
@@ -380,7 +400,8 @@ async def cut_async(
 
     data = sci.copy()
     data[bad | ~np.isfinite(data)] = np.nan
-    data -= _background_plane(data)
+    background = _background_plane(data)
+    data -= background
     # Saturated cores of bright stars are masked by the pipeline; show them at
     # the brightest level instead of as a hole.
     display = data.copy()
@@ -396,7 +417,7 @@ async def cut_async(
 
     tx, ty = (float(v) for v in wcs.world_to_pixel_values(grid.ra, grid.dec))
     wave, bw = wavelength_at(wmap, tx, ty)
-    flux, err, tflags = aperture_flux(data, flags, planes, tx - x0, ty - y0, aperture_px)
+    flux, err, tflags = aperture_flux(data, flags, planes, tx - x0, ty - y0, aperture_px, raw=sci - background)
 
     return Frame(
         exposure=exposure,
@@ -454,8 +475,21 @@ def _background_plane(data: np.ndarray) -> np.ndarray:
     return (coef[0] + coef[1] * xx + coef[2] * yy).astype(np.float32)
 
 
-def aperture_flux(data, flags, planes, x, y, r):
+def aperture_flux(data, flags, planes, x, y, r, raw=None):
     """Sky-subtracted circular aperture flux [uJy] at detector-cutout (x, y).
+
+    ``data`` has the flagged pixels masked (NaN). ``raw`` is the same cutout
+    with the archive's value in every pixel. Pixels whose only flags are
+    ``CORE_FLAGS`` are summed at that value when the aperture then holds a
+    star (``_flagged_but_measured``); otherwise the flags are believed.
+
+    A pixel that is missing next to the target (within ``CORE_REACH``), or
+    that overflowed, cannot be replaced by the mean of the others, because it
+    holds a large part of the light: there is no flux then (NaN). Any other
+    missing pixel is at the rim of the aperture, where a star has about 1 %
+    of its light per pixel, and is left out of the sum; the flux then carries
+    the mark ``PARTIAL``. (Counting it as the mean of the others, as before,
+    read 9 % high on 2MASS stars.)
 
     The error is empirical: the scatter of the sky annulus scaled to the
     aperture area.
@@ -469,15 +503,55 @@ def aperture_flux(data, flags, planes, x, y, r):
     names = _names(flags[ap], planes)
     good = ap & np.isfinite(data)
     ann = (d2 >= (r + 3) ** 2) & (d2 <= (r + 8) ** 2) & np.isfinite(data)
-    if good.sum() < max(3, 0.6 * ap.sum()) or ann.sum() < 20:
+    if ann.sum() < 20:
         return float("nan"), float("nan"), names
     sky = float(np.median(data[ann]))
     sky_sigma = 1.4826 * float(np.median(np.abs(data[ann] - sky)))
+    values = data
+    if raw is not None and not good[ap].all():
+        measured = _flagged_but_measured(raw, flags, planes, ap, good, d2, sky)
+        if measured is not None:
+            good, values = measured, raw
+    # Not summed: pixels next to the target, and pixels that overflowed
+    # wherever they are in the aperture (they are the bright ones).
+    lost = ap & ~good
+    heavy = (d2 <= CORE_REACH**2) | ((flags & _bits(planes, SATURATION_FLAGS)) != 0)
+    if (lost & heavy).any() or good.sum() < max(3, 0.6 * ap.sum()):
+        return float("nan"), float("nan"), names
     to_ujy = (config.NATIVE_PIXEL_ARCSEC**2) * ARCSEC2_TO_SR * 1e12  # MJy/sr * sr -> uJy
-    scale = ap.sum() / good.sum()
-    flux = float(np.sum(data[good] - sky)) * scale * to_ujy
+    flux = float(np.sum(values[good] - sky)) * to_ujy
     err = sky_sigma * np.sqrt(ap.sum()) * to_ujy
+    if lost.any():
+        names = sorted(set(names) | {"PARTIAL"})  # not a flag of the archive: a rim pixel is not in the sum
     return flux, float(err), names
+
+
+def _flagged_but_measured(raw, flags, planes, ap, good, d2, sky):
+    """The aperture pixels to sum when its flagged pixels are measurements,
+    else None.
+
+    They are when the pixels flagged only with ``CORE_FLAGS``, taken at the
+    archive's value, make a star together with the unflagged ones: the
+    brightest pixel is next to the target, within the range that was checked
+    against 2MASS, and does not hold more of the light than a star puts into
+    one pixel. A cosmic-ray hit fails this: it is one pixel, or a streak,
+    far brighter than the source it lands on. A core in which more than
+    ``CORE_OVERFLOWS`` pixels overflowed, or one has no value, is saturated.
+    """
+    overflow = ap & ((flags & _bits(planes, SATURATION_FLAGS)) != 0)
+    if (overflow & ~np.isfinite(raw)).any() or overflow.sum() > CORE_OVERFLOWS:
+        return None  # a pixel of the aperture is saturated, or spilled over: the core cannot be summed
+    bad_bits = _bits(planes, config.BAD_FLAG_NAMES)
+    mild = (flags & bad_bits & ~_bits(planes, CORE_FLAGS)) == 0  # no masking flag but those three
+    use = ap & (good | (mild & np.isfinite(raw)))
+    if not (use & ~good).any():
+        return None
+    v = np.where(use, raw - sky, -np.inf)
+    k = int(np.argmax(v))
+    peak, total = float(v.flat[k]), float(np.sum(raw[use] - sky))
+    if not (0 < peak <= CORE_MAX and d2.flat[k] <= CORE_REACH**2 and peak <= CORE_SHARE * total):
+        return None
+    return use
 
 
 def _names(values: np.ndarray, planes: dict[str, int]) -> list[str]:
@@ -486,5 +560,5 @@ def _names(values: np.ndarray, planes: dict[str, int]) -> list[str]:
 
 
 def cache_key(exposure: Exposure, grid: Grid) -> str:
-    raw = f"{exposure.uid}|{exposure.collection}|{grid.key()}|v3"
+    raw = f"{exposure.uid}|{exposure.collection}|{grid.key()}|v4"
     return hashlib.sha1(raw.encode()).hexdigest()

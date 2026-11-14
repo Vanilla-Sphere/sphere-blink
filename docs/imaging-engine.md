@@ -150,12 +150,84 @@ Applied in order to the rows that were read:
    5 to 10 pixels. The flux is converted from MJy/sr to microjansky with the
    pixel solid angle; the error is the robust scatter of the annulus scaled to
    the aperture area. The names of all flags set inside the aperture are kept.
+   Which pixels are summed is decided as described under
+   [Flagged pixels in the aperture](#flagged-pixels-in-the-aperture).
 6. **Wavelength at the target.** Interpolated from the detector's wavelength map
    (next section).
 
 The result is a `Frame`: the image (float32, MJy/sr above the sky, NaN where
 there is no data), the wavelength and bandwidth at the target, the aperture
 flux and error, the flags at the target, and the fraction of valid pixels.
+
+### Flagged pixels in the aperture
+
+The mask of step 1 is right for the picture, and wrong for photometry.
+`OVERFLOW`, `TRANSIENT` and `SUR_ERROR` come from the on-board fit of the
+charge ramp. They do not mean that the pixel has no value: the archive gives
+one, and it is nearly always a good one. A source brighter than about 0.1 Jy
+sets these flags on its own central pixels in most exposures. On a fainter
+source four flagged pixels in five are within the noise of their neighbours,
+and the rest are cosmic-ray hits. Only a pixel that really saturates has no
+value (NaN).
+
+Measured on 2026-11-14 on 38 isolated 2MASS stars, at J and Ks, as the
+median over the exposures of each star and band, divided by the 2MASS flux:
+
+| 2MASS flux | Flagged pixels summed (now) | Flagged pixels masked (before) |
+| --- | --- | --- |
+| 0.06-0.2 Jy, 28 star-bands | 0.96 (0.93 to 1.01) | aperture 0.96 (0.92 to 1.01); halo in one exposure of seven, 0.75 to 1.05 |
+| 0.2-0.6 Jy, 15 star-bands | 0.99 (0.96 to 1.01) | aperture 0.2 to 0.7 in a few exposures; halo 0.85 to 1.72 |
+| 0.6-1.5 Jy, 19 star-bands | 0.98 (0.93 to 1.02) | no aperture flux; halo 0.86 to 1.17 |
+| 1.5-3.2 Jy, 14 star-bands | 0.95 (0.91 to 1.00), halo in a quarter of the exposures | no aperture flux; halo 0.81 to 1.07 |
+
+The scatter from exposure to exposure is 2-12 %, the same as for cores
+without flags. Sixteen of the stars were not used to set the rule below.
+
+Before this was known a flagged core was masked. What was left of the
+aperture, scaled by its area, read 2-5 times low, and where `OVERFLOW` was
+among the flags the flux was taken from the halo instead. For a single star
+on an empty sky the halo is about as good as the table shows. But the halo
+holds about 1 % of a star's light, so anything else around the source counts
+many times over: the host galaxy of the quasar 3C 273 made its halo points
+read 1.4 to 2.0 times the direct ones, the dark cloud around Elias 16 a
+factor 1.6 to 3, and a galaxy such as NGC 3379 tens of times.
+
+The rule in `cutout.aperture_flux`:
+
+- **Flagged pixels are summed** at the archive's value when they carry no
+  masking flag other than those three and, together with the unflagged
+  pixels, make a star: the brightest pixel lies within 1.5 pixels of the
+  target, is at most 2000 MJy/sr above the sky (the range checked against
+  2MASS) and holds no more than 80 % of the aperture's light. A star puts at
+  most 75 % into one pixel; a cosmic-ray hit is one pixel, or a streak, far
+  brighter than the source it lands on.
+- **A saturated core is not summed**: a pixel of the aperture has no value,
+  or more than four of them overflowed. In the second case the brightest
+  pixel filled up and its charge spilled into the neighbours, where it is
+  counted a second time: with six or more overflow pixels the sum reads 25 %
+  above exposures of the same star at the same wavelength with one or none;
+  with up to four it is 0.99 to 1.02 of them.
+- **Otherwise the flags are believed.** A masked pixel within 1.5 pixels of
+  the target, or one that overflowed, holds too much of the light to be
+  guessed: the frame has no aperture flux. A masked pixel at the rim of the
+  aperture is left out of the sum, and the flux carries the mark `PARTIAL`.
+  A star has about 1 % of its light there; counting it as the mean of the
+  other pixels, as before, read 9 % high.
+
+A frame without aperture flux whose aperture holds a saturation flag is
+measured from the halo by `/api/spectrum`
+([bright-star photometry](measurement-pipeline.md#bright-star-photometry)).
+That is now the case only where pixels really saturate: from about 2 Jy at
+1-2.5 um, and in most exposures above 3 Jy. A star near that limit has both
+kinds of point: it is measured directly in the exposures in which it falls
+between pixels. Where a halo point stands alone among direct ones (direct
+points outnumber halo points four to one within two bandwidths) it is left
+out: it comes from a cosmic-ray hit on the core in one exposure, and one
+point that reads high looks like a feature.
+
+The pictures are not changed by this: step 1 still masks the flagged pixels
+of a frame, and the measurement pipeline (`measure.py`) still fits only
+unflagged pixels.
 
 ## 5. Wavelength maps
 
