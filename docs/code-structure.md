@@ -34,7 +34,7 @@ sphere-blink/
 ├── docs/                   this documentation
 ├── render.yaml             hosting blueprint of production
 ├── render.dev.yaml         hosting blueprint of the dev site (see environments.md)
-├── .github/workflows/      checks on pull requests: tests, branch names
+├── .github/workflows/      checks on pull requests (tests, branch names); UI tests after every merge
 ├── requirements.txt        Python dependencies
 ├── README.md
 └── LICENSE                 MIT
@@ -118,6 +118,7 @@ of HTML, CSS and JavaScript in the viewer.
 | `scripts/build_quasar_template.py` | Build `web/data/quasar-template.json`, the mean quasar spectrum the redshift estimate is compared with, from two composites in VizieR | `python scripts/build_quasar_template.py` |
 | `scripts/validate_redshift.py` | Check the redshift estimate (`web/redshift.js`) against published redshifts on bright quasars, and on stars and nearby galaxies, with a local engine | `python scripts/validate_redshift.py --keep DIR` |
 | `scripts/build_dev_site.sh` | Lay `web/` out as the static dev site (see [environments](environments.md)) | `sh scripts/build_dev_site.sh [output dir]` |
+| `scripts/wait_for_deploy.sh` | Wait until a site serves the viewer of the checkout, and on production until the engine has restarted; used by the UI tests after a merge (see [environments](environments.md#ui-tests-after-every-merge)) | `sh scripts/wait_for_deploy.sh https://site [engine]` |
 
 ## Database files
 
