@@ -125,7 +125,8 @@ MOAT_STAR = 40  # pixels: a masked patch of this size or more is a bright star (
 MOAT_PIXELS = 3  # This close to it, what its light leaves behind at the edge of the mask changes with wavelength
 # and from visit to visit: every strong false path of the first real fields lay there with nine tenths of its frames.
 MOAT_CLEAR = 0.3  # So a path needs this share of its weight in frames away from bright stars,
-MOAT_SIGNAL = 0.5  # and must show there at least this share of what it shows overall
+MOAT_SIGNAL = 0.5  # and must show there at least this share of what it shows overall,
+MOAT_ENOUGH = 3.0  # or this many sigma (Makemake's brightest frames happen to lie beside a star; the others carry it)
 OFF_PIXELS = 3.0  # the object is "elsewhere" when it is this many pixels from a place
 OFF_MIN = 4  # frames a place must have without the object
 SIGHT_SNR = 5.0  # a single frame that shows the object by itself
@@ -140,6 +141,7 @@ MAX_SLOW_SPAN_H = 400.0  # a longer pass is searched in two halves that overlap
 # Distance. Seen from the moving Earth an object at distance d is displaced by Earth's own path over d: within a
 # pass that bends its track, and the bend gives the distance (Bernstein & Khushalani 2000). gamma = 1/d.
 GAMMA_MAX = 0.06  # 1/au: nearer than 17 au a body moves too fast for this search anyway
+RANGE_DROP = 9.0  # drop of the significance squared that bounds the range of distances given
 ESCAPE = 208.8  # arcsec per hour at 1 au of the speed that leaves the Sun from there (42.1 km/s); falls as distance^-1.5
 BOUND_SLACK = 1.3  # a path may need this many times that speed before it is called impossible
 EPOCH_GAP_D = 30.0  # passes further apart than this are different epochs: a slow object is somewhere else by then
@@ -811,16 +813,24 @@ def measure(c: Candidate, cube, frames: list[dict], sky: StaticSky, mjd: np.ndar
     return {"rows": rows, "a": np.array(a_all), "sig": np.array(s_all), "stamp": (stamp_num, stamp_den)}
 
 
-def polish(c: Candidate, cube, frames: list[dict], sky: StaticSky, mjd: np.ndarray, kind: str, reach: int = 2) -> bool:
-    """For an object that single frames show: move the path, by a pixel and
-    a step of the motion at most, to where the frames have it.
+@dataclass
+class Patches:
+    """What the frames show around a path: each frame's matched-filter value (in sigma) on a small square of pixels."""
 
-    The search limits every frame to CLIP sigma, which is right for what no
-    frame shows and blunt for what several do: a bright object then looks
-    the same on neighbouring paths, and the one picked may run a pixel
-    beside it. Here the frames count up to 15 sigma. Nothing is done unless
-    three frames of two visits show a source of SIGHT_SNR near the path.
-    Returns whether the path was changed."""
+    z: np.ndarray  # (frames, 2 reach + 1, 2 reach + 1), NaN where nothing can be measured
+    g: np.ndarray  # weight of each frame: expected brightness over noise
+    t: np.ndarray  # mjd
+    x: np.ndarray  # where the path is in each frame
+    y: np.ndarray
+    bx: np.ndarray  # the bend per unit of gamma at each frame's time, less the straight line that fits it best in
+    by: np.ndarray  # these frames (by weight): changing gamma then changes the bend alone, not place or motion
+    line: tuple  # that line: (x at the reference time, x per hour, y, y per hour), per unit of gamma
+    gamma: float  # the gamma x and y were computed with
+    reach: int
+    shown: bool = False  # single frames show the object: three of SIGHT_SNR in two visits
+
+
+def frame_patches(c: Candidate, cube, frames: list[dict], sky: StaticSky, mjd: np.ndarray, kind: str, reach: int = 2) -> Patches | None:
     h, w = cube.shape[1:]
     idx = np.flatnonzero((mjd >= c.first_mjd - 0.02) & (mjd <= c.last_mjd + 0.02))
     xs, ys = c.at(mjd[idx])
@@ -832,7 +842,8 @@ def polish(c: Candidate, cube, frames: list[dict], sky: StaticSky, mjd: np.ndarr
             continue
         detector = int(frames[i].get("detector") or 0)
         ref, mask = sky.of(detector)
-        y0, y1, x0, x1 = max(0, cy - WINDOW), min(h, cy + WINDOW + 1), max(0, cx - WINDOW), min(w, cx + WINDOW + 1)
+        m = max(WINDOW, reach + 2)
+        y0, y1, x0, x1 = max(0, cy - m), min(h, cy + m + 1), max(0, cx - m), min(w, cx + m + 1)
         res = np.asarray(cube[i][y0:y1, x0:x1], dtype=np.float32) - ref[y0:y1, x0:x1]
         good = np.isfinite(res) & ~mask[y0:y1, x0:x1]
         if good.sum() < 100:
@@ -854,34 +865,122 @@ def polish(c: Candidate, cube, frames: list[dict], sky: StaticSky, mjd: np.ndarr
         wave = float(wave) if wave is not None and np.isfinite(wave) else DETECTOR_UM.get(detector, 2.0)
         Z.append(z), G.append(float(template(wave, kind)) / noise), T.append(float(mjd[i])), X.append(float(x)), Y.append(float(y))
     if len(Z) < MIN_TIMES:
-        return False
-    Z, G, T, X, Y = np.array(Z), np.array(G), np.array(T), np.array(X), np.array(Y)
-    shown = np.nan_to_num(Z, nan=-np.inf).reshape(len(Z), -1).max(axis=1) >= SIGHT_SNR
-    if shown.sum() < 3 or np.unique(_by_visit(T)[shown]).size < 2:
-        return False
-    tau = (T - c.mjd_ref) * 24.0
+        return None
+    T = np.array(T)
+    Z, G = np.array(Z), np.array(G)
+    line = (0.0, 0.0, 0.0, 0.0)
+    if c.curve is not None:
+        bx, by = np.interp(T, c.curve_mjd, c.curve[:, 0]), np.interp(T, c.curve_mjd, c.curve[:, 1])
+        tau = (T - c.mjd_ref) * 24.0
+        wgt = G * np.isfinite(Z[:, reach, reach])  # polyfit squares its weights
+        if (wgt > 0).sum() >= 3 and np.ptp(tau[wgt > 0]) > 0:
+            fx, fy = np.polyfit(tau, bx, 1, w=wgt), np.polyfit(tau, by, 1, w=wgt)
+            bx, by = bx - np.polyval(fx, tau), by - np.polyval(fy, tau)
+            line = (float(fx[1]), float(fx[0]), float(fy[1]), float(fy[0]))
+    else:
+        bx, by = np.zeros(T.size), np.zeros(T.size)
+    seen = np.nan_to_num(Z[:, max(0, reach - 2) : reach + 3, max(0, reach - 2) : reach + 3], nan=-np.inf).reshape(len(Z), -1).max(axis=1) >= SIGHT_SNR
+    shown = bool(seen.sum() >= 3 and np.unique(_by_visit(T)[seen]).size >= 2)
+    return Patches(z=Z, g=G, t=T, x=np.array(X), y=np.array(Y), bx=bx, by=by, line=line, gamma=float(c.gamma), reach=reach, shown=shown)
+
+
+def fit_patches(p: Patches, c: Candidate, gamma: float | None = None, shifts: int = 1, steps: int = 2) -> tuple[float, tuple]:
+    """The best stack of the frames over small changes of a path: position by
+    up to ``shifts`` pixels, motion by up to ``steps`` fine steps, at a given
+    gamma. A frame counts up to VET_CLIP sigma, or up to 15 for an object
+    that single frames show. Returns the significance (before the window's
+    noise factor) and (dx, dy, dvx, dvy)."""
+    top = 15.0 if p.shown else VET_CLIP
+    tau = (p.t - c.mjd_ref) * 24.0
     step = float(c.extra.get("step") or 0.0)
-    rx, ry = np.rint(X), np.rint(Y)
-    rows = np.arange(len(Z))
-    best, arg = -np.inf, None
-    for dvx in np.arange(-2, 3) * step:
-        for dvy in np.arange(-2, 3) * step:
-            for dx in (-1.0, 0.0, 1.0):
-                for dy in (-1.0, 0.0, 1.0):
+    dg = 0.0 if gamma is None else gamma - p.gamma
+    X, Y = p.x + dg * p.bx, p.y + dg * p.by
+    rx, ry = np.rint(p.x), np.rint(p.y)
+    rows = np.arange(len(p.z))
+    need = max(MIN_TIMES, int(0.7 * np.isfinite(p.z[:, p.reach, p.reach]).sum()))
+    best, arg = 0.0, (0.0, 0.0, 0.0, 0.0)
+    moves = sorted(np.arange(-shifts, shifts + 1.0), key=abs)  # no change first: it wins a tie
+    for dvx in sorted(np.arange(-steps, steps + 1) * step, key=abs):
+        for dvy in sorted(np.arange(-steps, steps + 1) * step, key=abs):
+            for dx in moves:
+                for dy in moves:
                     ox = np.rint(X + dx + dvx * tau - rx).astype(int)
                     oy = np.rint(Y + dy + dvy * tau - ry).astype(int)
-                    inside = (np.abs(ox) <= reach) & (np.abs(oy) <= reach)
-                    z = Z[rows, np.clip(oy, -reach, reach) + reach, np.clip(ox, -reach, reach) + reach]
+                    inside = (np.abs(ox) <= p.reach) & (np.abs(oy) <= p.reach)
+                    z = p.z[rows, np.clip(oy, -p.reach, p.reach) + p.reach, np.clip(ox, -p.reach, p.reach) + p.reach]
                     use = inside & np.isfinite(z)
-                    if use.sum() < MIN_TIMES:
+                    if use.sum() < need:
                         continue
-                    score = float((G[use] * np.clip(z[use], -VET_CLIP, 15.0)).sum()) / math.sqrt(float((G[use] ** 2).sum()))
-                    if score > best + 1e-9 or (abs(score - best) <= 1e-9 and (dx, dy, dvx, dvy) == (0.0, 0.0, 0.0, 0.0)):
-                        best, arg = score, (dx, dy, float(dvx), float(dvy))
-    if arg is None or arg == (0.0, 0.0, 0.0, 0.0):
+                    score = float((p.g[use] * np.clip(z[use], -VET_CLIP, top)).sum()) / math.sqrt(float((p.g[use] ** 2).sum()))
+                    if score > best + 1e-9:
+                        best, arg = score, (float(dx), float(dy), float(dvx), float(dvy))
+    return best, arg
+
+
+def polish(c: Candidate, cube, frames: list[dict], sky: StaticSky, mjd: np.ndarray, kind: str) -> bool:
+    """For an object that single frames show: move the path, by a pixel and
+    two steps of the motion at most, to where the frames have it.
+
+    The search limits every frame to CLIP sigma, which is right for what no
+    frame shows and blunt for what several do: a bright object then looks
+    the same on neighbouring paths, and the one picked may run a pixel
+    beside it. Here the frames count up to 15 sigma. Nothing is done unless
+    three frames of two visits show a source of SIGHT_SNR near the path.
+    Returns whether the path was changed."""
+    p = frame_patches(c, cube, frames, sky, mjd, kind, reach=2)
+    if p is None:
+        return False
+    if not p.shown:
+        return False
+    _, arg = fit_patches(p, c)
+    if arg == (0.0, 0.0, 0.0, 0.0):
         return False
     c.x, c.y, c.vx, c.vy = c.x + arg[0], c.y + arg[1], c.vx + arg[2], c.vy + arg[3]
     return True
+
+
+def distance_from_frames(c: Candidate, cube, frames: list[dict], sky: StaticSky, mjd: np.ndarray, kind: str) -> dict:
+    """The distance from how the path bends, measured in the frames: the best
+    stack at each of a series of distances (position and motion are free
+    each time), the best distance, and the range that is not clearly worse.
+    A stack's significance squared is twice the log-likelihood, so a drop of
+    4 in it would be two sigma. On Haumea and Makemake that range missed the
+    true distance by a little (whole pixels, colour, frames that are not
+    independent), so the range given is a drop of RANGE_DROP = 9.
+    Changes the candidate to the best path.
+
+    The visit maps of the search are not used for this: they limit a frame
+    to CLIP sigma, which flattens the peak of an object that frames show and
+    then favours paths that are too straight (Haumea came out at 138 au
+    instead of 50)."""
+    sag = float(c.extra.get("sag") or 0.0)
+    if c.curve is None or sag * GAMMA_MAX < 1.5:  # the window is too short for the bend to show, even for the nearest body
+        return {}
+    reach = int(min(12, math.ceil(GAMMA_MAX * sag) + 2))
+    p = frame_patches(c, cube, frames, sky, mjd, kind, reach=reach)
+    if p is None:
+        return {}
+    step = 0.5 / sag  # half a pixel of bend
+    gammas = np.arange(0.0, GAMMA_MAX + step, step)
+    kappa = max(1.0, float(c.extra.get("kappa") or 1.0))
+    fits = [fit_patches(p, c, float(g)) for g in gammas]
+    score = np.array([f[0] for f in fits]) / kappa
+    j = int(np.argmax(score))
+    if score[j] <= 0:
+        return {}
+    near = np.flatnonzero(score**2 >= score[j] ** 2 - RANGE_DROP)
+    lo, hi = float(gammas[near.min()]), float(gammas[near.max()])
+    dx, dy, dvx, dvy = fits[j][1]
+    dg = float(gammas[j]) - p.gamma  # the straight part of the bend's change goes into place and motion
+    c.x, c.vx = c.x + dx - dg * p.line[0], c.vx + dvx - dg * p.line[1]
+    c.y, c.vy = c.y + dy - dg * p.line[2], c.vy + dvy - dg * p.line[3]
+    c.gamma = float(gammas[j])
+    out = {"gamma": round(float(gammas[j]), 5), "gamma_lo": round(max(0.0, lo - 0.5 * step), 5), "gamma_hi": round(hi + 0.5 * step, 5),
+           "bend_pixels_at_1au": round(sag, 1), "from": "frames"}
+    out["distance_au"] = round(1.0 / float(gammas[j]), 1) if gammas[j] > 0 else None
+    out["distance_min_au"] = round(1.0 / out["gamma_hi"], 1)
+    out["distance_max_au"] = round(1.0 / out["gamma_lo"], 1) if out["gamma_lo"] > 0 else None
+    return out
 
 
 def _stamp_test(num: np.ndarray, den: np.ndarray) -> dict:
@@ -899,41 +998,6 @@ def _stamp_test(num: np.ndarray, den: np.ndarray) -> dict:
     ok = peak > 0 and off <= STAMP_OFF and nine >= STAMP_CORE_MIN * peak and ring_level <= STAMP_RING_MAX * peak
     return {"ok": bool(ok), "peak": round(peak, 2), "offset": round(off, 2), "core": round(nine / peak, 2) if peak > 0 else 0.0,
             "ring": round(ring_level / peak, 2) if peak > 0 else 0.0}
-
-
-def _distance(c: Candidate, maps: PassMaps) -> dict:
-    """The distance from how the path bends: the best stack at each of a
-    range of distances (position and motion are free each time), the best
-    distance, and the range that is not clearly worse. The stack's
-    significance squared is twice the log-likelihood, so a drop of 4 in it
-    is two sigma. Changes the candidate to the best path."""
-    sag = float(c.extra.get("sag") or 0.0)
-    sel = c.extra.get("sel")
-    if sel is None or sag * GAMMA_MAX < 1.5:  # the window is too short for the bend to show, even for the nearest body
-        return {}
-    step = 0.5 / sag  # half a pixel of bend
-    gammas = np.arange(0.0, GAMMA_MAX + step, step)
-    t_ref = (c.mjd_ref - maps.mjd0) * 24.0
-    best = []
-    for g in gammas:
-        x, y = c.at(c.mjd_ref, 0.0)
-        r = _refine(maps, sel, t_ref, int(round(float(x))) - 1, int(round(float(y))) - 1, c.vx, c.vy, c.extra["step"], 2,
-                    c.extra["kappa"], np.array([g]), c.curve, half=2)
-        best.append(r if r is not None else (0, 0, 0, 0, 0.0, g))
-    score = np.array([r[4] for r in best])
-    j = int(np.argmax(score))
-    if score[j] <= 0:
-        return {}
-    near = np.flatnonzero(score**2 >= score[j] ** 2 - 4.0)
-    lo, hi = float(gammas[near.min()]), float(gammas[near.max()])
-    if score[j] >= c.snr - 0.5:
-        c.x, c.y, c.vx, c.vy, c.gamma = best[j][0], best[j][1], best[j][2], best[j][3], float(gammas[j])
-    out = {"gamma": round(float(gammas[j]), 5), "gamma_lo": round(max(0.0, lo - 0.5 * step), 5), "gamma_hi": round(hi + 0.5 * step, 5),
-           "bend_pixels_at_1au": round(sag, 1), "from": "stack"}
-    out["distance_au"] = round(1.0 / float(gammas[j]), 1) if gammas[j] > 0 else None
-    out["distance_min_au"] = round(1.0 / out["gamma_hi"], 1)
-    out["distance_max_au"] = round(1.0 / out["gamma_lo"], 1) if out["gamma_lo"] > 0 else None
-    return out
 
 
 def _distance_bright(c: Candidate, cube, frames: list[dict], sky: StaticSky, rows: list) -> dict:
@@ -1208,7 +1272,8 @@ def vet(c: Candidate, cube, frames: list[dict], sky: StaticSky, mjd: np.ndarray,
         share = float(weight[clear].sum() / weight.sum()) if weight.sum() > 0 else 0.0
         if share < MOAT_CLEAR:
             return None, "near_star"
-        if clipped_stack(np.where(clear, diff, np.nan), dsig, f, top) / width < MOAT_SIGNAL * snr * math.sqrt(share):
+        away = clipped_stack(np.where(clear, diff, np.nan), dsig, f, top) / width
+        if away < min(MOAT_ENOUGH, MOAT_SIGNAL * snr * math.sqrt(share)):
             return None, "near_star"
     # every visit by itself: most must show the object a little, a few visits cannot carry a path
     per_visit = np.array([clipped_stack(diff[visit == v], dsig[visit == v], f[visit == v], top[visit == v]) / width
@@ -1468,7 +1533,13 @@ def search(cube: np.ndarray, frames: list[dict], wcs, scale_arcsec: float, sky: 
                 ev, why = vet(c, cube, frames, own_sky, mjd, kind, maps, scale_arcsec, taken, moat)
                 if ev is not None:
                     # the distance, and with it the final path; the path is judged again as it now is
-                    distance = _distance_bright(c, cube, frames, own_sky, ev["rows"]) or _distance(c, maps)
+                    first, path = ev, (c.x, c.y, c.vx, c.vy, c.gamma)
+                    distance = (_distance_bright(c, cube, frames, own_sky, ev["rows"])
+                                or distance_from_frames(c, cube, frames, own_sky, mjd, kind))
+                    ev, why = vet(c, cube, frames, own_sky, mjd, kind, maps, scale_arcsec, taken, moat)
+                    if ev is None:  # the path as it was passed; the distance stays what the frames said
+                        c.x, c.y, c.vx, c.vy, c.gamma = path
+                        ev, why = first, ""
                     if not possible(c, distance, scale_arcsec):
                         ev, why = None, "unbound"
                         refused.append(c)
@@ -1476,8 +1547,6 @@ def search(cube: np.ndarray, frames: list[dict], wcs, scale_arcsec: float, sky: 
                         inside = (mjd >= c.first_mjd - 0.05) & (mjd <= c.last_mjd + 0.05)
                         taken.append(np.column_stack([np.where(inside, xs, np.nan), np.where(inside, ys, np.nan)]))
                     else:
-                        ev, why = vet(c, cube, frames, own_sky, mjd, kind, maps, scale_arcsec, taken, moat)
-                    if ev is not None:
                         ev["distance"] = distance
                         ev["search_snr"] = round(float(c.snr), 2)
                 if len(stats["strongest"]) < 40 and c.snr >= 9.0:
