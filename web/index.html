@@ -69,6 +69,7 @@
           <label><input type="checkbox" id="ov-catwise"><span>CatWISE</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="var(--color-ink-2)"/></svg></label>
           <label><input type="checkbox" id="ov-cross" checked><span>Crosshair</span></label>
           <label><input type="checkbox" id="ov-smooth"><span>Smooth pixels</span></label>
+          <label class="wide" id="trackopt" hidden title="Positions and fitted tracks the team has measured in this field"><input type="checkbox" id="ov-tracks" checked><span>Measured tracks</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1l5 5-5 5-5-5z" fill="none" stroke="var(--color-measured)"/></svg></label>
         </div>
       </div>
     </section>
@@ -123,6 +124,11 @@
     <section class="panel" id="epochcard" hidden>
       <h2>This frame</h2>
       <dl id="einfo"></dl>
+    </section>
+
+    <section class="panel" id="trackcard" hidden>
+      <h2>Measured in this field</h2>
+      <dl id="tracklist"></dl>
     </section>
 
     <section class="panel" id="linkcard" hidden>

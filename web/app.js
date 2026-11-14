@@ -8,7 +8,7 @@ const css = (name) => getComputedStyle(document.documentElement).getPropertyValu
 const T = {
   paper: css("--color-paper"), well: css("--color-paper-3"), ink: css("--color-ink"), ink2: css("--color-ink-2"),
   muted: css("--color-muted"), muted2: css("--color-muted-2"), rule: css("--color-rule"), rule2: css("--color-rule-2"),
-  accent: css("--color-accent"), accent2: css("--color-accent-2"),
+  accent: css("--color-accent"), accent2: css("--color-accent-2"), measured: css("--color-measured"),
   mono: css("--font-measure"), sans: css("--font-display"),
 };
 const NODATA = [38, 29, 22];  // pixels without data: a warm dark, never mistaken for black sky
@@ -22,7 +22,7 @@ const S = {
   target: null, ra: null, dec: null, fov: 8, det: "rgb", group: "day", mode: "blink",
   i: 0, ref: 0, playing: false, fps: 3, gain: 0,
   cube: null, meta: null, npix: 0, planes: 1, limits: null, median: null, stack: null,
-  spectrum: null, plotmode: "spec", catalogs: {}, loadId: 0, timer: null,
+  spectrum: null, plotmode: "spec", catalogs: {}, tracks: null, loadId: 0, timer: null,
 };
 
 /* ------------------------------------------------------------------ URL state */
@@ -36,6 +36,7 @@ function readUrl() {
   if (["blink", "diffmed", "diffref", "stack"].includes(p.get("mode"))) S.mode = p.get("mode");
   if (p.get("gaia") === "1") $("ov-gaia").checked = true;
   if (p.get("catwise") === "1") $("ov-catwise").checked = true;
+  if (p.get("tracks") === "0") $("ov-tracks").checked = false;
 }
 function viewParams(extra = {}) {
   const p = new URLSearchParams();
@@ -52,6 +53,7 @@ function writeUrl() {
   if (S.mode !== "blink") p.set("mode", S.mode);
   if ($("ov-gaia").checked) p.set("gaia", "1");
   if ($("ov-catwise").checked) p.set("catwise", "1");
+  if (S.tracks && !$("ov-tracks").checked) p.set("tracks", "0");
   history.replaceState(null, "", "?" + p.toString());
   const base = location.origin;
   $("s-page").value = base + "/?" + p.toString();
@@ -66,6 +68,7 @@ async function load() {
   const id = ++S.loadId;
   stop();
   S.cube = null; S.meta = null; S.median = null; S.stack = null; S.spectrum = null; S.catalogs = {}; S.i = 0; S.ref = 0;
+  S.tracks = null; $("trackopt").hidden = true; $("trackcard").hidden = true;
   $("intro").hidden = true; $("analysishint").hidden = true;
   $("empty").hidden = false; $("empty").textContent = "Searching the SPHEREx archive…";
   $("progress").hidden = false; setProgress(0, "Searching the SPHEREx archive…");
@@ -99,6 +102,7 @@ async function load() {
   setTimeout(() => { if (id === S.loadId) $("progress").hidden = true; }, 2500);
   loadSpectrum(id);
   loadCatalogs();
+  loadTracks();
 }
 
 async function fetchCube(id, keepIndex) {
@@ -156,6 +160,30 @@ async function loadCatalogs() {
     } catch (_) { S.catalogs[cat] = null; }
     draw();
   }
+}
+
+/* Objects the team has measured in this field (optional: the server may have no database). */
+async function loadTracks() {
+  const id = S.loadId;
+  try {
+    const r = await fetch("/api/tracks?" + viewParams());
+    if (!r.ok) return;
+    const d = await r.json();
+    if (id !== S.loadId || !d.enabled) return;
+    S.tracks = d.sources;
+    $("trackopt").hidden = false;
+    $("trackcard").hidden = !d.sources.length;
+    $("tracklist").innerHTML = "";
+    for (const s of d.sources) {
+      const dt = document.createElement("dt"), dd = document.createElement("dd"), tr = s.track;
+      dt.textContent = s.name;
+      dd.textContent = [s.kind, `${s.detections.length} position${s.detections.length === 1 ? "" : "s"}`,
+        tr ? `${(Math.hypot(tr.pmra, tr.pmdec) / 1000).toFixed(2)}″/yr` : null,
+        tr && tr.rms_arcsec != null ? `rms ${tr.rms_arcsec.toFixed(2)}″` : null].filter(Boolean).join(" · ");
+      $("tracklist").append(dt, dd);
+    }
+    draw(); writeUrl();
+  } catch (_) {}
 }
 
 function fail(e, id) {
@@ -362,6 +390,25 @@ function drawOverlays(ctx, cv) {
       }
     }
     ctx.globalAlpha = 1;
+  }
+  // the team's own measurements: every measured position as a dot, the fitted track as a line,
+  // and a diamond on the positions measured in the frame being shown
+  if ($("ov-tracks").checked && Array.isArray(S.tracks)) {
+    const M = T.measured, win = {visit: 25, day: 0.6, exposure: 0.02}[S.group], inside = (x, y) => x >= 0 && y >= 0 && x <= W && y <= W;
+    const diamond = (x, y, r) => { ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); };
+    for (const s of S.tracks) {
+      const model = s.track || {ra: s.ra, dec: s.dec, epoch: s.epoch || 2000, pmra: s.pmra || 0, pmdec: s.pmdec || 0};
+      if (s.track) { const a = toPixel(...moved(model, y0), cv), b = toPixel(...moved(model, y1), cv); line(M, 1, () => { ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); }); }
+      ctx.fillStyle = M; ctx.globalAlpha = 0.6;
+      for (const d of s.detections) { const [x, y] = toPixel(d.ra, d.dec, cv); if (inside(x, y)) ctx.fillRect(x - 1.5 * u, y - 1.5 * u, 3 * u, 3 * u); }
+      ctx.globalAlpha = 1;
+      const now = s.detections.filter((d) => Math.abs(d.mjd - e.mjd) <= win).map((d) => toPixel(d.ra, d.dec, cv)).filter((p) => inside(p[0], p[1]));
+      if (now.length) line(M, 1.5, () => { for (const [x, y] of now) diamond(x, y, 7 * u); });
+      const [x, y] = toPixel(...moved(model, yr), cv);
+      if (!inside(x, y)) continue;
+      if (!now.length) line(M, 1, () => diamond(x, y, 4 * u));
+      text(s.name, x + 11 * u, y + 16 * u, M);
+    }
   }
   // scale bar + compass
   const arcmin = S.grid.fov_arcmin, bar = arcmin >= 20 ? 5 : arcmin >= 10 ? 2 : 1, len = W * bar / arcmin;
@@ -582,7 +629,7 @@ function init() {
   $("gain").addEventListener("input", (ev) => { S.gain = +ev.target.value; draw(); });
   $("resetgain").addEventListener("click", () => { S.gain = 0; $("gain").value = 0; draw(); });
   $("setref").addEventListener("click", () => { S.ref = S.i; S.limits = null; $("reflabel").textContent = fmtLabel(S.meta.epochs[S.ref].label) + " UTC"; draw(); });
-  for (const c of ["gaia", "catwise", "cross", "smooth"]) $("ov-" + c).addEventListener("change", () => { loadCatalogs(); if (S.meta) { draw(); writeUrl(); } });
+  for (const c of ["gaia", "catwise", "cross", "smooth", "tracks"]) $("ov-" + c).addEventListener("change", () => { loadCatalogs(); if (S.meta) { draw(); writeUrl(); } });
   $("timeline").addEventListener("pointerdown", (ev) => { $("timeline").setPointerCapture(ev.pointerId); scrubTimeline(ev); });
   $("timeline").addEventListener("pointermove", (ev) => { if (ev.buttons & 1) scrubTimeline(ev); });
   for (const b of document.querySelectorAll("[data-example]")) b.addEventListener("click", () => { $("q").value = b.dataset.example; $("search").requestSubmit(); });

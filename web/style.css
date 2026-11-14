@@ -14,7 +14,7 @@
   --color-rule:oklch(25% 0.010 78); --color-rule-2:oklch(16% 0.009 78);
   --color-accent:oklch(72% 0.17 45); --color-accent-hover:oklch(77% 0.16 48); --color-accent-ink:oklch(10% 0.02 45);
   --color-accent-2:oklch(74% 0.12 250); --color-focus:oklch(78% 0.15 45);
-  --color-nodata:oklch(17% 0.022 50);
+  --color-nodata:oklch(17% 0.022 50); --color-measured:oklch(84% 0.16 135);
   /* data series: the six detectors in wavelength order, and the three colour channels */
   --d1:oklch(74% 0.13 285); --d2:oklch(76% 0.12 240); --d3:oklch(80% 0.11 195);
   --d4:oklch(82% 0.14 145); --d5:oklch(84% 0.14 90); --d6:oklch(70% 0.18 28);
@@ -140,6 +140,8 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 .checks{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
 .checks label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--color-ink-2);cursor:pointer}
 .checks .key{width:11px;height:11px;flex:none}
+.checks .wide{grid-column:1 / -1}
+#tracklist dt{color:var(--color-ink)}
 
 /* ------------------------------------------------------------------ stage */
 .stage{width:calc(var(--img) + 2 * var(--pad) + 2px);padding:0 var(--pad) 12px;min-width:0;container-type:inline-size}
