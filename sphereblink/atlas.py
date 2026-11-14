@@ -20,7 +20,7 @@ ask this server, which keeps what it has fetched:
 
 The whole atlas is not copied and must not be: it is about 445 GB (measured
 on the archive, November 2026), and its publisher marks it ``unclonable``.
-Orders 0 to 5 together are 1.65 GB.
+Orders 0 to 5 together are 1.65 GB, orders 0 to 6 about 7.2 GB.
 
 The tiles are stored as the archive sends them, byte for byte, in the layout
 of HiPS (``Norder3/Dir0/Npix300.jpg``). There is no database: the files are
@@ -49,6 +49,7 @@ FETCH_TIMEOUT = httpx.Timeout(15.0, connect=5.0)
 REST_AFTER = 5  # failed fetches in a row before the archive is left alone ...
 REST_S = 30.0  # ... for this long: a tile that is not on disk is refused at once meanwhile
 MIN_FREE_BYTES = 1e9  # with less than this free on the disk no new tile is stored (the disk is shared)
+SEED_MIN_FREE_BYTES = 4e9  # ... and the kept orders are not filled any further with less than this free
 TOUCH_EVERY_S = 6 * 3600.0  # how often a tile's "last asked for" is written to disk
 CREDIT = ("2MASS colour atlas (J, H, K): University of Massachusetts and IPAC/Caltech, funded by NASA and NSF; "
           "HiPS by CDS (CNRS/Unistra, ODbL-1.0), from the NASA/IPAC Infrared Science Archive")
@@ -328,7 +329,7 @@ class Atlas:
                 if not todo or (attempt and stop.wait(60.0)):
                     break
                 for i in range(0, len(todo), 32):
-                    if stop.is_set() or self.free_bytes() < MIN_FREE_BYTES:  # a full disk keeps nothing: do not fetch for it
+                    if stop.is_set() or self.free_bytes() < SEED_MIN_FREE_BYTES:  # leave the rest of the disk to the frame cache
                         halt = True
                         break
                     batch = todo[i:i + 32]

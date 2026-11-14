@@ -88,6 +88,15 @@ def test_a_nearly_full_disk_gets_no_new_tiles(tmp_path, monkeypatch):
     assert data.startswith(JPEG) and not kept and not a.path(4, 1).exists()  # shown, not kept
     assert a.stats()["disk_free_bytes"] == 0.5e9
 
+    # with little room left the kept orders are not filled any further: the frame cache needs the rest
+    b = make(tmp_path / "b", archive, keep_order=1)
+    monkeypatch.setattr(atlas.shutil, "disk_usage", lambda p: type("U", (), {"free": 3e9})())
+    b._free = (0.0, 0.0)
+    n = len(archive.asked)
+    b.seed(threading.Event())
+    assert len(archive.asked) == n and b.stats()["kept_tiles"] == 0
+    assert b.get(1, 5)[0].startswith(JPEG) and b.path(1, 5).exists()  # a tile somebody asks for is still kept
+
 
 def test_many_callers_of_one_tile_share_one_fetch(tmp_path):
     archive = Archive()

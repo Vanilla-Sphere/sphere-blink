@@ -284,7 +284,7 @@ coordinates.
     `Norder{k}/Dir{d}/Npix{n}.jpg`.
   - The tiles come from our own server (`/api/atlas/2mass/`, same layout),
     which fetches a tile from the archive once and keeps it, and holds the
-    whole sky at orders 0-5 from the start
+    whole sky at orders 0-6 from the start
     ([API](api-reference.md#get-apiatlas2mass)). A tile the server cannot
     give is asked of the archive itself; after three such failures in a row
     the archive is asked first for a minute.
