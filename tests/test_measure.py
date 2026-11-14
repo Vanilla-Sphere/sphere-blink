@@ -220,16 +220,17 @@ def test_results_measured_without_a_database_are_written_once_it_is_there(tmp_pa
     monkeypatch.setattr(config, "CACHE_DIR", tmp_path)
     monkeypatch.setattr(config, "DB_URL", "")
     for name, stored in (("a", False), ("b", True), ("c", False)):
-        measurements.save_local(name, {"name": name, "ra": 1.0, "dec": 2.0, "stats": {"in_database": stored}})
+        measurements.save_local(name, {"name": name, "ra": 1.0, "dec": 2.0, "track": {"n_detections": 3}, "stats": {"in_database": stored}})
+    measurements.save_local("nothing", {"name": "nothing", "ra": 1.0, "dec": 2.0, "track": None, "stats": {}})  # never written
     assert measurements.sync_db() == 0  # no database: nothing to do
     written = []
     monkeypatch.setattr(config, "DB_URL", "postgresql://example.invalid/db")
     monkeypatch.setattr(measurements, "save_db", lambda result: written.append(result["name"]) or True)
     assert measurements.sync_db() == 2 and sorted(written) == ["a", "c"]
-    assert all(r["stats"]["in_database"] for r in measurements.list_local())
+    assert all(r["stats"]["in_database"] for r in measurements.list_local() if r["track"])
     assert measurements.sync_db() == 0 and len(written) == 2
     monkeypatch.setattr(measurements, "save_db", lambda result: False)  # database away: keep the result for next time
-    measurements.save_local("d", {"name": "d", "ra": 1.0, "dec": 2.0, "stats": {}})
+    measurements.save_local("d", {"name": "d", "ra": 1.0, "dec": 2.0, "track": {"n_detections": 3}, "stats": {}})
     assert measurements.sync_db() == 0 and not measurements.load_local("d")["stats"].get("in_database")
 
 
@@ -264,3 +265,87 @@ def test_a_mostly_saturated_star_gets_its_light_curve_from_the_ring():
     result = M.measure_all(stamps, b, [], waves)
     dets = result["detections"]
     assert len(dets) == 80 and all("RING_FLUX" in d["flags"] for d in dets)
+
+
+def test_the_analytic_gradient_of_the_psf_matches_finite_differences():
+    yy, xx = np.mgrid[0:7, 0:7].astype(float)
+    for x0, y0, w in ((3.2, 2.9, 0.4), (2.6, 3.4, 0.8), (3.0, 3.0, 2.0)):
+        g, gx, gy, gw = M._gauss_pix_grad(xx, yy, x0, y0, w)
+        h = 1e-6
+        assert g == pytest.approx(M._gauss_pix(xx, yy, x0, y0, w), abs=1e-14)
+        assert gx == pytest.approx((M._gauss_pix(xx, yy, x0 + h, y0, w) - M._gauss_pix(xx, yy, x0 - h, y0, w)) / (2 * h), abs=1e-8)
+        assert gy == pytest.approx((M._gauss_pix(xx, yy, x0, y0 + h, w) - M._gauss_pix(xx, yy, x0, y0 - h, w)) / (2 * h), abs=1e-8)
+        assert gw == pytest.approx((M._gauss_pix(xx, yy, x0, y0, w + h) - M._gauss_pix(xx, yy, x0, y0, w - h)) / (2 * h), abs=1e-8)
+
+
+def test_a_source_next_to_the_requested_place_is_not_the_object():
+    asked = M.Body("150.00000 +20.00000", 150.0, 20.0)
+    for off, found in ((1.0, True), (5.0, False)):
+        there = M.Body("there", *M.shift(150.0, 20.0, off, 0.0))
+        stamps = []
+        for k, start in enumerate((60800.0, 60985.0, 61170.0)):
+            for i in range(8):
+                st = stamp_of(asked, start + i * 0.5, extra=[(there, 40.0)], flux=0.0)
+                st.exposure.obs_id = f"n{k}_{i}"
+                stamps.append(st)
+        r = M.measure_all(stamps, asked, [], {})
+        assert r["stats"]["detected"] is found and (r["track"] is not None) is found
+        if not found:
+            assert r["light_curve"] is None and not any(d["used"] for d in r["detections"])
+            assert r["stats"]["nearby_source"]["sep_arcsec"] == pytest.approx(5.0, abs=0.5)
+
+
+def test_a_search_that_found_nothing_is_not_served_as_a_source(tmp_path, monkeypatch):
+    from sphereblink import config
+
+    monkeypatch.setattr(config, "CACHE_DIR", tmp_path)
+    monkeypatch.setattr(config, "DB_URL", "")
+    target = {"ra": 10.0, "dec": 5.0, "epoch": 2016.0, "pmra": 0.0, "pmdec": 0.0}
+    measurements.save_local("pos", {"name": "10.0 5.0", "ra": 10.0, "dec": 5.0, "target": target, "track": None, "detections": [], "stats": {}})
+    assert measurements.load_local("pos") is not None and measurements.near(10.0, 5.0, 0.1) == []
+    assert not measurements.save_db(measurements.load_local("pos"))
+    measurements.delete_local("pos")
+    assert measurements.load_local("pos") is None
+
+
+def test_stored_results_of_an_older_pipeline_are_measured_again_or_dropped(tmp_path, monkeypatch):
+    from sphereblink import config, measure_api
+    from sphereblink.resolve import ResolveError, ResolverUnavailable, Target
+
+    monkeypatch.setattr(config, "CACHE_DIR", tmp_path)
+    monkeypatch.setattr(config, "DB_URL", "")
+    old, new = measure_api.VERSION - 1, measure_api.VERSION
+    now = __import__("time").time()
+
+    def stored(name, version, track=True, **more):
+        return {"name": name, "ra": 1.0, "dec": 2.0, "version": version, "measured_at": now, "track": {"n_detections": 3} if track else None, **more}
+
+    measurements.save_local("barnard", stored("Barnard's Star", old))  # a challenge target: not this function's business
+    measurements.save_local("fresh", stored("fresh", new))
+    measurements.save_local("refused", stored("500.0 3.0", old))
+    measurements.save_local("star", stored("Ross 128", old))
+    measurements.save_local("empty", stored("12.34560 -33.21000", old))
+    measurements.save_local("later", stored("Wolf 359", old))
+    measurements.save_local("kept", stored("kept", old, query=Target("kept", 3.0, 4.0, 3.0, 4.0).to_dict()))
+
+    def fake_resolve(text):
+        if text == "500.0 3.0":
+            raise ResolveError("coordinates out of range")
+        if text == "Wolf 359":
+            raise ResolverUnavailable("the name services are not answering")
+        return Target(text, 1.0, 2.0, 1.0, 2.0)
+
+    asked = []
+
+    def fake_start(target, refresh=False):
+        asked.append(target.name)
+        key = {"Ross 128": "star_new", "12.34560 -33.21000": "empty", "kept": "kept"}[target.name]
+        measurements.save_local(key, stored(target.name, new, track=target.name != "12.34560 -33.21000"))
+        return key, {"status": "ready"}
+
+    monkeypatch.setattr(measure_api, "resolve", fake_resolve)
+    monkeypatch.setattr(measure_api, "start", fake_start)
+    measure_api._refresh_stored()
+    assert sorted(asked) == ["12.34560 -33.21000", "Ross 128", "kept"]
+    left = {r["key"]: r["version"] for r in measurements.list_local()}
+    assert left == {"barnard": old, "fresh": new, "star_new": new, "later": old, "kept": new}

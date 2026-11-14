@@ -165,6 +165,10 @@ A PSF fit to what is left of a saturated core reads 2-5 times low, so such
 exposures give a position but no core flux; a star saturated in most of its
 exposures (RW Aurigae, Barnard's Star, R Draconis) gets its whole light curve
 from the ring.
+A position where nothing is found gives no track, and neither does one
+where the only source found lies more than 3 arcsec (half a pixel) from the
+place asked for: that is a neighbour, reported as `stats.nearby_source` with
+its positions marked unused. Such a result is not written to the database.
 The pipeline only writes rows with `method` `psf`, `wings` or `stack`;
 measurements loaded by hand under another method name are left alone.
 

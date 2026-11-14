@@ -8,7 +8,8 @@ A job finds the exposures, then measures in a separate process (so the web
 server keeps answering), stores the result on disk and, when the database
 role allows it, in the team database. The five challenge targets are measured
 by themselves shortly after the server starts, and again when the pipeline
-changes or new exposures may have arrived.
+changes or new exposures may have arrived; what visitors had measured is
+measured again when the pipeline changes.
 """
 
 from __future__ import annotations
@@ -31,7 +32,7 @@ from .resolve import FEATURED, ResolverUnavailable, Target, resolve
 log = logging.getLogger(__name__)
 router = APIRouter()
 
-VERSION = 2  # raise to have every stored result measured again
+VERSION = 3  # raise to have every stored result measured again
 MAX_AGE_S = 7 * 24 * 3600  # challenge targets are measured again after a week (new exposures)
 JOB_TIMEOUT_S = 600
 MID_MJD = 61000.0  # a date inside the SPHEREx data, for cone searches
@@ -76,7 +77,7 @@ def run(target: Target, exposures: list, wave_maps: dict, concurrency: int = 16)
     ra, dec = body.at(MID_MJD)
     note = FEATURED[key]["note"] if key else ""
     result.update(
-        name=body.name, kind=kind, ra=ra, dec=dec, note=note, version=VERSION, measured_at=time.time(),
+        name=body.name, kind=kind, ra=ra, dec=dec, note=note, version=VERSION, measured_at=time.time(), query=asdict(target),
         stats={**result["stats"], "exposures": len(exposures), "failed": failed, "gaia": gaia_ok, "seconds": round(time.time() - t0, 1)},
     )
     return result
@@ -147,6 +148,51 @@ def _measure_featured() -> None:
                 time.sleep(2.0)
         except Exception:
             log.exception("automatic measurement of %s failed", key)
+    try:
+        _refresh_stored()
+    except Exception:
+        log.exception("could not bring the stored measurements up to date")
+
+
+def _target_of(result: dict) -> Target:
+    """The request a stored result answers. Results stored before the request
+    was kept are asked for again by their name."""
+    try:
+        return Target(**result["query"])
+    except (KeyError, TypeError):
+        return resolve(result["name"])
+
+
+def _refresh_stored() -> None:
+    """Measure again what an older version of the pipeline measured for a
+    visitor. A result that can no longer be asked for (its coordinates are
+    refused now) is dropped, and so is one that turns out to hold no
+    detection: nobody is waiting for it."""
+    for row in measurements.list_local():
+        key = row["key"]
+        if key in refcat.TARGETS or not _stale(row):
+            continue
+        try:
+            target = _target_of(row)
+        except ResolverUnavailable:
+            continue  # the name services are away: the next start tries again
+        except ValueError:
+            measurements.delete_local(key)
+            continue
+        try:
+            new_key, job = start(target, refresh=True)
+            while job["status"] in ("queued", "searching", "measuring"):
+                time.sleep(2.0)
+        except Exception:
+            log.exception("measuring %s again failed", key)
+            continue
+        if job["status"] != "ready":
+            continue
+        if new_key != key:
+            measurements.delete_local(key)
+        result = measurements.load_local(new_key)
+        if result is not None and not result.get("track"):
+            measurements.delete_local(new_key)
 
 
 def _public(job: dict) -> dict:

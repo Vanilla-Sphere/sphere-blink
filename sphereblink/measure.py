@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+from functools import lru_cache
 from dataclasses import dataclass, field
 
 import httpx
@@ -68,6 +69,8 @@ MIN_SNR = 6.0  # a single-exposure position is kept above this
 STACK_MIN_SNR = 5.0
 STACK_HALF = 10  # stacks are (2*10+1)^2 pixels of half the native size: +-31 arcsec
 REF_MIN_SNR = 15.0
+MAX_OFFSET_ARCSEC = 3.0  # half a pixel: what is found farther from the expected place is another source
+POINTING_STAMPS = 120  # exposures whose pointing is checked against Gaia
 REF_MAX = 4
 NEIGHBOUR_ARCSEC = 30.0  # catalogue stars this close are fitted together with the object
 PASS_GAP_DAYS = 45.0  # exposures closer than this belong to one sky pass
@@ -84,14 +87,28 @@ def year_of(mjd: float) -> float:
 
 
 # ----------------------------------------------------------------------------- where a star should be
-def earth_au(mjd) -> np.ndarray:
-    """Barycentric position of the Earth [au], ICRS axes. SPHEREx is in low
-    Earth orbit, 5e-5 au from the geocentre: irrelevant for parallax."""
+@lru_cache(maxsize=4096)
+def _earth_au_one(mjd: float) -> tuple[float, float, float]:
+    return tuple(_earth_au_many(np.array([mjd]))[0])
+
+
+def _earth_au_many(mjd: np.ndarray) -> np.ndarray:
     from astropy.coordinates import get_body_barycentric
     from astropy.time import Time
 
-    p = get_body_barycentric("earth", Time(np.atleast_1d(mjd), format="mjd", scale="tdb"), ephemeris="builtin")
+    p = get_body_barycentric("earth", Time(mjd, format="mjd", scale="tdb"), ephemeris="builtin")
     return np.stack([p.x.to_value("au"), p.y.to_value("au"), p.z.to_value("au")], axis=-1)
+
+
+def earth_au(mjd) -> np.ndarray:
+    """Barycentric position of the Earth [au], ICRS axes. SPHEREx is in low
+    Earth orbit, 5e-5 au from the geocentre: irrelevant for parallax. Single
+    dates are remembered: every star of a field asks for the same exposure
+    dates."""
+    mjd = np.atleast_1d(np.asarray(mjd, dtype=float))
+    if mjd.size == 1:
+        return np.array([_earth_au_one(float(mjd[0]))])
+    return _earth_au_many(mjd)
 
 
 def parallax_factors(ra: float, dec: float, mjd) -> tuple[np.ndarray, np.ndarray]:
@@ -263,6 +280,22 @@ def _gauss_pix(x, y, x0, y0, s):
     return gx * gy
 
 
+_INV_SQRT_PI = 1.0 / math.sqrt(math.pi)
+
+
+def _gauss_pix_grad(x, y, x0, y0, s):
+    """``_gauss_pix`` and its derivatives with respect to x0, y0 and s."""
+    k = 1.0 / (math.sqrt(2.0) * s)
+    ax, bx = (x + 0.5 - x0) * k, (x - 0.5 - x0) * k
+    ay, by = (y + 0.5 - y0) * k, (y - 0.5 - y0) * k
+    eax, ebx, eay, eby = np.exp(-ax * ax), np.exp(-bx * bx), np.exp(-ay * ay), np.exp(-by * by)
+    gx = 0.5 * (erf(ax) - erf(bx))
+    gy = 0.5 * (erf(ay) - erf(by))
+    c = k * _INV_SQRT_PI
+    d = -_INV_SQRT_PI / s
+    return gx * gy, c * (ebx - eax) * gy, gx * c * (eby - eay), d * ((ax * eax - bx * ebx) * gy + gx * (ay * eay - by * eby))
+
+
 @dataclass
 class Fit:
     x: float  # pixel coordinates of the array that was fitted
@@ -346,9 +379,23 @@ def fit_psf(data: np.ndarray, x: float, y: float, noise: float, box: int = BOX, 
             j = np.unravel_index(int(np.argmax(peak)), peak.shape)
             p0[0] = float(np.clip(xx[j], lo[0] + 1e-3, hi[0] - 1e-3))
             p0[1] = float(np.clip(yy[j], lo[1] + 1e-3, hi[1] - 1e-3))
+    def jac(p):
+        g, gx0, gy0, gs = _gauss_pix_grad(px, py, p[0], p[1], p[4])
+        j = np.empty((n, len(p)))
+        j[:, 0], j[:, 1], j[:, 2], j[:, 3] = p[2] * gx0, p[2] * gy0, g, 1.0
+        ds = p[2] * gs
+        for k, (nx, ny) in enumerate(near):
+            g, _, _, gs = _gauss_pix_grad(px, py, nx, ny, p[4])
+            j[:, 5 + k] = g
+            ds = ds + p[5 + k] * gs
+        for nx, ny, nf in fixed:
+            ds = ds + nf * _gauss_pix_grad(px, py, nx, ny, p[4])[3]
+        j[:, 4] = ds
+        return j / noise
+
     scale = [1, 1, max(f0, noise), noise, 0.5] + [max(f0, noise)] * len(near)
     try:
-        res = least_squares(lambda p: (model(p) - v) / noise, p0, bounds=(lo, hi), x_scale=scale)
+        res = least_squares(lambda p: (model(p) - v) / noise, p0, jac=jac, bounds=(lo, hi), x_scale=scale)
     except Exception:
         return None
     p = res.x
@@ -961,9 +1008,10 @@ def measure_all(stamps: list[Stamp], target: Body, field: list[Body] | None = No
 
     singles: list[Detection | None] = []
     checks = []
-    for st in stamps:
+    step = max(1, math.ceil(len(stamps) / POINTING_STAMPS))  # a quality figure: a sample of the exposures is enough
+    for i, st in enumerate(stamps):
         singles.append(measure_stamp(st, target, neighbours, wmap(st)))
-        if refs:
+        if refs and i % step == 0:
             c = pointing_check(st, refs, avoid=st.pixel(*target.at(st.exposure.mjd)))
             if c is not None:
                 checks.append(c)
@@ -1018,13 +1066,26 @@ def measure_all(stamps: list[Stamp], target: Body, field: list[Body] | None = No
             if d.method == "wings":
                 d.used = False
     track = fit_track(dets, target)
-    curve = light_curve(dets)
+    nearby = None
+    if track is not None and math.hypot(track["catalog_offset_east"], track["catalog_offset_north"]) > MAX_OFFSET_ARCSEC:
+        # Something was found, but not where the object should be: a
+        # neighbouring source. Its positions are kept, unused; there is no
+        # track and no light curve of the object that was asked for.
+        nearby = {"east_arcsec": track["catalog_offset_east"], "north_arcsec": track["catalog_offset_north"],
+                  "sep_arcsec": round(math.hypot(track["catalog_offset_east"], track["catalog_offset_north"]), 2),
+                  "n_detections": track["n_detections"]}
+        for d in dets:
+            d.used = False
+        track = None
+    curve = light_curve(dets) if track is not None else None
     stats = {
         "stamps": len(stamps), "passes": int(passes.max()) + 1, "detections": len(dets),
         "single": sum(d.method == "psf" for d in dets), "wings": sum(d.method == "wings" for d in dets), "stacks": n_stacks,
-        "neighbours": len(neighbours),
+        "neighbours": len(neighbours), "detected": any(d.used for d in dets),
         "mjd_min": round(float(mjds.min()), 4), "mjd_max": round(float(mjds.max()), 4),
     }
+    if nearby:
+        stats["nearby_source"] = nearby
     if checks:
         c = np.array(checks)
         stats.update(pointing_east=round(float(np.median(c[:, 0])), 3), pointing_north=round(float(np.median(c[:, 1])), 3),
