@@ -122,7 +122,7 @@ async function load(next, nopush) {
   stop();
   Object.assign(S, want);
   S.cube = null; S.meta = null; S.median = null; S.stack = null; S.spectrum = null; S.catalogs = {}; S.i = 0; S.ref = 0; S.busy = 0;
-  S.tracks = null; $("trackopt").hidden = true; $("trackcard").hidden = true;
+  S.tracks = null; S.measuring = null; $("trackopt").hidden = true; $("trackcard").hidden = true;
   S.field = null; S.stage = null; $("tileopt").hidden = !S.levels;
   for (const c of ["speccard", "epochcard"]) $(c).hidden = true;
   $("analysishint").hidden = true; $("timeline").innerHTML = ""; $("cursor").textContent = "";
@@ -291,18 +291,56 @@ async function loadTracks() {
     for (const s of d.sources) s.detections = s.detections.filter((x) => x.used !== false);
     S.tracks = d.sources;
     $("trackopt").hidden = false;
-    $("trackcard").hidden = !d.sources.length;
+    $("trackcard").hidden = false;
     $("tracklist").innerHTML = "";
     for (const s of d.sources) {
       const dt = document.createElement("dt"), dd = document.createElement("dd"), fit = s.track;  // not "tr": that is the translator
       dt.textContent = s.name;
-      dd.textContent = [s.kind, tr(s.detections.length === 1 ? "track.pos" : "track.poss", {n: s.detections.length}),
-        fit ? `${(Math.hypot(fit.pmra, fit.pmdec) / 1000).toFixed(2)}″/yr` : null,
-        fit && fit.rms_arcsec != null ? `rms ${fit.rms_arcsec.toFixed(2)}″` : null].filter(Boolean).join(" · ");
+      const sum = (fit && fit.summary) || {}, lc = sum.light_curve || {}, more = sum.track || {};
+      const rows = [[s.kind.replace(/_/g, " "), tr(s.detections.length === 1 ? "track.pos" : "track.poss", {n: s.detections.length}) + (more.span_years ? tr("track.span", {y: more.span_years.toFixed(1)}) : "")]];
+      if (fit) {
+        const pm = Math.hypot(fit.pmra, fit.pmdec), cat = s.pmra != null && s.pmdec != null ? Math.hypot(s.pmra, s.pmdec) : null;
+        const err = fit.pmra_err != null && fit.pmdec_err != null && pm ? Math.hypot(fit.pmra * fit.pmra_err, fit.pmdec * fit.pmdec_err) / pm : null;
+        rows.push([tr("track.motion"), `${(pm / 1000).toFixed(2)}${err != null ? " ± " + (err / 1000).toFixed(2) : ""}″/yr`]);
+        if (cat != null) rows.push([tr("track.cat"), `${(cat / 1000).toFixed(2)}″/yr`]);
+        if (fit.rms_arcsec != null) rows.push([tr("track.scatter"), `rms ${fit.rms_arcsec.toFixed(2)}″`]);
+      } else if (!s.detections.length) rows.push(["", tr("track.none")]);
+      if (lc.amplitude != null) rows.push([tr("track.light"), tr(lc.variable ? "track.varies" : "track.steady", {a: lc.amplitude.toFixed(2), s: lc.significance.toFixed(1)})]);
+      for (const [k, v] of rows) { const p = document.createElement("span"), b = document.createElement("b"); b.textContent = k; p.append(b, v); dd.appendChild(p); }
       $("tracklist").append(dt, dd);
     }
+    // nothing measured at the target yet: offer to measure it
+    // (a fast mover sits far from its catalogue epoch position, so compare with the fitted track where there is one)
+    const here = S.t && d.sources.some((s) => { const at = s.track || s; return s.name === S.t.name || Math.hypot((at.ra - S.t.ra) * Math.cos(S.t.dec * Math.PI / 180), at.dec - S.t.dec) * 3600 < 30; });
+    $("measurerow").hidden = !!here || !S.t;
+    if (!S.measuring) { $("measure").disabled = false; $("measurestatus").textContent = ""; }
     draw(); writeUrl();
   } catch (_) {}
+}
+/* Ask the server to measure the object at the centre of this view: its position in every exposure,
+   its motion and its brightness. The job takes 20 to 45 s; the card then shows what it found. */
+async function measureHere() {
+  const id = S.loadId, p = paramsOf(S), q = new URLSearchParams({detections: "false"});
+  for (const k of ["target", "ra", "dec"]) if (p.get(k) !== null) q.set(k, p.get(k));
+  S.measuring = id; $("measure").disabled = true;
+  const say = (key, vars) => { if (id === S.loadId) $("measurestatus").textContent = tr(key, vars); };
+  say("measure.start");
+  try {
+    for (let n = 0; n < 80; n++) {
+      const r = await fetch("/api/measure?" + q);
+      if (!r.ok) { let msg = r.status; try { msg = (await r.json()).detail || msg; } catch (_) {} throw new Error(msg); }
+      const d = await r.json();
+      if (id !== S.loadId) return;
+      if (d.status === "ready") { S.measuring = null; say(d.result && d.result.track ? "measure.done" : "measure.nothing"); await loadTracks(); if (id === S.loadId) say(d.result && d.result.track ? "measure.done" : "measure.nothing"); return; }
+      if (d.status === "error") throw new Error(d.job.error || "error");
+      say(d.status === "measuring" && d.job.exposures ? "measure.measuring" : "measure.searching", {n: d.job.exposures, s: Math.round(d.job.elapsed_s || 0)});
+      await sleep(3000);
+      if (id !== S.loadId) return;
+    }
+    throw new Error("timeout");
+  } catch (e) {
+    if (id === S.loadId) { say("measure.fail", {msg: e.message}); $("measure").disabled = false; }
+  } finally { if (S.measuring === id) S.measuring = null; }
 }
 
 function fail(e, id) {
@@ -925,6 +963,7 @@ function init() {
   $("fps").addEventListener("change", (ev) => { S.fps = +ev.target.value; });
   $("gain").addEventListener("input", (ev) => { S.gain = +ev.target.value; draw(); });
   $("resetgain").addEventListener("click", () => { S.gain = 0; $("gain").value = 0; draw(); });
+  $("measure").addEventListener("click", measureHere);
   $("setref").addEventListener("click", () => { S.ref = S.i; S.limits = null; $("reflabel").textContent = fmtLabel(S.meta.epochs[S.ref].label) + " UTC"; draw(); });
   for (const c of ["gaia", "catwise", "cross", "smooth", "tracks", "tiles"]) $("ov-" + c).addEventListener("change", () => { if (S.meta) { loadCatalogs(); draw(); writeUrl(); } });
   $("timeline").addEventListener("pointerdown", (ev) => { $("timeline").setPointerCapture(ev.pointerId); scrubTimeline(ev); });

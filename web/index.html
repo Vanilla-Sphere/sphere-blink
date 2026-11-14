@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 <link rel="preload" href="/static/fonts/HankenGrotesk.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/GeistMono.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/static/style.css?v=15">
+<link rel="stylesheet" href="/static/style.css?v=16">
 </head>
 <body>
 <header class="bar">
@@ -164,8 +164,9 @@
     </section>
 
     <section class="panel" id="trackcard" hidden>
-      <h2>Measured in this field</h2>
+      <div class="headtip"><h2>Measured in this field</h2><div class="tip"><button type="button" class="tipbtn" aria-label="How the measurement works" aria-describedby="tip-measure"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-measure"><p>The object is found on the detector pixels of every SPHEREx exposure and compared with where the Gaia catalogue says it should be on that date. A straight-line motion is then fitted through the positions.</p><p>Brightness is compared between sky passes, about 6 months apart. A change of 3σ or more counts as variable.</p></div></div></div>
       <dl id="tracklist"></dl>
+      <div class="measure-row" id="measurerow" hidden><button type="button" id="measure" class="btn quiet" data-hint="tip.measure">Measure this object</button><span id="measurestatus" class="muted" role="status"></span></div>
     </section>
 
     <section class="panel" id="linkcard" hidden>
@@ -197,9 +198,9 @@
   </aside>
 </main>
 
-<script src="/static/i18n.js?v=15"></script>
-<script src="/static/hints.js?v=15"></script>
-<script src="/static/starmap.js?v=15"></script>
-<script src="/static/app.js?v=15"></script>
+<script src="/static/i18n.js?v=16"></script>
+<script src="/static/hints.js?v=16"></script>
+<script src="/static/starmap.js?v=16"></script>
+<script src="/static/app.js?v=16"></script>
 </body>
 </html>
