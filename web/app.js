@@ -1212,7 +1212,7 @@ function seg(id, key, after) {
 function buildDets() {
   const el = $("dets"); el.innerHTML = "";
   const mk = (v, label) => { const b = document.createElement("button"); b.dataset.v = v; b.textContent = label; el.appendChild(b); };
-  mk("rgb", "RGB"); mk("all", "");
+  mk("rgb", ""); mk("all", "");
   for (let d = 1; d <= 6; d++) mk(String(d), "D" + d);
   const sync = SYNC.det = () => { const on = S.det.split(","); for (const b of el.children) { b.classList.toggle("on", on.includes(b.dataset.v)); b.setAttribute("aria-pressed", on.includes(b.dataset.v)); } };
   el.addEventListener("click", (ev) => {
@@ -1230,7 +1230,7 @@ function buildDets() {
 function labelDets() {
   for (const b of $("dets").children) {
     const v = b.dataset.v;
-    if (v === "rgb") b.dataset.hintText = tr("det.rgb.t");
+    if (v === "rgb") { b.textContent = tr("det.rgb"); b.dataset.hintText = tr("det.rgb.t"); }
     else if (v === "all") { b.textContent = tr("det.all"); b.dataset.hintText = tr("det.all.t"); }
     else b.dataset.hintText = tr("det.one.t", {n: v, range: DET[v]});
   }
