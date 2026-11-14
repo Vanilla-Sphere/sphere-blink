@@ -81,7 +81,7 @@ function writeUrl(push) {
   if ($("ov-gaia").checked) p.set("gaia", "1");
   if ($("ov-catwise").checked) p.set("catwise", "1");
   if (S.tracks && !$("ov-tracks").checked) p.set("tracks", "0");
-  if (MV.sel) p.set("mover", MV.sel);
+  if (MV.sel) { p.set("mover", MV.sel); if (MV.at) p.set("seen", MV.at); }
   p.set("ui", S.ui);
   S.url = "?" + p.toString();
   if (S.screen === "view" || push) history[push ? "pushState" : "replaceState"](null, "", S.url);
@@ -185,6 +185,7 @@ async function load(next, nopush) {
   loadCatalogs();
   loadTracks();
   loadFiles();
+  moverLink();  // a link to one exposure of a moving object
 }
 /* The pipeline works on a few views at a time; the others wait their turn and are told where they stand. */
 function queueText(job) {

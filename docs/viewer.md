@@ -23,7 +23,7 @@ as static files.
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
 Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `insight.js`, `app.js`.
-Asset URLs carry a version query (`?v=38`) that is raised when a file changes,
+Asset URLs carry a version query (`?v=39`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -100,6 +100,7 @@ at start; `writeUrl` keeps it current (`replaceState` for display changes,
 | `gaia`, `catwise` | `1` | off | Catalogue overlays |
 | `tracks` | `0` | on | Hide the measured-tracks overlay |
 | `mover` | id (`VS-...`) | - | The moving object that is open in the "Moving objects" card |
+| `seen` | exposure and detector (`2025W32_1A_0637_3:D3`) | - | With `mover`: the exposure of that object whose frame is on screen |
 | `ui` | `simple`, `adv` | see below | Interface mode |
 
 Only non-default display values are written. The interface mode is resolved in
@@ -198,6 +199,15 @@ things are kept in `localStorage`: `vs.voter`, a random id the browser makes
 up once and sends with its votes, and `vs.follow`, the ids of the objects it
 follows. "Discoveries" is a sheet like "About the data"; its Fast and Slow
 tabs filter the list of `/api/movers` at 20 arcsec per hour.
+
+The open object lists the exposures along its path (`points` of
+`/api/movers/{id}`; the file links come from one `/api/exposures` request at
+the object's place). `showMoverFrame` opens the place of one of them as a
+plain 8 arcmin view with `group=exposure` and that exposure's detector, and
+puts its frame on screen. The object is carried into that view as `MV.pin`
+(`clearMovers` keeps it when `MV.hold` is set), so the card, the ring and the
+path are there without a field; `moverLink`, called at the end of `load`,
+does the same for a link that carries `mover` and `seen`.
 
 ### Plots
 

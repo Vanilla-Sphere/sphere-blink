@@ -228,6 +228,19 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 .moverhead .tally.false{color:var(--color-accent-2)}
 .mover.on{box-shadow:inset 2px 0 0 var(--color-accent)}
 .movermore{padding:2px 10px 10px;font-size:12.5px;color:var(--color-ink-2)}
+#moverback{height:28px;margin:8px 0 2px;font-size:12.5px}
+.moverframeshead{margin:10px 0 6px}
+.moverframes{list-style:none;margin:0;padding:0;max-height:204px;overflow:auto;border:1px solid var(--color-rule-2)}
+.moverframes li{display:flex;align-items:center;border-top:1px solid var(--color-rule-2)}
+.moverframes li:first-child{border-top:0}
+.moverframes button{flex:1;min-width:0;display:grid;grid-template-columns:106px 32px 50px minmax(0,1fr);gap:6px;align-items:center;height:26px;padding:0 8px;border:0;background:none;color:var(--color-ink-2);font:400 11px/1 var(--font-measure);text-align:left;cursor:pointer;white-space:nowrap}
+.moverframes button:hover,.moverframes li.on button{background:var(--color-lift);color:var(--color-ink)}
+.moverframes li.on{box-shadow:inset 2px 0 0 var(--color-accent)}
+.moverframes .det{display:inline-flex;align-items:center;gap:4px}
+.moverframes .sw{width:7px;height:7px;flex:none}
+.moverframes .snr{text-align:right}
+.moverframes li.unseen button{color:var(--color-muted)}
+.moverframes a{padding:0 8px 0 4px;font:400 11px/26px var(--font-measure);color:var(--color-ink-2)}
 .moveracts{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 6px}
 .moveracts .btn{height:28px;font-size:12.5px}
 .moveracts .btn.on{background:var(--color-lift);box-shadow:inset 0 -2px 0 var(--color-accent)}
