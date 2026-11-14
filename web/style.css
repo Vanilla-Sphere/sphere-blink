@@ -190,10 +190,25 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 .checks label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--color-ink-2);cursor:pointer}
 .checks .key{width:11px;height:11px;flex:none}
 .checks .wide{grid-column:1 / -1}
-#tracklist dt{color:var(--color-ink)}
-#tracklist dd span{display:grid;grid-template-columns:86px minmax(0,1fr)}
+#tracklist{grid-template-columns:minmax(0,1fr)}
+#tracklist dt{padding:10px 0 4px;color:var(--color-ink)}
+#tracklist dt:first-of-type{padding-top:0}
+#tracklist dd{padding-top:0;border-top:0}
+#tracklist dd span{display:grid;grid-template-columns:112px minmax(0,1fr)}
 #tracklist dd span+span{margin-top:2px}
 #tracklist dd b{font:500 12.5px/1.5 var(--font-display);color:var(--color-muted)}
+#tracklist dd .dim{color:var(--color-muted-2)}
+#tracklist .tipbody{width:246px;top:auto;bottom:calc(100% + 8px)}
+.trackplot{display:block;margin-bottom:8px;border:1px solid var(--color-rule);background:var(--color-paper)}
+.trackplot .axis{stroke:var(--color-rule);fill:none}
+.trackplot .dot{fill:var(--color-measured)}
+.trackplot .fit{stroke:var(--color-ink);stroke-width:1.5;fill:none}
+.trackplot .cat{stroke:var(--color-accent-2);stroke-width:1.2;stroke-dasharray:4 3;fill:none}
+.trackplot .head{stroke-dasharray:none;stroke-linejoin:round}
+.trackplot .fit.head{fill:var(--color-ink)}
+.trackplot .cat.head{fill:var(--color-accent-2)}
+.trackplot .bar{stroke:var(--color-ink-2);fill:none}
+.trackplot text{fill:var(--color-muted);font:400 10.5px/1 var(--font-measure)}
 .measure-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px}
 #tracklist:not(:empty)+.measure-row{margin-top:12px}
 

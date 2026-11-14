@@ -342,7 +342,13 @@ exposures"), and after typically 20 to 45 seconds (63 s was observed for
 Proxima Centauri on 2026-11-14) shows:
 
 - the kind of object and the number of positions measured, with the time span;
-- the fitted motion with its error, next to the catalogue motion;
+- the fitted motion with its 1σ error and its significance (speed divided by
+  error), next to the catalogue motion;
+- the direction of the motion as a position angle (from north through east)
+  with its error, and the two components μα* (east, μα cos δ) and μδ (north)
+  with theirs;
+- when the motion is below 3σ: "No significant motion detected" and an upper
+  limit (speed + 3σ) instead of a speed, with no direction;
 - the scatter of the positions around the fit;
 - whether the brightness is steady or varies between sky passes, with the
   amplitude and its significance.
@@ -352,11 +358,22 @@ used for the prediction; otherwise the position itself is measured as an object
 of unknown motion. Results are stored and shown to every later visitor of the
 field.
 
+The (i) next to the name of a measured object opens a small chart of the sky
+(north up, east left, in arcsec): the centroid of the object's light in every
+exposure, faint for early and bright for late exposures, the fitted motion as
+an arrow and the catalogue motion as a dashed arrow. Its note states what the
+numbers are: the motion of the centroid on each exposure's WCS, across the sky
+only (radial velocity would need Doppler shifts in spectra), with larger errors
+for saturated or distorted stars. All of this is computed in the viewer
+(`motionOf`, `trackTip` in `web/app.js`) from the fields `/api/tracks` already
+returns.
+
 ## 13. Measured tracks overlay
 
 Objects measured in the field are drawn on the image: every measured position
 as a dot, the fitted track as a line, and a diamond on the positions measured
-in the frame being shown. The overlay reads `/api/tracks`, which merges the
+in the frame being shown. An arrow from the object shows where it is heading
+when its motion is significant (3σ or more). The overlay reads `/api/tracks`, which merges the
 pipeline's results with any measurements the team has loaded into the shared
 database by other means.
 
