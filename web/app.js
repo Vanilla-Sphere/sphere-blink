@@ -275,15 +275,21 @@ function drawOverlays(ctx, cv) {
   for (const cat of ["gaia", "catwise"]) {
     const list = S.catalogs[cat];
     if (!$("ov-" + cat).checked || !Array.isArray(list)) continue;
-    ctx.lineWidth = 1.5; ctx.font = "12px ui-monospace, Menlo, monospace";
+    ctx.font = "12px ui-monospace, Menlo, monospace";
+    // The list is brightest first. Mark only the brightest few dozen so the
+    // image stays readable, plus every source with a large *and* significant
+    // proper motion (faint CatWISE entries often carry meaningless ones).
+    let shown = 0;
     for (const s of list) {
       const [ra, dec] = moved(s, yr), [x, y] = toPixel(ra, dec, cv);
       if (x < 0 || y < 0 || x > W || y > W) continue;
-      const pm = Math.hypot(s.pmra, s.pmdec), fast = pm > 150;
+      const pm = Math.hypot(s.pmra, s.pmdec), fast = pm > 150 && (s.pm_snr || 0) >= 5;
+      if (!fast && shown >= 40) continue;
+      shown++;
       ctx.strokeStyle = fast ? "#ffc857" : styles[cat];
-      ctx.globalAlpha = fast ? 1 : 0.75;
+      ctx.globalAlpha = fast ? 1 : 0.6; ctx.lineWidth = fast ? 2 : 1;
       ctx.beginPath();
-      if (cat === "gaia") ctx.arc(x, y, fast ? 11 : 7, 0, 2 * Math.PI); else ctx.rect(x - 7, y - 7, 14, 14);
+      if (cat === "gaia") ctx.arc(x, y, fast ? 11 : 6, 0, 2 * Math.PI); else ctx.rect(x - 6, y - 6, 12, 12);
       ctx.stroke();
       if (fast) {
         const a = toPixel(...moved(s, y0), cv), b = toPixel(...moved(s, y1), cv);

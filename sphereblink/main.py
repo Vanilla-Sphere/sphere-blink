@@ -257,24 +257,23 @@ def api_spectrum(
     return {"target": t.to_dict(), "job": job.public(), "units": {"flux": "uJy", "wave": "um"}, "points": pts}
 
 
-_catalog_cache: dict[str, list[dict]] = {}
-
-
 @app.get("/api/catalog")
 def api_catalog(
     cat: str = "gaia", target: str | None = None, ra: float | None = None, dec: float | None = None, fov: float = FOV,
 ):
-    """Gaia DR3 or CatWISE2020 sources in the field (with proper motions)."""
+    """Brightest Gaia DR3 or CatWISE2020 sources in the field (with proper motions)."""
     t, grid = _view(target, ra, dec, fov)
-    key = f"{cat}_{grid.key()}"
-    if key not in _catalog_cache:
+    key = f"{cat}_v2_{grid.key()}"
+    sources = svc.store.get_catalog(key)
+    if sources is None:
         try:
-            _catalog_cache[key] = catalogs.query(cat, grid.ra, grid.dec, grid.fov_arcmin / 60.0 * 0.75)
+            sources = catalogs.query(cat, grid.ra, grid.dec, grid.fov_arcmin / 60.0 * 0.75)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
         except Exception as exc:
             raise HTTPException(502, f"catalogue service error: {type(exc).__name__}") from exc
-    return {"cat": cat, "sources": _catalog_cache[key]}
+        svc.store.put_catalog(key, sources)
+    return {"cat": cat, "sources": sources}
 
 
 # --------------------------------------------------------------------------- web

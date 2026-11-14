@@ -40,6 +40,8 @@ class Store:
                 CREATE INDEX IF NOT EXISTS frames_grid ON frames(grid);
                 CREATE TABLE IF NOT EXISTS wave_maps (
                     key TEXT PRIMARY KEY, created REAL NOT NULL, map BLOB NOT NULL);
+                CREATE TABLE IF NOT EXISTS catalogs (
+                    key TEXT PRIMARY KEY, created REAL NOT NULL, payload TEXT NOT NULL);
                 """
             )
 
@@ -63,6 +65,15 @@ class Store:
                 "INSERT OR REPLACE INTO exposure_lists VALUES (?,?,?)",
                 (key, time.time(), json.dumps([e.to_dict() for e in exps])),
             )
+
+    # overlay catalogues -------------------------------------------------
+    def get_catalog(self, key: str) -> list[dict] | None:
+        row = self._conn().execute("SELECT payload FROM catalogs WHERE key=?", (key,)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def put_catalog(self, key: str, sources: list[dict]) -> None:
+        with self._conn() as c:
+            c.execute("INSERT OR REPLACE INTO catalogs VALUES (?,?,?)", (key, time.time(), json.dumps(sources)))
 
     # wavelength maps ------------------------------------------------------
     def get_wave_map(self, key: str) -> np.ndarray | None:
