@@ -8,6 +8,7 @@
 | Gaia DR3 | European Space Agency (ESA), Gaia mission | Overlay; reference astrometry and neighbour stars for measurements | ESA Gaia archive TAP (`gaiadr3.gaia_source`); IRSA TAP (`gaia_dr3_source`) as the fallback |
 | CatWISE2020 | NASA WISE / NEOWISE; IRSA | Overlay of infrared sources with proper motions | IRSA Gator cone search (`catwise_2020`); IRSA TAP as the fallback |
 | 2MASS Point Source Catalog | NASA / IPAC, University of Massachusetts | Calibration and validation of photometry (81 stars, offline) | Values stored in `scripts/wing_calibrators.csv` |
+| Predicted positions of known asteroids and comets | IMCCE (SkyBoT); NASA/JPL Solar System Dynamics | Naming the moving objects found by the blind search | SkyBoT cone search; JPL Small-Body Identification API |
 | SIMBAD, NED, VizieR through Sesame | CDS Strasbourg; NASA/IPAC Extragalactic Database | Resolving object names to positions and proper motions | CDS Sesame; SIMBAD TAP |
 | AllWISE position and Kirkpatrick et al. 2021 (ApJS 253, 7) | NASA WISE; published literature | Astrometry of WISE 0855-0714, which is not in Gaia | Constants in `refcat.py` |
 | d3-celestial star, constellation and Milky Way data | Olaf Frohn (BSD 3-Clause) | The drawn sky map | Reduced to `web/data/sky.json` at build time |
@@ -77,6 +78,8 @@ search result. If that column is empty the IRSA download URL is used instead.
 | IRSA Gator | `https://irsa.ipac.caltech.edu/cgi-bin/Gator/nph-query` | `catalogs.py` | 25 s | CatWISE overlay; falls back to IRSA TAP |
 | IRSA TAP | `https://irsa.ipac.caltech.edu/TAP/sync` | `catalogs.py`, `refcat.py` | 25 s / 40 s | Second choice for both overlays and for measurement. Overlay: 502 and client retry when both services fail |
 | CDS Sesame | `https://cds.unistra.fr/cgi-bin/nph-sesame`, then `https://vizier.cfa.harvard.edu/viz-bin/nph-sesame` | `resolve.py` | 8 s (4 s connect) | Next host, then SIMBAD TAP |
+| SkyBoT cone search | `https://ssp.imcce.fr/webservices/skybot/api/conesearch.php` | `known_objects.py` | 25 s (6 s connect) | Names of moving objects; JPL is asked instead |
+| JPL Small-Body Identification API | `https://ssd-api.jpl.nasa.gov/sb_ident.api` | `known_objects.py` | 25 s (6 s connect) | Asked for what SkyBoT does not name; with neither, objects are stored with `known.checked = false` |
 | SIMBAD TAP | `https://simbad.cds.unistra.fr/simbad/sim-tap/sync`, then `https://simbad.cfa.harvard.edu/simbad/sim-tap/sync` | `resolve.py` | 8 s | A stored answer of any age; else 503 "name services are not answering" |
 
 All of these are public and need no key. Results are cached: exposure lists for
@@ -172,6 +175,7 @@ object at the propagated position.
 | CatWISE2020, AllWISE | NASA WISE and NEOWISE; IRSA | Public NASA data |
 | 2MASS | University of Massachusetts and IPAC/Caltech, funded by NASA and NSF | Public |
 | SIMBAD, Sesame, VizieR | CDS, Strasbourg, France | CDS terms |
+| Known asteroids and comets | SkyBoT, IMCCE, Observatoire de Paris (Berthier et al. 2006); Small-Body Identification API, NASA/JPL Solar System Dynamics | Public services |
 | WISE 0855-0714 astrometry | Kirkpatrick et al. 2021, ApJS 253, 7 | Published literature |
 | Sky map data | d3-celestial by Olaf Frohn | BSD 3-Clause (notice in `web/data/`) |
 | Interface design reference | Hallmark "Rim" theme; Impeccable layout rules | MIT |
