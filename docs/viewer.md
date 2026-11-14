@@ -11,7 +11,7 @@ as static files.
 | `app.js` | about 1100 lines | State, URL handling, loading, image arithmetic, drawing, plots, routing |
 | `starmap.js` | about 510 lines | The sky map (`SkyMap`): projection, drawing, pan and zoom, picking |
 | `ambient.js` | about 330 lines | The motion of the sky map screen (`Ambient`): deep star field, rim glow, slow turn, aiming frame, pings, meteors |
-| `atlas.js` | 220 lines | The photograph of the real sky behind the zoomed-in map (`Atlas`): tiles of the 2MASS atlas, fetched from NASA/IPAC IRSA and drawn through the map's projection |
+| `atlas.js` | 220 lines | The photograph of the real sky behind the zoomed-in map (`Atlas`): tiles of the 2MASS atlas, from our server's copy (`/api/atlas/2mass/`) or NASA/IPAC IRSA itself, drawn through the map's projection |
 | `exports.js` | about 230 lines | What a researcher takes away: the plot's points as CSV, the plot as PNG with the credit, the "Source files" panel listing the Level 2 exposures with their IRSA links, its download script, URL list and table, and the "About the data" page |
 | `i18n.js` | 107 lines | Text that scripts put on the page (`STR.en`) and the `tr()` formatter |
 | `hints.js` | 74 lines | One-line notes on controls, shown on hover and keyboard focus |
@@ -265,6 +265,12 @@ coordinates.
     come from. HiPS cuts the sky into the diamonds of the HEALPix grid;
     order *k* has 12 x 4^k of them, each a 512 pixel JPEG at
     `Norder{k}/Dir{d}/Npix{n}.jpg`.
+  - The tiles come from our own server (`/api/atlas/2mass/`, same layout),
+    which fetches a tile from the archive once and keeps it, and holds the
+    whole sky at orders 0-5 from the start
+    ([API](api-reference.md#get-apiatlas2mass)). A tile the server cannot
+    give is asked of the archive itself; after three such failures in a row
+    the archive is asked first for a minute.
   - Each redraw the map asks `Atlas.draw()` for the view. It picks the order
     whose tiles are 300 to 600 px wide on screen, finds the diamonds under a
     net of screen points, and lays each tile over its diamond in pieces
@@ -285,8 +291,8 @@ coordinates.
     memory.
   - It never holds the map up. Tiles arrive six at a time, nearest the
     centre first, and fade in; a coarser tile already in memory stands in
-    meanwhile. If the archive is slow, the drawn map simply stays; after six
-    failures in a row it is left alone for a minute. Visitors who ask their
+    meanwhile. If neither source gives a tile, the drawn map simply stays;
+    after six failures in a row both are left alone for a minute. Visitors who ask their
     browser to save data get no photograph. With all of it missing the map
     is the drawn chart it was before.
   - Cost: about 1 to 5 ms more per frame without a graphics card (measured
@@ -297,7 +303,7 @@ coordinates.
     doublings past the whole sky) and its strength; `Atlas.mute(v, lift)`
     the colour and the lift of faint stars; `Atlas.set(false)` turns it off.
   The page's content security policy allows pictures from
-  `irsa.ipac.caltech.edu` for this and nothing else from outside
+  `irsa.ipac.caltech.edu` for the second source and nothing else from outside
   ([security](security.md#response-headers)).
 - **Input.** Pointer events for drag, pinch and click; wheel zoom about the
   pointer so the sky under it stays under it; keyboard pan, zoom and select.

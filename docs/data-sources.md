@@ -11,7 +11,7 @@
 | SIMBAD, NED, VizieR through Sesame | CDS Strasbourg; NASA/IPAC Extragalactic Database | Resolving object names to positions and proper motions | CDS Sesame; SIMBAD TAP |
 | AllWISE position and Kirkpatrick et al. 2021 (ApJS 253, 7) | NASA WISE; published literature | Astrometry of WISE 0855-0714, which is not in Gaia | Constants in `refcat.py` |
 | d3-celestial star, constellation and Milky Way data | Olaf Frohn (BSD 3-Clause) | The drawn sky map | Reduced to `web/data/sky.json` at build time |
-| 2MASS colour atlas (J, H, K) in HiPS format | University of Massachusetts and IPAC/Caltech, funded by NASA and NSF; HiPS by CDS | The photograph behind the zoomed-in sky map, a backdrop only | Tiles fetched by the visitor's browser from IRSA (`irsa.ipac.caltech.edu/data/hips/CDS/2MASS/Color`) |
+| 2MASS colour atlas (J, H, K) in HiPS format | University of Massachusetts and IPAC/Caltech, funded by NASA and NSF; HiPS by CDS | The photograph behind the zoomed-in sky map, a backdrop only | Tiles from IRSA (`irsa.ipac.caltech.edu/data/hips/CDS/2MASS/Color`), fetched once by the server and kept on its disk (`sphereblink/atlas.py`, `/api/atlas/2mass/`): orders 0-5 whole (1.65 GB), deeper tiles as they are asked for. The atlas is about 445 GB and marked `unclonable` by its publisher; it is not copied whole. The browser asks IRSA itself for a tile the server cannot give |
 
 No data are bundled with the product apart from the sky-map chart, the
 calibration star list and the catalogue rows of the five featured targets.

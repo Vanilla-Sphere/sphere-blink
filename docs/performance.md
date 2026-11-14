@@ -146,15 +146,23 @@ real rate is 85-220 MB/s. The start command now pins one worker, and
 | Pixels per cube response | 40 million | `main.CUBE_BUDGET` |
 | Frames held in memory | 2 GB in production (default 600 MB) | `SPHEREX_RAM_BUDGET_MB` |
 | Epoch cache | 500 MB | `main.EPOCH_CACHE_BYTES` |
-| Disk cache | 16 GB of the 20 GB disk in production (default 4 GB) | `SPHEREX_DISK_BUDGET_GB` |
+| Disk cache | 13 GB of the 20 GB disk in production (default 4 GB) | `SPHEREX_DISK_BUDGET_GB` |
+| Sky photograph tiles on disk | 4 GB in production (default 1 GB), of which orders 0-5 (1.65 GB) are never dropped | `SPHEREX_ATLAS_BUDGET_GB`, `SPHEREX_ATLAS_KEEP_ORDER` |
 | Concurrent measurements | 2 processes; further jobs queue, 12 waiting or running at most | `SPHEREX_MEASURE_PROCS`, `SPHEREX_MAX_MEASURE_QUEUE` |
 | Measurement time limit | 600 s from the moment the job starts measuring | `measure_api.JOB_TIMEOUT_S` |
 
 Planning numbers:
 
 - **Disk.** An 8 arcmin view occupies about 41 MB, so the production budget
-  holds roughly 400 such views before the least recently fetched are dropped.
+  holds roughly 300 such views before the least recently fetched are dropped.
   A dropped view is fetched again on demand.
+- **Sky photograph.** A tile of the 2MASS atlas is about 100 KB (measured on
+  the archive, 2026-11-14, 40 tiles per order): orders 0-3 are 0.08 GB, 0-4
+  0.36 GB, 0-5 1.65 GB, 0-6 7.2 GB, all ten orders about 445 GB. Production
+  keeps orders 0-5 (16 380 tiles) and about 20 000 deeper tiles, each a
+  quarter of a degree to a few degrees of sky. A tile on disk is answered in
+  about 2 ms; one that has to be fetched from the archive took 0.7 s in a
+  test. Filling orders 0-2 (252 tiles) took 9 s with four connections.
 - **Concurrency.** Views in progress share the four worker processes. Two cold
   7 x 7 fields started together finished in 54 s and 77 s instead of about 45 s
   each. Warm views are served from memory or disk and do not use the workers.

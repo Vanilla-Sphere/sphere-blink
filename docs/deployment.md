@@ -64,7 +64,9 @@ Three points are essential:
    deploys and restarts.
 3. **Process count, memory budget and disk budget follow the plan.** Keep
    `SPHEREX_FETCH_PROCS` equal to the CPUs of the plan, `SPHEREX_RAM_BUDGET_MB`
-   well below its memory, and `SPHEREX_DISK_BUDGET_GB` at about 80 % of the disk.
+   well below its memory, and `SPHEREX_DISK_BUDGET_GB` plus
+   `SPHEREX_ATLAS_BUDGET_GB` (the sky photograph's tiles share the disk) at about
+   85 % of the disk.
 
 ## Configuration
 
@@ -93,7 +95,12 @@ noted.
 | `SPHEREX_MEASURE_PROCS` | `2` | `2` | Measurements running at the same time, each in a process of its own; the next ones wait in a queue |
 | `SPHEREX_FETCH_PROCS` | `min(4, CPU count)` | `4` | Imaging worker processes |
 | `SPHEREX_RAM_BUDGET_MB` | `600` | `2000` | Frames kept in memory |
-| `SPHEREX_DISK_BUDGET_GB` | `4` | `16` | Size of the frame cache on disk |
+| `SPHEREX_DISK_BUDGET_GB` | `4` | `13` | Size of the frame cache on disk |
+| `SPHEREX_ATLAS_BUDGET_GB` | `1` | `4` | Tiles of the sky photograph kept on disk, in all; above it the deep tiles least recently asked for are deleted |
+| `SPHEREX_ATLAS_KEEP_ORDER` | `3` | `5` | Tiles of this HiPS order and below are never deleted (orders 0-5 are 1.65 GB; one more is 5.5 GB more) |
+| `SPHEREX_ATLAS_SEED` | `0` | `1` | After start, fetch every tile of those orders that is not on disk yet (about ten minutes the first time, nothing afterwards) |
+| `SPHEREX_ATLAS_URL` | IRSA's 2MASS colour HiPS | default | Where the tiles are fetched from |
+| `SPHEREX_ATLAS_FETCHES` | `8` | default | Tiles fetched from the archive at the same time |
 | `SPHEREX_AUTO_MEASURE` | `1` | default | Measure the featured targets after start; `0` disables (read in `measure_api.py`) |
 | `SPHEREX_AUTO_MEASURE_DELAY` | `40` | default | Seconds after start before automatic measurement begins |
 | `SPHEREX_WARM_CATALOGS` | `1` | default | After start, store the Gaia and CatWISE overlays of the featured targets for every field size the viewer offers; `0` disables (read in `config.py`) |
@@ -244,7 +251,7 @@ SPHEREX_AUTO_MEASURE=0 pytest -q
 | Overlays do not load | IRSA TAP slow or down | The viewer retries three times; untick and tick the overlay to retry |
 | `/api/measured` shows `database: false` or results with `in_database: false` | `DATABASE_URL` missing, wrong, or the role cannot write | Fix the variable; results are written at the next start |
 | Memory pressure | Frame budget too high for the plan | Lower `SPHEREX_RAM_BUDGET_MB`; views are reloaded from disk when needed |
-| Disk full | Disk budget above the disk size, or other files on the disk | Lower `SPHEREX_DISK_BUDGET_GB`; the cache trims itself after the next fetch |
+| Disk full | The two disk budgets together above the disk size, or other files on the disk | Lower `SPHEREX_DISK_BUDGET_GB` or `SPHEREX_ATLAS_BUDGET_GB`; each cache trims itself after its next fetch. `/api/atlas` reports the free space; below 1 GB no new sky tile is stored |
 | Stored measurements look outdated after a method change | Pipeline version not raised | Raise `measure_api.VERSION` and deploy |
 | A view shows stale pixels after a change to the cutout code | Frame cache key not versioned | Raise the version tag in `cutout.cache_key` and deploy |
 
@@ -253,7 +260,7 @@ SPHEREX_AUTO_MEASURE=0 pytest -q
 | Change | Steps |
 | --- | --- |
 | Larger plan | Change `plan` in `render.yaml`; set `SPHEREX_FETCH_PROCS` to the new CPU count and raise `SPHEREX_RAM_BUDGET_MB` accordingly |
-| Larger disk | Change `sizeGB`; set `SPHEREX_DISK_BUDGET_GB` to about 80 % of it |
+| Larger disk | Change `sizeGB`; raise `SPHEREX_DISK_BUDGET_GB` and `SPHEREX_ATLAS_BUDGET_GB` to about 85 % of it together |
 | New data release | Add the collection name at the front of `SPHEREX_COLLECTIONS`; exposure lists refresh within 24 hours |
 
 ## Cost drivers

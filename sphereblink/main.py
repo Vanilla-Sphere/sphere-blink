@@ -27,7 +27,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import catalogs, config, guard, measure_api, measurements, render, tiles, wings
+from . import atlas, catalogs, config, guard, measure_api, measurements, render, tiles, wings
 from . import resolve as resolver
 from .cutout import Grid
 from .resolve import FEATURED, NameNotFound, ResolverUnavailable, Target, resolve
@@ -40,7 +40,7 @@ app = FastAPI(title="Vanilla Sphere", version="0.2.0", description=__doc__)
 app.add_middleware(GZipMiddleware, minimum_size=2000, compresslevel=4)
 # The API only reads: any site may show its pictures and fetch its data
 # (no cookies, no credentials), and nothing but GET is offered.
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "HEAD"], expose_headers=["X-Job", "Retry-After"])
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "HEAD"], expose_headers=["X-Job", "X-Atlas", "Retry-After"])
 app.add_middleware(guard.Guard)  # outermost: caller, request limits, security headers on every answer
 svc = Service()
 fields = tiles.Fields(svc)
@@ -50,6 +50,7 @@ app.include_router(measure_api.router)
 # the disk cache whatever else is opened: they open without the archive.
 FEATURED_GRIDS = [Grid.from_fov(t.ra, t.dec, 8.0) for t in (resolve(k) for k in FEATURED)]
 svc.pinned = {g.key() for g in FEATURED_GRIDS}
+sky = atlas.Atlas()  # the photograph behind the sky map: tiles of the 2MASS atlas, kept on disk
 _closing = threading.Event()
 
 
@@ -74,6 +75,7 @@ async def _warm_up() -> None:
     threading.Thread(target=warm, daemon=True).start()
     if config.WARM_CATALOGS:
         threading.Thread(target=_warm_catalogs, daemon=True).start()
+    sky.start(_closing, seed=config.ATLAS_SEED and "pytest" not in sys.modules)
     _stop_fast()
 
 
@@ -592,6 +594,40 @@ def api_tracks(target: str | None = None, ra: float | None = None, dec: float | 
     except Exception as exc:
         raise HTTPException(502, f"measurement database error: {type(exc).__name__}") from exc
     return {"enabled": True, "sources": sources}
+
+
+TILE_KEPT = "public, max-age=2592000, immutable"  # a tile of the atlas never changes under its address
+
+
+@app.get("/api/atlas/2mass/Norder{order}/Dir{folder}/Npix{pix}.jpg")
+def api_atlas_tile(order: int, folder: int, pix: int):
+    """One tile of the photograph behind the sky map: the 2MASS colour atlas
+    (J, H, K) in the HiPS layout, order 0-9, 512 pixel JPEGs exactly as the
+    NASA/IPAC Infrared Science Archive serves them.
+
+    A tile this server has is answered from its disk. Any other is fetched
+    from the archive once and kept (``X-Atlas: kept`` or ``fetched``). When
+    the archive does not answer, a tile that is not on disk gets ``503``.
+    A backdrop for the map, not SPHEREx data. Credit: University of
+    Massachusetts and IPAC/Caltech (NASA, NSF); HiPS by CDS.
+    """
+    if not (0 <= order <= atlas.MAX_ORDER and 0 <= pix < atlas.tiles_in(order) and folder == pix // 10000 * 10000):
+        raise HTTPException(404, "no such tile")
+    try:
+        # only a tile that has to be fetched counts against the caller
+        data, kept = sky.get(order, pix, charge=lambda: guard.charge(guard.atlas, "new sky tiles"))
+    except atlas.NotThere as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except atlas.Away as exc:
+        raise HTTPException(503, f"sky atlas: {exc}", headers={"Retry-After": "30", "Cache-Control": "no-store"}) from exc
+    return Response(data, media_type="image/jpeg", headers={"Cache-Control": TILE_KEPT, "X-Atlas": "kept" if kept else "fetched"})
+
+
+@app.get("/api/atlas")
+async def api_atlas():
+    """What the server keeps of the sky photograph: tiles, bytes, the orders
+    that are always kept and how far they are filled, and the credit."""
+    return JSONResponse(sky.stats(), headers={"Cache-Control": "no-store"})
 
 
 # --------------------------------------------------------------------------- web
