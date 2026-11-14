@@ -16,7 +16,7 @@ terms. Credits for the data the service shows are in
 | `web/data/redshift.json` | Extract of the SIMBAD database, CDS, Strasbourg, France (Wenger et al. 2000), made by `scripts/build_redshift.py`; every redshift carries the bibcode of its paper | The terms of CDS for its datasets (https://cds.unistra.fr/legals/) |
 | `web/data/quasar-template.json` | Built by `scripts/build_quasar_template.py` from Selsing et al. 2016, A&A 585, A87 and Glikman, Helfand and White 2006, ApJ 640, 579, read from VizieR (CDS) | The terms of CDS for its datasets; cite the two papers |
 | Reference wavelengths in `web/linelist.js` | NIST Atomic Spectra Database, version 5.12 (Kramida, Ralchenko, Reader and NIST ASD Team 2024, doi:10.18434/T4W30F), and the papers named in that file | NIST Standard Reference Data, copyright U.S. Department of Commerce; NIST is acknowledged as the source. Published literature for the rest |
-| `tests/data/` | Answers of the catalogue services (SIMBAD, NED, the ESA Gaia archive) recorded for the tests, and SPHEREx spectra measured by this service | The terms of each source, see docs/data-sources.md |
+| `tests/data/` | Answers of the catalogue services (SIMBAD, NED, the ESA Gaia archive, IRSA) recorded for the tests, and SPHEREx spectra measured by this service | The terms of each source, see docs/data-sources.md |
 
 These files are data and fonts, not part of the program; the AGPL does not
 apply to them.
