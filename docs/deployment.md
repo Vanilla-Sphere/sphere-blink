@@ -13,7 +13,7 @@ and the path a change takes from a branch to production, are in
 | Region | Virginia (US East), the same AWS region as the SPHEREx bucket |
 | Plan | Pro Plus: 4 CPU, 8 GB memory |
 | Runtime | Python 3.12.7 |
-| Persistent disk | 20 GB mounted at `/var/data` |
+| Persistent disk | 40 GB mounted at `/var/data` |
 | Measurement database | Supabase Postgres in `us-east-1`, reached through the transaction pooler |
 | TLS | Certificates issued and renewed by the hosting platform |
 | DNS | Apex `A` record and `www` `CNAME` to the hosting platform, at the domain registrar |
@@ -66,7 +66,7 @@ Three points are essential:
    `SPHEREX_FETCH_PROCS` equal to the CPUs of the plan, `SPHEREX_RAM_BUDGET_MB`
    well below its memory, and `SPHEREX_DISK_BUDGET_GB` plus
    `SPHEREX_ATLAS_BUDGET_GB` (the sky photograph's tiles share the disk) at about
-   85 % of the disk.
+   85 % of the disk at most (28 of the 40 GB in production).
 
 ## Configuration
 
@@ -97,10 +97,10 @@ noted.
 | `SPHEREX_MOVER_MIN_FREE_MB` | `1800` | default | Memory that must be free in the container before a field is searched |
 | `SPHEREX_FETCH_PROCS` | `min(4, CPU count)` | `4` | Imaging worker processes |
 | `SPHEREX_RAM_BUDGET_MB` | `600` | `2000` | Frames kept in memory |
-| `SPHEREX_DISK_BUDGET_GB` | `4` | `13` | Size of the frame cache on disk |
-| `SPHEREX_ATLAS_BUDGET_GB` | `1` | `4` | Tiles of the sky photograph kept on disk, in all; above it the deep tiles least recently asked for are deleted |
-| `SPHEREX_ATLAS_KEEP_ORDER` | `3` | `5` | Tiles of this HiPS order and below are never deleted (orders 0-5 are 1.65 GB; one more is 5.5 GB more) |
-| `SPHEREX_ATLAS_SEED` | `0` | `1` | After start, fetch every tile of those orders that is not on disk yet (about ten minutes the first time, nothing afterwards) |
+| `SPHEREX_DISK_BUDGET_GB` | `4` | `16` | Size of the frame cache on disk |
+| `SPHEREX_ATLAS_BUDGET_GB` | `1` | `12` | Tiles of the sky photograph kept on disk, in all; above it the deep tiles least recently asked for are deleted |
+| `SPHEREX_ATLAS_KEEP_ORDER` | `3` | `6` | Tiles of this HiPS order and below are never deleted (orders 0-5 are 1.65 GB, 0-6 about 7.2 GB; one more is 29 GB more) |
+| `SPHEREX_ATLAS_SEED` | `0` | `1` | After start, fetch every tile of those orders that is not on disk yet (about 40 minutes the first time, nothing afterwards; it stops with less than 4 GB free on the disk) |
 | `SPHEREX_ATLAS_URL` | IRSA's 2MASS colour HiPS | default | Where the tiles are fetched from |
 | `SPHEREX_ATLAS_FETCHES` | `8` | default | Tiles fetched from the archive at the same time |
 | `SPHEREX_AUTO_MEASURE` | `1` | default | Measure the featured targets after start; `0` disables (read in `measure_api.py`) |
