@@ -202,6 +202,9 @@ def save_field(key: str, ra: float, dec: float, fov: float, frames: int, result:
                 merged["covered"] = len(counted)
                 merged["seen"] = sum(p["snr"] >= movers.SEEN_SNR for p in counted)
                 merged["seen_fraction"] = round(merged["seen"] / len(counted), 3) if counted else None
+                own = {round(d["mjd"], 4) for d in merged["detections"]}  # counted as in movers.confirm
+                merged["times_covered"] = len(own | {round(p["mjd"], 4) for p in counted})
+                merged["times_seen"] = len(own | {round(p["mjd"], 4) for p in counted if p["snr"] >= movers.SEEN_SNR})
                 merged["fields"] = sorted(set(old.get("fields", [])) | {key})
                 merged["known"] = payload.get("known") or old.get("known")
                 payload, track = merged, joined
