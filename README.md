@@ -221,4 +221,34 @@ the challenge rules on Super Intelligence (SI) tools:
 
 ## License
 
-MIT
+Vanilla Sphere. Copyright (C) 2026 Vanilla Sphere.
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, version 3 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+details.
+
+The full text is in [`LICENSE`](LICENSE); the SPDX identifier is
+`AGPL-3.0-only`. Under section 13 of that licence, whoever modifies this
+program and lets others use the modified version over a network must offer
+those users the source code of that version.
+
+Not covered by the AGPL; each keeps its own terms, listed in
+[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md):
+
+- The typefaces in `web/fonts/` (SIL Open Font License 1.1).
+- `web/data/sky.json`, derived from d3-celestial (BSD 3-Clause).
+- Data taken from catalogues and papers: `web/data/redshift.json` (SIMBAD),
+  `web/data/quasar-template.json` (VizieR), the reference wavelengths in
+  `web/linelist.js` (NIST ASD and the papers cited there) and the recorded
+  catalogue answers in `tests/data/`. They stay under the terms of their
+  sources, credited in [docs/data-sources.md](docs/data-sources.md).
+- The name "Vanilla Sphere" and its logo (`web/logo*.svg`, `web/favicon.svg`,
+  `web/apple-touch-icon.png`, `web/og.png`). The licence grants no right to
+  use them (section 7(e)), other than to say where the code comes from.
+- The NASA SPHEREx images and the catalogue data the service shows. They are
+  not part of this repository; their credits are under "Data and credits".
