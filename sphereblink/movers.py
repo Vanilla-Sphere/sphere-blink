@@ -40,7 +40,7 @@ from dataclasses import asdict, dataclass, field
 import numpy as np
 from scipy import ndimage as ndi
 
-VERSION = 1
+VERSION = 2  # 2: a sighting must be a compact source in the pixels, not one bright pixel
 
 MIN_SNR = 5.0  # peak of a detection, in units of the local noise
 GROW_SNR = 2.5  # pixels joined to a peak
@@ -69,10 +69,15 @@ RECUR = 6.2  # arcsec: detections this close are at the same place of the sky
 MAX_PASS_DETECTIONS = 1500  # brightest kept per pass when a field has more
 PROPOSALS = 6  # motions kept per starting detection
 SEEN_SNR = 3.5  # level that counts as seen when a track is confirmed in the pixels
+CORE_SNR = 3.0  # and the level of the brightest pixel together with its eight neighbours: light of a real object is
+# spread over them by the telescope, a noise peak, a cosmic ray hit or a star's leftover is one pixel
+CORE_SHARE = 1.3  # the nine together hold at least this many times the brightest alone (measured on asteroids: 1.4 to 3.4)
 WINDOW = 24  # pixels around a predicted place that give its background and noise
 MIN_SEEN_TIMES = 6  # exposure times a confirmed object is seen at (detected, or found at the predicted place)
 MIN_SEEN = 0.7  # share of the times its path was covered at which it must be seen
 MIN_SEEN_EXPOSURES = 0.5  # and of the single exposures that cover it
+CANDIDATE_TIMES = 8  # a path that no catalogue has an object on needs more: seen at this many exposure times
+CANDIDATE_SEEN = 0.8  # and at this share of the times it was covered (of 542 chance paths none came near)
 MERGE_SEP = 25.0  # arcsec: two tracks this close with the same motion are one object
 MERGE_RATE = 0.1  # relative difference in speed (or 3 arcsec per hour) that still is the same motion
 FAST_RATE = 20.0  # arcsec per hour: speed classes of the result
@@ -567,13 +572,21 @@ def merge(tracks: list[Track], **kw) -> list[Track]:
 
 # ----------------------------------------------------------------------------- confirmation in the pixels
 def confirm(track: Track, cube: np.ndarray, frames: list[dict], wcs, sky: StaticSky, scale_arcsec: float,
-            seen_snr: float = SEEN_SNR, margin_h: float = 1.0) -> dict:
+            seen_snr: float = SEEN_SNR, core_min: float = CORE_SNR, margin_h: float = 1.0) -> dict:
     """Measure the track's predicted place in every exposure of its time span.
 
     Gives how many exposures cover the place, in how many the object is seen,
     and the brightness in each: the object's spectrum, because every SPHEREx
     exposure is taken at another wavelength. Only detectors in which the
     track has a detection count: an object may be invisible in the others.
+
+    Seen means two things at once: a pixel near the predicted place stands
+    ``seen_snr`` above the noise, and that pixel with its eight neighbours,
+    taken together, stands ``core_min`` above theirs and holds clearly more
+    than the one pixel does. The second part is what tells an object from
+    chance: in a crowded field single pixels above the
+    first level are common (leftovers of stars, cosmic ray hits), and four of
+    them on a line with a few more near the path used to pass as an object.
     """
     t = np.array([float(f["mjd"]) for f in frames])
     first = min(d.mjd for d in track.detections) - margin_h / 24.0
@@ -582,6 +595,7 @@ def confirm(track: Track, cube: np.ndarray, frames: list[dict], wcs, sky: Static
     h, w = cube.shape[1:]
     to_mjy = (scale_arcsec / ARCSEC) ** 2 * 1e9
     half = max(2, int(round(12.3 / scale_arcsec)))  # the box searched: the prediction is good to a pixel or two
+    core = max(1, int(round(6.15 / scale_arcsec)))  # one native pixel around the brightest pixel of that box
     points = []
     for i in np.flatnonzero((t >= first) & (t <= last)):
         ra, dec = track.at(t[i])
@@ -613,21 +627,40 @@ def confirm(track: Track, cube: np.ndarray, frames: list[dict], wcs, sky: Static
             continue
         inside = np.where(use, res[by, bx] - level, 0.0)
         peak, total = float(inside.max()) / noise, float(inside.sum())
+        # the brightest pixel with its neighbours, as one measurement
+        jy, jx = np.unravel_index(int(np.argmax(inside)), inside.shape)
+        py, px = by.start + int(jy), bx.start + int(jx)
+        cy_, cx_ = slice(max(0, py - core), py + core + 1), slice(max(0, px - core), px + core + 1)
+        part = res[cy_, cx_] - level
+        good = np.isfinite(part) if on_static else np.isfinite(part) & ~static[cy_, cx_]
+        core_sum = float(np.where(good, part, 0.0).sum())
+        core_snr = core_sum / (noise * math.sqrt(max(1, int(good.sum()))))
+        compact = core_snr >= core_min and core_sum >= CORE_SHARE * float(inside.max())
         wave = frames[i].get("wave_um")
         points.append({"mjd": round(float(t[i]), 6), "exposure": str(frames[i]["exposure"]), "detector": detector,
                        "wave_um": round(float(wave), 4) if wave is not None and np.isfinite(wave) else None,
                        "ra": round(float(ra), 6), "dec": round(float(dec), 6), "snr": round(peak, 2),
+                       "core_snr": round(core_snr, 2), "seen": bool(peak >= seen_snr and compact),
                        "flux_mjy": round(total * to_mjy, 4), "on_static": on_static,
                        "counted": (not on_static) and detector in own})
+    return {**tally([d.mjd for d in track.detections], points), "points": points}
+
+
+def tally(detected_mjd: list[float], points: list[dict]) -> dict:
+    """How often the object is seen among the exposures that could show it.
+
+    Evidence is counted in exposure times: the two detectors that look at the
+    same sky at the same moment are one sighting, not two. A detection only
+    counts where the pixels at the predicted place show a compact source too;
+    it counts by itself only where that place could not be measured.
+    """
     counted = [p for p in points if p["counted"]]
-    seen = sum(p["snr"] >= seen_snr for p in counted)
-    # Evidence is counted in exposure times: the two detectors that look at
-    # the same sky at the same moment are one sighting, not two.
-    own = {round(d.mjd, 4) for d in track.detections}
-    times_seen = own | {round(p["mjd"], 4) for p in counted if p["snr"] >= seen_snr}
-    times_covered = own | {round(p["mjd"], 4) for p in counted}
+    seen = sum(bool(p["seen"]) for p in counted)
+    own = {round(float(m), 4) for m in detected_mjd}
+    measured = {round(p["mjd"], 4) for p in counted}
+    times_seen = {round(p["mjd"], 4) for p in counted if p["seen"]} | (own - measured)
     return {"covered": len(counted), "seen": seen, "seen_fraction": round(seen / len(counted), 3) if counted else None,
-            "times_seen": len(times_seen), "times_covered": len(times_covered), "points": points}
+            "times_seen": len(times_seen), "times_covered": len(own | measured)}
 
 
 def confirmed(c: dict, min_times: int = MIN_SEEN_TIMES, min_seen: float = MIN_SEEN) -> bool:
@@ -637,6 +670,13 @@ def confirmed(c: dict, min_times: int = MIN_SEEN_TIMES, min_seen: float = MIN_SE
     if c["times_seen"] < min_times or c["times_seen"] < min_seen * c["times_covered"]:
         return False
     return not c.get("covered") or c.get("seen", 0) >= MIN_SEEN_EXPOSURES * c["covered"]
+
+
+def strong(c: dict) -> bool:
+    """The evidence asked of a path without a name. Nearly everything bright
+    enough for SPHEREx is a known asteroid or comet, so a nameless path is
+    far more often chance than a new object, and has to show more."""
+    return confirmed(c, min_times=CANDIDATE_TIMES, min_seen=CANDIDATE_SEEN)
 
 
 # ----------------------------------------------------------------------------- the whole search of a field

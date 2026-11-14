@@ -107,6 +107,13 @@ def run(grid: Grid, exposures: list, known: list[dict], trials: int = TRIALS) ->
         names = known_objects.identify(result["tracks"])
     except Exception:  # a name is an extra: the object is stored without one
         log.exception("could not look the objects up among the known ones")
+    # a path that the catalogues were asked about and have no object on is kept only on stronger evidence
+    # (movers.strong); one that could not be compared (no service answered) stays, marked as not compared
+    keep = [i for i, t in enumerate(result["tracks"])
+            if (names.get(i) or {}).get("name") or not (names.get(i) or {}).get("checked") or movers.strong(t.extra)]
+    result["stats"]["unnamed_dropped"] = len(result["tracks"]) - len(keep)
+    result["stats"]["tracks"] = len(keep)
+    result["tracks"], names = [result["tracks"][i] for i in keep], {k: names[i] for k, i in enumerate(keep) if i in names}
     ids = mover_store.save_field(grid.key(), grid.ra, grid.dec, grid.fov_arcmin, len(exposures), result, names)
     return {"ids": ids, "stats": result["stats"]}
 

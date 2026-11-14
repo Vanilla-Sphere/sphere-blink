@@ -122,7 +122,7 @@ function moverRow(m, follow, open, inLog) {
   const more = document.createElement("div"), det = MV.detail[m.id] || {};
   more.className = "movermore";
   const facts = document.createElement("p");
-  facts.textContent = tr("mover.facts", {seen: m.times_seen, of: m.times_covered, id: m.id}) + (m.known && m.known.name ? " " + tr("mover.match", {by: m.known.by, sep: m.known.sep_arcsec}) : "");
+  facts.textContent = tr("mover.facts", {seen: m.times_seen, of: m.times_covered, id: m.id}) + (m.known && m.known.name ? " " + tr("mover.match", {by: m.known.by, sep: m.known.sep_arcsec}) : m.known && m.known.checked ? " " + tr("mover.cand") : "");
   const row = document.createElement("div"); row.className = "moveracts";
   for (const [value, key] of [["real", "mover.real"], ["false", "mover.false"]]) {
     const b = document.createElement("button");
@@ -153,7 +153,7 @@ function moverFrames(m) {
   head.className = "moverframeshead"; head.textContent = tr("mover.frames", {n: pts.length});
   ol.className = "moverframes";
   for (const p of pts) {
-    const li = document.createElement("li"), b = document.createElement("button"), seen = p.snr >= MOVER_SEEN_SNR;
+    const li = document.createElement("li"), b = document.createElement("button"), seen = p.seen != null ? p.seen : p.snr >= MOVER_SEEN_SNR;
     const cell = (text, cls) => { const s = document.createElement("span"); s.textContent = text; if (cls) s.className = cls; return s; };
     li.className = (seen ? "" : "unseen") + (MV.at === p.exposure ? " on" : "");
     b.type = "button"; b.dataset.hint = "mover.frame.t"; b.setAttribute("aria-pressed", MV.at === p.exposure ? "true" : "false");
@@ -336,7 +336,8 @@ async function loadLog() {
   try {
     const q = MV.logTab === "follow" ? `ids=${follow.join(",")}&limit=300` : "limit=300";
     const d = MV.logTab === "follow" && !follow.length ? {movers: [], total: 0} : await (await fetch("/api/movers?" + q)).json();
-    const all = d.movers || [];
+    const all = (d.movers || []).slice(), named = (m) => (m.known && m.known.name ? 1 : 0);
+    all.sort((a, b) => named(b) - named(a));   // what the catalogues confirm first, candidates after (the order within each stays)
     MV.log = MV.logTab === "fast" ? all.filter(moverFast) : MV.logTab === "slow" ? all.filter((m) => !moverFast(m)) : all;
     note.textContent = MV.logTab === "follow" ? (MV.log.length ? "" : tr("log.nofollow"))
       : !all.length ? tr("log.empty")

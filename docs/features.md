@@ -750,7 +750,10 @@ In the viewer (Advanced, `web/movers.js`):
 - **Follow**: kept in this browser only (`localStorage`), marked with a star.
 - **"Discoveries"** (top bar, and "All discoveries" in the card): everything
   found so far anywhere on the map, with the tabs All, Fast, Slow and
-  Following. Selecting an object opens the field it was found in.
+  Following. Selecting an object opens the field it was found in. Objects
+  that a catalogue of asteroids and comets confirms come first, with the
+  name; a path that no catalogue has an object on is called a "candidate",
+  has to pass a stricter test to be listed at all, and says so when opened.
 
 Objects slower than 2 arcsec per hour (which need two passes of the telescope
 months apart) are not searched.

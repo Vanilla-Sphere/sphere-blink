@@ -47,16 +47,34 @@ already put in the disk cache.
    its detections are removed. Pieces of one object are merged.
 4. **Confirmation in the pixels.** Along a track, every exposure that covers
    the predicted place is measured there, in the detectors the object was
-   detected in. A track is kept when the object is seen (3.5 sigma) at 6 or
-   more exposure times, at 70 % or more of the times its path was covered,
-   and in half or more of the covering exposures. Counting exposure times and
-   not exposures matters: two detectors exposed together are one piece of
-   evidence. This is the step that removes chance alignments.
+   detected in. The object counts as seen in an exposure when two things
+   hold: the brightest pixel within two pixels of the predicted place is 3.5
+   sigma above the noise, and that pixel with its eight neighbours is a
+   compact source (together 3 sigma above their noise, and holding at least
+   1.3 times what the one pixel holds). The telescope spreads the light of a
+   real object over neighbouring pixels (1.4 to 3.4 times the brightest pixel,
+   measured on the asteroids below); a noise peak, a cosmic ray hit or the
+   leftover of a star is one pixel. A track is kept when the object is seen
+   at 6 or more exposure times, at 70 % or more of the times its path was
+   covered, and in half or more of the covering exposures. A detection that
+   proposed the track counts only where the pixels at the predicted place
+   pass the same test. Counting exposure times and not exposures matters: two
+   detectors exposed together are one piece of evidence. This is the step
+   that removes chance alignments.
 5. **Chance figure.** The same search is repeated with the exposure times of
    the detections shuffled. What it finds then is found by chance; the number
    per field is stored with the field as `stats.chance_tracks`.
 6. **Names.** Each track is compared with the known asteroids and comets
    predicted for its place and time (see [below](#names-of-known-objects)).
+7. **More is asked of a path without a name.** Nearly everything bright
+   enough for SPHEREx is a known asteroid or comet, so a path that no
+   catalogue has an object on is far more often chance than a new object. It
+   is kept only when seen at 8 or more exposure times and at 80 % or more of
+   the times covered (`stats.unnamed_dropped` counts the rest). In the viewer
+   it is called a candidate, never a discovery, and is listed after the
+   objects the catalogues confirm. A path that could not be compared because
+   no catalogue service answered is kept under the rules of step 4 and shown
+   as "not yet compared with the catalogues".
 
 A track is a straight line at constant speed: reference time `mjd0`, position
 `ra0`, `dec0`, and the motion `v_east`, `v_north` in arcsec per hour. Speed
@@ -98,6 +116,35 @@ against 99 in field 2. SkyBoT's own orbit of 3I/ATLAS is 46 to 90 arcsec
 behind along the path, which is why a fast object may lie up to 300 arcsec
 from its prediction and still match when its motion agrees.
 
+### The audit of 2026-11-14 (why the rules of step 4 and 7 exist)
+
+The first version of step 4 counted an exposure as a sighting from the
+brightest pixel alone. On the production site that held for the fields above,
+but the field of Barnard's star (RA 269.46, Dec +4.74, galactic latitude 14
+degrees, 518 exposures, half of them with more leftovers of stars than the
+80 detections a frame may have) gave three tracks, and two were false:
+
+| Track | Verdict | Evidence |
+| --- | --- | --- |
+| 48.2 arcsec/h, 8 detections in D2 and D5 | (15101) 2000 AY150, real | all 8 detections within 4.8 arcsec (median 1.9) of JPL's position for their exposure, same speed, V 18.4; compact source at 10 of 11 times |
+| 186 arcsec/h, 4 detections in D1 | chance | no catalogue object; brightness at the predicted places scatters around zero (-0.12 to 0.15 mJy); no compact source in any of 7 covering exposures |
+| 34 arcsec/h, 4 detections in D1 and D5 | chance | no catalogue object; compact source in 3 of 9 covering exposures |
+
+All nine named objects in the log at that time (3I/ATLAS, Astraea twice, Nha
+twice, Elisabetha, Gunma, Aemilia and 2000 AY150) were compared, detection by
+detection, with JPL's ephemeris through IRSA's Moving Object Search Tool: 129
+of 129 detections lie in exposures JPL says cover the object, at a median of
+1.4 to 3.4 arcsec from the predicted position (largest 9.9 arcsec, on the
+saturated Astraea), with the speeds agreeing to 0.1 arcsec per hour (0.7 for
+Elisabetha).
+
+With the compact source test the Barnard field keeps the one real asteroid,
+field 2 keeps its nine objects, and 32 shuffled searches (24 of the Barnard
+field, 8 of field 2) find no track; before, one of 6 shuffled searches of the
+Barnard field found one. Of 542 chance paths linked in those shuffled
+searches of the Barnard field none was seen at 8 exposure times, the level
+step 7 asks of a path without a name.
+
 Limits found in the same test:
 
 - 3I/ATLAS at 8.7 arcsec per hour and V about 15.2 (field 3, March 2026) was
@@ -129,6 +176,11 @@ field is loaded and has not been searched.
   votes; the detections of both finds are joined.
 - A field is searched again only when it has gained exposures or the
   algorithm version (`movers.VERSION`) has changed.
+- The log shows only what the current version of the search has found.
+  Objects stored by an earlier version stay in the database but are not
+  listed or served until their field is searched again; an object found again
+  keeps its id, its date of discovery and its votes, with the new evidence
+  in place of the old. Version 2 (2026-11-14) is the compact source test.
 - Before a search starts it waits, up to 10 minutes, for 1800 MB of memory to
   be free in the container (`SPHEREX_MOVER_MIN_FREE_MB`); if there is none it
   gives up, and the field is searched the next time it is asked for.

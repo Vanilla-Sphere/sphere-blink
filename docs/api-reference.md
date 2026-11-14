@@ -845,8 +845,13 @@ One object: every field of the log entry, plus `detections` (exposure id
 `<obs_id>:D<detector>`, `mjd`, `ra`, `dec`, `snr`, `flux_mjy`, `npix`,
 `detector`, `wave_um`) and `points`, the measurement at the predicted place in
 every exposure that covers the path (`mjd`, `exposure`, `detector`, `wave_um`,
-`ra`, `dec`, `snr`, `flux_mjy`, `on_static`, `counted`). With `voter=<browser id>`
-the answer has `my_vote`. Unknown id: 404.
+`ra`, `dec`, `snr`, `core_snr`, `seen`, `flux_mjy`, `on_static`, `counted`).
+`snr` is the brightest pixel near the predicted place over the noise,
+`core_snr` that pixel and its eight neighbours taken together, and `seen` the
+verdict the search counts with (see [moving-objects.md](moving-objects.md)).
+With `voter=<browser id>` the answer has `my_vote`. Unknown id: 404, also for
+an object that an earlier version of the search stored and the current one
+has not found again.
 
 ### POST /api/movers/{id}/vote
 
