@@ -953,6 +953,8 @@ function scrubTimeline(ev) {
 }
 
 /* ------------------------------------------------------------------ spectrum / flux over time */
+// flags that do not make a spectrum point hollow: a bright source sets the last four on its own core
+const CLEAN_FLAGS = new Set(["SOURCE", "FULLSAMPLE", "OVERFLOW", "TRANSIENT", "SUR_ERROR", "BLOOM"]);
 /* Draws on the page, or, given out = {ctx, W, H}, on a canvas of the caller (the PNG export): then the page is left
    alone and the key comes back as [name, colour, shape] rows. */
 function drawPlot(out) {
@@ -1066,7 +1068,7 @@ function drawPlot(out) {
     ctx.strokeStyle = ctx.fillStyle = col; ctx.lineWidth = 1;
     if (p.flux_err_ujy) { const e = p.flux_err_ujy / unit; ctx.globalAlpha = 0.45; ctx.beginPath(); ctx.moveTo(x, Math.max(mt, Y(p.flux_ujy / unit + e))); ctx.lineTo(x, Math.min(base, Y(p.flux_ujy / unit - e))); ctx.stroke(); }
     const wings = p.method === "wings", extra = p.flags.includes("EXTRAPOLATED");
-    const dirty = !wings && p.flags.some((f) => f !== "SOURCE" && f !== "FULLSAMPLE");  // a saturated core always carries flags
+    const dirty = !wings && p.flags.some((f) => !CLEAN_FLAGS.has(f));
     if (wings) nWings++; if (extra) nExtra++; if (dirty) nDirty++;
     ctx.globalAlpha = 0.95; ctx.beginPath();
     if (wings) { const r = 3; ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); }

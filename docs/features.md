@@ -328,7 +328,10 @@ spectral data product.
   open. On 2026-11-14: R Draconis about x1.9 between 2025-06 and 2026-06
   (3.8 sigma); Barnard's Star, Vega and Epsilon Indi B steady within 4-7 %;
   RW Aurigae 23 % (1.2 sigma, not significant).
-- **Quality marks.** Points with flagged pixels in the aperture are drawn hollow.
+- **Quality marks.** A point is drawn hollow when a pixel of its aperture
+  was left out of the sum (`PARTIAL`) or carries a defect flag such as `HOT`
+  or `PERSIST`. The flags a bright source sets on its own core (`OVERFLOW`,
+  `TRANSIENT`, `SUR_ERROR`, `BLOOM`) do not count: those pixels are measured.
 - **Saturated stars.** Where the core saturates the detector, the flux is
   measured from the star's halo instead (see
   [bright-star photometry](measurement-pipeline.md#bright-star-photometry)).
