@@ -89,6 +89,23 @@ browser ──> FastAPI ──> IRSA SIA v2            which exposures cover (RA
   tool-interface rules of [Impeccable](https://github.com/pbakaus/impeccable). Typefaces Hanken Grotesk and
   Geist Mono, SIL Open Font License (`web/fonts/`).
 
+## Use of AI tools
+
+This project was built during the 2026 NASA Space Apps Challenge with the help
+of an AI assistant, Claude (Anthropic), used through Claude Code. In line with
+the challenge rules on Super Intelligence (SI) tools:
+
+- **Code.** Most of the source code and tests in this repository were written
+  by Claude under the team's direction and review.
+- **Research and checks.** Claude helped work out the SPHEREx data access path
+  (IRSA SIA, range reads from the AWS Open Data mirror) and ran the timing and
+  pixel-comparison checks.
+- **Interface and text.** Claude helped design the viewer and draft this README
+  and the submission text.
+- **Not AI.** No AI or machine-learning model runs inside the product. Every
+  image shown is NASA SPHEREx data processed by deterministic code, and no
+  image, video or audio in the project is AI-generated.
+
 ## License
 
 MIT
