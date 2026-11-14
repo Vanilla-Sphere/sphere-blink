@@ -22,7 +22,7 @@ const S = {
   target: null, ra: null, dec: null, fov: 8, det: "rgb", group: "day", mode: "blink",
   i: 0, ref: 0, playing: false, fps: 3, gain: 0,
   cube: null, meta: null, npix: 0, planes: 1, limits: null, median: null, stack: null,
-  spectrum: null, plotmode: "spec", catalogs: {}, tracks: null, loadId: 0, timer: null,
+  spectrum: null, plotmode: "spec", files: null, filesmode: "frame", catalogs: {}, tracks: null, loadId: 0, timer: null,
   levels: 0, field: null, stage: null,  // progressive field: rings of 0.12° cells, the server's report, the stage on screen
   ui: "simple", screen: "map",  // Simple or Advanced ("adv"), sky map or view
   t: null, featured: [], keep: null, url: "",
@@ -146,7 +146,7 @@ async function load(next, nopush) {
 
   stop();
   Object.assign(S, want);
-  S.cube = null; S.meta = null; S.saturated = null; S.median = null; S.stack = null; S.spectrum = null; S.catalogs = {}; S.i = 0; S.ref = 0; S.busy = 0;
+  S.cube = null; S.meta = null; S.saturated = null; S.median = null; S.stack = null; S.spectrum = null; S.files = null; S.catalogs = {}; S.i = 0; S.ref = 0; S.busy = 0;
   S.tracks = null; S.measuring = null; $("trackopt").hidden = true; $("trackcard").hidden = true;
   S.field = null; S.stage = null; $("tileopt").hidden = !S.levels;
   for (const c of ["speccard", "epochcard"]) $(c).hidden = true;
@@ -182,6 +182,7 @@ async function load(next, nopush) {
   loadSpectrum(id);
   loadCatalogs();
   loadTracks();
+  loadFiles();
 }
 /* The pipeline works on a few views at a time; the others wait their turn and are told where they stand. */
 function queueText(job) {
@@ -740,7 +741,7 @@ function showStory(t) {
 /* Too bright for the detector: the core pixels overflow and bleed, and the picture looks broken there. */
 const overloaded = (e) => (e.flags_at_target || []).some((f) => f === "OVERFLOW" || f === "SATURATED" || f === "BLOOM");
 function showEpoch(e) {
-  $("epochcard").hidden = false;
+  $("epochcard").hidden = false; showFiles();
   const flags = e.flags_at_target.filter((f) => f !== "SOURCE" && f !== "FULLSAMPLE");
   const fl = flags.length ? flags.map((f) => `<span class="flag">${f}</span>`).join("") : `<span class="flag ok">${tr("ep.clean")}</span>`;
   $("einfo").innerHTML =
@@ -789,22 +790,29 @@ function scrubTimeline(ev) {
 }
 
 /* ------------------------------------------------------------------ spectrum / light curve */
-function drawPlot() {
-  const cv = $("plot"); cv.classList.remove("none");
-  const W = cv.clientWidth, H = cv.clientHeight;
-  if (!W || !H) return;
-  const dpr = window.devicePixelRatio || 1, ctx = cv.getContext("2d");
-  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+/* Draws on the page, or, given out = {ctx, W, H}, on a canvas of the caller (the PNG export): then the page is left
+   alone and the key comes back as [name, colour, shape] rows. */
+function drawPlot(out) {
+  const cv = $("plot");
+  let W, H, ctx;
+  if (out) ({ctx, W, H} = out);
+  else {
+    cv.classList.remove("none");
+    W = cv.clientWidth; H = cv.clientHeight;
+    if (!W || !H) return null;
+    const dpr = window.devicePixelRatio || 1; ctx = cv.getContext("2d");
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  }
   const pts = (S.spectrum || []).filter((p) => p.flux_ujy !== null);
   const lc = S.plotmode === "lc";
-  $("spectitle").textContent = tr(lc ? "plot.lc" : "plot.spec");
   const sans = `12px ${T.sans}`, mono = `11px ${T.mono}`;
-  cv.classList.toggle("none", !pts.length); $("specempty").hidden = !!pts.length; $("spectip").hidden = !pts.length;
-  if (!pts.length) {
-    $("specempty").textContent = tr("plot.none");
-    $("legend").innerHTML = ""; return;
+  if (!out) {
+    $("spectitle").textContent = tr(lc ? "plot.lc" : "plot.spec");
+    cv.classList.toggle("none", !pts.length); $("specempty").hidden = !!pts.length; $("spectip").hidden = !pts.length; $("plotdl").hidden = !pts.length;
+    if (!pts.length) { $("specempty").textContent = tr("plot.none"); $("legend").innerHTML = ""; }
   }
+  if (!pts.length) return null;
   const visits = []; let lastM = -1e9;
   [...pts].sort((a, b) => a.mjd - b.mjd).forEach((p) => { if (p.mjd - lastM > 20) visits.push(p.mjd); p.visit = visits.length - 1; lastM = p.mjd; });
   const ml = 56, mr = 10, mt = 8, mb = 40;
@@ -861,18 +869,19 @@ function drawPlot() {
   }
   ctx.globalAlpha = 1;
   const items = lc ? [1, 2, 3, 4, 5, 6].map((dn) => ["D" + dn, DET_COLOR[dn]]) : visits.map((m, k) => [tr("plot.pass", {m: mjdDate(m).toISOString().slice(0, 7)}), VISIT_COLORS[k % VISIT_COLORS.length]]);
-  $("legend").innerHTML = items.slice(0, 8).map(([name, col]) => `<span>${swatch(col)}${name}</span>`).join("")
-    + (nDirty || !nWings ? `<span><i class="sw hollow"></i>${tr("plot.flagged")}</span>` : "")
-    + (nWings ? `<span><i class="sw dia"></i>${tr("plot.wings")}</span>` : "")
-    + (nExtra ? `<span><i class="sw dia hollow"></i>${tr("plot.extra")}</span>` : "");
+  const key = items.slice(0, 8).map(([name, col]) => [name, col, ""])
+    .concat(nDirty || !nWings ? [[tr("plot.flagged"), T.muted, "hollow"]] : [], nWings ? [[tr("plot.wings"), T.ink2, "dia"]] : [], nExtra ? [[tr("plot.extra"), T.ink2, "dia hollow"]] : []);
+  if (out) return {items: key};
+  $("legend").innerHTML = key.map(([name, col, shape]) => `<span>${shape ? `<i class="sw ${shape}"></i>` : swatch(col)}${name}</span>`).join("");
   $("specnote").textContent = tr(lc ? "plot.note.lc" : "plot.note.spec", {n: pts.length}) + (nWings ? " " + tr("plot.note.wings") : "") + (nExtra ? " " + tr("plot.note.extra") : "");
+  return {items: key};
 }
 
 /* ------------------------------------------------------------------ transport */
 function step(d) { const ne = nEpochs(); if (!ne) return; S.i = (S.i + d + ne) % ne; draw(); }
 function play() { if (S.playing || nEpochs() < 2) return; S.playing = true; $("play").classList.add("playing"); $("playlabel").textContent = tr("pause"); tick(); }
 function tick() { if (!S.playing) return; step(1); S.timer = setTimeout(tick, (S.i === nEpochs() - 1 ? 2.5 : 1) * 1000 / S.fps); }
-function stop() { S.playing = false; clearTimeout(S.timer); $("play").classList.remove("playing"); $("playlabel").textContent = tr("play"); }
+function stop() { S.playing = false; clearTimeout(S.timer); if (S.meta) showFiles(); $("play").classList.remove("playing"); $("playlabel").textContent = tr("play"); }
 
 /* ------------------------------------------------------------------ wiring */
 const SYNC = {};  // one function per segmented control: make the buttons show the state
@@ -1035,6 +1044,7 @@ function setUi(ui, first) {
     syncAll();
     if (S.meta) { if (reload) reloadCube(); else draw(); loadCatalogs(); }
   }
+  if (S.ui === "adv") loadFiles();
   if (first) return;
   SkyMap.redraw();
   if (S.meta) writeUrl();
@@ -1050,7 +1060,8 @@ function init() {
   buildDets();
   seg("group", "group", reloadCube);
   seg("mode", "mode", () => { $("refrow").hidden = S.mode !== "diffref"; S.limits = null; if (S.mode === "stack") stop(); draw(); writeUrl(); });
-  seg("plotmode", "plotmode", drawPlot);
+  seg("plotmode", "plotmode", () => drawPlot());
+  initExports();
   $("refrow").hidden = S.mode !== "diffref";
   setUi(prefs.ui, true);
   SkyMap.init($("map"), {coords: () => S.ui === "adv", onPick: mapPick, onHover: mapHover, onReady: () => { if (S.t) showStory(S.t); },
@@ -1109,6 +1120,7 @@ function init() {
   document.addEventListener("click", closeTips);
   document.addEventListener("click", (ev) => { if (!$("searcherr").hidden && !ev.target.closest("#search")) searchError(""); });
   document.addEventListener("keydown", (ev) => {
+    if (aboutOpen()) { if (ev.key === "Escape") setAbout(false); return; }   // the page over the app takes the keys
     if (ev.key === "Escape") { searchError(""); closeTips(); if (S.screen === "map") mapFull(false); if (document.activeElement.classList.contains("tipbtn")) document.activeElement.blur(); }
     if (S.screen !== "view") return;
     // a focused field or slider keeps its own keys; a focused button keeps the space bar
