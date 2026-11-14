@@ -38,7 +38,8 @@ sphere-blink/
 ├── .github/workflows/      checks on pull requests (tests, branch names); UI tests after every merge
 ├── requirements.txt        Python dependencies
 ├── README.md
-└── LICENSE                 MIT
+├── THIRD-PARTY-NOTICES.md licences of the fonts, data and design references that are not ours
+└── LICENSE                 GNU Affero General Public License, version 3
 ```
 
 About 4 300 lines of Python in the package, 850 lines of tests, and 2 100 lines

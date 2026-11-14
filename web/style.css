@@ -476,6 +476,17 @@ dd{margin:0;font-family:var(--font-measure);font-variant-numeric:tabular-nums;fo
 .share input{flex:1;height:26px;padding:0 8px;border-color:var(--color-rule);color:var(--color-ink-2);font-size:11.5px}
 .share .btn{min-width:58px}
 .share+.note{margin-top:10px}
+/* "All API endpoints": a line that opens onto one row per endpoint; the address is a link */
+.apilist{margin-top:10px}
+.apilist summary{width:max-content;max-width:100%;cursor:pointer;font-size:12.5px;color:var(--color-ink-2)}
+.apilist summary:hover,.apilist[open] summary{color:var(--color-ink)}
+.apilist h3{margin:14px 0 6px;font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--color-muted)}
+.apilist .share{margin-bottom:4px}
+.share .lab{width:66px;flex:none;margin-bottom:0}
+#sharecard:has(.apilist[open])>.share label{width:66px}
+.share .addr{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11.5px;line-height:24px;padding-bottom:2px;color:var(--color-ink-2);text-decoration:underline;text-decoration-color:var(--color-muted-2);text-underline-offset:3px}
+.share .addr:hover{color:var(--color-ink);text-decoration-color:var(--color-ink)}
+.apilist .note{margin-top:12px}
 .note a{text-decoration:underline;text-decoration-color:var(--color-muted-2)}
 
 /* (i) notes: text that explains, kept out of the way until asked for */

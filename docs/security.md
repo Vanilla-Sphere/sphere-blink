@@ -72,6 +72,34 @@ Added to every response by `guard.Guard`:
 | `Permissions-Policy` | camera, microphone, geolocation, payment, USB off | The viewer needs none of them |
 | `Cross-Origin-Resource-Policy` (data, pictures) | `cross-origin` | Pictures and data may be embedded elsewhere, as intended |
 
+### Framing by other sites
+
+A page shown inside a frame of another site can be covered with a decoy, so
+that a visitor who clicks the decoy clicks the page (clickjacking). No page
+of this site may be framed by another site:
+
+- every answer that is a page (`/`, `/static/index.html`, `/docs`, `/redoc`)
+  carries `frame-ancestors 'self'` in its policy and `X-Frame-Options:
+  SAMEORIGIN`. Current browsers obey the first, older ones the second;
+- pictures and data carry neither. A GIF, PNG or JSON answer of `/api/` is
+  made to be used elsewhere, in an `<img>` or by `fetch`; the two headers
+  that allow this are `Cross-Origin-Resource-Policy: cross-origin` and the
+  open CORS below. To show a view on another page, embed its GIF or PNG and
+  link to the view; the viewer itself cannot be put in an `<iframe>` there;
+- a `304 Not Modified` answer gets neither policy. It has no content type,
+  and a browser lays its headers over the ones it kept: with the policy of
+  data it would take the page's policy, and `frame-ancestors` with it, away;
+- the dev site is static, so `render.dev.yaml` sets the same: `X-Frame-Options`
+  on every path, the page's policy on `/` and `/index.html` (a static site
+  answers both with the page).
+
+The viewer has no frame of its own, so `'self'` is not used today; it is
+there so that a page of the site may show another one if that is ever wanted.
+
+Tests: `test_no_other_site_can_frame_a_page_and_pictures_stay_free`,
+`test_not_modified_does_not_replace_the_policy_of_the_page` and the dev site
+test in `tests/test_guard.py`.
+
 Inline style attributes are allowed because the viewer draws colour swatches
 with them; there is no inline script. The interactive API pages (`/docs`,
 `/redoc`) come from FastAPI and load Swagger UI from jsDelivr, so they get a

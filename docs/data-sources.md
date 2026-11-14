@@ -183,7 +183,7 @@ object at the propagated position.
 | Redshifts of galaxies and quasars | SIMBAD (CDS) and the NASA/IPAC Extragalactic Database (NED), each value with the bibcode of its paper | Public services |
 | Distances of stars | Gaia DR3 parallaxes; Bailer-Jones et al. 2021, AJ 161, 147 | Gaia archive terms |
 | Cosmology | Planck Collaboration 2020, A&A 641, A6, through `astropy.cosmology.Planck18` | Published literature |
-| Wavelengths of atomic lines in the reading of a spectrum | Kramida, Ralchenko, Reader and NIST ASD Team (2024), NIST Atomic Spectra Database (version 5.12), doi:10.18434/T4W30F | Public (US Government work) |
+| Wavelengths of atomic lines in the reading of a spectrum | Kramida, Ralchenko, Reader and NIST ASD Team (2024), NIST Atomic Spectra Database (version 5.12), doi:10.18434/T4W30F | Copyright U.S. Department of Commerce (NIST Standard Reference Data); values quoted with the acknowledgment NIST asks for |
 | Positions of molecular, ice and dust bands in the reading of a spectrum | Polyansky et al. 2018, MNRAS 480, 2597; Shimanouchi 1972, NSRDS-NBS 39 (NIST Chemistry WebBook); Geballe et al. 2002, ApJ 564, 466; Cushing, Rayner and Vacca 2005, ApJ 623, 1115; Yamamura, Tsuji and Tanabé 2010, ApJ 722, 682; Boogert, Gerakines and Whittet 2015, ARA&A 53, 541; McClure et al. 2023, Nature Astronomy 7, 431; van Diedenhoven et al. 2004, ApJ 611, 928; Draine and Li 2007, ApJ 657, 810 | Published literature |
 | Known asteroids and comets | SkyBoT, IMCCE, Observatoire de Paris (Berthier et al. 2006); Small-Body Identification API, NASA/JPL Solar System Dynamics | Public services |
 | WISE 0855-0714 astrometry | Kirkpatrick et al. 2021, ApJS 253, 7 | Published literature |
@@ -191,7 +191,8 @@ object at the propagated position.
 | Interface design reference | Hallmark "Rim" theme; Impeccable layout rules | MIT |
 | Typefaces | Hanken Grotesk, Geist Mono | SIL Open Font License (`web/fonts/`) |
 | Libraries | Astropy, NumPy, SciPy, FastAPI, uvicorn, httpx, Pillow, psycopg | Their respective open-source licences |
-| Product source code | Team Vanilla Sphere | MIT |
+| Product source code | Team Vanilla Sphere | GNU Affero General Public License, version 3 only (`LICENSE`) |
+| Name "Vanilla Sphere" and logo | Team Vanilla Sphere | Not licensed under the AGPL (see the README) |
 
 ### Use of AI tools
 
