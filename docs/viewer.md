@@ -29,7 +29,7 @@ as static files.
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
 Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `linelist.js`, `insight.js`, `redshift.js`, `depth.js`, `showcase.js`, `app.js`.
-Asset URLs carry a version query (`?v=55`) that is raised when a file changes,
+Asset URLs carry a version query (`?v=56`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -463,7 +463,9 @@ Rules it keeps:
 - The interface is in English.
 - **Explanations stay out of the way.** The screen carries minimal text. Longer
   explanations are behind small "i" buttons (`.tip`, `.tipbtn`, `.tipbody`) that
-  open on hover, focus or tap and close on Escape.
+  open on hover, focus or tap and close on Escape. A note in the left column
+  carries the class `out`: that column scrolls and would cut it, so `placeTip`
+  lays it over the page beside the column (under its button on a phone).
 - **Every control has a one-line note.** A control opts in with
   `data-hint="key"` (text in `STR.en`) or `data-hint-text`. `hints.js` shows the
   note after a short delay on hover or keyboard focus, never on touch. A

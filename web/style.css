@@ -487,6 +487,7 @@ dd{margin:0;font-family:var(--font-measure);font-variant-numeric:tabular-nums;fo
 .tipbody{position:absolute;top:calc(100% + 8px);left:0;z-index:20;width:max-content;max-width:min(340px,calc(100vw - 2 * var(--pad)));padding:10px 12px;border:1px solid var(--color-muted-2);background:var(--color-lift);color:var(--color-ink-2);font:400 12.5px/1.5 var(--font-display);white-space:normal;text-align:left;visibility:hidden;opacity:0;transition:opacity var(--dur-short) var(--ease-out),visibility 0s var(--dur-short)}
 .tip:hover .tipbody,.tip:focus-within .tipbody,.tip.open .tipbody{visibility:visible;opacity:1;transition-delay:0s}
 .tipbody p+p{margin-top:8px}
+.tip.out .tipbody{position:fixed;top:0;left:0;max-width:min(400px,calc(100vw - 16px));max-height:calc(100vh - 16px);overflow-y:auto;overscroll-behavior:contain}
 /* one-line notes on the controls (hints.js): the same sheet as the (i) notes, never in the pointer's way */
 .hintbox{position:fixed;z-index:60;pointer-events:none;width:max-content;max-width:min(280px,calc(100vw - 16px));padding:6px 10px;border:1px solid var(--color-muted-2);background:var(--color-lift);color:var(--color-ink);font:400 12.5px/1.45 var(--font-display);text-wrap:pretty;animation:hintin var(--dur-short) var(--ease-out)}
 @keyframes hintin{from{opacity:0}}

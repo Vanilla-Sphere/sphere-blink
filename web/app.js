@@ -377,8 +377,20 @@ const closeTips = () => { for (const t of document.querySelectorAll(".tip.open")
 function wireTip(t) {
   t.querySelector(".tipbtn").addEventListener("click", (ev) => {
     ev.stopPropagation(); const open = t.classList.contains("open"); closeTips();
-    if (open) ev.currentTarget.blur(); else t.classList.add("open");
+    if (open) ev.currentTarget.blur(); else { t.classList.add("open"); if (t.classList.contains("out")) placeTip(t); }
   });
+  if (t.classList.contains("out")) for (const type of ["pointerenter", "focusin"]) t.addEventListener(type, () => placeTip(t));
+}
+/* A note in the left column would be cut at the column's edge, because the column scrolls. Such a note (class "out")
+   is laid over the page instead: beside the column where there is room, else under its button, and never taller
+   than the window (it scrolls inside). */
+function placeTip(t) {
+  const body = t.querySelector(".tipbody"), b = t.querySelector(".tipbtn").getBoundingClientRect(), gap = 8;
+  const vw = document.documentElement.clientWidth, vh = window.innerHeight, w = body.offsetWidth, h = body.offsetHeight;
+  const col = t.closest(".rail"), edge = col ? col.getBoundingClientRect().right : 0;
+  const beside = edge > 0 && edge + gap + w <= vw - gap;
+  body.style.left = Math.round(beside ? edge + gap : Math.max(gap, Math.min(vw - w - gap, b.left))) + "px";
+  body.style.top = Math.round(beside ? Math.max(gap, Math.min(vh - h - gap, b.top - 11)) : b.bottom + gap + h <= vh - gap ? b.bottom + gap : Math.max(gap, vh - h - gap)) + "px";
 }
 /* The (i) of a measured object: where its light was centred in each exposure, as a small chart of the
    sky (north up, east left, arcsec from the middle of the fitted track; early positions faint, late
