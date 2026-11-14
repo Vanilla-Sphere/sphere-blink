@@ -10,7 +10,8 @@
    clearMovers() when a new view starts and drawMovers() with every frame. */
 "use strict";
 
-const MV = {key: "", status: "", stats: null, list: [], sel: null, detail: {}, want: null, timer: 0, log: [], logTab: "all"};
+const MV = {key: "", status: "", stats: null, list: [], sel: null, at: null, detail: {}, files: {}, want: null, wantAt: null, timer: 0, log: [], logTab: "all"};
+const MOVER_SEEN_SNR = 3.5;   // the server counts an object as seen in an exposure from this signal to noise on
 
 /* ------------------------------------------------------------------ this browser */
 function moverVoter() {
@@ -48,7 +49,12 @@ function moverAt(m, mjd) {
 /* ------------------------------------------------------------------ the field on screen */
 function clearMovers() {
   clearTimeout(MV.timer);
-  MV.key = ""; MV.status = ""; MV.stats = null; MV.list = []; MV.sel = null;
+  if (MV.hold && MV.pin) {   // one object taken along to a view of its own (showMoverFrame)
+    MV.hold = false; MV.key = "pin"; MV.status = "pinned"; MV.stats = null; MV.list = [MV.pin]; MV.sel = MV.pin.id;
+    $("movercard").hidden = false; $("moveropt").hidden = false;
+    return showMovers();
+  }
+  MV.key = ""; MV.status = ""; MV.stats = null; MV.list = []; MV.sel = null; MV.at = null; MV.pin = null;
   $("movercard").hidden = true; $("moveropt").hidden = true;
 }
 /* Ask for the objects of the field on screen; while its search is waiting or running, ask again. */
@@ -67,14 +73,23 @@ async function loadMovers() {
   MV.status = d.status; MV.stats = d.stats || (d.job && d.job.stats) || null; MV.error = d.job && d.job.error;
   MV.list = d.movers.slice().sort((a, b) => b.rate_arcsec_hr - a.rate_arcsec_hr);
   $("movercard").hidden = false; $("moveropt").hidden = !MV.list.length;
-  if (MV.want) { const w = MV.want; MV.want = null; if (MV.list.some((m) => m.id === w)) { selectMover(w); return showMovers(); } }
+  if (MV.want) {
+    const w = MV.want, at = MV.wantAt; MV.want = MV.wantAt = null;
+    if (MV.list.some((m) => m.id === w)) {
+      // a link to one exposure of an object: open the object, then that frame
+      selectMover(w).then(() => { const p = at && moverPoints(w).find((x) => x.exposure === at); if (p && MV.sel === w) showMoverFrame(w, p); });
+      return showMovers();
+    }
+  }
   showMovers(); draw();
   if (["queued", "searching", "not_loaded"].includes(d.status) && ++MV.tries < 90) MV.timer = setTimeout(loadMovers, 4000);
 }
 function showMovers() {
   const st = MV.stats || {}, n = MV.list.length;
+  $("moverback").hidden = MV.status !== "pinned";
   $("moverstatus").textContent =
-    MV.status === "ready" ? (n ? tr(n > 1 ? "mover.found.n" : "mover.found.1", {n, f: st.frames || "?"}) : tr("mover.found.0", {f: st.frames || "?"}))
+    MV.status === "pinned" ? tr("mover.pinned")
+    : MV.status === "ready" ? (n ? tr(n > 1 ? "mover.found.n" : "mover.found.1", {n, f: st.frames || "?"}) : tr("mover.found.0", {f: st.frames || "?"}))
     : MV.status === "error" ? tr("mover.error")
     : MV.status === "not_loaded" ? tr("mover.wait")
     : tr("mover.searching");
@@ -83,9 +98,11 @@ function showMovers() {
   // two lists, as the search keeps them apart: fast (20 arcsec per hour and more) and slow
   for (const [key, list] of [["mover.fast", MV.list.filter(moverFast)], ["mover.slow", MV.list.filter((m) => !moverFast(m))]]) {
     if (!list.length) continue;
-    const h = document.createElement("li");
-    h.className = "movergroup"; h.textContent = tr(key, {n: list.length});
-    ul.appendChild(h);
+    if (MV.status !== "pinned") {
+      const h = document.createElement("li");
+      h.className = "movergroup"; h.textContent = tr(key, {n: list.length});
+      ul.appendChild(h);
+    }
     for (const m of list) ul.appendChild(moverRow(m, follow, MV.sel === m.id));
   }
   ul.hidden = !n;
@@ -120,14 +137,107 @@ function moverRow(m, follow, open, inLog) {
   f.addEventListener("click", () => { moverFollow(m.id, !on); showMovers(); });
   row.appendChild(f);
   const note = document.createElement("p"); note.className = "muted"; note.id = "movernote"; note.setAttribute("role", "status");
-  note.textContent = MV.note || (S.group !== "exposure" ? tr("mover.tip") : "");
-  more.append(facts, row, note);
+  note.textContent = MV.note || "";
+  more.append(facts, row, note, ...moverFrames(m));
   li.appendChild(more);
   return li;
 }
+/* Every exposure that looked at the object's path, in the order of time: when, in which band, and how
+   strongly the object showed. Selecting one puts that exposure on screen (see showMoverFrame). */
+const moverUid = (p) => p.exposure.replace(":", "_");   // the name the exposure has in a frame and in the list of files
+function moverPoints(id) { return (((MV.detail[id] || {}).points) || []).slice().sort((a, b) => a.mjd - b.mjd || a.detector - b.detector); }
+function moverFrames(m) {
+  const pts = moverPoints(m.id);
+  if (!pts.length) return [];
+  const head = document.createElement("p"), ol = document.createElement("ol"), files = MV.files[m.id] || {};
+  head.className = "moverframeshead"; head.textContent = tr("mover.frames", {n: pts.length});
+  ol.className = "moverframes";
+  for (const p of pts) {
+    const li = document.createElement("li"), b = document.createElement("button"), seen = p.snr >= MOVER_SEEN_SNR;
+    const cell = (text, cls) => { const s = document.createElement("span"); s.textContent = text; if (cls) s.className = cls; return s; };
+    li.className = (seen ? "" : "unseen") + (MV.at === p.exposure ? " on" : "");
+    b.type = "button"; b.dataset.hint = "mover.frame.t"; b.setAttribute("aria-pressed", MV.at === p.exposure ? "true" : "false");
+    const sw = document.createElement("i"); sw.className = "sw"; sw.style.background = DET_COLOR[p.detector] || "";
+    const det = cell("", "det"); det.append(sw, "D" + p.detector);
+    b.append(cell(new Date((p.mjd - 40587) * 86400000).toISOString().slice(0, 16).replace("T", " ")), det,
+      cell(p.wave_um ? p.wave_um.toFixed(2) + " µm" : ""), cell(seen ? tr("mover.frame.snr", {s: p.snr < 10 ? p.snr.toFixed(1) : Math.round(p.snr)}) : tr("mover.frame.unseen"), "snr"));
+    b.addEventListener("click", () => showMoverFrame(m.id, p));
+    li.appendChild(b);
+    const url = files[moverUid(p)];
+    if (url) { const a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener"; a.textContent = "FITS"; a.dataset.hint = "tip.files.fits"; li.appendChild(a); }
+    ol.appendChild(li);
+  }
+  return [head, ol];
+}
+/* Go to the frame an object was looked for in. A wide field is on screen at overview resolution, where a
+   faint object is lost, so the place is opened as a view of its own at full detail: centred on where the
+   object was in that exposure, one frame per exposure, only the band it was taken in. The object stays
+   in its card ("pinned") so the other exposures and the way back to the field are at hand. */
+async function showMoverFrame(id, p) {
+  const m = MV.list.find((x) => x.id === id);
+  if (!m) return;
+  const say = (text) => { MV.note = text; showMovers(); };
+  MV.at = p.exposure;
+  if (typeof stop === "function") stop();
+  const det = String(p.detector), D = Math.PI / 180;
+  const far = S.field || !S.grid || Math.hypot((p.ra - S.grid.ra) * Math.cos(p.dec * D), p.dec - S.grid.dec) * 60 > S.grid.fov_arcmin * 0.35;
+  const bands = S.group !== "exposure" || S.det !== det;
+  S.group = "exposure"; S.det = det;
+  if (SYNC.group) SYNC.group(); if (SYNC.det) SYNC.det();
+  if (far) {
+    MV.pin = m; MV.hold = true; MV.note = tr("mover.frame.open");
+    $("q").value = `${p.ra.toFixed(5)} ${p.dec >= 0 ? "+" : ""}${p.dec.toFixed(5)}`; $("fov").value = 8;
+    await load({ra: p.ra, dec: p.dec, byCoords: true, target: null, levels: 0, fov: 8});
+    MV.hold = false;
+  } else if (bands) { say(tr("mover.frame.load", {d: det})); await reloadCube(); }
+  if (MV.sel !== id || MV.at !== p.exposure || !S.meta || S.field) return;
+  if (!moverToFrame(p)) return say(tr("mover.frame.none"));
+  MV.note = "";
+  showMovers(); draw(); writeUrl();
+  const row = document.querySelector(".moverframes li.on"), box = row && row.parentElement;
+  if (box && (row.offsetTop < box.scrollTop || row.offsetTop + row.offsetHeight > box.scrollTop + box.clientHeight)) box.scrollTop = row.offsetTop - box.clientHeight / 2;
+}
+/* Put the frame of one exposure on screen, if the view has it. */
+function moverToFrame(p) {
+  const uid = moverUid(p), eps = S.meta.epochs;
+  let i = eps.findIndex((e) => (e.exposures || []).includes(uid));
+  if (i < 0) i = eps.findIndex((e) => Math.abs(e.mjd - p.mjd) < 2e-4 && (e.detectors || []).includes(p.detector));
+  if (i >= 0) S.i = i;
+  return i >= 0;
+}
+/* A link to one exposure of an object opens as a plain view: fetch the object and pin it there. */
+async function moverLink() {
+  if (S.field || !MV.want || S.ui === "simple") return;
+  const id = MV.want, at = MV.wantAt, view = S.loadId;
+  MV.want = MV.wantAt = null;
+  let d;
+  try {
+    const r = await fetch(`/api/movers/${encodeURIComponent(id)}?voter=${moverVoter()}`);
+    if (!r.ok) return;
+    d = await r.json();
+  } catch (_) { return; }
+  if (view !== S.loadId || S.field) return;
+  MV.detail[id] = d; MV.pin = d; MV.hold = true; clearMovers();
+  const p = at && moverPoints(id).find((x) => x.exposure === at);
+  if (p && S.meta && moverToFrame(p)) MV.at = at;
+  showMovers(); draw(); writeUrl(); loadMoverFiles(d);
+}
+/* The archive's file of each exposure, for the links in that list: one question about the object's place. */
+async function loadMoverFiles(m) {
+  if (MV.files[m.id]) return;
+  MV.files[m.id] = {};
+  try {
+    const r = await fetch(`/api/exposures?ra=${m.ra0.toFixed(5)}&dec=${m.dec0.toFixed(5)}`);
+    if (!r.ok) return;
+    const map = {};
+    for (const f of (await r.json()).exposures || []) { const u = fileUrl(f); if (/^https:\/\/[A-Za-z0-9.-]+\/[A-Za-z0-9._~%+\/-]+$/.test(u)) map[f.uid] = u; }
+    MV.files[m.id] = map;
+    if (MV.sel === m.id) showMovers();
+  } catch (_) {}
+}
 /* Open an object: its path is drawn in full, and the movie goes to the frame nearest to it. */
 async function selectMover(id) {
-  MV.sel = id; MV.note = "";
+  MV.sel = id; MV.note = ""; MV.at = null;
   const m = MV.list.find((x) => x.id === id);
   if (m && S.meta) {
     let best = 0, gap = Infinity;
@@ -142,6 +252,7 @@ async function selectMover(id) {
     if (!r.ok) return;
     MV.detail[id] = await r.json();
     if (MV.sel === id) { showMovers(); draw(); }
+    if (m) loadMoverFiles(m);
   } catch (_) {}
 }
 async function voteMover(id, value) {
@@ -161,24 +272,33 @@ async function voteMover(id, value) {
    seen; the open one with its detections and, while the frame on screen is within its time, a ring
    where it is in that frame. */
 function drawMovers(ctx, cv, u, line, text) {
-  if (!S.field || S.ui === "simple" || !MV.list.length || !$("ov-movers").checked) return;
+  if ((!S.field && !MV.pin) || S.ui === "simple" || !MV.list.length || !S.meta || !S.meta.epochs.length || !$("ov-movers").checked) return;
   const e = S.meta.epochs[S.i], W = cv.width, C = T.accent, inside = (x, y) => x >= 0 && y >= 0 && x <= W && y <= W;
   for (const m of MV.list) {
     const open = m.id === MV.sel, a = toPixel(...moverAt(m, m.mjd_first), cv), b = toPixel(...moverAt(m, m.mjd_last), cv);
     ctx.globalAlpha = open || !MV.sel ? 1 : 0.45;
-    line(C, open ? 1.5 : 1, () => { ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); });
-    // an arrowhead at the late end: where it was heading
     const n = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, ux = (b[0] - a[0]) / n, uy = (b[1] - a[1]) / n, h = 7 * u;
+    // where it is in the frame on screen: a ring wide enough to leave the object itself uncovered,
+    // and the path stops at the ring for the same reason
+    const now = e.mjd >= m.mjd_first - 0.25 && e.mjd <= m.mjd_last + 0.25 ? toPixel(...moverAt(m, e.mjd), cv) : null;
+    const R = (open ? 15 : 10) * u, ring = now && inside(now[0], now[1]);
+    line(C, open ? 1.5 : 1, () => {
+      ctx.moveTo(a[0], a[1]);
+      if (ring) { ctx.lineTo(now[0] - ux * R, now[1] - uy * R); ctx.moveTo(now[0] + ux * R, now[1] + uy * R); }
+      ctx.lineTo(b[0], b[1]);
+    });
+    // an arrowhead at the late end: where it was heading
     line(C, open ? 1.5 : 1, () => { ctx.moveTo(b[0] - ux * h - uy * h * 0.6, b[1] - uy * h + ux * h * 0.6); ctx.lineTo(b[0], b[1]); ctx.lineTo(b[0] - ux * h + uy * h * 0.6, b[1] - uy * h - ux * h * 0.6); });
     if (open) {
       const det = (MV.detail[m.id] || {}).detections || [];
       ctx.fillStyle = C;
-      for (const d of det) { const [x, y] = toPixel(d.ra, d.dec, cv); if (inside(x, y)) ctx.fillRect(x - 1.5 * u, y - 1.5 * u, 3 * u, 3 * u); }
+      for (const d of det) {
+        if (Math.abs(d.mjd - e.mjd) < 2e-4) continue;   // in the frame on screen the object shows itself
+        const [x, y] = toPixel(d.ra, d.dec, cv);
+        if (inside(x, y)) ctx.fillRect(x - 1.5 * u, y - 1.5 * u, 3 * u, 3 * u);
+      }
     }
-    if (e.mjd >= m.mjd_first - 0.25 && e.mjd <= m.mjd_last + 0.25) {
-      const [x, y] = toPixel(...moverAt(m, e.mjd), cv);
-      if (inside(x, y)) line(C, open ? 1.5 : 1, () => { ctx.moveTo(x + 9 * u, y); ctx.arc(x, y, 9 * u, 0, 2 * Math.PI); });
-    }
+    if (ring) line(C, open ? 1.5 : 1, () => { ctx.moveTo(now[0] + R, now[1]); ctx.arc(now[0], now[1], R, 0, 2 * Math.PI); });
     if (inside(b[0], b[1]) && (open || !MV.sel)) text(moverName(m), b[0] + 9 * u, b[1] - 8 * u, C);
     ctx.globalAlpha = 1;
   }
@@ -226,6 +346,7 @@ function openMover(m) {
 
 function initMovers() {
   $("moverlog").addEventListener("click", () => setLog(true));
+  $("moverback").addEventListener("click", () => { if (MV.pin) openMover(MV.pin); });
   $("openlog").addEventListener("click", () => setLog(true));
   $("log-close").addEventListener("click", () => setLog(false));
   $("discoveries").addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) setLog(false); });
@@ -236,5 +357,6 @@ function initMovers() {
     loadLog();
   });
   $("ov-movers").addEventListener("change", draw);
-  MV.want = new URLSearchParams(location.search).get("mover");
+  const q = new URLSearchParams(location.search);
+  MV.want = q.get("mover"); MV.wantAt = q.get("seen");
 }

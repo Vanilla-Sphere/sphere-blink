@@ -17,7 +17,7 @@ implements it. Implementation detail is in [imaging engine](imaging-engine.md),
 | 6 | Frame grouping: exposure, day, sky pass | Advanced | `render.py` (`_groups`) |
 | 7 | Image arithmetic | Advanced | `web/app.js` (client side), `render.difference` (server side) |
 | 8 | Progressive fields, up to 7 x 7 cells | Advanced | `tiles.py`, `web/app.js` (`loadField`) |
-| 9 | Spectrum and light curve at the crosshair | Advanced | `main.api_spectrum`, `cutout.aperture_flux`, `wings.py` |
+| 9 | Spectrum and flux over time at the crosshair, with a preliminary reading of the spectrum | Advanced (Simple shows one sentence of the reading) | `main.api_spectrum`, `cutout.aperture_flux`, `wings.py`, `web/insight.js` |
 | 10 | Gaia DR3 and CatWISE2020 overlays | Advanced | `catalogs.py`, `web/app.js` (`drawOverlays`) |
 | 11 | Automatic measurement of position, motion, brightness | Advanced | `measure.py`, `refcat.py`, `measure_api.py` |
 | 12 | "Measure motion and brightness" | Advanced | `web/app.js` (`measureHere`), `/api/measure` |
@@ -125,7 +125,7 @@ overlays, the measured track and the spectrum at the crosshair.*
 | Picture | False colour, one frame per day, 8 arcmin | Any band, grouping, field size or progressive field |
 | Text | Object name, kind, a short description in plain language | Coordinates, epoch metadata, flags |
 | Controls | Play, slider, Share, Download GIF | Bands, grouping, image arithmetic, contrast, overlays, speed, timeline |
-| Analysis | - | Spectrum, light curve, measured tracks, "Measure motion and brightness", cross-links |
+| Analysis | - | Spectrum, flux over time, measured tracks, "Measure motion and brightness", cross-links |
 | Search placeholder | "Search a star or galaxy by name" | "RA Dec or an object name" |
 
 Switching keeps the target and the frame on screen. Settings chosen in Advanced
@@ -281,7 +281,7 @@ minimap at the top left shows which cells have arrived.*
 The stages are ordinary views, so every other endpoint (cube, PNG, GIF, epochs,
 spectrum) works on a stage by passing its `ra`, `dec` and `fov`.
 
-## 9. Spectrum and light curve
+## 9. Spectrum and flux over time
 
 Each exposure sees the target through one narrow slice of a linear variable
 filter. The exposures of a position therefore sample the whole 0.75-5.0 um
@@ -297,8 +297,29 @@ spectral data product.
 - **Spectrum plot.** Flux density against wavelength, coloured by sky pass. A
   change between passes at the same wavelength indicates variability. The axis
   switches from mJy to Jy for bright stars.
-- **Light curve plot.** Flux density against date, coloured by detector. Since
-  each exposure samples a different wavelength, points of one colour are compared.
+- **Over time plot.** Flux density of every exposure against its date, coloured
+  by detector (the tab was called "Light curve" until 2026-11-14). SPHEREx
+  returns to a place about every six months and stays for days to weeks, so the
+  exposures fall into groups of days with empty months between them. The time
+  axis gives every group its own stretch and cuts the empty months out, marked
+  by a double stroke (`groupedAxis` in `web/overtime.js`; groups are separated
+  by gaps of more than 20 days). Since each exposure samples a different
+  wavelength, the spread inside a group is the object's spectrum; a change of
+  the object shows as one colour shifting from group to group.
+- **Did it change?** A line under the Over time plot answers in words
+  (`brightnessChange` in `web/overtime.js`, the method of the pipeline's
+  [light curve](measurement-pipeline.md#6-light-curve) applied to the points of
+  `/api/spectrum`): every flux is divided by the object's own spectrum at its
+  wavelength, the visits (groups of days, a long stay cut into parts of about
+  30 days) are compared, and the brightest is set against the faintest.
+  "Brightness changed" needs 3 sigma, with a floor of 5 % per visit for aperture
+  fluxes and 12 % for the halo fluxes of saturated stars; otherwise the line
+  says "No significant change" and by how much the visits differ, "One visit
+  so far", or "Too faint to compare" (median signal to noise below 3). When
+  the object changed, the Over time tab carries a small mark, whichever plot is
+  open. On 2026-11-14: R Draconis about x1.9 between 2025-06 and 2026-06
+  (3.8 sigma); Barnard's Star, Vega and Epsilon Indi B steady within 4-7 %;
+  RW Aurigae 23 % (1.2 sigma, not significant).
 - **Quality marks.** Points with flagged pixels in the aperture are drawn hollow.
 - **Saturated stars.** Where the core saturates the detector, the flux is
   measured from the star's halo instead (see
@@ -314,7 +335,81 @@ per exposure (wavelength, bandwidth, flux and error in µJy, MJD and UTC date,
 detector, method, flags, the exposure id and the address of its Level 2 file at
 IRSA), under comment lines that give the target, the position, the data
 credit and the link of the view. **PNG** saves the plot on screen, spectrum
-or light curve, with its key and the NASA credit.
+or flux over time (with its line on the change), with its key and the NASA credit.
+
+### Preliminary reading of the spectrum
+
+Under the plot the viewer writes what the curve shows, in sentences, with the
+numbers behind each one (`web/insight.js`, run in the browser on the points of
+`/api/spectrum`). It is labelled "Preliminary reading" and carries a
+confidence level (low, moderate or good) and the limits that apply. Every
+statement is a fixed test on the measured points: no language model, no
+catalogue and no training set is involved, so the same curve always gives the
+same reading and each sentence can be checked against the plot.
+
+The tests, in order:
+
+1. **Which points can be read.** Halo ("wings") points are compared with
+   direct aperture points at the same wavelengths. If they differ by more
+   than a third, only one kind is read and the reading says how many points
+   were left out and why. A halo three or more times too bright is not one
+   star (a galaxy, a nebula, a crowded field): the direct points are kept.
+2. **Change between sky passes.** Each pass is compared with the
+   best-sampled one at the same wavelengths. A pass that differs by more than
+   10 % is brought to its level, so that a variable source does not leave
+   steps in the curve that look like bands.
+3. **Whether a source is there.** If four in five points are below 3σ the
+   reading says so and stops.
+4. **Continuum.** Where the binned curve peaks, its slope in log-log (the
+   whole range, below 1.7 µm, above 2.3 µm), and the blackbody closest to it
+   with the range of temperatures that fit nearly as well.
+5. **Bands and lines at rest wavelengths.** Water vapour at 1.4, 1.9 and
+   2.7 µm, methane at 3.3 µm, water ice at 3.0 µm, carbon dioxide at 4.27 µm;
+   in emission, hydrogen Paschen α and β, Brackett α and γ, helium 1.083 µm,
+   [S III] 0.953 µm and the 3.3 µm PAH band. A band is the flux inside a
+   window against a continuum drawn between a window on each side; a line is
+   the points whose passband holds the wavelength against the points just
+   outside. The noise is taken from the differences of neighbouring points.
+   A feature counts at 4σ and above; names of the detected ones are drawn
+   along the top of the plot, with a question mark when they are not firm.
+
+The reading then names the kinds of object that give such a curve:
+
+| Reading | Rests on |
+| --- | --- |
+| Emission lines of ionised gas | Two lines or more, one of them hydrogen |
+| Ice absorption | The 3.0 µm band deepest at 3.0 µm, or carbon dioxide on a rising curve |
+| Brown dwarf atmosphere | Methane at 3.3 µm together with water vapour |
+| Cool star with water vapour | Two water bands or more |
+| Two components | A falling curve with extra light beyond 4 µm |
+| Red source | Flux still rising beyond 2.3 µm |
+| Hot photosphere | A smooth fall from the blue end, about λ^−2 |
+| Cool photosphere | A peak inside the range; a blackbody temperature if one fits within about a third |
+| Flat spectrum | No slope and no peak |
+| Too bright, only part readable, no source | More than half the points above the calibrated range of the halo method; less than 45 % of the range sampled; nothing above the noise |
+
+What it does not do: it does not classify the object, measure a redshift, or
+look for lines away from their rest wavelengths (a single line is reported as
+possible, "or another line moved there by redshift"). Between deep molecular
+bands the continuum stands up in narrow peaks that this resolution cannot
+tell from emission lines, so with such bands no line is claimed. Confidence
+drops with saturation, noise, gaps in the curve, changes between passes and
+points left out; a reading that rests on a strong band or line does not
+depend on the brightness scale and keeps its level.
+
+Checked on 14 real spectra (`tests/data/spectra/`): Epsilon Indi B (water and
+methane), Elias 16 and Elias 29 (water and carbon dioxide ice), NGC 7027
+(hydrogen lines, PAH), G191-B2B (hot tail), WISE 0855 (a background star plus
+the cold dwarf's light beyond 4 µm), Barnard's Star (3,000 to 3,700 K;
+catalogue 3,200 K), 3C 273 (red, a possible line at 2.17 µm where its
+redshifted Paschen α falls), RW Aurigae (red), R Draconis (water bands, low
+confidence), Vega (too bright), NGC 3379 and Sgr A* (only part readable), an
+empty field (no source). On 14,400 made-up featureless spectra with noise,
+with and without a 30 % change between passes, no firm band or line appeared.
+
+In Simple mode one plain sentence of the reading is shown beside the
+pictures ("What its light says"), and only when the reading names something
+and its confidence is not low.
 
 ## 10. Catalogue overlays
 
@@ -497,6 +592,17 @@ In the viewer (Advanced, `web/movers.js`):
   the frame on screen. Selecting a row opens the object: the movie goes to the
   frame nearest to it, its detections are drawn, and the address gains
   `mover=<id>`, so the link opens the same object.
+- **To the frame it was seen in**: the open object lists every exposure that
+  looked at its path, in the order of time: date and time (UTC), detector,
+  wavelength, the signal to noise of the object there (or "not seen"), and a
+  link to the exposure's Level 2 file at IRSA. Selecting an exposure opens
+  the object's place as a view of its own at full detail (8 arcmin, centred
+  on where the object was in that exposure), with one frame per exposure and
+  only the band that exposure was taken in, and goes to that frame. A wide
+  field is shown at overview resolution, where a faint object is lost; this
+  view is not. The object stays in its card with the other exposures and a
+  "Back to the field" button, the ring and the path stay on the image, and
+  the address gains `seen=<exposure>`, so the link opens that very frame.
 - **Votes**: "Real motion" and "False alarm". One vote per browser; choosing
   the same button again takes it back.
 - **Follow**: kept in this browser only (`localStorage`), marked with a star.

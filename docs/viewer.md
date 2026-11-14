@@ -16,14 +16,16 @@ as static files.
 | `data/redshift.json` | 600 KB | 10 037 galaxies and quasars with a spectroscopic redshift (SIMBAD), loaded when the redshift layer is first used |
 | `movers.js` | about 240 lines | Moving objects found by the blind search: the card of a field, the paths on the image, votes, follow, and the "Discoveries" list |
 | `exports.js` | about 230 lines | What a researcher takes away: the plot's points as CSV, the plot as PNG with the credit, the "Source files" panel listing the Level 2 exposures with their IRSA links, its download script, URL list and table, and the "About the data" page |
+| `insight.js` | about 520 lines | The preliminary reading of a spectrum (`analyseSpectrum`): which points can be read, continuum shape, bands and lines, confidence and limits; `showReading` puts it under the plot and `markFeatures` names the detected features on the plot. Pure rules, no network |
 | `i18n.js` | 107 lines | Text that scripts put on the page (`STR.en`) and the `tr()` formatter |
+| `overtime.js` | about 130 lines | The Over time plot without the page: the time axis cut into groups of days, and the comparison of visits that says whether the object changed. Tested with node (`tests/overtime_cases.js`) |
 | `hints.js` | 74 lines | One-line notes on controls, shown on hover and keyboard focus |
 | `lore.js` | 130 lines | What the sky map says about each of the 88 constellations and 31 famous stars under the pointer (`LORE`) |
 | `data/sky.json` | - | Compact star chart: stars, names, constellations, Milky Way, boundary grid |
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
-Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `exports.js`, `movers.js`, `depth.js`, `app.js`.
-Asset URLs carry a version query (`?v=37`) that is raised when a file changes,
+Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `insight.js`, `depth.js`, `app.js`.
+Asset URLs carry a version query (`?v=40`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -61,7 +63,7 @@ Three columns under a fixed top bar:
 | Top bar | Brand, "Sky map" button, search box, Field menu, "Show sky", Simple/Advanced switch, API link, credits note |
 | Left rail | Featured targets; Display panel: Bands, One frame per, Image math, Contrast, Overlays |
 | Stage | Target name and coordinates; the image; progress bar; a status strip with date, channels, wavelength range, exposure count and pointer coordinates; transport; timeline |
-| Right column | Spectrum or light curve; "Distance and redshift"; "This frame"; "Measured in this field"; "Position of the crosshair" with cross-links; "Link or embed this view" |
+| Right column | Spectrum or flux over time; "Distance and redshift"; "This frame"; "Measured in this field"; "Position of the crosshair" with cross-links; "Link or embed this view" |
 
 ### Layout in Simple mode
 
@@ -101,6 +103,7 @@ at start; `writeUrl` keeps it current (`replaceState` for display changes,
 | `gaia`, `catwise` | `1` | off | Catalogue overlays |
 | `tracks` | `0` | on | Hide the measured-tracks overlay |
 | `mover` | id (`VS-...`) | - | The moving object that is open in the "Moving objects" card |
+| `seen` | exposure and detector (`2025W32_1A_0637_3:D3`) | - | With `mover`: the exposure of that object whose frame is on screen |
 | `ui` | `simple`, `adv` | see below | Interface mode |
 
 Only non-default display values are written. The interface mode is resolved in
@@ -200,6 +203,15 @@ up once and sends with its votes, and `vs.follow`, the ids of the objects it
 follows. "Discoveries" is a sheet like "About the data"; its Fast and Slow
 tabs filter the list of `/api/movers` at 20 arcsec per hour.
 
+The open object lists the exposures along its path (`points` of
+`/api/movers/{id}`; the file links come from one `/api/exposures` request at
+the object's place). `showMoverFrame` opens the place of one of them as a
+plain 8 arcmin view with `group=exposure` and that exposure's detector, and
+puts its frame on screen. The object is carried into that view as `MV.pin`
+(`clearMovers` keeps it when `MV.hold` is set), so the card, the ring and the
+path are there without a field; `moverLink`, called at the end of `load`,
+does the same for a link that carries `mover` and `seen`.
+
 ### Distance and redshift
 
 `depth.js` is loaded before `app.js`, which calls `initDepth()` once,
@@ -226,12 +238,16 @@ with astropy to 0.01%).
 
 ### Plots
 
-`drawPlot` draws the spectrum or the light curve on a canvas without a charting
+`drawPlot` draws the spectrum or the flux over time on a canvas without a charting
 library: axes with rounded tick steps, points coloured by sky pass (spectrum) or
-by detector (light curve), hollow points for flagged apertures, diamonds for
+by detector (over time), hollow points for flagged apertures, diamonds for
 halo-measured fluxes, hollow diamonds above the calibrated range, and a legend.
 The vertical axis reads in mJy and switches to Jy when the 98th percentile of
-the fluxes exceeds 1 Jy.
+the fluxes exceeds 1 Jy. The time axis of the Over time plot is cut into the
+groups of days in which SPHEREx observed the place (`groupedAxis` in
+`overtime.js`), and `changeText`/`showChange` write the line under it that says
+whether the object changed between visits (`brightnessChange`); see
+[features](features.md#9-spectrum-and-flux-over-time).
 
 ## Sky map
 
