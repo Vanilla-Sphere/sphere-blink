@@ -266,9 +266,11 @@ coordinates.
     `Norder{k}/Dir{d}/Npix{n}.jpg`.
   - Each redraw the map asks `Atlas.draw()` for the view. It picks the order
     whose tiles are 300 to 600 px wide on screen, finds the diamonds under a
-    net of screen points, and lays each tile over its diamond in pieces of
-    3.5 degrees or less whose corners go through the map's own `project()`,
-    so the photograph lies under the drawn stars to within a pixel (checked
+    net of screen points, and lays each tile over its diamond in pieces
+    whose corners go through the map's own `project()`. A diamond is cut
+    into as few pieces as keep the picture within about half a pixel of its
+    true place, from 1 at high zoom to 10 x 10 where the projection bends
+    most, so the photograph lies under the drawn stars (checked
     on Orion, the Pleiades, the pole and the galactic centre). A piece is
     one `drawImage` under the straight map that fits its four corners best,
     a little wider than its place so no hairline shows. Nothing is clipped:
