@@ -61,6 +61,28 @@ function cpWords(d) {
   };
 }
 
+/* The second search (shift and stack), measured apart on fake bodies beyond Neptune: d.stack, written by
+   scripts/mover_completeness_far.py. One paragraph, and one table among the numbers. */
+function cpStackHalf(rows) {
+  // the magnitude at which the share found crosses one half, between the middles of two bins
+  const pts = rows.filter((r) => r.fakes >= 5).map((r) => ({v: (r.v[0] + r.v[1]) / 2, s: r.found / r.fakes}));
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const a = pts[i], b = pts[i + 1];
+    if (a.s >= 0.5 && b.s < 0.5) return a.v + (b.v - a.v) * (a.s - 0.5) / (a.s - b.s);
+  }
+  return null;
+}
+function cpStackWords(s) {
+  const a = s.all, short = (a.passes || {}).short, o = a.others || {};
+  const stray = Object.values(o).reduce((n, x) => n + x.paths, 0), nothing = (o.nothing || {paths: 0}).paths;
+  const half = cpStackHalf(a.by_v || []);
+  let t = `Slower objects are the work of the second search, which adds the frames of a pass up along a path. It was tested the same way on ${cpNum(a.fakes)} fake bodies ${s.au[0]} to ${s.au[1]} au from the Sun, each on the path that Earth's own motion gives it: ${cpPct(a.bright_found / a.bright)} of those brighter than V ${s.bright_below} were found (${a.bright_found} of ${a.bright})`;
+  t += half != null ? `, and half are still found at V ${half.toFixed(1)}, a magnitude deeper than the first search.` : ".";
+  if (short && short.fakes) t += ` It needs a long pass: in passes shorter than ${s.long_pass_h} hours it found ${short.found} of ${short.fakes}.`;
+  if (stray) t += ` ${nothing ? `${nothing} of its paths were made of nothing` : "None of its paths was made of nothing"}, but ${stray} followed a fake for part of the time only: the object is real in such a case, and the path drawn for it can be wrong at one end.`;
+  return t;
+}
+
 /* ------------------------------------------------------------------ the chart */
 function cpChart(d, host) {
   const W = 640, H = 290, L = 40, R = 14, T = 22, B = 36;
@@ -148,6 +170,20 @@ function cpTables(d, host) {
   });
   host.appendChild(cpEl("p", {class: "cp-cap"}, "Per cent found by speed and brightness, the three fields together"));
   host.appendChild(t2);
+  // the second search, on its own fakes
+  const s = d.stack;
+  if (s && s.all && s.all.by_v) {
+    const t3 = cpEl("table", {class: "cp-table"}), h3 = cpEl("tr");
+    for (const name of ["Magnitude V", "Found", "At 7.5 sigma", "Fakes"]) h3.appendChild(cpEl("th", null, name));
+    t3.appendChild(h3);
+    for (const r of s.all.by_v) {
+      const tr = cpEl("tr");
+      for (const v of [`${r.v[0]} to ${r.v[1]}`, `${cpPct(r.fakes ? r.found / r.fakes : null)} (${r.found})`, String(r.strong), String(r.fakes)]) tr.appendChild(cpEl("td", null, v));
+      t3.appendChild(tr);
+    }
+    host.appendChild(cpEl("p", {class: "cp-cap"}, `The second search, fake bodies at ${s.au[0]} to ${s.au[1]} au, the three fields together`));
+    host.appendChild(t3);
+  }
 }
 
 /* ------------------------------------------------------------------ one block, wherever it is asked for */
@@ -177,11 +213,12 @@ function cpRender(host) {
   host.appendChild(chart);
   cpChart(d, chart);
   host.appendChild(cpEl("p", {class: "muted note"}, w.note));
+  if (d.stack && d.stack.all && d.stack.all.fakes) host.appendChild(cpEl("p", {class: "muted note cp-stack"}, cpStackWords(d.stack)));
   const det = cpEl("details", {class: "cp-more"});
   det.appendChild(cpEl("summary", null, "The numbers as tables"));
   cpTables(d, det);
   host.appendChild(det);
-  host.appendChild(cpEl("p", {class: "muted note"}, `Measured ${d.made} on search version ${d.version}${d.same_on ? ` (version ${d.same_on.version} finds the same fakes in the ${d.same_on.rounds} rounds repeated on it)` : ""}; method and every number in the documentation of the project (mover-completeness).`));
+  host.appendChild(cpEl("p", {class: "muted note"}, `Measured ${d.made} on search version ${d.version}${d.same_on ? ` (version ${d.same_on.version} finds the same fakes in the ${d.same_on.rounds} rounds repeated on it)` : ""}${d.stack && d.stack.version != null ? `, the second search ${d.stack.made} on its version ${d.stack.version}` : ""}; method and every number in the documentation of the project (mover-completeness).`));
 }
 
 function initCompleteness() {
