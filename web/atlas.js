@@ -124,26 +124,15 @@ const Atlas = (() => {
   }
 
   /* ---------------------------------------------------------------- drawing */
-  /* one triangle of a picture, laid on three points of the screen */
-  function triangle(ctx, img, x0, y0, x1, y1, x2, y2, u0, v0, u1, v1, u2, v2) {
-    const du1 = u1 - u0, dv1 = v1 - v0, du2 = u2 - u0, dv2 = v2 - v0, det = du1 * dv2 - du2 * dv1;
-    if (!det) return;
-    const a = ((x1 - x0) * dv2 - (x2 - x0) * dv1) / det, c = ((x2 - x0) * du1 - (x1 - x0) * du2) / det;
-    const b = ((y1 - y0) * dv2 - (y2 - y0) * dv1) / det, d = ((y2 - y0) * du1 - (y1 - y0) * du2) / det;
-    const gx = (x0 + x1 + x2) / 3, gy = (y0 + y1 + y2) / 3;
-    ctx.save(); ctx.beginPath();        // cut a little outside the triangle, or hairlines show between neighbours
-    for (const [x, y] of [[x0, y0], [x1, y1], [x2, y2]]) { const dx = x - gx, dy = y - gy, l = Math.hypot(dx, dy) || 1; ctx.lineTo(x + dx / l * 0.8, y + dy / l * 0.8); }
-    ctx.closePath(); ctx.clip();
-    ctx.transform(a, b, c, d, x0 - a * u0 - c * v0, y0 - b * u0 - d * v0);
-    ctx.drawImage(img, 0, 0);
-    ctx.restore();
-  }
   /* Lay a picture over one diamond of the sky. The diamond is (face, ix, iy) at `order`; the picture
      may be that diamond's own tile, or a coarser tile of which it is the part [tx, ty, ts] (in the
      tile's two edge directions, 0..1). A tile's picture is stored with its columns along the y edge
      and its rows along the x edge. The diamond is cut into n x n pieces, so the curve of the
-     projection is followed. */
+     projection is followed; each piece is one drawImage under the straight (affine) map that fits
+     its four corners best, drawn 0.6 px wider all round so no hairline shows between neighbours.
+     There is no clipping: on a graphics card a clip per piece cost several times the picture. */
   const grid = [], vec = [0, 0, 0], scr = [0, 0, 0];
+  let base = null;                      // the canvas' own transform (device pixels), set by draw()
   function lay(ctx, o, img, order, face, ix, iy, tx, ty, ts, n) {
     const side = 1 / (1 << order), w = img.width || 512;
     for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
@@ -158,8 +147,16 @@ const Atlas = (() => {
       if (far > Math.PI) continue;      // this piece straddles the cut of the projection
       // corners a (i, j), b (i+1, j), c (i, j+1), d (i+1, j+1); u follows y (j), v follows x (i)
       const u0 = (ty + ts * j / n) * w, u1 = (ty + ts * (j + 1) / n) * w, v0 = (tx + ts * i / n) * w, v1 = (tx + ts * (i + 1) / n) * w;
-      triangle(ctx, img, grid[a], grid[a + 1], grid[b], grid[b + 1], grid[c], grid[c + 1], u0, v0, u0, v1, u1, v0);
-      triangle(ctx, img, grid[d], grid[d + 1], grid[c], grid[c + 1], grid[b], grid[b + 1], u1, v1, u1, v0, u0, v1);
+      const du = u1 - u0, dv = v1 - v0;
+      // screen pixels per pixel of the picture along u (a to c, b to d) and along v (a to b, c to d)
+      const ax = (grid[c] - grid[a] + grid[d] - grid[b]) / 2 / du, ay = (grid[c + 1] - grid[a + 1] + grid[d + 1] - grid[b + 1]) / 2 / du;
+      const bx = (grid[b] - grid[a] + grid[d] - grid[c]) / 2 / dv, by = (grid[b + 1] - grid[a + 1] + grid[d + 1] - grid[c + 1]) / 2 / dv;
+      const mx = (grid[a] + grid[b] + grid[c] + grid[d]) / 4, my = (grid[a + 1] + grid[b + 1] + grid[c + 1] + grid[d + 1]) / 4;
+      const ex = mx - ax * (u0 + u1) / 2 - bx * (v0 + v1) / 2, ey = my - ay * (u0 + u1) / 2 - by * (v0 + v1) / 2;
+      ctx.setTransform(base.a * ax + base.c * ay, base.b * ax + base.d * ay, base.a * bx + base.c * by, base.b * bx + base.d * by,
+        base.a * ex + base.c * ey + base.e, base.b * ex + base.d * ey + base.f);
+      const pu = 0.6 / (Math.hypot(ax, ay) || 1), pv = 0.6 / (Math.hypot(bx, by) || 1);
+      ctx.drawImage(img, u0, v0, du, dv, u0 - pu, v0 - pv, du + 2 * pu, dv + 2 * pv);
     }
   }
 
@@ -182,7 +179,8 @@ const Atlas = (() => {
     }
     if (!want.size || want.size > 60) return 0;
     keep = Math.max(30, Math.min(100, 3 * want.size));   // tiles kept in memory: a few screens' worth
-    const n = Math.max(2, Math.min(8, Math.ceil(58.6 / (1 << order) / 4)));   // pieces of 4 degrees or less follow the projection closely
+    const n = Math.max(3, Math.min(10, Math.ceil(58.6 / (1 << order) / 3.5)));   // pieces of 3.5 degrees or less follow the projection to within a pixel
+    base = ctx.getTransform();
     const queue = [];
     let covered = 0, fading = false;
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "low";   // plain smoothing: "high" builds a smaller copy of every tile on every frame, about 80 ms without a graphics card
@@ -207,6 +205,7 @@ const Atlas = (() => {
         ctx.globalAlpha = 1; covered += 1;
       } else if (!t.img && now - t.bad > 30000) queue.push([w.d, t]);
     }
+    ctx.setTransform(base);
     queue.sort((a, b) => a[0] - b[0]);
     for (const [, t] of queue) { if (loading >= AT_ONCE) break; fetchTile(t); }
     tidy();
