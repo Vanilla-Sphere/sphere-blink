@@ -168,3 +168,39 @@ def test_color_keeps_a_grey_star_grey_whichever_detector_feeds_a_channel():
     rgb = render.to_rgb8(e.image, render.shared_limits([e]))
     r, g, b = (int(v) for v in rgb[::-1][10, 10])
     assert max(r, g, b) - min(r, g, b) <= 3 and min(r, g, b) > 200
+
+
+def test_disk_cache_drops_oldest_views_first(tmp_path):
+    from sphereblink.cutout import Grid
+    from sphereblink.service import Store
+
+    store = Store(tmp_path / "c.sqlite")
+    grids = [Grid.from_fov(10.0 + k, 5.0, 1.0) for k in range(3)]
+    for k, g in enumerate(grids):
+        fr = [frame(60900 + i, seed=k) for i in range(4)]
+        store.put_frames(g, [(f"{k}-{i}", f.exposure, f) for i, f in enumerate(fr)])
+        store._conn().execute("UPDATE frames SET created=? WHERE grid=?", (1000.0 + k, g.key()))
+        store._conn().commit()
+    one_view = store._conn().execute("SELECT SUM(LENGTH(image)) FROM frames WHERE grid=?", (grids[0].key(),)).fetchone()[0]
+    freed = store.trim(2.5 * one_view, keep=grids[2].key())
+    left = {r[0] for r in store._conn().execute("SELECT DISTINCT grid FROM frames")}
+    assert freed == one_view and left == {grids[1].key(), grids[2].key()}
+    store.trim(0, keep=grids[2].key())  # the view being served is never dropped
+    assert {r[0] for r in store._conn().execute("SELECT DISTINCT grid FROM frames")} == {grids[2].key()}
+
+
+def test_memory_budget_forgets_least_recently_used_views(tmp_path, monkeypatch):
+    from sphereblink import config
+    from sphereblink.service import Job, Service, Store
+
+    svc = Service(Store(tmp_path / "c.sqlite"))
+    jobs = []
+    for k in range(3):
+        j = Job(id=f"j{k}", status="ready", last_used=100.0 + k)
+        j.frames = [frame(60900 + i, n=101) for i in range(5)]  # 5 * 101 * 101 * 4 bytes = 0.2 MB
+        svc.jobs[j.id] = j
+        svc.by_view[f"view{k}"] = j.id
+        jobs.append(j)
+    monkeypatch.setattr(config, "RAM_BUDGET_MB", 0.45)
+    svc._forget(keep=jobs[2])
+    assert set(svc.jobs) == {"j1", "j2"} and set(svc.by_view) == {"view1", "view2"}

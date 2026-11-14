@@ -5,17 +5,19 @@ from __future__ import annotations
 import asyncio
 import io
 import json
+import multiprocessing
 import sqlite3
 import threading
 import time
 import uuid
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
 import httpx
 import numpy as np
 
-from . import config
-from .cutout import Frame, Grid, cache_key, cut_async, wave_map_from_file
+from . import config, worker
+from .cutout import Frame, Grid, cache_key, wave_map_from_file
 from .sia import Exposure, find_exposures
 
 EXPOSURE_TTL_S = 24 * 3600
@@ -49,6 +51,7 @@ class Store:
         c = getattr(self._local, "c", None)
         if c is None:
             c = sqlite3.connect(self.path, timeout=30, check_same_thread=False)
+            c.execute("PRAGMA synchronous=NORMAL")  # safe with WAL, far fewer fsyncs
             self._local.c = c
         return c
 
@@ -111,19 +114,41 @@ class Store:
             good_fraction=meta.get("good_fraction", 0.0),
         )
 
-    def put_frame(self, key: str, exposure: Exposure, grid: Grid, frame: Frame | None) -> None:
-        if frame is None:
-            meta, blob = {"miss": True}, None
-        else:
-            meta = frame.meta()
-            buf = io.BytesIO()
-            np.save(buf, frame.image.astype(np.float32))
-            blob = buf.getvalue()
+    def put_frames(self, grid: Grid, items: list[tuple[str, Exposure, Frame | None]]) -> None:
+        rows, now = [], time.time()
+        for key, exposure, frame in items:
+            if frame is None:
+                meta, blob = {"miss": True}, None
+            else:
+                meta = frame.meta()
+                buf = io.BytesIO()
+                np.save(buf, frame.image.astype(np.float32))
+                blob = buf.getvalue()
+            rows.append((key, exposure.uid, grid.key(), now, json.dumps(meta), blob))
         with self._conn() as c:
-            c.execute(
-                "INSERT OR REPLACE INTO frames VALUES (?,?,?,?,?,?)",
-                (key, exposure.uid, grid.key(), time.time(), json.dumps(meta), blob),
-            )
+            c.executemany("INSERT OR REPLACE INTO frames VALUES (?,?,?,?,?,?)", rows)
+
+    def put_frame(self, key: str, exposure: Exposure, grid: Grid, frame: Frame | None) -> None:
+        self.put_frames(grid, [(key, exposure, frame)])
+
+    def trim(self, max_bytes: float, keep: str = "") -> int:
+        """Drop the least recently fetched views until the frames fit in
+        ``max_bytes`` (never the view ``keep``). Returns the bytes freed."""
+        c = self._conn()
+        views = c.execute(
+            "SELECT grid, SUM(LENGTH(image)), MAX(created) FROM frames GROUP BY grid ORDER BY MAX(created)"
+        ).fetchall()
+        total = sum(v[1] or 0 for v in views)
+        freed = 0
+        for grid_key, size, _ in views:
+            if total - freed <= max_bytes:
+                break
+            if grid_key == keep:
+                continue
+            with c:
+                c.execute("DELETE FROM frames WHERE grid=?", (grid_key,))
+            freed += size or 0
+        return freed
 
 
 @dataclass
@@ -136,6 +161,7 @@ class Job:
     error: str = ""
     started: float = field(default_factory=time.time)
     finished: float = 0.0
+    last_used: float = field(default_factory=time.time)
     frames: list[Frame] = field(default_factory=list)  # grows while fetching
 
     def public(self) -> dict:
@@ -165,6 +191,7 @@ class Service:
         self.lock = threading.Lock()
         self._wave: dict[str, np.ndarray | None] = {}
         self._wave_locks: dict[str, threading.Lock] = {}
+        self._procs: ProcessPoolExecutor | None = None
 
     # ------------------------------------------------------------------ search
     def exposures(self, ra: float, dec: float) -> list[Exposure]:
@@ -209,17 +236,29 @@ class Service:
         with self.lock:
             jid = self.by_view.get(vk)
             if jid and self.jobs[jid].status != "error":
+                self.jobs[jid].last_used = time.time()
                 return self.jobs[jid]
             job = Job(id=uuid.uuid4().hex[:12])
             self.jobs[job.id] = job
             self.by_view[vk] = job.id
-            if len(self.jobs) > 200:  # forget the oldest finished views (frames stay on disk)
-                for old in sorted(self.jobs.values(), key=lambda j: j.started)[:50]:
-                    if old.status in ("ready", "error"):
-                        self.jobs.pop(old.id, None)
-                        self.by_view = {k: v for k, v in self.by_view.items() if v != old.id}
         threading.Thread(target=self._run, args=(job, grid), daemon=True).start()
         return job
+
+    def _forget(self, keep: Job) -> None:
+        """Keep the frames held in memory under the budget: forget the views
+        nobody opened for the longest time (their frames stay on disk)."""
+        with self.lock:
+            done = sorted((j for j in self.jobs.values() if j.status in ("ready", "error")), key=lambda j: j.last_used)
+            size = lambda j: sum(f.image.nbytes for f in j.frames)  # noqa: E731
+            total = sum(size(j) for j in self.jobs.values())
+            for old in done:
+                if total <= config.RAM_BUDGET_MB * 1e6 and len(self.jobs) <= 500:
+                    break
+                if old is keep:
+                    continue
+                total -= size(old)
+                self.jobs.pop(old.id, None)
+                self.by_view = {k: v for k, v in self.by_view.items() if v != old.id}
 
     def _run(self, job: Job, grid: Grid) -> None:
         try:
@@ -241,42 +280,67 @@ class Service:
                     if got is not False:
                         job.frames.append(got)
             if todo:
-                # wavelength maps (one per release+detector) are fetched once, in threads
-                for e in {f"{e.collection}_D{e.detector}": e for _, e in todo}.values():
-                    threading.Thread(target=self.wave_map, args=(e,), daemon=True).start()
-                asyncio.run(self._fetch_all(job, grid, todo))
+                # wavelength maps: one per release+detector, fetched once ever
+                firsts = {f"{e.collection}_D{e.detector}": e for _, e in todo}.values()
+                threads = [threading.Thread(target=self.wave_map, args=(e,), daemon=True) for e in firsts]
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
+                items = [(k, e, self.wave_map(e)) for k, e in todo]
+                if config.FETCH_PROCS > 1:
+                    self._fetch_in_processes(job, grid, items)
+                else:
+                    asyncio.run(self._fetch_in_loop(job, grid, items))
+                self.store.trim(config.DISK_BUDGET_GB * 1e9, keep=grid.key())
             job.status = "ready"
         except Exception as exc:  # surfaced to the UI
             job.status = "error"
             job.error = f"{type(exc).__name__}: {exc}"
         finally:
             job.finished = time.time()
+            self._forget(keep=job)
 
-    async def _fetch_all(self, job: Job, grid: Grid, todo: list[tuple[str, Exposure]]) -> None:
+    def _collect(self, job: Job, grid: Grid, results: list[worker.Result]) -> None:
+        self.store.put_frames(grid, [(k, e, f) for k, e, f, err in results if not err])
+        for _, _, f, err in results:
+            if err:
+                job.failed += 1
+            elif f is not None:
+                job.frames.append(f)
+            job.done += 1
+
+    def _pool(self) -> ProcessPoolExecutor:
+        with self.lock:
+            if self._procs is None:
+                per_proc = max(4, config.FETCH_WORKERS // config.FETCH_PROCS)
+                self._procs = ProcessPoolExecutor(
+                    max_workers=config.FETCH_PROCS,
+                    mp_context=multiprocessing.get_context("spawn"),
+                    initializer=worker.init,
+                    initargs=(per_proc,),
+                )
+            return self._procs
+
+    def _fetch_in_processes(self, job: Job, grid: Grid, items: list[worker.Item]) -> None:
+        """Several cores: chunks of exposures are cut in worker processes."""
+        chunk = max(4, config.FETCH_WORKERS // config.FETCH_PROCS)
+        pool = self._pool()
+        futures = [pool.submit(worker.cut_chunk, grid, items[i : i + chunk]) for i in range(0, len(items), chunk)]
+        for fut in as_completed(futures):
+            self._collect(job, grid, fut.result())
+
+    async def _fetch_in_loop(self, job: Job, grid: Grid, items: list[worker.Item]) -> None:
+        """One core: everything in this process, frames arrive one by one."""
         sem = asyncio.Semaphore(config.FETCH_WORKERS)
         limits = httpx.Limits(max_connections=config.FETCH_WORKERS * 2, max_keepalive_connections=config.FETCH_WORKERS * 2)
         async with httpx.AsyncClient(timeout=httpx.Timeout(60, connect=20), limits=limits) as client:
 
-            async def one(key: str, e: Exposure) -> None:
+            async def one(key: str, e: Exposure, wmap) -> None:
                 async with sem:
-                    last: Exception | None = None
-                    for attempt in range(3):
-                        try:
-                            wmap = await asyncio.to_thread(self.wave_map, e)
-                            f = await cut_async(client, e, grid, wmap)
-                            self.store.put_frame(key, e, grid, f)
-                            if f is not None:
-                                job.frames.append(f)
-                            last = None
-                            break
-                        except Exception as exc:
-                            last = exc
-                            await asyncio.sleep(1.0 * (attempt + 1))
-                    if last is not None:
-                        job.failed += 1
-                    job.done += 1
+                    self._collect(job, grid, [await worker.cut_one(client, key, e, grid, wmap)])
 
-            await asyncio.gather(*(one(k, e) for k, e in todo))
+            await asyncio.gather(*(one(*it) for it in items))
 
     def frames_blocking(self, grid: Grid, timeout: float = 600) -> list[Frame]:
         job = self.start(grid)

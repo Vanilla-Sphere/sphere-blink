@@ -21,7 +21,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import catalogs, config, render
+from . import catalogs, config, measurements, render
 from .cutout import Grid
 from .resolve import FEATURED, Target, resolve
 from .service import Service
@@ -284,6 +284,20 @@ def api_catalog(
             raise HTTPException(502, f"catalogue service error: {type(exc).__name__}") from exc
         svc.store.put_catalog(key, sources)
     return {"cat": cat, "sources": sources}
+
+
+@app.get("/api/tracks")
+def api_tracks(target: str | None = None, ra: float | None = None, dec: float | None = None, fov: float = FOV):
+    """Objects the team has measured in this field: catalogue position and
+    proper motion, the fitted track, and the position in each exposure."""
+    t, grid = _view(target, ra, dec, fov)
+    if not measurements.enabled():
+        return {"enabled": False, "sources": []}
+    try:
+        sources = measurements.near(grid.ra, grid.dec, grid.fov_arcmin / 60.0 * 0.75)
+    except Exception as exc:
+        raise HTTPException(502, f"measurement database error: {type(exc).__name__}") from exc
+    return {"enabled": True, "sources": sources}
 
 
 # --------------------------------------------------------------------------- web
