@@ -1,0 +1,40 @@
+# The dev environment (docs/environments.md): the viewer of the branch
+# develop, served as a static site in front of the engine of production.
+# It exists to look at a change to web/ before the public does. Everything
+# behind the page is production's: /api/ is passed on to the live service, so
+# dev shows the same pictures and measurements and has no server, disk or
+# database of its own. Render reads this file from develop.
+services:
+  - type: web
+    name: sphere-blink-dev
+    runtime: static
+    branch: develop
+    buildCommand: sh scripts/build_dev_site.sh dev-site
+    staticPublishPath: ./dev-site
+    # Only a change to the viewer (or to how this site is built) deploys it.
+    buildFilter:
+      paths:
+        - web/**
+        - scripts/build_dev_site.sh
+        - render.dev.yaml
+    routes:
+      # The engine, its API pages and their description: production answers.
+      - type: rewrite
+        source: /api/*
+        destination: https://vanillasphere.com/api/*
+      - type: rewrite
+        source: /docs
+        destination: https://vanillasphere.com/docs
+      - type: rewrite
+        source: /openapi.json
+        destination: https://vanillasphere.com/openapi.json
+    headers:
+      # A test copy must never be found in place of the real site.
+      - path: /*
+        name: X-Robots-Tag
+        value: noindex, nofollow
+      # The page gets the policy production gives it (guard.CSP; a test keeps
+      # the two the same), so what the policy would block is blocked here too.
+      - path: /
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"

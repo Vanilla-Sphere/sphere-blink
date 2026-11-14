@@ -77,6 +77,37 @@ def test_every_answer_carries_the_security_headers(client):
     assert "cdn.jsdelivr.net" in docs.headers["content-security-policy"]  # the API pages load Swagger UI
 
 
+def test_the_dev_site_is_the_viewer_in_front_of_the_live_engine(tmp_path):
+    """render.dev.yaml: the page of the branch develop as a static site, with
+    /api/ passed on to production (docs/environments.md)."""
+    yaml = pytest.importorskip("yaml")
+    import subprocess
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    (prod,), (dev,) = (yaml.safe_load((root / f).read_text())["services"] for f in ("render.yaml", "render.dev.yaml"))
+    live = prod["domains"][0]
+    assert dev["runtime"] == "static" and dev["branch"] == "develop" and dev["name"] == prod["name"] + "-dev"
+    assert not set(dev.get("domains", [])) & set(prod["domains"])  # never a name of the live site
+    assert "envVars" not in dev and "disk" not in dev  # nothing of its own behind the page, and no secret
+    routes = {r["source"]: r for r in dev["routes"]}
+    assert routes["/api/*"] == {"type": "rewrite", "source": "/api/*", "destination": f"https://{live}/api/*"}
+    headers = {(h["path"], h["name"].lower()): h["value"] for h in dev["headers"]}
+    assert headers["/*", "x-robots-tag"] == "noindex, nofollow"
+    assert headers["/", "content-security-policy"] == guard.CSP  # the page is held to production's policy
+    assert "render.dev.yaml" in prod["buildFilter"]["ignoredPaths"]  # a change to dev does not restart production
+
+    # the site is laid out the way the server of production serves web/
+    out = tmp_path / "site"
+    subprocess.run(["sh", str(root / "scripts" / "build_dev_site.sh"), str(out)], check=True, capture_output=True)
+    assert dev["buildCommand"].split()[:2] == ["sh", "scripts/build_dev_site.sh"]
+    page = (out / "index.html").read_text()
+    assert "<title>[dev] " in page and page.replace("<title>[dev] ", "<title>") == (root / "web" / "index.html").read_text()
+    for name in ("app.js", "style.css", "data/sky.json", "fonts/HankenGrotesk.woff2"):
+        assert (out / "static" / name).read_bytes() == (root / "web" / name).read_bytes()
+    assert (out / "robots.txt").read_text() == "User-agent: *\nDisallow: /\n"
+
+
 def test_other_sites_may_read_but_only_read(client):
     r = client.get("/api/health", headers={"Origin": "https://example.org"})
     assert r.headers["access-control-allow-origin"] == "*" and "access-control-allow-credentials" not in r.headers
