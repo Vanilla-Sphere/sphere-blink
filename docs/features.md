@@ -769,8 +769,9 @@ up along every possible path (`mover_stack.py`,
 [shift-and-stack](shift-and-stack.md)). It takes one to three minutes more
 and adds what it finds to the same list and the same log; the card says that
 it is still looking. Such an object's row tells how many exposures were added
-up, at how many sigma they show it, and how far from the Sun the bend of its
-path puts it.
+up, at how many sigma they show it, why the first search did not have it
+(too faint in a single exposure, or bright but slower than 2 arcsec per
+hour), and how far from the Sun the bend of its path puts it.
 
 In the viewer (Advanced, `web/movers.js`):
 
@@ -778,7 +779,9 @@ In the viewer (Advanced, `web/movers.js`):
   field". While the field is searched it says so; then it lists what was
   found in two groups, **fast** (20 arcsec per hour and more) and **slow**
   (below 20), fastest first. A row gives the name (or the id `VS-...` when no
-  catalogue knows the object), "known asteroid", "known comet", "not in the
+  catalogue knows the object), what it is by the class of its orbit ("known
+  asteroid", "known comet", "known trans-Neptunian object", "known centaur";
+  "known minor planet" when the catalogue gives no class), "not in the
   catalogues" or "not yet compared with the
   catalogues", the speed, the position angle of the motion,
   at how many exposure times it was seen, the date, and the votes.

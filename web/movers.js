@@ -35,10 +35,20 @@ function moverFollow(id, on) {
 const moverName = (m) => (m.known && m.known.name) || m.id;
 const moverFast = (m) => m.rate_arcsec_hr >= 20;   // the server's speed classes: slow below 20 arcsec per hour
 const moverDate = (mjd) => new Date((mjd - 40587) * 86400000).toISOString().slice(0, 10);
-function moverKind(m) {
-  if (m.known && m.known.name) return tr(m.known.kind === "comet" ? "mover.comet" : "mover.asteroid");
-  return tr(m.known && m.known.checked ? "mover.unlisted" : "mover.unchecked");
+/* What a named object is called. SkyBoT gives the class of its orbit ("MB>Inner", "KBO>Resonant>3:2", "Centaur"...):
+   a body beyond Neptune is not an asteroid. JPL gives no class, and an unknown one is not guessed at. */
+const MOVER_CLASSES = [[/^(kbo|ioc)/, "mover.tno"], [/^centaur/, "mover.centaur"], [/dwarf/, "mover.dwarf"], [/^planet/, "mover.planet"],
+  [/satellite/, "mover.moon"], [/^(nea|mars|hungaria|mb|trojan|vulcanoid)/, "mover.asteroid"]];
+function moverKindKey(k) {
+  if (!(k && k.name)) return k && k.checked ? "mover.unlisted" : "mover.unchecked";
+  if (k.kind === "comet") return "mover.comet";
+  const c = String(k.class || "").trim().toLowerCase();
+  return c ? (MOVER_CLASSES.find(([re]) => re.test(c)) || [0, "mover.body"])[1] : "mover.minor";
 }
+const moverKind = (m) => tr(moverKindKey(m.known));
+/* Why the first search did not have an object the second one found: it is too faint in one exposure (the first search
+   takes 5 sigma and more), or bright but slower than the 2 arcsec per hour the first search links. Else no reason is given. */
+const moverStackKey = (m) => m.median_snr < 5 ? "mover.stack" : m.median_snr >= 5 && m.rate_arcsec_hr < 2 ? "mover.stack.slow" : "mover.stack.plain";
 const moverLine = (m) => tr("mover.line", {v: m.rate_arcsec_hr < 20 ? m.rate_arcsec_hr.toFixed(1) : Math.round(m.rate_arcsec_hr), pa: Math.round(m.pa_deg), n: m.times_seen || m.n_times, d: moverDate(m.mjd0)});
 /* Where an object is at a time: constant speed (arcsec per hour) along a straight line, or, for a path
    followed over days, a speed that changes steadily (a_east, a_north: arcsec per hour squared). */
@@ -127,7 +137,7 @@ function moverRow(m, follow, open, inLog) {
   const facts = document.createElement("p");
   const far = m.stack_distance && m.stack_distance.distance_au;
   facts.textContent = (m.method === "stack"
-    ? tr("mover.stack", {f: m.stack_frames, s: (+m.stack_snr).toFixed(1), id: m.id}) + (far ? " " + tr("mover.stack.far", {d: Math.round(far), lo: Math.round(m.stack_distance.distance_min_au), hi: Math.round(m.stack_distance.distance_max_au)}) : "")
+    ? tr(moverStackKey(m), {f: m.stack_frames, s: (+m.stack_snr).toFixed(1), id: m.id}) + (far ? " " + tr("mover.stack.far", {d: Math.round(far), lo: Math.round(m.stack_distance.distance_min_au), hi: Math.round(m.stack_distance.distance_max_au)}) : "")
     : tr("mover.facts", {seen: m.times_seen, of: m.times_covered, id: m.id})) + (m.known && m.known.name ? " " + tr("mover.match", {by: m.known.by, sep: m.known.sep_arcsec}) : m.known && m.known.checked ? " " + tr("mover.cand") : "");
   const row = document.createElement("div"); row.className = "moveracts";
   for (const [value, key] of [["real", "mover.real"], ["false", "mover.false"]]) {
