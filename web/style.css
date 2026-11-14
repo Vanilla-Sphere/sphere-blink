@@ -335,7 +335,8 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 .linkbtn:hover{text-decoration-color:var(--color-ink)}
 .fileslinks{margin-top:12px}
 .dataline .linkbtn{display:block;width:max-content;margin-top:3px;color:var(--color-ink-2);pointer-events:auto}
-.mapscreen.zoomed .dataline .linkbtn{pointer-events:none}
+/* gone with the heading once the map is zoomed by hand; the first view is zoomed too, and there the heading stays */
+.mapscreen.zoomed:not(.opening) .dataline .linkbtn{pointer-events:none}
 
 /* "About the data": a page laid over the app. Not a <dialog>, so the hover notes still show above it. */
 .sheet{position:fixed;inset:0;z-index:50;display:flex;justify-content:center;align-items:flex-start;padding:5vh var(--pad);background:color-mix(in oklab,var(--color-paper-3) 78%,transparent)}
