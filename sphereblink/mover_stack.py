@@ -144,6 +144,12 @@ MAX_SLOW_SPAN_H = 400.0  # a longer pass is searched in two halves that overlap
 GAMMA_MAX = 0.06  # 1/au: nearer than 17 au a body moves too fast for this search anyway
 RANGE_DROP = 9.0  # drop of the significance squared that bounds the range of distances given
 RANGE_MIN = 1.4  # and the range reaches at least from the best distance over this to the best distance times this
+# The range that is given with a distance. Fake bodies on real orbits, added to real frames, came back within a factor
+# 2.3 of their distance when it was measured in the stack (two thirds of them within a factor 1.3), and within 16 %
+# when it was measured on centroids (37 of 38; one was off by a factor 1.6).
+RANGE_SHOWN = {"frames": 2.5, "centroids": 1.2}  # the range given reaches at least this factor either way
+CENTROID_SIGMAS = 1.5  # and for centroids, this many times the two sigma of the fit
+WORSE = 0.7  # a path fitted for the distance that shows the object below this share of what the path before showed: not kept
 ESCAPE = 208.8  # arcsec per hour at 1 au of the speed that leaves the Sun from there (42.1 km/s); falls as distance^-1.5
 BOUND_SLACK = 1.3  # a path may need this many times that speed before it is called impossible
 EPOCH_GAP_D = 30.0  # passes further apart than this are different epochs: a slow object is somewhere else by then
@@ -1096,6 +1102,25 @@ def _distance_bright(c: Candidate, cube, frames: list[dict], sky: StaticSky, row
             "distance_max_au": round(1.0 / lo, 1) if lo > 0 else None}
 
 
+def shown(distance: dict) -> dict:
+    """The distance as it is given with a track: the range widened to what
+    the method proved good for on fake bodies (RANGE_SHOWN). The test for a
+    closed orbit keeps the range of the fit, which is narrower: it then
+    refuses rather too much than too little."""
+    if not distance:
+        return {}
+    out = dict(distance)
+    g = float(out.get("gamma") or 0.0)
+    lo, hi = float(out.get("gamma_lo") or 0.0), float(out.get("gamma_hi") or 0.0)
+    if out.get("from") == "centroids":
+        lo, hi = max(0.0, g - CENTROID_SIGMAS * (g - lo)), g + CENTROID_SIGMAS * (hi - g)
+    factor = RANGE_SHOWN.get(out.get("from"), max(RANGE_SHOWN.values()))
+    lo, hi = min(lo, g / factor), max(hi, g * factor)
+    out.update(gamma_lo=round(lo, 5), gamma_hi=round(hi, 5), distance_min_au=round(1.0 / hi, 1) if hi > 0 else None,
+               distance_max_au=round(1.0 / lo, 1) if lo > 0 else None)
+    return out
+
+
 def possible(c: Candidate, distance: dict, scale_arcsec: float) -> bool:
     """Can a body on a closed orbit around the Sun move like this at the
     distance its path's bend allows? Its motion less Earth's part at that
@@ -1573,7 +1598,13 @@ def search(cube: np.ndarray, frames: list[dict], wcs, scale_arcsec: float, sky: 
                         inside = (mjd >= c.first_mjd - 0.05) & (mjd <= c.last_mjd + 0.05)
                         taken.append(np.column_stack([np.where(inside, xs, np.nan), np.where(inside, ys, np.nan)]))
                     else:
-                        ev["distance"] = distance
+                        if ev is not first and ev["snr"] < WORSE * first["snr"]:
+                            # The path that came with the distance shows the object far less well than the path
+                            # before: the fit went after something else (a neighbour's light, a star's leftover).
+                            # The path before stays, and no distance is given.
+                            c.x, c.y, c.vx, c.vy, c.gamma = path
+                            ev, distance = first, {}
+                        ev["distance"] = shown(distance)
                         ev["search_snr"] = round(float(c.snr), 2)
                 if len(stats["strongest"]) < 40 and c.snr >= 9.0:
                     stats["strongest"].append({"snr": round(c.snr, 1), "x": round(float(c.x)), "y": round(float(c.y)), "tier": c.tier,

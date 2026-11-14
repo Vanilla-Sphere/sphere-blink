@@ -207,3 +207,16 @@ def test_a_track_of_the_linker_is_not_reported_again(faint):
     mover, cube, frames, grid, out = faint
     again = ms.search(cube, frames, grid.wcs, grid.scale_arcsec, exclude=out["tracks"])
     assert strong(again) == [] and again["stats"]["rejected"].get("known", 0) >= 1
+
+
+def test_the_range_given_with_a_distance_is_as_wide_as_the_method_is_good_for():
+    assert ms.shown({}) == {}
+    stack = ms.shown({"gamma": 0.02, "gamma_lo": 0.015, "gamma_hi": 0.028, "from": "frames", "distance_au": 50.0})
+    assert stack["distance_au"] == 50.0 and stack["distance_min_au"] == 20.0 and stack["distance_max_au"] == 125.0
+    wide = ms.shown({"gamma": 0.02, "gamma_lo": 0.001, "gamma_hi": 0.06, "from": "frames"})
+    assert wide["distance_min_au"] == pytest.approx(16.7, abs=0.05) and wide["distance_max_au"] == 1000.0
+    exact = ms.shown({"gamma": 0.025, "gamma_lo": 0.0248, "gamma_hi": 0.0252, "from": "centroids"})
+    assert exact["distance_min_au"] == pytest.approx(40.0 / 1.2, abs=0.1) and exact["distance_max_au"] == pytest.approx(48.0, abs=0.1)
+    loose = ms.shown({"gamma": 0.025, "gamma_lo": 0.015, "gamma_hi": 0.035, "from": "centroids"})
+    assert loose["distance_min_au"] == 25.0 and loose["distance_max_au"] == 100.0
+    assert ms.shown({"gamma": 0.0, "gamma_lo": 0.0, "gamma_hi": 0.01, "from": "frames"})["distance_max_au"] is None
