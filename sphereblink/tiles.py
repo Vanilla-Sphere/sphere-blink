@@ -27,6 +27,9 @@ STEP = 0.12  # degrees
 NX, NY = 3000, 1500
 SCHEME = "icrs012-v1"
 MAX_LEVELS = 3
+# Called with the grid of a field's last stage once all its frames are loaded
+# (the blind search for moving objects registers here, see movers_api.py).
+listeners: list = []
 
 
 def cell_of(ra: float, dec: float) -> tuple[int, int]:
@@ -202,6 +205,12 @@ class Fields:
             if job.status == "error":
                 break
         f.finished = time.time()
+        if not f.failed():
+            for tell in list(listeners):
+                try:
+                    tell(f.stages[-1]["grid"])
+                except Exception:
+                    pass  # a listener's trouble is not the field's
 
     def _search(self, grid: Grid) -> None:
         try:

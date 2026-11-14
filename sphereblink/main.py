@@ -27,7 +27,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import atlas, catalogs, config, guard, measure_api, measurements, render, tiles, wings
+from . import atlas, catalogs, config, guard, measure_api, measurements, movers_api, render, tiles, wings
 from . import resolve as resolver
 from .cutout import Grid
 from .resolve import FEATURED, NameNotFound, ResolverUnavailable, Target, resolve
@@ -46,6 +46,8 @@ svc = Service()
 fields = tiles.Fields(svc)
 measure_api.attach(svc)  # measurement pipeline: /api/measure, /api/measured
 app.include_router(measure_api.router)
+movers_api.attach(svc)  # blind search for moving objects: /api/movers
+app.include_router(movers_api.router)
 # The usual views of the featured targets are fetched once and then stay in
 # the disk cache whatever else is opened: they open without the archive.
 FEATURED_GRIDS = [Grid.from_fov(t.ra, t.dec, 8.0) for t in (resolve(k) for k in FEATURED)]

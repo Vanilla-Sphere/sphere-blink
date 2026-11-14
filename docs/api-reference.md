@@ -111,6 +111,10 @@ Errors are JSON of the form `{"detail": "message"}`.
 | [`/api/measured`](#get-apimeasured) | JSON | Everything measured so far |
 | [`/api/atlas/2mass/...`](#get-apiatlas2mass) | JPEG | One tile of the sky photograph behind the map |
 | [`/api/atlas`](#get-apiatlas) | JSON | What the server keeps of the sky photograph |
+| [`/api/movers`](#get-apimovers) | JSON | The log of moving objects found by the blind search |
+| [`/api/movers/field`](#get-apimoversfield) | JSON | Moving objects of one progressive field; state of its search |
+| [`/api/movers/{id}`](#get-apimoversid) | JSON | One moving object with its detections |
+| [`POST /api/movers/{id}/vote`](#post-apimoversidvote) | JSON | A visitor's opinion: real motion or false alarm |
 | `/` | HTML | The viewer; accepts the URL parameters in [viewer](viewer.md#url-state) |
 | `/static/*` | files | Viewer assets |
 
@@ -702,6 +706,110 @@ What the server keeps of the photograph.
 `kept_orders` are never deleted; `seeding` says which order is being filled
 after a start and how many tiles are left. `from_disk`, `fetched` and
 `dropped` count since the server started. The numbers above are illustrative.
+
+## Moving objects
+
+The blind search and its log are described in [moving objects](moving-objects.md).
+All objects are candidates found without prior knowledge; `known` tells which
+of them are catalogued asteroids or comets.
+
+### GET /api/movers
+
+The log. Without a position the most recently changed objects come first.
+
+| Parameter | Default | Meaning |
+| --- | --- | --- |
+| `ra`, `dec` | - | Centre of a cone, degrees. Give both or neither |
+| `radius` | `1.0` | Radius of the cone, degrees (at most 30) |
+| `ids` | - | Comma-separated object ids; returns exactly these (for example the ones a visitor follows) |
+| `limit` | `200` | At most this many objects (1 to 1000) |
+| `coverage` | `false` | Also return the sky cells searched so far |
+
+```json
+{
+  "version": 1, "enabled": true, "total": 14,
+  "movers": [
+    {
+      "id": "VS-60898-K7QD",
+      "mjd0": 60898.170426, "ra0": 248.348339, "dec0": -16.659617,
+      "v_east": 13.22, "v_north": -8.48, "rate_arcsec_hr": 15.7, "pa_deg": 122.7,
+      "rms_arcsec": 8.9, "n_detections": 49, "n_times": 34, "n_visits": 11, "span_h": 81.5,
+      "mjd_first": 60896.9, "mjd_last": 60900.3, "speed_class": "slow", "median_snr": 346.0,
+      "covered": 65, "seen": 64, "seen_fraction": 0.985, "times_seen": 37, "times_covered": 37,
+      "fields": ["..."],
+      "known": {"checked": true, "by": "SkyBoT", "name": "5 Astraea", "kind": "asteroid",
+                "source": "SkyBoT (IMCCE)", "sep_arcsec": 7.9, "vmag": 11.8, "rate_arcsec_hr": 15.6},
+      "created": 1794650000.0, "updated": 1794650000.0,
+      "votes": {"real": 2, "false": 0, "verdict": null}
+    }
+  ],
+  "coverage": {"fields": 3, "cells": ["icrs012-v1-2069-0610"], "cell_deg": 0.12}
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `id` | `VS-<MJD of the first find>-<4 characters>`; stays the same when the object is found again |
+| `mjd0`, `ra0`, `dec0` | Reference time and the position on the fitted line at that time |
+| `v_east`, `v_north`, `rate_arcsec_hr`, `pa_deg` | Motion on the sky in arcsec per hour; position angle from north through east |
+| `rms_arcsec` | Scatter of the detections around the line |
+| `n_detections`, `n_times`, `n_visits`, `span_h` | Detections on the line, their distinct exposure times, visits (groups more than half an hour apart), hours from first to last |
+| `speed_class` | `slow` (below 20 arcsec/h), `fast`, `very fast` (60 and more) |
+| `covered`, `seen`, `times_covered`, `times_seen` | Exposures (and distinct exposure times) that cover the path, and in how many the object is seen at the predicted place |
+| `known` | `{"checked": false}` when no service answered; otherwise `by` (services asked) and `name` (`null`: no known object matches), with `kind`, `sep_arcsec`, `vmag`, `rate_arcsec_hr` of the match |
+| `votes` | Counts of `real` and `false`; `verdict` is `real`, `false` or `disputed` from 3 votes on, else `null` |
+
+### GET /api/movers/field
+
+Objects in one progressive field and the state of its search. The field must
+have been opened with [`/api/tiles`](#get-apitiles); the search starts by
+itself when the field's frames are complete.
+
+| Parameter | Default | Meaning |
+| --- | --- | --- |
+| `ra`, `dec` or `tile_id` | - | The seed cell of the field, as for `/api/tiles` |
+| `levels` | `3` | Rings of the field (3 is 7 x 7 cells) |
+
+`status` is `not_loaded` (the field's frames are not complete), `queued`,
+`searching`, `ready` or `error`. Poll every few seconds until `ready`.
+
+```json
+{
+  "field": {"ra": 248.36, "dec": -17.04, "fov": 50.4, "levels": 3, "seed": "icrs012-v1-2069-0608"},
+  "status": "ready", "enabled": true,
+  "job": {"status": "ready", "elapsed_s": 52.1, "stats": {"...": "..."}},
+  "searched": 1794650000.0,
+  "stats": {"frames": 713, "bad_frames": 131, "detections": 16882, "masked_fraction": 0.227,
+            "recurring": 3328, "linked": 17, "rejected": 8, "tracks": 9, "chance_tracks": 0.0,
+            "seconds": 52.1, "movers": ["VS-60898-K7QD"]},
+  "movers": []
+}
+```
+
+`stats.chance_tracks` is the number of tracks the same search finds when the
+exposure times are shuffled: what the field yields by chance.
+
+### GET /api/movers/{id}
+
+One object: every field of the log entry, plus `detections` (exposure id
+`<obs_id>:D<detector>`, `mjd`, `ra`, `dec`, `snr`, `flux_mjy`, `npix`,
+`detector`, `wave_um`) and `points`, the measurement at the predicted place in
+every exposure that covers the path (`mjd`, `exposure`, `detector`, `wave_um`,
+`ra`, `dec`, `snr`, `flux_mjy`, `on_static`, `counted`). With `voter=<browser id>`
+the answer has `my_vote`. Unknown id: 404.
+
+### POST /api/movers/{id}/vote
+
+Body: `{"voter": "<browser id>", "vote": "real" | "false" | null}`. The browser
+id is a random string of 16 to 64 letters, digits or dashes that the browser
+makes up once and keeps. One vote per id and object; another vote replaces it,
+`null` takes it back. Answer: `{"id": "...", "votes": {...}, "my_vote": "real"}`.
+
+| Status | When |
+| --- | --- |
+| 400 | `voter` or `vote` malformed |
+| 404 | No such object |
+| 429 | More than 20 votes a minute from one caller, or more than 3 browser ids behind one address voting on the same object |
 
 ## Examples
 
