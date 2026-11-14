@@ -1,4 +1,4 @@
-"""Warm the cache of a running SPHEREx Blink server.
+"""Warm the cache of a running Vanilla Sphere server.
 
     python scripts/prewarm.py https://your-server [--fov 4,8,15] [coords.txt]
 

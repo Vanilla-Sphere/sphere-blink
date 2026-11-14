@@ -25,13 +25,13 @@ from fastapi.staticfiles import StaticFiles
 
 from . import catalogs, config, measurements, render, tiles
 from .cutout import Grid
-from .resolve import FEATURED, Target, resolve
+from .resolve import FEATURED, ResolverUnavailable, Target, resolve
 from .service import Service
 
 WEB = Path(__file__).resolve().parent.parent / "web"
 CUBE_BUDGET = 40_000_000  # max pixels (epochs * npix^2) sent to a browser at once
 
-app = FastAPI(title="SPHEREx Blink", version="0.2.0", description=__doc__)
+app = FastAPI(title="Vanilla Sphere", version="0.2.0", description=__doc__)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"],
                    expose_headers=["X-Job"])
 app.add_middleware(GZipMiddleware, minimum_size=2000, compresslevel=4)  # cubes are large: speed over the last few %
@@ -55,6 +55,8 @@ def _target(target: str | None, ra: float | None, dec: float | None) -> Target:
         if target:
             return _resolve_cached(target.strip())
         raise ValueError("give target=<name or coordinates> or ra=&dec=")
+    except ResolverUnavailable as exc:  # the name services are down: not the caller's mistake
+        raise HTTPException(503, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 

@@ -1,11 +1,11 @@
-# SPHEREx Blink
+# Vanilla Sphere
 
 **Watch any patch of the infrared sky change over time.**
 
-Enter a position (RA/Dec or an object name) and SPHEREx Blink plays every
+Enter a position (RA/Dec or an object name) and Vanilla Sphere plays every
 NASA SPHEREx image of that patch as a short movie, so moving and variable
-objects stand out. Built by team Vanilla Sphere for the 2026 NASA Space Apps
-Challenge, "Planet X and SPHEREx".
+objects stand out. Built by the team of the same name for the 2026 NASA Space
+Apps Challenge, "Planet X and SPHEREx". Live at <https://vanillasphere.com>.
 
 ## What it does
 

@@ -1,4 +1,4 @@
--- SPHEREx Blink: shared tables for measured results (not images).
+-- Vanilla Sphere: shared tables for measured results (not images).
 -- Images are cut on demand from the NASA S3 mirror and cached by the web
 -- service; this database only stores what people measure on top of them:
 -- which objects we follow, where they were seen in each exposure, and the
