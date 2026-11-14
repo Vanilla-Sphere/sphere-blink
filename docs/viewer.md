@@ -186,7 +186,7 @@ Drawn on the image canvas after every frame by `drawOverlays`:
 | Crosshair | On the target; in a progressive field it stays on the target while the mosaic is centred on the seed cell |
 | Gaia DR3 / CatWISE | Circle or square at the position propagated to the date of the frame; fast, significant movers highlighted with a path and a label |
 | Measured tracks | Every measured position as a dot, the fitted track as a line, a diamond on positions measured in the frame on screen, the object's name |
-| Moving objects (progressive fields, `drawMovers` in `movers.js`) | Each object's path over the time it was seen, with an arrowhead and its name; a ring where it is in the frame on screen; the detections of the open object |
+| Moving objects (progressive fields, `drawMovers` in `movers.js`) | Each object's path over the time it was seen (a curve when the record has `a_east`, `a_north`), with an arrowhead and its name; a ring where it is in the frame on screen; the detections of the open object |
 | Scale bar and compass | 1, 2 or 5 arcmin bar depending on the field; N up, E left |
 
 In Advanced both catalogues are fetched as soon as a view opens (`loadCatalogs`),

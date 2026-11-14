@@ -777,15 +777,17 @@ The log. Without a position the most recently changed objects come first.
 
 ```json
 {
-  "version": 1, "enabled": true, "total": 14,
+  "version": 3, "enabled": true, "total": 14,
   "movers": [
     {
       "id": "VS-60898-K7QD",
       "mjd0": 60898.170426, "ra0": 248.348339, "dec0": -16.659617,
-      "v_east": 13.22, "v_north": -8.48, "rate_arcsec_hr": 15.7, "pa_deg": 122.7,
+      "v_east": 13.22, "v_north": -8.48, "a_east": 0.02514, "a_north": -0.01803,
+      "rate_arcsec_hr": 15.7, "pa_deg": 122.7,
       "rms_arcsec": 8.9, "n_detections": 49, "n_times": 34, "n_visits": 11, "span_h": 81.5,
       "mjd_first": 60896.9, "mjd_last": 60900.3, "speed_class": "slow", "median_snr": 346.0,
       "covered": 65, "seen": 64, "seen_fraction": 0.985, "times_seen": 37, "times_covered": 37,
+      "visits_seen": 11, "pieces": 2,
       "fields": ["..."],
       "known": {"checked": true, "by": "SkyBoT", "name": "5 Astraea", "kind": "asteroid",
                 "source": "SkyBoT (IMCCE)", "sep_arcsec": 7.9, "vmag": 11.8, "rate_arcsec_hr": 15.6},
@@ -800,13 +802,16 @@ The log. Without a position the most recently changed objects come first.
 | Field | Meaning |
 | --- | --- |
 | `id` | `VS-<MJD of the first find>-<4 characters>`; stays the same when the object is found again |
-| `mjd0`, `ra0`, `dec0` | Reference time and the position on the fitted line at that time |
-| `v_east`, `v_north`, `rate_arcsec_hr`, `pa_deg` | Motion on the sky in arcsec per hour; position angle from north through east |
-| `rms_arcsec` | Scatter of the detections around the line |
+| `mjd0`, `ra0`, `dec0` | Reference time and the position on the fitted path at that time |
+| `v_east`, `v_north`, `rate_arcsec_hr`, `pa_deg` | Motion on the sky at `mjd0` in arcsec per hour; position angle from north through east |
+| `a_east`, `a_north` | Change of the motion in arcsec per hour squared; 0 for a straight path. `t` hours from `mjd0` the object is `v_east * t + a_east * t^2 / 2` arcsec east of `ra0`, `dec0` (north alike) |
+| `rms_arcsec` | Scatter of the detections around the path |
 | `n_detections`, `n_times`, `n_visits`, `span_h` | Detections on the line, their distinct exposure times, visits (groups more than half an hour apart), hours from first to last |
 | `speed_class` | `slow` (below 20 arcsec/h), `fast`, `very fast` (60 and more) |
 | `covered`, `seen`, `times_covered`, `times_seen` | Exposures (and distinct exposure times) that cover the path, and in how many the object is seen at the predicted place |
-| `known` | `{"checked": false}` when no service answered; otherwise `by` (services asked) and `name` (`null`: no known object matches), with `kind`, `sep_arcsec`, `vmag`, `rate_arcsec_hr` of the match |
+| `visits_seen` | Visits in which it is seen at 2 or more exposure times; a path without a name needs 3 |
+| `pieces` | Present on a curved path joined from this many separately confirmed pieces |
+| `known` | `{"checked": false}` when no service answered yet (they are asked again; a weak path is not listed until one answers); otherwise `by` (services asked) and `name` (`null`: no known object matches), with `kind`, `sep_arcsec`, `vmag`, `rate_arcsec_hr` of the match |
 | `votes` | Counts of `real` and `false`; `verdict` is `real`, `false` or `disputed` from 3 votes on, else `null` |
 
 ### GET /api/movers/field
@@ -830,7 +835,8 @@ itself when the field's frames are complete.
   "job": {"status": "ready", "elapsed_s": 52.1, "stats": {"...": "..."}},
   "searched": 1794650000.0,
   "stats": {"frames": 713, "bad_frames": 131, "detections": 16882, "masked_fraction": 0.227,
-            "recurring": 3328, "linked": 17, "rejected": 8, "tracks": 9, "chance_tracks": 0.0,
+            "recurring": 3328, "linked": 14, "rejected": 7, "tracks": 7, "chance_tracks": 0.0,
+            "chance_candidates": 0.0, "unnamed_dropped": 0, "waiting": 0,
             "seconds": 52.1, "movers": ["VS-60898-K7QD"]},
   "movers": []
 }
@@ -838,6 +844,11 @@ itself when the field's frames are complete.
 
 `stats.chance_tracks` is the number of tracks the same search finds when the
 exposure times are shuffled: what the field yields by chance.
+`stats.chance_candidates` is the same with whole visits shuffled, counting
+only paths with the evidence asked of one without a name.
+`stats.unnamed_dropped` counts paths no catalogue has an object on that were
+too weak to keep, `stats.waiting` those stored out of sight because no
+catalogue service answered.
 
 ### GET /api/movers/{id}
 

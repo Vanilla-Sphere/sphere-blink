@@ -47,6 +47,9 @@ MAX_WAITING = 8  # searches waiting; more are left for the next time the field i
 RUNNING = ("queued", "searching")
 MIN_FREE_MB = float(os.environ.get("SPHEREX_MOVER_MIN_FREE_MB", "1800"))  # a search holds about 1 GB (measured: 984 MB for 713 frames)
 WAIT_FOR_ROOM_S = 600
+RECHECK_EVERY_S = 600  # how often the catalogues are asked again about objects they did not answer for
+REFRESH_AFTER_S = 90  # after a start: fields an earlier version of the search went through are searched again
+REFRESH_MIN_CACHED = 0.95  # ... when this share of their frames is still in the disk cache
 VOTES_PER_MIN = float(os.environ.get("SPHEREX_RATE_VOTES_PER_MIN", "20"))
 
 _svc = None
@@ -65,6 +68,7 @@ def attach(svc) -> None:
     _svc = svc
     if ENABLED and "pytest" not in sys.modules and _field_ready not in tiles.listeners:
         tiles.listeners.append(_field_ready)
+        threading.Thread(target=_after_start, daemon=True).start()
 
 
 def _executor() -> ProcessPoolExecutor:
@@ -76,7 +80,7 @@ def _executor() -> ProcessPoolExecutor:
 
 
 # ----------------------------------------------------------------------------- the search (runs in a child process)
-def run(grid: Grid, exposures: list, known: list[dict], trials: int = TRIALS) -> dict:
+def run(grid: Grid, exposures: list, known: list[dict], trials: int = TRIALS, min_cached: float = 0.0) -> dict:
     """Search one field whose frames are in the disk cache."""
     from .service import Store
 
@@ -94,7 +98,7 @@ def run(grid: Grid, exposures: list, known: list[dict], trials: int = TRIALS) ->
             continue
         cube[len(frames)] = f.image
         frames.append({"exposure": f"{e.obs_id}:D{e.detector}", "mjd": e.mjd, "detector": e.detector, "wave_um": f.wave_um})
-    if len(frames) < MIN_FRAMES:
+    if len(frames) < max(MIN_FRAMES, min_cached * len(exposures)):
         raise ValueError(f"only {len(frames)} of {len(exposures)} frames of this field are in the cache")
     cube = cube[: len(frames)]
     result = movers.search(cube, frames, grid.wcs, grid.scale_arcsec, known=[movers.Detection(**d) for d in known],
@@ -107,14 +111,21 @@ def run(grid: Grid, exposures: list, known: list[dict], trials: int = TRIALS) ->
         names = known_objects.identify(result["tracks"])
     except Exception:  # a name is an extra: the object is stored without one
         log.exception("could not look the objects up among the known ones")
-    # a path that the catalogues were asked about and have no object on is kept only on stronger evidence
-    # (movers.strong); one that could not be compared (no service answered) stays, marked as not compared
-    keep = [i for i, t in enumerate(result["tracks"])
-            if (names.get(i) or {}).get("name") or not (names.get(i) or {}).get("checked") or movers.strong(t.extra)]
-    result["stats"]["unnamed_dropped"] = len(result["tracks"]) - len(keep)
-    result["stats"]["tracks"] = len(keep)
+    # A path without a name is shown only on stronger evidence (movers.strong). One the catalogues were asked about
+    # and have no object on is dropped when it is weaker. One that could not be compared (no service answered) and
+    # is weaker is stored but not shown, until a service answers (see settle_uncompared).
+    def state(i: int) -> str:
+        m = names.get(i) or {}
+        if m.get("name") or movers.strong(result["tracks"][i].extra):
+            return "shown"
+        return "dropped" if m.get("checked") else "waiting"
+
+    states = [state(i) for i in range(len(result["tracks"]))]
+    keep = [i for i, s in enumerate(states) if s != "dropped"]
+    result["stats"].update(unnamed_dropped=states.count("dropped"), waiting=states.count("waiting"), tracks=states.count("shown"))
     result["tracks"], names = [result["tracks"][i] for i in keep], {k: names[i] for k, i in enumerate(keep) if i in names}
-    ids = mover_store.save_field(grid.key(), grid.ra, grid.dec, grid.fov_arcmin, len(exposures), result, names)
+    ids = mover_store.save_field(grid.key(), grid.ra, grid.dec, grid.fov_arcmin, len(exposures), result, names,
+                                 pending={k for k, i in enumerate(keep) if states[i] == "waiting"})
     return {"ids": ids, "stats": result["stats"]}
 
 
@@ -147,7 +158,7 @@ def _exposures(grid: Grid) -> list:
     return exps
 
 
-def _work(key: str, grid: Grid) -> None:
+def _work(key: str, grid: Grid, min_cached: float = 0.0) -> None:
     job = _jobs[key]
     try:
         exposures = _exposures(grid)
@@ -164,13 +175,15 @@ def _work(key: str, grid: Grid) -> None:
                 raise RuntimeError("the server is busy; this field will be searched when it is asked for again")
             time.sleep(10)
             waited += 10
-        future = _executor().submit(run, grid, exposures, known)
+        future = _executor().submit(run, grid, exposures, known, TRIALS, min_cached)
         while not future.running() and not future.done():
             time.sleep(0.5)
         job["status"] = "searching"
         out = future.result(timeout=JOB_TIMEOUT_S)
         job.update(status="ready", stats=out["stats"])
         log.info("movers: field %s searched in %.0f s: %s", key, out["stats"].get("seconds", 0), out["ids"])
+        if out["stats"].get("waiting"):
+            settle_uncompared()
     except Exception as exc:
         log.exception("mover search of %s failed", key)
         job.update(status="error", error=f"{type(exc).__name__}: {exc}")
@@ -178,7 +191,7 @@ def _work(key: str, grid: Grid) -> None:
         job["finished"] = time.time()
 
 
-def start(grid: Grid) -> dict:
+def start(grid: Grid, min_cached: float = 0.0) -> dict:
     """Search a field unless it is being searched or was searched already."""
     key = grid.key()
     with _lock:
@@ -191,8 +204,69 @@ def start(grid: Grid) -> dict:
             for k in [k for k, j in _jobs.items() if j["status"] not in RUNNING][:150]:
                 _jobs.pop(k, None)
         job = _jobs[key] = {"status": "queued", "started": time.time()}
-    threading.Thread(target=_work, args=(key, grid), daemon=True).start()
+    threading.Thread(target=_work, args=(key, grid, min_cached), daemon=True).start()
     return job
+
+
+# ----------------------------------------------------------------------------- keeping the log whole
+_rechecked = 0.0
+
+
+def settle_uncompared(force: bool = False) -> dict:
+    """Ask the catalogues again about the objects no service answered for.
+
+    Such an object is shown as "not compared" when its evidence is strong and
+    is kept out of sight when it is weaker; here it gets its name, becomes a
+    candidate, or is dropped (``mover_store.settle``). At most once per
+    ``RECHECK_EVERY_S`` unless forced.
+    """
+    global _rechecked
+    with _lock:
+        if not force and time.time() - _rechecked < RECHECK_EVERY_S:
+            return {}
+        _rechecked = time.time()
+    waiting = mover_store.uncompared()
+    if not waiting:
+        return {}
+    from . import known_objects
+
+    names = known_objects.identify([t for _, t, _ in waiting])
+    out: dict[str, int] = {}
+    for i, (mid, _, _) in enumerate(waiting):
+        what = mover_store.settle(mid, names.get(i) or {})
+        out[what] = out.get(what, 0) + 1
+    log.info("movers: %d objects waited for the catalogues: %s", len(waiting), out)
+    return out
+
+
+def refresh_stale(wait_s: float = 5.0) -> int:
+    """Search again the fields an earlier version of the search went through, one at a time, from the frames
+    still in the disk cache. Returns how many were started."""
+    started = 0
+    for f in mover_store.stale_fields():
+        try:
+            grid = Grid.from_fov(f["ra"], f["dec"], f["fov"])
+            if grid.key() != f["key"] or not suitable(grid):
+                continue
+            job = start(grid, min_cached=REFRESH_MIN_CACHED)
+            if job.get("status") == "busy":
+                break
+            started += 1
+            while job.get("status") in RUNNING:  # one at a time: the fields people open now come first
+                time.sleep(wait_s)
+        except Exception:
+            log.exception("could not search field %s again", f["key"])
+    return started
+
+
+def _after_start() -> None:
+    time.sleep(REFRESH_AFTER_S)
+    try:
+        if _svc is not None:
+            log.info("movers: %d fields of an earlier search searched again", refresh_stale())
+        settle_uncompared(force=True)
+    except Exception:
+        log.exception("movers: the check after the start failed")
 
 
 def _field_ready(grid: Grid) -> None:
@@ -248,6 +322,8 @@ def api_movers(
     (``known`` names the match), and visitors can say whether a path looks
     real (``votes``). Without ``ra`` and ``dec`` the newest come first.
     """
+    if ENABLED and "pytest" not in sys.modules and time.time() - _rechecked >= RECHECK_EVERY_S:
+        threading.Thread(target=settle_uncompared, daemon=True).start()
     if ids is not None:
         wanted = [i for i in (s.strip() for s in ids.split(",")) if _ID.match(i)][:500]
         rows = mover_store.listing(ids=wanted, limit=limit)

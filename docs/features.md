@@ -709,9 +709,11 @@ objects that move between its exposures, with nothing known beforehand. What
 is found is kept in a log on the server (`/api/movers`): path, speed and
 direction, the exposures it was seen in, and the name when it is a known
 asteroid or comet. Visitors can say whether a path looks real
-(`POST /api/movers/{id}/vote`), without an account. The algorithm, its
-validation on 3I/ATLAS and twelve asteroid tracks, and its limits are in
-[moving objects](moving-objects.md).
+(`POST /api/movers/{id}/vote`), without an account. A path no catalogue has
+an object on is shown, as a candidate, only when it was seen in three
+separate visits; while no catalogue service answers, a weaker path is not
+shown at all. The algorithm, its validation on 3I/ATLAS and the asteroids of
+twelve fields, and its limits are in [moving objects](moving-objects.md).
 
 In the viewer (Advanced, `web/movers.js`):
 
@@ -724,7 +726,8 @@ In the viewer (Advanced, `web/movers.js`):
   catalogues", the speed, the position angle of the motion,
   at how many exposure times it was seen, the date, and the votes.
 - **Paths on the image** (overlay "Moving objects"): a line with an arrowhead
-  along the part of the path that was seen, and a ring where the object is in
+  along the part of the path that was seen (curved for an object followed
+  over days, whose motion changes), and a ring where the object is in
   the frame on screen. Selecting a row opens the object: the movie goes to the
   frame nearest to it, its detections are drawn, and the address gains
   `mover=<id>`, so the link opens the same object.

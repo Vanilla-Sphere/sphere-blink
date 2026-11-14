@@ -44,7 +44,8 @@ already put in the disk cache.
    when detections at 4 or more different exposure times, in 2 or more visits,
    lie within 7.5 arcsec of the straight line (growing by 0.15 arcsec per
    hour away from the pair that proposed it, to at most 15 arcsec). The best supported line is taken first and
-   its detections are removed. Pieces of one object are merged.
+   its detections are removed. Pieces that continue each other on one line
+   are merged.
 4. **Confirmation in the pixels.** Along a track, every exposure that covers
    the predicted place is measured there, in the detectors the object was
    detected in. The object counts as seen in an exposure when two things
@@ -61,24 +62,55 @@ already put in the disk cache.
    pass the same test. Counting exposure times and not exposures matters: two
    detectors exposed together are one piece of evidence. This is the step
    that removes chance alignments.
-5. **Chance figure.** The same search is repeated with the exposure times of
-   the detections shuffled. What it finds then is found by chance; the number
-   per field is stored with the field as `stats.chance_tracks`.
-6. **Names.** Each track is compared with the known asteroids and comets
+5. **Curved paths.** Over a few hours an object moves on a straight line.
+   Over days its motion changes, mostly because the telescope goes round the
+   Sun with the Earth, and a straight line misses it by tens of arcsec. A
+   path of 20 hours or more, seen at 6 or more times in 3 or more visits, is
+   fitted with a constant acceleration as well; the curve is taken when it
+   leaves less than 70 % of the line's scatter, at least 1 arcsec less, and
+   needs no more than 0.2 arcsec per hour squared (measured: 0.03 for Astraea,
+   0.04 for Nha). Two confirmed pieces up to 48 hours apart are one object
+   when one such curve holds both within 7.5 arcsec rms. Pieces are joined
+   only after the pixels have confirmed each of them: the long path of a
+   faint object crosses visits in which it is too faint to be seen and would
+   fail step 4 as a whole (Nha: 20 of 29 times, although it lies within 5
+   arcsec of JPL's position everywhere). A piece the pixels did not confirm
+   on its own is added to a confirmed path when its detections lie on it.
+6. **Chance figures.** The same search is repeated with the exposure times
+   shuffled within each pass: the pictures stay, their order is lost, and
+   with it every real motion. What is found then is found by chance
+   (`stats.chance_tracks`, per search). A second test shuffles whole visits
+   and counts only paths with the evidence step 8 asks for
+   (`stats.chance_candidates`); it is run without the detections of the
+   paths already seen in three visits or more, because an object that really
+   moves keeps part of its path when visits change places. See
+   [the static pair](#the-static-pair-why-a-path-without-a-name-needs-three-visits)
+   for why the first test is not enough.
+7. **Names.** Each track is compared with the known asteroids and comets
    predicted for its place and time (see [below](#names-of-known-objects)).
-7. **More is asked of a path without a name.** Nearly everything bright
+8. **More is asked of a path without a name.** Nearly everything bright
    enough for SPHEREx is a known asteroid or comet, so a path that no
    catalogue has an object on is far more often chance than a new object. It
-   is kept only when seen at 8 or more exposure times and at 80 % or more of
-   the times covered (`stats.unnamed_dropped` counts the rest). In the viewer
-   it is called a candidate, never a discovery, and is listed after the
-   objects the catalogues confirm. A path that could not be compared because
-   no catalogue service answered is kept under the rules of step 4 and shown
-   as "not yet compared with the catalogues".
+   is kept only when seen at 8 or more exposure times, at 80 % or more of
+   the times covered, and in 3 or more visits (at 2 or more exposure times in
+   each; `visits_seen`). `stats.unnamed_dropped` counts the rest. A path
+   joined from pieces passes when one of its pieces does. In the viewer such
+   a path is called a candidate, never a discovery, and is listed after the
+   objects the catalogues confirm.
+9. **When no catalogue answers.** A path cannot be called known or unknown
+   then. With the evidence of step 8 it is shown as "not yet compared with
+   the catalogues". With less it is stored but not shown, listed or served
+   (`stats.waiting`). The services are asked again after the next search, at
+   most every 10 minutes while the log is being read, and after every start
+   of the server: the path then gets its name, becomes a candidate, or is
+   taken out without ever having been shown.
 
-A track is a straight line at constant speed: reference time `mjd0`, position
-`ra0`, `dec0`, and the motion `v_east`, `v_north` in arcsec per hour. Speed
-classes: `slow` below 20, `fast` from 20, `very fast` from 60 arcsec per hour.
+A track is its reference time `mjd0`, position `ra0`, `dec0`, the motion at
+that time `v_east`, `v_north` in arcsec per hour, and for a curved path the
+change of the motion `a_east`, `a_north` in arcsec per hour squared (0 for a
+straight one): `east = v_east * t + a_east * t^2 / 2` with `t` in hours from
+`mjd0`. Speed classes: `slow` below 20, `fast` from 20, `very fast` from 60
+arcsec per hour.
 
 ## What it was checked against
 
@@ -116,7 +148,7 @@ against 99 in field 2. SkyBoT's own orbit of 3I/ATLAS is 46 to 90 arcsec
 behind along the path, which is why a fast object may lie up to 300 arcsec
 from its prediction and still match when its motion agrees.
 
-### The audit of 2026-11-14 (why the rules of step 4 and 7 exist)
+### The audit of 2026-11-14 (why the rules of step 4 and 8 exist)
 
 The first version of step 4 counted an exposure as a sighting from the
 brightest pixel alone. On the production site that held for the fields above,
@@ -143,16 +175,16 @@ field 2 keeps its nine objects, and 32 shuffled searches (24 of the Barnard
 field, 8 of field 2) find no track; before, one of 6 shuffled searches of the
 Barnard field found one. Of 542 chance paths linked in those shuffled
 searches of the Barnard field none was seen at 8 exposure times, the level
-step 7 asks of a path without a name.
+step 8 asks of a path without a name.
 
 Limits found in the same test:
 
 - 3I/ATLAS at 8.7 arcsec per hour and V about 15.2 (field 3, March 2026) was
   not found: faint and slow, it moves less than a pixel between the exposures
   of one visit.
-- An object seen in two passes days apart is stored as two tracks (Astraea
+- An object seen in two passes days apart was stored as two tracks (Astraea
   and Nha above): a straight line does not describe several days of motion.
-  Both carry the same name.
+  Version 3 joins them (step 5).
 - The cores of bright moving objects are flagged in the Level 2 images, so the
   detections of a bright comet are its halo, and their positions scatter by a
   few arcsec (rms 7.7 arcsec for 3I/ATLAS in field 1).
@@ -180,7 +212,13 @@ field is loaded and has not been searched.
   Objects stored by an earlier version stay in the database but are not
   listed or served until their field is searched again; an object found again
   keeps its id, its date of discovery and its votes, with the new evidence
-  in place of the old. Version 2 (2026-11-14) is the compact source test.
+  in place of the old. Version 2 (2026-11-14) is the compact source test,
+  version 3 (same day) curved paths and three visits for a path without a
+  name.
+- 90 seconds after a start of the server, the fields an earlier version went
+  through are searched again by themselves, one at a time, newest first,
+  when 95 % or more of their frames are still in the disk cache
+  (`movers_api.refresh_stale`). The others wait until somebody opens them.
 - Before a search starts it waits, up to 10 minutes, for 1800 MB of memory to
   be free in the container (`SPHEREX_MOVER_MIN_FREE_MB`); if there is none it
   gives up, and the field is searched the next time it is asked for.
@@ -205,8 +243,9 @@ parallax from low Earth orbit is larger).
 | 2 | JPL Small-Body Identification API (NASA/JPL) | Asked for the tracks SkyBoT has no name for, and for all when SkyBoT does not answer. Takes minutes for the asteroids of a field and has no record of 3I/ATLAS (both observed on 2026-11-14) |
 
 `known.checked` is `false` when neither service answered: "not known" is never
-said without having asked. A track that both services were asked about and
-neither knows has `known.name = null`; it is a candidate, not a discovery.
+said without having asked, and the services are asked again later (step 9).
+A track that the services were asked about and none knows has
+`known.name = null`; it is a candidate, not a discovery.
 
 ## Votes
 
