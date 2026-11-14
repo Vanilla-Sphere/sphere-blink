@@ -324,12 +324,12 @@ async function cmpAddText(text) {
   cmpAdd({name: coords ? `RA ${a.toFixed(4)} Dec ${b >= 0 ? "+" : ""}${b.toFixed(4)}` : tidyName(text), q: coords ? `ra=${a}&dec=${b}` : `target=${encodeURIComponent(text)}`, z: null});
 }
 /* Medians in bins of equal width in log wavelength (R about 45, the resolving power of the instrument
-   at its short end): one exposure gives one noisy point, a bin of them shows the shape. Points on
-   flagged pixels, and those taken from the halo of a saturated core, are left out unless that
+   at its short end): one exposure gives one noisy point, a bin of them shows the shape. Points with a
+   defect flag (OT.CLEAN in overtime.js), and those taken from the halo of a saturated core, are left out unless that
    leaves too few (a very bright object, whose every point is of that kind). */
 function cmpBins(pts) {
   const ok = pts.filter((p) => p.flux_ujy !== null && p.wave_um > 0);
-  const clean = ok.filter((p) => p.method !== "wings" && p.flags.every((f) => f === "SOURCE" || f === "FULLSAMPLE"));
+  const clean = ok.filter((p) => p.method !== "wings" && p.flags.every((f) => OT.CLEAN.includes(f)));
   const use = clean.length > 0.3 * ok.length ? clean : ok, bins = new Map();
   for (const p of use) { const k = Math.floor(Math.log(p.wave_um) * 45); if (!bins.has(k)) bins.set(k, []); bins.get(k).push(p); }
   const med = (a) => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
