@@ -29,7 +29,7 @@ as static files.
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
 Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `linelist.js`, `insight.js`, `redshift.js`, `depth.js`, `showcase.js`, `app.js`.
-Asset URLs carry a version query (`?v=57`) that is raised when a file changes,
+Asset URLs carry a version query (`?v=58`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -484,7 +484,7 @@ references).
 | Text | Warm off-white "ink" in two steps and two muted steps |
 | Rules | Hairlines in two strengths; zero corner radius throughout |
 | Signal | Nebula violet `oklch(72% 0.165 300)` for actions and current state only; pale cyan as the second accent |
-| Logo | Its own two colours, independent of the accent: an orange V (`--brand-v`) holding a vanilla-cream sphere (`--brand-sphere`) |
+| Logo | A taro ice-cream cone: a waffle-gold V (`--brand-v`) holding a sphere in the accent violet (`--brand-sphere`, which follows `--color-accent`) |
 | Data series | Six detector colours in wavelength order (`--d1` ... `--d6`), three channel colours, one colour for measured tracks, one for "no data" |
 | Type | Hanken Grotesk for interface text; Geist Mono with tabular figures for every measured value |
 | Motion | One easing curve, 140 ms; disabled under `prefers-reduced-motion` |
