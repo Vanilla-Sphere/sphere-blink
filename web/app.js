@@ -1105,7 +1105,9 @@ function drawPlot(out) {
 }
 /* A flux whose aperture holds pixels the SPHEREx pipeline flagged. A saturated core always carries flags:
    its flux comes from the halo and is told apart by its own mark, so it does not count here. */
-function flaggedPoint(p) { return p.method !== "wings" && p.flags.some((f) => f !== "SOURCE" && f !== "FULLSAMPLE"); }
+/* A pixel of the aperture was left out of the sum (PARTIAL) or carries a defect flag. The flags a bright source sets
+   on its own core are not in that list (OT.CLEAN): those pixels are measured and agree with 2MASS. */
+function flaggedPoint(p) { return p.method !== "wings" && p.flags.some((f) => !OT.CLEAN.includes(f)); }
 /* The row under the Over time plot that steps through the groups of days: all of them side by side, or one enlarged. */
 function showGroups(panels, zoom) {
   const many = panels.length > 1, day = (m) => mjdDate(m).toISOString().slice(0, 10);
