@@ -1,0 +1,331 @@
+"""The blind search for moving objects as a service, and its HTTP endpoints.
+
+    GET  /api/movers                     the Discoveries log (all, or near a position)
+    GET  /api/movers/field?ra=..&dec=..  what was found in a progressive field; starts its search
+    GET  /api/movers/{id}                one object: path, every detection, brightness per exposure
+    POST /api/movers/{id}/vote           a visitor's opinion: real motion or false alarm
+
+A progressive field is searched once all its frames are in the cache: by
+itself when the field finishes loading, or when the viewer asks for the
+field's objects. The search runs in a process of its own, one field at a
+time, reads the frames from the disk cache and writes what it finds to the
+local store (``mover_store.py``). Detections of fields searched earlier are
+linked together with the new ones, so the log grows with the part of the map
+people have opened.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import logging
+import multiprocessing
+import os
+import re
+import secrets
+import sys
+import threading
+import time
+from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
+
+import numpy as np
+from fastapi import APIRouter, Body, HTTPException, Query
+
+from . import config, guard, mover_store, movers, tiles
+from .cutout import Grid, cache_key
+
+log = logging.getLogger(__name__)
+router = APIRouter()
+
+ENABLED = os.environ.get("SPHEREX_MOVER_SEARCH", "1") not in ("0", "false", "no")
+MIN_FOV_ARCMIN = 20.0  # smaller views hold too little of a path
+MIN_FRAMES = 40
+JOB_TIMEOUT_S = 900
+TRIALS = 2  # shuffled-time searches that give a field its chance figure
+REACH_DEG = 0.6  # how far outside a field stored detections are taken from
+MAX_WAITING = 8  # searches waiting; more are left for the next time the field is asked for
+RUNNING = ("queued", "searching")
+MIN_FREE_MB = float(os.environ.get("SPHEREX_MOVER_MIN_FREE_MB", "1800"))  # a search holds about 1 GB (measured: 984 MB for 713 frames)
+WAIT_FOR_ROOM_S = 600
+VOTES_PER_MIN = float(os.environ.get("SPHEREX_RATE_VOTES_PER_MIN", "20"))
+
+_svc = None
+_jobs: dict[str, dict] = {}
+_lock = threading.Lock()
+_pool: ProcessPoolExecutor | None = None
+_votes = guard.Buckets(VOTES_PER_MIN / 60.0, VOTES_PER_MIN)
+_salt: bytes | None = None
+_VOTER = re.compile(r"^[A-Za-z0-9-]{16,64}$")
+_ID = re.compile(r"^VS-\d{5}-[A-Z2-9]{4}$")
+
+
+def attach(svc) -> None:
+    """Give the router the service of ``main``; fields that finish loading are searched from now on."""
+    global _svc
+    _svc = svc
+    if ENABLED and "pytest" not in sys.modules and _field_ready not in tiles.listeners:
+        tiles.listeners.append(_field_ready)
+
+
+def _executor() -> ProcessPoolExecutor:
+    global _pool
+    with _lock:
+        if _pool is None:
+            _pool = ProcessPoolExecutor(max_workers=1, mp_context=multiprocessing.get_context("spawn"))
+        return _pool
+
+
+# ----------------------------------------------------------------------------- the search (runs in a child process)
+def run(grid: Grid, exposures: list, known: list[dict], trials: int = TRIALS) -> dict:
+    """Search one field whose frames are in the disk cache."""
+    from .service import Store
+
+    try:
+        os.nice(10)  # the viewer comes first
+    except OSError:
+        pass
+    t0 = time.time()
+    store = Store()
+    cube = np.empty((len(exposures), grid.npix, grid.npix), dtype=np.float32)
+    frames = []
+    for e in exposures:
+        f = store.get_frame(cache_key(e, grid), e)
+        if f is None or f is False:
+            continue
+        cube[len(frames)] = f.image
+        frames.append({"exposure": f"{e.obs_id}:D{e.detector}", "mjd": e.mjd, "detector": e.detector, "wave_um": f.wave_um})
+    if len(frames) < MIN_FRAMES:
+        raise ValueError(f"only {len(frames)} of {len(exposures)} frames of this field are in the cache")
+    cube = cube[: len(frames)]
+    result = movers.search(cube, frames, grid.wcs, grid.scale_arcsec, known=[movers.Detection(**d) for d in known],
+                           trials=trials)
+    result["stats"].update(seconds=round(time.time() - t0, 1), exposures=len(exposures), known=len(known))
+    names: dict[int, dict] = {}
+    try:
+        from . import known_objects
+
+        names = known_objects.identify(result["tracks"])
+    except Exception:  # a name is an extra: the object is stored without one
+        log.exception("could not look the objects up among the known ones")
+    ids = mover_store.save_field(grid.key(), grid.ra, grid.dec, grid.fov_arcmin, len(exposures), result, names)
+    return {"ids": ids, "stats": result["stats"]}
+
+
+# ----------------------------------------------------------------------------- jobs (in the web process)
+def free_mb(root: Path = Path("/sys/fs/cgroup")) -> float | None:
+    """Memory this container may still take, counting the file cache it can
+    give back as free. None where the container has no limit to read."""
+    try:
+        limit = (root / "memory.max").read_text().strip()
+        if limit == "max":
+            return None
+        used = int((root / "memory.current").read_text())
+        for line in (root / "memory.stat").read_text().splitlines():
+            if line.startswith(("inactive_file ", "active_file ")):
+                used -= int(line.split()[1])
+        return (int(limit) - used) / 1e6
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def suitable(grid: Grid) -> bool:
+    return grid.fov_arcmin >= MIN_FOV_ARCMIN and grid.scale_arcsec >= config.NATIVE_PIXEL_ARCSEC - 0.01
+
+
+def _exposures(grid: Grid) -> list:
+    exps = _svc.view_exposures(grid)
+    if len(exps) > config.MAX_FRAMES:  # the same thinning as the view itself
+        step = (len(exps) - 1) / (config.MAX_FRAMES - 1)
+        exps = [exps[round(k * step)] for k in range(config.MAX_FRAMES)]
+    return exps
+
+
+def _work(key: str, grid: Grid) -> None:
+    job = _jobs[key]
+    try:
+        exposures = _exposures(grid)
+        if mover_store.searched(key, len(exposures)):
+            job["status"] = "ready"
+            return
+        known = [d.to_dict() for d in mover_store.detections_around(grid.ra, grid.dec, grid.fov_arcmin / 120.0 * 1.42 + REACH_DEG,
+                                                                    not_field=key)]
+        for d in known:
+            d.pop("x", None), d.pop("y", None), d.pop("frame", None)
+        waited = 0
+        while (room := free_mb()) is not None and room < MIN_FREE_MB:  # the viewer comes first: wait for a quiet moment
+            if waited >= WAIT_FOR_ROOM_S:
+                raise RuntimeError("the server is busy; this field will be searched when it is asked for again")
+            time.sleep(10)
+            waited += 10
+        future = _executor().submit(run, grid, exposures, known)
+        while not future.running() and not future.done():
+            time.sleep(0.5)
+        job["status"] = "searching"
+        out = future.result(timeout=JOB_TIMEOUT_S)
+        job.update(status="ready", stats=out["stats"])
+        log.info("movers: field %s searched in %.0f s: %s", key, out["stats"].get("seconds", 0), out["ids"])
+    except Exception as exc:
+        log.exception("mover search of %s failed", key)
+        job.update(status="error", error=f"{type(exc).__name__}: {exc}")
+    finally:
+        job["finished"] = time.time()
+
+
+def start(grid: Grid) -> dict:
+    """Search a field unless it is being searched or was searched already."""
+    key = grid.key()
+    with _lock:
+        job = _jobs.get(key)
+        if job and (job["status"] in RUNNING or (job["status"] == "ready" and mover_store.field(key))):
+            return job
+        if sum(1 for j in _jobs.values() if j["status"] in RUNNING) >= MAX_WAITING:
+            return {"status": "busy"}
+        if len(_jobs) > 300:
+            for k in [k for k, j in _jobs.items() if j["status"] not in RUNNING][:150]:
+                _jobs.pop(k, None)
+        job = _jobs[key] = {"status": "queued", "started": time.time()}
+    threading.Thread(target=_work, args=(key, grid), daemon=True).start()
+    return job
+
+
+def _field_ready(grid: Grid) -> None:
+    """A progressive field has all its frames: search it."""
+    try:
+        if _svc is not None and suitable(grid):
+            start(grid)
+    except Exception:
+        log.exception("could not start the mover search of a field")
+
+
+def _public(job: dict) -> dict:
+    out = {k: job[k] for k in ("status", "error", "stats") if k in job}
+    if "started" in job:
+        out["elapsed_s"] = round((job.get("finished") or time.time()) - job["started"], 1)
+    if job.get("status") == "queued":
+        out["waiting"] = sum(1 for j in _jobs.values() if j["status"] in RUNNING)
+    return out
+
+
+def _address() -> str:
+    """Where a vote came from, as a hash that cannot be turned back into the address."""
+    global _salt
+    if _salt is None:
+        path = config.CACHE_DIR / "movers.salt"
+        try:
+            _salt = path.read_bytes()
+        except OSError:
+            _salt = secrets.token_bytes(32)
+            try:
+                config.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(_salt)
+            except OSError:
+                pass
+    return hashlib.sha256(_salt + guard.current().encode()).hexdigest()[:24]
+
+
+# ----------------------------------------------------------------------------- HTTP
+@router.get("/api/movers")
+def api_movers(
+    ra: float | None = Query(None, ge=0, le=360), dec: float | None = Query(None, ge=-90, le=90),
+    radius: float = Query(1.0, gt=0, le=30, description="degrees around ra, dec"),
+    ids: str | None = Query(None, max_length=4000, description="comma-separated ids, e.g. the ones a visitor follows"),
+    limit: int = Query(200, ge=1, le=1000),
+    coverage: bool = Query(False, description="also list the sky cells searched so far"),
+):
+    """The Discoveries log: every moving object the blind search has found.
+
+    Nothing is known beforehand about these objects: each is a set of
+    detections in different exposures that lie on one straight path, which
+    the pixels of the other exposures along that path confirm. They are
+    candidates, not discoveries: most are known asteroids and comets
+    (``known`` names the match), and visitors can say whether a path looks
+    real (``votes``). Without ``ra`` and ``dec`` the newest come first.
+    """
+    if ids is not None:
+        wanted = [i for i in (s.strip() for s in ids.split(",")) if _ID.match(i)][:500]
+        rows = mover_store.listing(ids=wanted, limit=limit)
+    elif ra is not None and dec is not None:
+        rows = mover_store.listing(ra, dec, radius, limit=limit)
+    else:
+        rows = mover_store.listing(limit=limit)
+    out = {"version": movers.VERSION, "enabled": ENABLED, "total": mover_store.count(), "movers": rows}
+    if coverage:
+        out["coverage"] = mover_store.coverage()
+    return out
+
+
+@router.get("/api/movers/field")
+def api_movers_field(
+    ra: float | None = Query(None, ge=0, le=360), dec: float | None = Query(None, ge=-90, le=90),
+    levels: int = Query(3, ge=1, le=tiles.MAX_LEVELS, description="rings of the progressive field (3 = 7 x 7 cells)"),
+    tile_id: str | None = Query(None, description="seed cell by id instead of a position"),
+):
+    """Moving objects in one progressive field, and the state of its search.
+
+    The field is searched when all its frames have been loaded (open it with
+    ``/api/tiles`` first). ``status`` is ``not_loaded``, ``queued``,
+    ``searching``, ``ready`` or ``error``; poll until it is ``ready``.
+    ``stats.chance_tracks`` tells how many paths the same search finds when
+    the exposure times are shuffled, that is, by chance alone.
+    """
+    try:
+        if tile_id:
+            ra, dec = tiles.center(*tiles.parse_tile_id(tile_id))
+        if ra is None or dec is None:
+            raise ValueError("give ra=&dec= or tile_id=")
+        seed = tiles.block(ra, dec, 0)[0]
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    grid = tiles.stage_grid(seed["ra_c"], seed["dec_c"], levels)
+    key = grid.key()
+    stored = mover_store.field(key)
+    job = _jobs.get(key)
+    if ENABLED and _svc is not None and not (job and job["status"] in RUNNING):
+        view = _svc.peek(grid)
+        if view is not None and view.status == "ready" and not (stored and stored["version"] == movers.VERSION):
+            job = start(grid)
+    status = job["status"] if job and job["status"] != "ready" else "ready" if stored else "not_loaded"
+    out = {"field": {"ra": grid.ra, "dec": grid.dec, "fov": round(grid.fov_arcmin, 3), "levels": levels, "seed": seed["tile_id"]},
+           "status": status, "job": _public(job) if job else None, "enabled": ENABLED}
+    if stored:
+        out["searched"] = stored["searched"]
+        out["stats"] = stored["stats"]
+    out["movers"] = mover_store.listing(grid.ra, grid.dec, grid.fov_arcmin / 120.0 * 1.42, limit=500)
+    return out
+
+
+@router.get("/api/movers/{mover_id}")
+def api_mover(mover_id: str, voter: str | None = Query(None, description="the caller's browser id, to learn its own vote")):
+    """One moving object: the fitted path, its detections, and the brightness
+    measured at the predicted place in every exposure along the path."""
+    if not _ID.match(mover_id):
+        raise HTTPException(404, "no such object")
+    out = mover_store.get(mover_id, voter if voter and _VOTER.match(voter) else "")
+    if out is None:
+        raise HTTPException(404, "no such object")
+    return out
+
+
+@router.post("/api/movers/{mover_id}/vote")
+def api_mover_vote(mover_id: str, body: dict = Body(...)):
+    """Say whether an object's motion looks real. Body: ``{"voter": "<browser id>", "vote": "real" | "false" | null}``.
+
+    One voice per browser and object; sending another vote changes it,
+    ``null`` takes it back. No account is needed: the browser makes up a
+    random id once and keeps it.
+    """
+    if not _ID.match(mover_id):
+        raise HTTPException(404, "no such object")
+    voter, value = body.get("voter"), body.get("vote")
+    if not isinstance(voter, str) or not _VOTER.match(voter):
+        raise HTTPException(400, "voter must be the browser's random id (16 to 64 letters, digits or dashes)")
+    if value is not None and value not in mover_store.VOTES:
+        raise HTTPException(400, "vote must be 'real', 'false' or null")
+    guard.charge(_votes, "votes")
+    try:
+        tally = mover_store.vote(mover_id, voter, value, _address())
+    except KeyError:
+        raise HTTPException(404, "no such object") from None
+    except PermissionError as exc:
+        raise HTTPException(429, str(exc)) from exc
+    return {"id": mover_id, "votes": tally, "my_vote": value}

@@ -25,6 +25,7 @@ implements it. Implementation detail is in [imaging engine](imaging-engine.md),
 | 14 | Per-frame quality flags and provenance | Advanced | `cutout.py`, `render.Epoch.meta` |
 | 15 | Share links, embeddable GIF and PNG, data API | Simple, Advanced | `main.py`, `web/app.js` (`writeUrl`) |
 | 16 | Featured targets | Simple, Advanced | `resolve.FEATURED`, `refcat.TARGETS` |
+| 17 | Blind search for moving objects, with a log, names and votes (API; the viewer part follows) | - | `movers.py`, `mover_store.py`, `movers_api.py`, `known_objects.py` |
 
 ## 1. Sky map start screen
 
@@ -468,3 +469,14 @@ motions are held in the service so that they resolve without any network call:
 | `wise-0855` | WISE 0855-0714 | Coldest known brown dwarf, about 8 arcsec/yr, invisible in single exposures |
 | `rw-aur` | RW Aurigae | Young variable star with dimming events |
 | `r-dra` | R Draconis | Mira variable, period about 246 days |
+
+## 17. Blind search for moving objects
+
+Every progressive field that a visitor opens completely is searched for
+objects that move between its exposures, with nothing known beforehand. What
+is found is kept in a log on the server (`/api/movers`): path, speed and
+direction, the exposures it was seen in, and the name when it is a known
+asteroid or comet. Visitors can say whether a path looks real
+(`POST /api/movers/{id}/vote`), without an account. The algorithm, its
+validation on 3I/ATLAS and twelve asteroid tracks, and its limits are in
+[moving objects](moving-objects.md). The viewer does not show the log yet.

@@ -93,6 +93,8 @@ noted.
 | `SPHEREX_ACTIVE_MB` | `1200` | `2400` | Frames (MB) the views being cut may hold in memory together; a wide field that does not fit waits for another to finish. `0` removes the limit |
 | `SPHEREX_QUEUE_PREVIEW` | `1` | default | A view in the queue gets its first four exposures at once; `0`: nothing before its turn |
 | `SPHEREX_MEASURE_PROCS` | `2` | `2` | Measurements running at the same time, each in a process of its own; the next ones wait in a queue |
+| `SPHEREX_MOVER_SEARCH` | `1` | default | `0` turns the blind search for moving objects off; the log stays readable |
+| `SPHEREX_MOVER_MIN_FREE_MB` | `1800` | default | Memory that must be free in the container before a field is searched |
 | `SPHEREX_FETCH_PROCS` | `min(4, CPU count)` | `4` | Imaging worker processes |
 | `SPHEREX_RAM_BUDGET_MB` | `600` | `2000` | Frames kept in memory |
 | `SPHEREX_DISK_BUDGET_GB` | `4` | `13` | Size of the frame cache on disk |
