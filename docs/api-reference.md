@@ -92,7 +92,7 @@ Errors are JSON of the form `{"detail": "message"}`.
 | Endpoint | Returns | Purpose |
 | --- | --- | --- |
 | [`/api/health`](#get-apihealth) | JSON | Liveness and instance identity |
-| [`/api/featured`](#get-apifeatured) | JSON | The challenge targets |
+| [`/api/featured`](#get-apifeatured) | JSON | The featured targets |
 | [`/api/resolve`](#get-apiresolve) | JSON | Name or coordinates to a position |
 | [`/api/exposures`](#get-apiexposures) | JSON | Every exposure covering a position |
 | [`/api/view`](#get-apiview) | JSON | Start a view; job status |
@@ -123,7 +123,7 @@ is running, which the service does not support.
 
 ### GET /api/featured
 
-The challenge targets, for menus.
+The featured targets, for menus.
 
 ```json
 [
@@ -453,6 +453,13 @@ For a complete spectrum, call with `wait=60` and check that `job.status` is `rea
 | `cat` | `gaia` or `catwise` | `gaia` | Gaia DR3 or CatWISE2020 |
 
 The 250 brightest sources within 0.75 x `fov` of the centre, brightest first.
+
+Gaia is read from the ESA Gaia archive and CatWISE from IRSA's cone search;
+IRSA's TAP service is asked when the first service fails or does not answer in
+25 s. The answer is stored per view. For the five featured targets the service
+stores both catalogues at every field size the viewer offers shortly after it
+starts, so those are always answered from the store. A `502` means both
+services failed.
 
 ```json
 {

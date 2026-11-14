@@ -27,7 +27,7 @@ const S = {
   ui: "simple", screen: "map",  // Simple or Advanced ("adv"), sky map or view
   t: null, featured: [], keep: null, url: "",
 };
-/* Where the challenge targets sit on the sky map (degrees, late 2025; the server holds the exact positions). */
+/* Where the featured targets sit on the sky map (degrees, late 2025; the server holds the exact positions). */
 const FEATURED_AT = {"barnard": [269.446, 4.768], "eps-indi-b": [331.096, -56.801], "wise-0855": [133.760, -7.242], "rw-aur": [76.956, 30.401], "r-dra": [248.167, 66.755]};
 const store = {
   get(k) { try { return localStorage.getItem("vs." + k); } catch (_) { return null; } },
@@ -97,6 +97,25 @@ function writeUrl(push) {
 /* Switch to another view (`next` holds what changes) or reload the current one.
    The position is checked first; the view on screen is only replaced once that worked,
    so a mistyped name costs nothing. */
+/* The server restarts for about half a minute when a new version goes out, and may ask a busy client to
+   wait (429). Both are waited out quietly instead of shown as an error. An answer in JSON is the
+   application's own and is returned as it is, whatever its status. */
+let netWaiting = 0;
+async function api(url, alive) {
+  let waited = false;
+  try {
+    for (const t0 = Date.now(); ;) {
+      let r = null, wait = 3000;
+      try { r = await fetch(url); } catch (_) {}
+      const own = r && /json|octet-stream|image\//.test(r.headers.get("content-type") || "");
+      if (r && r.status === 429) wait = Math.min(30, Math.max(1, parseFloat(r.headers.get("Retry-After")) || 3)) * 1000;
+      else if (r && (own || ![502, 503, 504].includes(r.status))) return r;
+      if (Date.now() - t0 + wait > 75000 || (alive && !alive())) throw new Error(tr("err.net"));
+      if (!waited) { waited = true; netWaiting++; $("netnote").hidden = false; }
+      await sleep(wait);
+    }
+  } finally { if (waited && !--netWaiting) $("netnote").hidden = true; }
+}
 async function load(next, nopush) {
   const want = Object.assign({target: S.target, ra: S.ra, dec: S.dec, byCoords: S.byCoords, fov: S.fov, levels: S.levels}, next || {});
   const id = ++S.loadId, first = !S.meta;
@@ -107,7 +126,7 @@ async function load(next, nopush) {
   }
   let view, error = null;
   try {
-    const r = await fetch((want.levels ? "/api/tiles?" : "/api/view?") + paramsOf(want));
+    const r = await api((want.levels ? "/api/tiles?" : "/api/view?") + paramsOf(want), () => id === S.loadId);
     view = await r.json();
     if (!r.ok) throw new Error(view.detail || r.statusText);
   } catch (e) { error = e; }
@@ -194,7 +213,7 @@ async function loadField(id, f) {
       (done ? tr("field.shown", {cells: cells(done)}) : "") + (j && j.total ? tr("field.read", {done: j.done, total: j.total, cells: cells(next)}) : tr("field.search", {cells: cells(next)})));
     await sleep(done ? 1000 : 1300);
     try {
-      const r = await fetch("/api/tiles?" + paramsOf(S)); f = await r.json();
+      const r = await api("/api/tiles?" + paramsOf(S), () => id === S.loadId); f = await r.json();
       if (!r.ok) throw new Error(f.detail || r.statusText);
     } catch (e) { return fail(e, id); }
     if (id !== S.loadId) return;
@@ -205,7 +224,7 @@ async function loadField(id, f) {
 
 async function fetchCube(id, keepIndex, seq) {
   const wide = S.stage && S.stage.npix > 300;  // a wide mosaic comes at overview resolution; open a cell for full detail
-  const r = await fetch("/api/cube?" + viewParams(wide ? {det: S.det, group: S.group, bin: 2} : {det: S.det, group: S.group}));
+  const r = await api("/api/cube?" + viewParams(wide ? {det: S.det, group: S.group, bin: 2} : {det: S.det, group: S.group}), () => id === S.loadId);
   if (!r.ok) { let d = {}; try { d = await r.json(); } catch (_) {} throw new Error(d.detail || r.statusText); }
   const buf = await r.arrayBuffer();
   if (id !== S.loadId || (seq && seq !== S.busy)) return null;  // a newer request has taken over
@@ -249,7 +268,7 @@ async function reloadCube() {
 async function loadSpectrum(id, attempt = 0) {
   let d = null;
   try {
-    const r = await fetch("/api/spectrum?" + viewParams());
+    const r = await api("/api/spectrum?" + viewParams());
     if (r.ok) d = await r.json();
   } catch (_) {}
   if (id !== S.loadId) return;
@@ -283,21 +302,26 @@ function markFast(list) {
     s.fast = cand.filter((o) => o !== s && Math.hypot((o.ra - s.ra) * c, o.dec - s.dec) * 3600 < 60).length < 3;
   }
 }
-async function loadCatalogs() {
-  for (const cat of ["gaia", "catwise"]) {
-    if (!$("ov-" + cat).checked || Array.isArray(S.catalogs[cat]) || S.catalogs[cat] === "loading") continue;
-    const id = S.loadId;
-    S.catalogs[cat] = "loading"; ovStatus();
-    let sources = null;  // the catalogue service is slow on the first query of a field and sometimes fails: try three times
-    for (let attempt = 0; attempt < 3 && !sources; attempt++) {
-      if (attempt) await sleep(2500);
-      try { const r = await fetch("/api/catalog?" + viewParams({cat})); if (r.ok) sources = (await r.json()).sources; } catch (_) {}
-      if (id !== S.loadId) return;
-    }
-    if (sources) markFast(sources);
-    S.catalogs[cat] = sources || "failed";
-    ovStatus(); draw();
+/* The star lists come from catalogue services that can take a few seconds on a new field. Advanced asks
+   for both as soon as a view opens, so that ticking an overlay shows it at once. */
+async function loadCatalog(cat) {
+  const state = S.catalogs[cat], wanted = $("ov-" + cat).checked;
+  if (Array.isArray(state) || state === "loading" || (state === "failed" && !wanted)) return;
+  const id = S.loadId, q = viewParams({cat}).toString();
+  const mine = () => id === S.loadId && q === viewParams({cat}).toString();  // still the view (or the stage of a wide field) it was asked for
+  S.catalogs[cat] = "loading"; ovStatus();
+  let sources = null;
+  for (let attempt = 0; attempt < 2 && !sources; attempt++) {
+    if (attempt) await sleep(2500);
+    try { const r = await api("/api/catalog?" + q, mine); if (r.ok) sources = (await r.json()).sources; } catch (_) {}
+    if (!mine()) return;
   }
+  if (sources) markFast(sources);
+  S.catalogs[cat] = sources || "failed";
+  ovStatus(); if ($("ov-" + cat).checked) draw();
+}
+function loadCatalogs() {
+  for (const cat of ["gaia", "catwise"]) if ($("ov-" + cat).checked || S.ui === "adv") loadCatalog(cat);
   ovStatus();
 }
 
@@ -305,7 +329,7 @@ async function loadCatalogs() {
 async function loadTracks() {
   const id = S.loadId;
   try {
-    const r = await fetch("/api/tracks?" + viewParams());
+    const r = await api("/api/tracks?" + viewParams());
     if (!r.ok) return;
     const d = await r.json();
     if (id !== S.loadId || !d.enabled) return;
@@ -874,13 +898,13 @@ function labelDets() {
     else b.dataset.hintText = tr("det.one.t", {n: v, range: DET[v]});
   }
 }
-/* The challenge targets: a list in the Advanced rail, and pins plus a list on the sky map. */
+/* The featured targets: a list in the Advanced rail, and pins plus a list on the sky map. */
 function openFeatured(f) {
   $("q").value = f.name;
   load({target: f.key, byCoords: false, ra: null, dec: null, ...(S.ui === "simple" ? {levels: 0, fov: 8} : {})});
 }
 async function buildFeatured() {
-  try { S.featured = await (await fetch("/api/featured")).json(); } catch (_) { S.featured = []; }
+  try { S.featured = await (await api("/api/featured")).json(); } catch (_) { S.featured = []; }
   const row = (f, sub) => {
     const b = document.createElement("button"); b.className = "target"; b.dataset.name = f.name;
     for (const [cls, txt] of [["nm", f.name], ["nt", sub]]) { const sp = document.createElement("span"); sp.className = cls; sp.textContent = txt; b.appendChild(sp); }

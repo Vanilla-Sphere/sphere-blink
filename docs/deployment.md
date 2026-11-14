@@ -81,8 +81,9 @@ noted.
 | `SPHEREX_FETCH_PROCS` | `min(4, CPU count)` | `4` | Imaging worker processes |
 | `SPHEREX_RAM_BUDGET_MB` | `600` | `2000` | Frames kept in memory |
 | `SPHEREX_DISK_BUDGET_GB` | `4` | `16` | Size of the frame cache on disk |
-| `SPHEREX_AUTO_MEASURE` | `1` | default | Measure the challenge targets after start; `0` disables (read in `measure_api.py`) |
+| `SPHEREX_AUTO_MEASURE` | `1` | default | Measure the featured targets after start; `0` disables (read in `measure_api.py`) |
 | `SPHEREX_AUTO_MEASURE_DELAY` | `40` | default | Seconds after start before automatic measurement begins |
+| `SPHEREX_WARM_CATALOGS` | `1` | default | After start, store the Gaia and CatWISE overlays of the featured targets for every field size the viewer offers; `0` disables (read in `config.py`) |
 | `WEB_CONCURRENCY` | - | `1` | Must be 1 |
 | `PYTHON_VERSION` | - | `3.12.7` | Runtime version for the platform |
 
@@ -133,7 +134,7 @@ written to it at the next start.
    views resume from the cache when requested again. A measurement in progress
    is abandoned and can be requested again.
 5. Forty seconds after start, the service pushes any locally stored results the
-   database lacks and re-measures challenge targets whose results are missing,
+   database lacks and re-measures featured targets whose results are missing,
    older than seven days, or from an earlier pipeline version.
 
 ### Merging without a deploy
@@ -159,7 +160,7 @@ Do not use the phrase on a change to code, `web/`, `requirements.txt` or
 | `GET /api/health` twice | `ok: true` and the same `instance` value both times |
 | `GET /api/view?target=barnard&fov=8` | `job.status` reaches `ready`; `failed` is 0 |
 | `GET /api/frame.png?target=barnard&fov=8` | A PNG image |
-| `GET /api/measured` | `database: true`; the five challenge targets listed after a few minutes |
+| `GET /api/measured` | `database: true`; the five featured targets listed after a few minutes |
 | Open `/` | The sky map draws; a click opens a view |
 
 ### Warming the cache
@@ -170,7 +171,7 @@ After a deploy to a new disk, or when a new data release appears:
 python scripts/prewarm.py https://vanillasphere.com --fov 4,8,15 [coords.txt]
 ```
 
-This opens every challenge target (and every `ra dec` line of the optional file)
+This opens every featured target (and every `ra dec` line of the optional file)
 at each field of view, waits for the server to read all exposures, and prints
 the time taken.
 
@@ -187,7 +188,7 @@ Requirements: Python 3.12 (the production version; the tests also pass on 3.13)
 and outbound HTTPS to the archive services.
 No account, key or database is needed. The cache is created under
 `.cache/sphereblink`. Set `SPHEREX_AUTO_MEASURE=0` to prevent the automatic
-measurement of the challenge targets during development, and
+measurement of the featured targets during development, and
 `SPHEREX_FETCH_PROCS` to the number of cores available.
 
 Tests:
@@ -215,7 +216,7 @@ SPHEREX_AUTO_MEASURE=0 pytest -q
 | Progress jumps backward or differs between polls; views load several times slower than expected | More than one web process | Confirm with `/api/health` (`instance` changes); restore `--workers 1` and `WEB_CONCURRENCY=1` |
 | Views fail with 502 "data archive error" | IRSA SIA unreachable and no cached exposure list | Check the archive's status; previously opened views keep working from the cache |
 | Many exposures counted as `failed` | S3 or network errors | The job completes with the rest. Failed exposures are not cached, so they are read again the next time the view is loaded from disk (after it has left memory, or after a restart) |
-| Name search answers 503 | CDS name services unreachable | Coordinates and challenge targets still work; add a mirror in `resolve.SESAME_URLS` if an outage persists |
+| Name search answers 503 | CDS name services unreachable | Coordinates and featured targets still work; add a mirror in `resolve.SESAME_URLS` if an outage persists |
 | Overlays do not load | IRSA TAP slow or down | The viewer retries three times; untick and tick the overlay to retry |
 | `/api/measured` shows `database: false` or results with `in_database: false` | `DATABASE_URL` missing, wrong, or the role cannot write | Fix the variable; results are written at the next start |
 | Memory pressure | Frame budget too high for the plan | Lower `SPHEREX_RAM_BUDGET_MB`; views are reloaded from disk when needed |
