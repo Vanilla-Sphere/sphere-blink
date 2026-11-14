@@ -196,6 +196,8 @@ steps 3 and 4, and none of them is an object:
 - The completeness test with injected sources found the same independently in the field RA 167.13, Dec +5.17: two
   injected sources that hardly move, 11 hours apart, came out as one path of
   75.6 arcsec per hour seen at 8 of 8 times.
+  What the rule of three visits costs and what it keeps out is measured in
+  [how much the search finds](mover-completeness.md#what-the-numbers-say).
 
 All eleven are seen in exactly two visits. Hence step 8: a path that no
 catalogue has an object on must be seen in three visits, at two or more

@@ -49,7 +49,7 @@ def draw(data: dict, path: Path, level: str = "found") -> None:
         (f"{sh.get('candidates', 0)} in {sh.get('searches', 0)}", "false candidates in searches with\nthe times of the exposures shuffled"),
     ]
     for k, (big, small) in enumerate(tiles):
-        x = 0.045 + k * 0.235
+        x = 0.045 + k * 0.27
         fig.text(x, 0.80, big, fontsize=30, color=INK, weight="bold")
         fig.text(x, 0.785, small, fontsize=10.5, color=MUTED, linespacing=1.35, va="top")
 
@@ -71,7 +71,7 @@ def draw(data: dict, path: Path, level: str = "found") -> None:
     for side in ("top", "right", "left"):
         ax.spines[side].set_visible(False)
     ax.tick_params(length=0)
-    leg = ax.legend(loc="lower left", frameon=False, fontsize=10.5, labelcolor=INK2, handlelength=1.6, borderaxespad=1.0)
+    leg = ax.legend(loc="upper right", frameon=False, fontsize=10.5, labelcolor=INK2, handlelength=1.6, borderaxespad=1.0)
     for text in leg.get_texts():
         text.set_color(INK2)
     # the real objects the same search found in these fields
