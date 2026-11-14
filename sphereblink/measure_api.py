@@ -134,6 +134,10 @@ def _stale(result: dict | None) -> bool:
 def _measure_featured() -> None:
     """Keep the challenge targets measured, one after another."""
     time.sleep(float(os.environ.get("SPHEREX_AUTO_MEASURE_DELAY", "40")))
+    try:
+        measurements.sync_db()  # results measured while there was no database
+    except Exception:
+        log.exception("could not bring the measurement database up to date")
     for key in refcat.TARGETS:
         try:
             if not _stale(measurements.load_local(key)):
