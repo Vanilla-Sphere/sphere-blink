@@ -55,6 +55,10 @@ uvicorn sphereblink.main:app --port 8000
 # open http://localhost:8000/?target=barnard
 ```
 
+Run it as one web process (`--workers 1`, the default unless `WEB_CONCURRENCY`
+is set): views in progress are kept in that process, which starts its own
+worker processes for the cutting.
+
 Settings are environment variables (see `sphereblink/config.py`):
 
 | Variable | Default | Meaning |
