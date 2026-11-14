@@ -15,8 +15,8 @@
   --color-accent:oklch(72% 0.165 300); --color-accent-hover:oklch(78% 0.15 300); --color-accent-ink:oklch(12% 0.04 300);
   --color-accent-2:oklch(82% 0.10 205); --color-focus:oklch(80% 0.14 300);
   --color-nodata:oklch(17% 0.025 295); --color-measured:oklch(84% 0.16 135);
-  /* the logo keeps its own two colours whatever the accent is: an orange V holding a vanilla-cream sphere */
-  --brand-v:oklch(72% 0.17 45); --brand-sphere:oklch(95.5% 0.045 95);
+  /* the logo is a taro ice-cream cone: a waffle-gold V holding a sphere in the accent violet */
+  --brand-v:oklch(80% 0.13 80); --brand-sphere:var(--color-accent);
   /* data series: the six detectors in wavelength order, and the three colour channels */
   --d1:oklch(68% 0.15 268); --d2:oklch(76% 0.12 240); --d3:oklch(80% 0.11 195);
   --d4:oklch(82% 0.14 145); --d5:oklch(84% 0.14 90); --d6:oklch(70% 0.18 28);
