@@ -303,7 +303,7 @@ Reading the table:
 - R Draconis fades by a factor of two from June 2025 to June 2026, as expected
   for a Mira variable with a period of about 246 days.
 
-The same pipeline, started from the "Measure this object" button on positions
+The same pipeline, started from the "Measure motion and brightness" button on positions
 that are not featured targets, produced these results on the same day:
 
 | Object | Positions in the fit | Fitted proper motion | Gaia DR3 |

@@ -23,6 +23,7 @@ const S = {
   i: 0, ref: 0, playing: false, fps: 3, gain: 0,
   cube: null, meta: null, npix: 0, planes: 1, limits: null, median: null, stack: null,
   spectrum: null, plotmode: "spec", files: null, filesmode: "frame", catalogs: {}, tracks: null, loadId: 0, timer: null,
+  zoom: 1, pan: [0.5, 0.5],  // the image magnified: how much, and which point of the whole picture is in the middle
   levels: 0, field: null, stage: null,  // progressive field: rings of 0.12° cells, the server's report, the stage on screen
   ui: "simple", screen: "map",  // Simple or Advanced ("adv"), sky map or view
   t: null, featured: [], keep: null, url: "",
@@ -155,7 +156,7 @@ async function load(next, nopush) {
   $("progress").hidden = false; $("progress").classList.remove("busy"); setProgress(0, tr("load.search"));
   ovStatus(); draw();
   const t = view.target;
-  S.ra = t.ra; S.dec = t.dec; S.grid = view.grid;
+  S.ra = t.ra; S.dec = t.dec; setGrid(view.grid);
   showTarget(t);
   if (fromMap) showScreen("view");
   writeUrl(fromMap && !nopush);
@@ -248,7 +249,7 @@ async function fetchCube(id, keepIndex, seq) {
   const k = (a_hi - a_lo) / 65534;
   for (let j = 0; j < q.length; j++) cube[j] = q[j] === 0 ? NaN : Math.sinh(a_lo + (q[j] - 1) * k);
   const oldLabel = S.meta && S.meta.epochs[S.i] ? S.meta.epochs[S.i].label : null;
-  S.cube = cube; S.meta = meta; S.grid = meta.grid; S.npix = meta.grid.npix; S.planes = meta.encoding.planes || 1; S.median = null; S.stack = null;
+  S.cube = cube; S.meta = meta; setGrid(meta.grid); S.npix = meta.grid.npix; S.planes = meta.encoding.planes || 1; S.median = null; S.stack = null;
   S.limits = null;
   S.saturated = null;
   const ne = meta.epochs.length;
@@ -446,16 +447,17 @@ async function loadTracks() {
     // (a fast mover sits far from its catalogue epoch position, so compare with the fitted track where there is one)
     const here = S.t && d.sources.some((s) => { const at = s.track || s; return s.name === S.t.name || Math.hypot((at.ra - S.t.ra) * Math.cos(S.t.dec * Math.PI / 180), at.dec - S.t.dec) * 3600 < 30; });
     $("measurerow").hidden = !!here || !S.t;
-    if (!S.measuring) { $("measure").disabled = false; $("measurestatus").textContent = ""; }
+    if (!S.measuring) { $("measure").disabled = false; $("measurestatus").textContent = ""; $("measurenear").hidden = true; }
     draw(); writeUrl();
   } catch (_) {}
 }
 /* Ask the server to measure the object at the centre of this view: its position in every exposure,
    its motion and its brightness. The job takes 20 to 45 s; the card then shows what it found. */
-async function measureHere() {
+async function measureHere(at) {
   const id = S.loadId, p = paramsOf(S), q = new URLSearchParams({detections: "false"});
-  for (const k of ["target", "ra", "dec"]) if (p.get(k) !== null) q.set(k, p.get(k));
-  S.measuring = id; $("measure").disabled = true;
+  if (at) { q.set("ra", at.ra); q.set("dec", at.dec); }  // a view that is still opening: its position is not in S yet
+  else for (const k of ["target", "ra", "dec"]) if (p.get(k) !== null) q.set(k, p.get(k));
+  S.measuring = id; $("measure").disabled = true; $("measurenear").hidden = true;
   const say = (key, vars) => { if (id === S.loadId) $("measurestatus").textContent = tr(key, vars); };
   say("measure.start");
   try {
@@ -464,7 +466,26 @@ async function measureHere() {
       if (!r.ok) { let msg = r.status; try { msg = (await r.json()).detail || msg; } catch (_) {} throw new Error(msg); }
       const d = await r.json();
       if (id !== S.loadId) return;
-      if (d.status === "ready") { S.measuring = null; say(d.result && d.result.track ? "measure.done" : "measure.nothing"); await loadTracks(); if (id === S.loadId) say(d.result && d.result.track ? "measure.done" : "measure.nothing"); return; }
+      if (d.status === "ready") {
+        S.measuring = null;
+        const res = d.result || {}, near = !res.track && res.stats && res.stats.nearby_source;
+        await loadTracks();
+        if (id !== S.loadId) return;
+        if (res.track) say("measure.done");
+        else if (near && res.target) {
+          // the pipeline measures what is at the crosshair; here the light it found belongs to a source a little way off
+          const e = near.east_arcsec, n = near.north_arcsec;
+          say("measure.near", {d: near.sep_arcsec.toFixed(1), e: Math.abs(e).toFixed(1), ew: e >= 0 ? "E" : "W", n: Math.abs(n).toFixed(1), ns: n >= 0 ? "N" : "S"});
+          const ra = +(((res.target.ra + e / 3600 / Math.cos(res.target.dec * Math.PI / 180)) % 360 + 360) % 360).toFixed(5), dec = +(res.target.dec + n / 3600).toFixed(5);
+          $("measurenear").hidden = false;
+          $("measurenear").onclick = () => {
+            $("q").value = `${ra.toFixed(5)} ${dec >= 0 ? "+" : ""}${dec.toFixed(5)}`;
+            load({ra, dec, byCoords: true, target: null, ...(S.levels ? {levels: 0, fov: 8} : {})});
+            measureHere({ra, dec});
+          };
+        } else say("measure.nothing");
+        return;
+      }
       if (d.status === "error") throw new Error(d.job.error || "error");
       if (d.job.queue) { say("measure.queued", {p: d.job.queue.position, n: d.job.queue.waiting}); n--; }
       else say(d.status === "measuring" && d.job.exposures ? "measure.measuring" : "measure.searching", {n: d.job.exposures, s: Math.round(d.job.elapsed_s || 0)});
@@ -622,7 +643,8 @@ function draw() {
   }
   octx.putImageData(id, 0, 0);
   ctx.imageSmoothingEnabled = S.ui === "simple" || $("ov-smooth").checked;  // Simple shows a soft picture, Advanced the true pixels unless asked
-  ctx.drawImage(off, 0, 0, cv.width, cv.height);
+  const sw = n / S.zoom;  // the part of the picture that is on screen
+  ctx.drawImage(off, S.pan[0] * n - sw / 2, S.pan[1] * n - sw / 2, sw, sw, 0, 0, cv.width, cv.height);
   drawOverlays(ctx, cv);
   const e = S.meta.epochs[S.i];
   const what = S.mode === "stack" ? tr("hud.sum", {n: ne}) : e.label;
@@ -642,6 +664,42 @@ function draw() {
   if (S.plotmode === "lc") drawPlot();
 }
 
+/* ------------------------------------------------------------------ zoom
+   The image can be magnified up to 16 times and moved about. It is never shown smaller than whole:
+   zoom 1 is the whole view. S.pan is the point of the whole picture, as fractions from its left and
+   top, that sits in the middle of the canvas. */
+const ZOOM_MAX = 16;
+const zoomIn = (x, y, cv) => [(x - S.pan[0] * cv.width) * S.zoom + cv.width / 2, (y - S.pan[1] * cv.height) * S.zoom + cv.height / 2];
+const zoomOut = (x, y, cv) => [(x - cv.width / 2) / S.zoom + S.pan[0] * cv.width, (y - cv.height / 2) / S.zoom + S.pan[1] * cv.height];
+/* at: the canvas pixel that stays where it is (the pointer); without it, the middle. pan: go there instead. */
+function setZoom(k, at, pan) {
+  const cv = $("sky"), [ax, ay] = at || [cv.width / 2, cv.height / 2], [fx, fy] = zoomOut(ax, ay, cv);
+  S.zoom = Math.max(1, Math.min(ZOOM_MAX, k));
+  const half = 0.5 / S.zoom;  // the picture always fills the canvas
+  S.pan = (pan || [(fx - (ax - cv.width / 2) / S.zoom) / cv.width, (fy - (ay - cv.height / 2) / S.zoom) / cv.height]).map((v) => Math.max(half, Math.min(1 - half, v)));
+  showZoom();
+  if (S.meta) draw();
+}
+function showZoom() {
+  const on = S.zoom > 1.001;
+  $("zoom-out").disabled = !on; $("zoom-in").disabled = S.zoom >= ZOOM_MAX;
+  $("zoom-x").hidden = !on; $("zoom-x").textContent = `${S.zoom.toFixed(S.zoom < 10 ? 1 : 0)}×`;
+  $("sky").classList.toggle("zoomed", on);
+}
+/* A new place starts whole. The same place seen wider or narrower (a progressive field that grows)
+   keeps what is on screen. */
+function setGrid(g) {
+  const old = S.grid;
+  S.grid = g;
+  if (S.zoom <= 1) return;
+  if (!old || Math.abs(old.ra - g.ra) > 1e-9 || Math.abs(old.dec - g.dec) > 1e-9) { S.zoom = 1; S.pan = [0.5, 0.5]; showZoom(); return; }
+  const r = old.fov_arcmin / g.fov_arcmin;
+  S.zoom = Math.max(1, Math.min(ZOOM_MAX, S.zoom / r));
+  const half = 0.5 / S.zoom;
+  S.pan = S.pan.map((v) => Math.max(half, Math.min(1 - half, 0.5 + (v - 0.5) * r)));
+  showZoom();
+}
+
 function yearOf(mjd) { return 2000 + (mjd - 51544.5) / 365.25; }
 function toPixel(ra, dec, cv) {
   // gnomonic projection about the field centre -> canvas pixels
@@ -649,9 +707,10 @@ function toPixel(ra, dec, cv) {
   const c = Math.sin(d0) * Math.sin(dl) + Math.cos(d0) * Math.cos(dl) * Math.cos(a - a0);
   const xi = Math.cos(dl) * Math.sin(a - a0) / c, eta = (Math.cos(d0) * Math.sin(dl) - Math.sin(d0) * Math.cos(dl) * Math.cos(a - a0)) / c;
   const s = cv.width / (S.grid.npix * S.grid.scale_arcsec / 3600 * D);
-  return [cv.width / 2 - xi * s, cv.height / 2 - eta * s];
+  return zoomIn(cv.width / 2 - xi * s, cv.height / 2 - eta * s, cv);
 }
 function toSky(px, py, cv) {
+  [px, py] = zoomOut(px, py, cv);
   const D = Math.PI / 180, s = cv.width / (S.grid.npix * S.grid.scale_arcsec / 3600 * D);
   const xi = (cv.width / 2 - px) / s, eta = (cv.height / 2 - py) / s, d0 = S.grid.dec * D;
   const den = Math.cos(d0) - eta * Math.sin(d0);
@@ -673,7 +732,7 @@ function drawOverlays(ctx, cv) {
   if (S.field && $("ov-tiles").checked) drawCells(ctx, cv, u);
   if ($("ov-cross").checked) {
     // a progressive field is centred on its seed cell; the crosshair stays on the target
-    const [cx0, cy0] = S.field ? toPixel(S.ra, S.dec, cv) : [W / 2, W / 2];
+    const [cx0, cy0] = S.field ? toPixel(S.ra, S.dec, cv) : zoomIn(W / 2, W / 2, cv);
     const k = S.field ? Math.min(1, 12.8 / S.grid.fov_arcmin) : 1, g = W * 0.035 * k, L = W * 0.05 * k;
     line(T.accent, 1.5, () => {
       ctx.moveTo(cx0 - g - L, cy0); ctx.lineTo(cx0 - g, cy0); ctx.moveTo(cx0 + g, cy0); ctx.lineTo(cx0 + g + L, cy0);
@@ -739,10 +798,10 @@ function drawOverlays(ctx, cv) {
     }
   }
   // scale bar + compass
-  const arcmin = S.grid.fov_arcmin, bar = arcmin >= 20 ? 5 : arcmin >= 10 ? 2 : 1, len = W * bar / arcmin;
+  const arcmin = S.grid.fov_arcmin / S.zoom, bar = arcmin >= 20 ? 5 : arcmin >= 10 ? 2 : arcmin >= 4 ? 1 : arcmin >= 2 ? 0.5 : arcmin >= 0.7 ? 1 / 6 : 1 / 12, len = W * bar / arcmin;
   const bx = 14 * u, by = W - 16 * u, t = 4 * u;
   line(T.ink, 1, () => { ctx.moveTo(bx, by - t); ctx.lineTo(bx, by + t); ctx.moveTo(bx, by); ctx.lineTo(bx + len, by); ctx.moveTo(bx + len, by - t); ctx.lineTo(bx + len, by + t); });
-  text(`${bar}′`, bx + len + 7 * u, by + 4 * u, T.ink);
+  text(bar >= 1 ? `${bar}′` : `${Math.round(bar * 60)}″`, bx + len + 7 * u, by + 4 * u, T.ink);
   const cx = W - 22 * u, cy = 46 * u;
   line(T.ink, 1, () => { ctx.moveTo(cx, cy); ctx.lineTo(cx, cy - 22 * u); ctx.moveTo(cx, cy); ctx.lineTo(cx - 22 * u, cy); });
   ctx.textAlign = "center"; text("N", cx, cy - 27 * u, T.ink); text("E", cx - 31 * u, cy + 4 * u, T.ink); ctx.textAlign = "left";
@@ -1184,7 +1243,7 @@ function init() {
   $("fps").addEventListener("change", (ev) => { S.fps = +ev.target.value; });
   $("gain").addEventListener("input", (ev) => { S.gain = +ev.target.value; draw(); });
   $("resetgain").addEventListener("click", () => { S.gain = 0; $("gain").value = 0; draw(); });
-  $("measure").addEventListener("click", measureHere);
+  $("measure").addEventListener("click", () => measureHere());
   $("setref").addEventListener("click", () => { S.ref = S.i; S.limits = null; $("reflabel").textContent = fmtLabel(S.meta.epochs[S.ref].label) + " UTC"; draw(); });
   for (const c of ["gaia", "catwise", "cross", "smooth", "tracks", "tiles"]) $("ov-" + c).addEventListener("change", () => { if (S.meta) { loadCatalogs(); draw(); writeUrl(); } });
   $("timeline").addEventListener("pointerdown", (ev) => { $("timeline").setPointerCapture(ev.pointerId); scrubTimeline(ev); });
@@ -1197,6 +1256,25 @@ function init() {
   const pos = (ev) => { const r = cv.getBoundingClientRect(); return [(ev.clientX - r.left) * cv.width / r.width, (ev.clientY - r.top) * cv.height / r.height]; };
   cv.addEventListener("mousemove", (ev) => { if (!S.meta) return; const [ra, dec] = toSky(...pos(ev), cv); $("cursor").classList.remove("hint"); $("cursor").textContent = `${ra.toFixed(5)}° ${dec >= 0 ? "+" : "−"}${Math.abs(dec).toFixed(5)}°` + (S.field ? ` · ${cellAt(ra, dec)}` : ""); });
   cv.addEventListener("mouseleave", hint);
+  // zoom: the wheel (or a pinch on a trackpad) about the pointer, the buttons about the middle; drag to move the magnified image
+  cv.addEventListener("wheel", (ev) => {
+    if (!S.meta || (ev.deltaY > 0 && S.zoom <= 1)) return;  // nothing to zoom out of: the page scrolls as usual
+    ev.preventDefault();
+    setZoom(S.zoom * Math.exp(-Math.max(-60, Math.min(60, ev.deltaY)) * (ev.ctrlKey ? 0.02 : 0.004)), pos(ev));
+  }, {passive: false});
+  let drag = null;
+  cv.addEventListener("pointerdown", (ev) => { if (S.zoom > 1 && ev.button === 0) { drag = {x: ev.clientX, y: ev.clientY, pan: S.pan.slice(), moved: false}; cv.setPointerCapture(ev.pointerId); } });
+  cv.addEventListener("pointermove", (ev) => {
+    if (!drag) return;
+    const r = cv.getBoundingClientRect(), dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 3) return;
+    drag.moved = true; cv.classList.add("dragging");
+    setZoom(S.zoom, null, [drag.pan[0] - dx / r.width / S.zoom, drag.pan[1] - dy / r.height / S.zoom]);
+  });
+  for (const type of ["pointerup", "pointercancel"]) cv.addEventListener(type, () => { drag = null; cv.classList.remove("dragging"); });
+  $("zoom-in").addEventListener("click", () => setZoom(S.zoom * 1.6));
+  $("zoom-out").addEventListener("click", () => setZoom(S.zoom / 1.6));
+  $("zoom-x").addEventListener("click", () => setZoom(1));
   cv.addEventListener("dblclick", (ev) => { if (!S.meta) return; const [ra, dec] = toSky(...pos(ev), cv); $("q").value = `${ra.toFixed(5)} ${dec >= 0 ? "+" : ""}${dec.toFixed(5)}`; if (S.levels) $("fov").value = 8; load({ra, dec, byCoords: true, target: null, ...(S.levels ? {levels: 0, fov: 8} : {})}); });
   for (const t of document.querySelectorAll(".tip")) wireTip(t);
   document.addEventListener("click", closeTips);
@@ -1212,6 +1290,11 @@ function init() {
     if (ev.key === " ") { ev.preventDefault(); S.playing ? stop() : play(); }
     if (ev.key === "ArrowRight") { stop(); step(1); }
     if (ev.key === "ArrowLeft") { stop(); step(-1); }
+    if (!ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      if (ev.key === "+" || ev.key === "=") setZoom(S.zoom * 1.6);
+      if (ev.key === "-") setZoom(S.zoom / 1.6);
+      if (ev.key === "0") setZoom(1);
+    }
   });
   if (S.ra !== null && !S.target && !(S.ra >= 0 && S.ra < 360 && Math.abs(S.dec) <= 90)) { S.ra = S.dec = null; showScreen("map"); searchError(tr("err.range")); }
   else if (S.target || S.ra !== null) { S.byCoords = S.ra !== null && !S.target; $("q").value = S.target || `${S.ra} ${S.dec}`; showScreen("view"); load(); }
