@@ -25,7 +25,7 @@ import httpx
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import FITSFixedWarning, WCS
-from scipy.ndimage import map_coordinates
+from scipy.ndimage import label, map_coordinates
 
 from . import config
 from .sia import Exposure
@@ -278,6 +278,11 @@ async def cut_async(
     planes = flag_planes(fhdr)
     bad = (flags & _bits(planes, config.BAD_FLAG_NAMES)) != 0
     saturated = (flags & _bits(planes, SATURATION_FLAGS)) != 0
+    if saturated.any():
+        # Only cores of bright stars: lone overflow pixels are cosmic-ray hits.
+        lab, n_lab = label(saturated)
+        sizes = np.bincount(lab.ravel(), minlength=n_lab + 1)
+        saturated = (sizes >= 4)[lab] & (lab > 0)
 
     data = sci.copy()
     data[bad | ~np.isfinite(data)] = np.nan
@@ -380,5 +385,5 @@ def _names(values: np.ndarray, planes: dict[str, int]) -> list[str]:
 
 
 def cache_key(exposure: Exposure, grid: Grid) -> str:
-    raw = f"{exposure.uid}|{exposure.collection}|{grid.key()}|v2"
+    raw = f"{exposure.uid}|{exposure.collection}|{grid.key()}|v3"
     return hashlib.sha1(raw.encode()).hexdigest()

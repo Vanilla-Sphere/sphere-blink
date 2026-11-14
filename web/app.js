@@ -4,12 +4,13 @@
 const $ = (id) => document.getElementById(id);
 const DET = {1: "0.75-1.1", 2: "1.1-1.6", 3: "1.6-2.4", 4: "2.4-3.8", 5: "3.8-4.4", 6: "4.4-5.0"};
 const DET_COLOR = {1: "#7aa2ff", 2: "#5fd0e6", 3: "#6fe3a5", 4: "#f2e36b", 5: "#ffab5e", 6: "#ff6b6b"};
+const CHANNEL_COLOR = {R: "#ff8a8a", G: "#7be8a4", B: "#8fb8ff"};
 const VISIT_COLORS = ["#7fd3ff", "#ffc857", "#ff7eb6", "#6fe3a5", "#c59bff", "#ff9d5c", "#9fb3d9", "#f2e36b"];
 
 const S = {
-  target: null, ra: null, dec: null, fov: 8, det: "all", group: "day", mode: "blink",
+  target: null, ra: null, dec: null, fov: 8, det: "rgb", group: "day", mode: "blink",
   i: 0, ref: 0, playing: false, fps: 3, gain: 0,
-  cube: null, meta: null, npix: 0, limits: null, median: null, stack: null,
+  cube: null, meta: null, npix: 0, planes: 1, limits: null, median: null, stack: null,
   spectrum: null, plotmode: "spec", catalogs: {}, loadId: 0, timer: null,
 };
 
@@ -35,7 +36,7 @@ function viewParams(extra = {}) {
 }
 function writeUrl() {
   const p = viewParams();
-  if (S.det !== "all") p.set("det", S.det);
+  if (S.det !== "rgb") p.set("det", S.det);
   if (S.group !== "day") p.set("group", S.group);
   if (S.mode !== "blink") p.set("mode", S.mode);
   if ($("ov-gaia").checked) p.set("gaia", "1");
@@ -102,7 +103,7 @@ async function fetchCube(id, keepIndex) {
   const k = (a_hi - a_lo) / 65534;
   for (let j = 0; j < q.length; j++) cube[j] = q[j] === 0 ? NaN : Math.sinh(a_lo + (q[j] - 1) * k);
   const oldLabel = S.meta && S.meta.epochs[S.i] ? S.meta.epochs[S.i].label : null;
-  S.cube = cube; S.meta = meta; S.npix = meta.grid.npix; S.median = null; S.stack = null;
+  S.cube = cube; S.meta = meta; S.npix = meta.grid.npix; S.planes = meta.encoding.planes || 1; S.median = null; S.stack = null;
   S.limits = null;
   const ne = meta.epochs.length;
   if (keepIndex && oldLabel) { const f = meta.epochs.findIndex((e) => e.label === oldLabel); S.i = f >= 0 ? f : 0; }
@@ -155,15 +156,18 @@ function setProgress(f, text) { $("bar").style.width = Math.round(100 * f) + "%"
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ------------------------------------------------------------------ image math */
-function frame(i) { const n2 = S.npix * S.npix; return S.cube.subarray(i * n2, (i + 1) * n2); }
+/* A frame is one plane (grey) or three planes R, G, B (false colour); every
+   operation below works plane by plane. */
+function frameSize() { return S.planes * S.npix * S.npix; }
+function frame(i) { const m = frameSize(); return S.cube.subarray(i * m, (i + 1) * m); }
 function nEpochs() { return S.meta ? S.meta.epochs.length : 0; }
 
 function perPixel(fn) {
-  const n2 = S.npix * S.npix, ne = nEpochs(), out = new Float32Array(n2), col = new Float32Array(ne);
-  for (let p = 0; p < n2; p++) {
-    let m = 0;
-    for (let e = 0; e < ne; e++) { const v = S.cube[e * n2 + p]; if (v === v) col[m++] = v; }
-    out[p] = m ? fn(col.subarray(0, m)) : NaN;
+  const m = frameSize(), ne = nEpochs(), out = new Float32Array(m), col = new Float32Array(ne);
+  for (let p = 0; p < m; p++) {
+    let k = 0;
+    for (let e = 0; e < ne; e++) { const v = S.cube[e * m + p]; if (v === v) col[k++] = v; }
+    out[p] = k ? fn(col.subarray(0, k)) : NaN;
   }
   return out;
 }
@@ -186,18 +190,32 @@ function current() {
 }
 function percentile(sorted, p) { return sorted.length ? sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(p * (sorted.length - 1))))] : 0; }
 function limits() {
-  const key = S.mode + "|" + (S.mode === "diffref" ? S.ref : "") ;
+  const key = S.mode + "|" + (S.mode === "diffref" ? S.ref : "");
   if (S.limits && S.limits.key === key) return S.limits;
-  // sample pixels across all epochs so every frame shares one stretch
-  const sample = [];
-  const push = (arr) => { const step = Math.max(1, Math.floor(arr.length / 20000)); for (let p = 0; p < arr.length; p += step) if (arr[p] === arr[p]) sample.push(arr[p]); };
-  if (S.mode === "blink") { const step = Math.max(1, Math.floor(S.cube.length / 120000)); for (let p = 0; p < S.cube.length; p += step) { const v = S.cube[p]; if (v === v) sample.push(v); } }
-  else if (S.mode === "stack") push(stackImage());
-  else { const keep = S.i; const ne = nEpochs(); const stepE = Math.max(1, Math.floor(ne / 12)); for (let e = 0; e < ne; e += stepE) { S.i = e; push(current()); } S.i = keep; }
-  const s = Float32Array.from(sample).sort();
-  let lo, hi;
-  if (S.mode === "diffmed" || S.mode === "diffref") { const a = Float32Array.from(sample, Math.abs).sort(); hi = percentile(a, 0.997) || 1; lo = -hi; }
-  else { lo = percentile(s, 0.02); hi = percentile(s, 0.997); if (hi <= lo) hi = lo + 1; }
+  // sample pixels of each plane across all epochs so every frame shares one stretch
+  const P = S.planes, n2 = S.npix * S.npix, ne = nEpochs();
+  const samples = Array.from({length: P}, () => []);
+  const push = (arr) => { const step = Math.max(1, Math.floor(n2 / 20000)); for (let c = 0; c < P; c++) for (let p = 0; p < n2; p += step) { const v = arr[c * n2 + p]; if (v === v) samples[c].push(v); } };
+  if (S.mode === "stack") push(stackImage());
+  else {
+    const keep = S.i, stepE = Math.max(1, Math.floor(ne / (S.mode === "blink" ? 30 : 12)));
+    for (let e = 0; e < ne; e += stepE) { S.i = e; push(current()); }
+    S.i = keep;
+  }
+  const diff = S.mode === "diffmed" || S.mode === "diffref";
+  const lo = [], hi = [];
+  for (let c = 0; c < P; c++) {
+    if (diff) { const a = Float32Array.from(samples[c], Math.abs).sort(); hi[c] = percentile(a, 0.997) || 1; lo[c] = -hi[c]; }
+    else {
+      const s = Float32Array.from(samples[c]).sort();
+      lo[c] = percentile(s, 0.02); hi[c] = percentile(s, 0.997);
+      if (P === 3) {  // colour starts 1 sigma above the sky, or noise shows as coloured speckle
+        const med = percentile(s, 0.5), mad = percentile(Float32Array.from(s, (v) => Math.abs(v - med)).sort(), 0.5);
+        lo[c] = med + 1.0 * 1.4826 * mad;
+      }
+      if (hi[c] <= lo[c]) hi[c] = lo[c] + 1;
+    }
+  }
   S.limits = {key, lo, hi};
   return S.limits;
 }
@@ -216,16 +234,37 @@ function draw() {
   const g = Math.pow(10, -S.gain / 100);
   off.width = n; off.height = n;
   const octx = off.getContext("2d"), id = octx.createImageData(n, n), d = id.data;
-  const k = 10, norm = Math.asinh(k);
+  const k = 10, norm = Math.asinh(k), n2 = n * n, color = S.planes === 3, k4 = Math.asinh(4);
   for (let y = 0; y < n; y++) {
     const src = (n - 1 - y) * n;  // row 0 is south: flip so north is up
     for (let x = 0; x < n; x++) {
-      const v = img[src + x], o = (y * n + x) * 4;
-      if (v !== v) { d[o] = 20; d[o + 1] = 26; d[o + 2] = 44; d[o + 3] = 255; continue; }
-      let c;
-      if (diff) { const t = Math.max(-1, Math.min(1, v / (hi * g))); c = 127.5 + 127.5 * Math.asinh(4 * t) / Math.asinh(4); }
-      else { const t = Math.max(0, Math.min(1, (v - lo) / ((hi - lo) * g))); c = 255 * Math.asinh(k * t) / norm; }
-      d[o] = d[o + 1] = d[o + 2] = c; d[o + 3] = 255;
+      const o = (y * n + x) * 4;
+      d[o + 3] = 255;
+      if (!color) {
+        const v = img[src + x];
+        if (v !== v) { d[o] = 20; d[o + 1] = 26; d[o + 2] = 44; continue; }
+        let c;
+        if (diff) { const t = Math.max(-1, Math.min(1, v / (hi[0] * g))); c = 127.5 + 127.5 * Math.asinh(4 * t) / k4; }
+        else { const t = Math.max(0, Math.min(1, (v - lo[0]) / ((hi[0] - lo[0]) * g))); c = 255 * Math.asinh(k * t) / norm; }
+        d[o] = d[o + 1] = d[o + 2] = c;
+        continue;
+      }
+      // colour: a channel without data takes the mean of the others
+      let sum = 0, m = 0; const t = [NaN, NaN, NaN];
+      for (let c = 0; c < 3; c++) {
+        const v = img[c * n2 + src + x];
+        if (v !== v) continue;
+        t[c] = diff ? Math.max(-1, Math.min(1, v / (hi[c] * g))) : Math.max(0, Math.min(1, (v - lo[c]) / ((hi[c] - lo[c]) * g)));
+        sum += t[c]; m++;
+      }
+      if (!m) { d[o] = 20; d[o + 1] = 26; d[o + 2] = 44; continue; }
+      const mean = sum / m;
+      for (let c = 0; c < 3; c++) if (t[c] !== t[c]) t[c] = mean;
+      if (diff) { for (let c = 0; c < 3; c++) d[o + c] = 127.5 + 127.5 * Math.asinh(4 * t[c]) / k4; continue; }
+      // brightness follows asinh of the mean; channel ratios (the colour) are kept
+      const lum = (t[0] + t[1] + t[2]) / 3, scale = lum > 1e-6 ? Math.asinh(k * lum) / norm / lum : 0;
+      const peak = Math.max(1, t[0] * scale, t[1] * scale, t[2] * scale);
+      for (let c = 0; c < 3; c++) d[o + c] = 255 * t[c] * scale / peak;
     }
   }
   octx.putImageData(id, 0, 0);
@@ -235,7 +274,8 @@ function draw() {
   const e = S.meta.epochs[S.i];
   const what = S.mode === "stack" ? `sum of ${ne} frames` : e.label;
   const modeTxt = {blink: "", diffmed: " − median", diffref: ` − ${S.meta.epochs[S.ref].label}`, stack: ""}[S.mode];
-  $("hud").innerHTML = `${what}${modeTxt}<br><small>${e.detectors.map((x) => "D" + x).join(" ")} · ${e.n_exposures} exposure${e.n_exposures > 1 ? "s" : ""}${e.wave_um ? ` · ${e.wave_um[0]}–${e.wave_um[1]} µm` : ""}</small>`;
+  const chans = e.channels ? e.channels.filter((c) => c.detector).map((c) => `<span style="color:${CHANNEL_COLOR[c.color]}">${c.color}</span> D${c.detector}${c.borrowed ? "*" : ""}`).join(" ") : e.detectors.map((x) => "D" + x).join(" ");
+  $("hud").innerHTML = `${what}${modeTxt}<br><small>${chans} · ${e.n_exposures} exposure${e.n_exposures > 1 ? "s" : ""}${e.wave_um ? ` · ${e.wave_um[0]}–${e.wave_um[1]} µm` : ""}</small>`;
   showEpoch(e);
   for (const el of document.querySelectorAll("#timeline i")) el.classList.toggle("cur", +el.dataset.i === S.i);
   if (S.plotmode === "lc") drawPlot();
@@ -335,6 +375,7 @@ function showEpoch(e) {
   $("einfo").innerHTML =
     `<dt>Date (UTC)</dt><dd>${e.label}</dd><dt>MJD</dt><dd>${e.mjd.toFixed(3)}</dd>` +
     `<dt>Detectors</dt><dd>${e.detectors.map((d) => `D${d} (${DET[d]} µm)`).join(", ")}</dd>` +
+    (e.channels ? `<dt>Colours</dt><dd>${e.channels.map((c) => c.detector ? `<span style="color:${CHANNEL_COLOR[c.color]}">${c.color}</span> = D${c.detector}${c.borrowed ? ` (from ${c.date})` : ""}` : `${c.color} = no data`).join("<br>")}</dd>` : "") +
     `<dt>Exposures</dt><dd>${e.n_exposures}</dd><dt>Coverage</dt><dd>${Math.round(e.coverage * 100)}% of field</dd>` +
     `<dt>Flags at target</dt><dd>${fl}</dd>`;
 }
@@ -411,14 +452,15 @@ function seg(id, key, after) {
 function buildDets() {
   const el = $("dets"); el.innerHTML = "";
   const mk = (v, label, title) => { const b = document.createElement("button"); b.className = "chip"; b.dataset.v = v; b.textContent = label; b.title = title; el.appendChild(b); };
-  mk("all", "all", "All six detectors, 0.75-5.0 µm");
+  mk("rgb", "RGB", "False colour: red = D6 (or D5), green = D4 (or D3), blue = D2 (or D1). A channel not observed on a date is borrowed from the nearest date and marked.");
+  mk("all", "all", "All six detectors averaged, 0.75-5.0 µm");
   for (let d = 1; d <= 6; d++) mk(String(d), "D" + d, DET[d] + " µm");
-  const sync = () => { const on = S.det === "all" ? ["all"] : S.det.split(","); for (const b of el.children) b.classList.toggle("on", on.includes(b.dataset.v)); };
+  const sync = () => { const on = S.det.split(","); for (const b of el.children) b.classList.toggle("on", on.includes(b.dataset.v)); };
   el.addEventListener("click", (ev) => {
     const b = ev.target.closest("button"); if (!b) return;
-    if (b.dataset.v === "all") S.det = "all";
+    if (b.dataset.v === "all" || b.dataset.v === "rgb") S.det = b.dataset.v;
     else {
-      let cur = S.det === "all" ? [] : S.det.split(",");
+      let cur = S.det === "all" || S.det === "rgb" ? [] : S.det.split(",");
       cur = cur.includes(b.dataset.v) ? cur.filter((x) => x !== b.dataset.v) : cur.concat(b.dataset.v);
       S.det = cur.length && cur.length < 6 ? cur.sort().join(",") : "all";
     }

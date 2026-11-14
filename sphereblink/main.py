@@ -62,10 +62,15 @@ def _dets(det: str) -> list[int] | None:
     try:
         ds = sorted({int(x.strip().lstrip("Dd")) for x in det.split(",") if x.strip()})
     except ValueError as exc:
-        raise HTTPException(400, "det must be 'all' or a list like 1,2,6") from exc
+        raise HTTPException(400, "det must be 'rgb', 'all' or a list like 1,2,6") from exc
     if not ds or any(d < 1 or d > 6 for d in ds):
         raise HTTPException(400, "detectors are 1..6")
     return ds
+
+
+def _band(det: str, band: str | None) -> str:
+    """``band=RGB|D1..D6`` is accepted as another spelling of ``det``."""
+    return band if band else det
 
 
 def _view(target, ra, dec, fov) -> tuple[Target, Grid]:
@@ -89,7 +94,10 @@ def _frames(grid: Grid, wait: float, partial: bool = False):
 def _epochs(frames, det, group, diff=False):
     if group not in ("exposure", "day", "visit"):
         raise HTTPException(400, "group must be exposure, day or visit")
-    eps = render.build_epochs(frames, _dets(det), group)
+    if det.strip().lower() == "rgb":
+        eps = render.build_color_epochs(frames, group)
+    else:
+        eps = render.build_epochs(frames, _dets(det), group)
     if diff:
         eps = render.difference(eps)
     return eps
@@ -100,6 +108,8 @@ def _pending(job):
 
 
 FOV = Query(8.0, gt=0, le=config.MAX_FOV_ARCMIN, description="field of view, arcmin")
+DET = Query("rgb", description="'rgb' (false colour: R=D6/D5, G=D4/D3, B=D2/D1), 'all', or detectors like 1,2,6")
+BAND = Query(None, description="same as det, spelled RGB or D1..D6")
 
 
 # --------------------------------------------------------------------------- API
@@ -140,8 +150,9 @@ def api_cube(
     ra: float | None = None,
     dec: float | None = None,
     fov: float = FOV,
-    det: str = "all",
+    det: str = DET,
     group: str = "day",
+    band: str | None = BAND,
 ):
     """All epochs of a view in one binary blob for the interactive viewer.
 
@@ -151,8 +162,8 @@ def api_cube(
     """
     t, grid = _view(target, ra, dec, fov)
     frames, job = _frames(grid, 0, partial=True)
-    eps = _epochs(frames, det, group)
-    if len(eps) * grid.npix**2 > CUBE_BUDGET:
+    eps = _epochs(frames, _band(det, band), group)
+    if eps and len(eps) * eps[0].planes * grid.npix**2 > CUBE_BUDGET:
         raise HTTPException(413, "too many pixels: reduce the field of view, group by day/visit, or pick one detector")
     blob, enc = render.encode_cube(eps)
     meta = {
@@ -171,56 +182,55 @@ def api_cube(
 @app.get("/api/epochs")
 def api_epochs(
     target: str | None = None, ra: float | None = None, dec: float | None = None, fov: float = FOV,
-    det: str = "all", group: str = "day", wait: float = Query(0.0, ge=0, le=60),
+    det: str = DET, group: str = "day", wait: float = Query(0.0, ge=0, le=60), band: str | None = BAND,
 ):
     t, grid = _view(target, ra, dec, fov)
     frames, job = _frames(grid, wait)
     if frames is None:
         return _pending(job)
-    eps = _epochs(frames, det, group)
+    eps = _epochs(frames, _band(det, band), group)
     return {"target": t.to_dict(), "grid": grid.to_dict(), "job": job.public(), "epochs": [e.meta() for e in eps]}
 
 
 @app.get("/api/frame.png")
 def api_frame(
     target: str | None = None, ra: float | None = None, dec: float | None = None, fov: float = FOV,
-    det: str = "all", group: str = "day", diff: bool = False, i: int = -1,
-    size: int = Query(480, ge=128, le=1024), wait: float = Query(55.0, ge=0, le=120),
+    det: str = DET, group: str = "day", diff: bool = False, i: int = -1,
+    size: int = Query(480, ge=128, le=1024), wait: float = Query(55.0, ge=0, le=120), band: str | None = BAND,
 ):
     """One epoch as a PNG (i = epoch index, negative counts from the end)."""
     t, grid = _view(target, ra, dec, fov)
     frames, job = _frames(grid, wait)
     if frames is None:
         return _pending(job)
-    eps = _epochs(frames, det, group, diff)
+    eps = _epochs(frames, _band(det, band), group, diff)
     if not eps:
         raise HTTPException(404, "no SPHEREx data at this position")
     i = max(0, min(i, len(eps) - 1)) if i >= 0 else max(0, len(eps) + i)
-    lo, hi = render.shared_limits(eps, diff)
-    im = render.frame_image(eps[i], lo, hi, size=size, diff=diff, title=t.name)
+    im = render.frame_image(eps[i], render.shared_limits(eps, diff), size=size, diff=diff, title=t.name)
     return Response(render.png_bytes(im), media_type="image/png", headers={"Cache-Control": "public, max-age=3600"})
 
 
 @app.get("/api/movie.gif")
 def api_movie(
     target: str | None = None, ra: float | None = None, dec: float | None = None, fov: float = FOV,
-    det: str = "all", group: str = "day", diff: bool = False,
+    det: str = DET, group: str = "day", diff: bool = False,
     fps: float = Query(2.0, gt=0, le=10), size: int = Query(360, ge=128, le=720),
-    max_frames: int = Query(60, ge=2, le=200), wait: float = Query(55.0, ge=0, le=120),
+    max_frames: int = Query(60, ge=2, le=200), wait: float = Query(55.0, ge=0, le=120), band: str | None = BAND,
 ):
     """The whole time series as an animated GIF, embeddable anywhere."""
     t, grid = _view(target, ra, dec, fov)
     frames, job = _frames(grid, wait)
     if frames is None:
         return _pending(job)
-    eps = _epochs(frames, det, group, diff)
+    eps = _epochs(frames, _band(det, band), group, diff)
     if not eps:
         raise HTTPException(404, "no SPHEREx data at this position")
-    lo, hi = render.shared_limits(eps, diff)
+    limits = render.shared_limits(eps, diff)
     if len(eps) > max_frames:
         idx = sorted(set(np.linspace(0, len(eps) - 1, max_frames).round().astype(int)))
         eps = [eps[k] for k in idx]
-    ims = [render.frame_image(e, lo, hi, size=size, diff=diff, title=t.name) for e in eps]
+    ims = [render.frame_image(e, limits, size=size, diff=diff, title=t.name) for e in eps]
     return Response(render.gif_bytes(ims, fps), media_type="image/gif", headers={"Cache-Control": "public, max-age=3600"})
 
 

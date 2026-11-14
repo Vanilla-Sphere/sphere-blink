@@ -127,8 +127,44 @@ def test_cube_roundtrip():
 
 def test_png_and_gif_render():
     eps = render.build_epochs([frame(60900.1), frame(60901.1)], None, "day")
-    lo, hi = render.shared_limits(eps)
-    ims = [render.frame_image(e, lo, hi, size=128, title="t") for e in eps]
+    ims = [render.frame_image(e, render.shared_limits(eps), size=128, title="t") for e in eps]
     assert render.png_bytes(ims[0])[:8] == b"\x89PNG\r\n\x1a\n"
     assert render.gif_bytes(ims)[:6] == b"GIF89a"
     assert struct.calcsize("<I") == 4
+
+
+def test_color_epochs_borrow_missing_channels_and_say_so():
+    # day 1 has red (D6) and green (D3, the fallback); blue (D2) only exists on day 2
+    frames = [frame(60900.1, 6, seed=1), frame(60900.2, 3, seed=2), frame(60901.1, 2, seed=3), frame(60901.2, 6, seed=4)]
+    eps = render.build_color_epochs(frames, "day")
+    assert [e.image.shape for e in eps] == [(3, 21, 21)] * 2
+    first = {c["color"]: c for c in eps[0].channels}
+    assert (first["R"]["detector"], first["R"]["borrowed"]) == (6, False)
+    assert (first["G"]["detector"], first["G"]["borrowed"]) == (3, False)
+    assert (first["B"]["detector"], first["B"]["borrowed"]) == (2, True)
+    assert first["B"]["date"] != first["R"]["date"]
+    second = {c["color"]: c for c in eps[1].channels}
+    assert (second["G"]["detector"], second["G"]["borrowed"]) == (3, True)
+    assert eps[0].meta()["channels"][2]["borrowed"] is True
+
+    blob, enc = render.encode_cube(eps)
+    assert enc["planes"] == 3 and len(blob) == 2 * 3 * 21 * 21 * 2
+    ims = [render.frame_image(e, render.shared_limits(eps), size=128) for e in eps]
+    assert ims[0].mode == "RGB" and render.gif_bytes(ims)[:6] == b"GIF89a"
+    diff = render.difference(eps)
+    assert diff[0].channels == eps[0].channels and diff[0].image.shape == (3, 21, 21)
+
+
+def test_color_keeps_a_grey_star_grey_whichever_detector_feeds_a_channel():
+    def star(mjd, det, noise, seed):
+        f = frame(mjd, det, seed=seed)
+        rng = np.random.default_rng(seed)
+        f.image[:] = rng.normal(0, noise, f.image.shape)
+        f.image[10, 10] += 400 * noise  # same star, detectors with very different noise
+        return f
+
+    frames = [star(60900.1, 6, 1.0, 1), star(60900.2, 4, 5.0, 2), star(60900.3, 2, 0.2, 3)]
+    e = render.build_color_epochs(frames, "day")[0]
+    rgb = render.to_rgb8(e.image, render.shared_limits([e]))
+    r, g, b = (int(v) for v in rgb[::-1][10, 10])
+    assert max(r, g, b) - min(r, g, b) <= 3 and min(r, g, b) > 200
