@@ -517,6 +517,17 @@ In the viewer (Advanced, `web/movers.js`):
   the frame on screen. Selecting a row opens the object: the movie goes to the
   frame nearest to it, its detections are drawn, and the address gains
   `mover=<id>`, so the link opens the same object.
+- **To the frame it was seen in**: the open object lists every exposure that
+  looked at its path, in the order of time: date and time (UTC), detector,
+  wavelength, the signal to noise of the object there (or "not seen"), and a
+  link to the exposure's Level 2 file at IRSA. Selecting an exposure opens
+  the object's place as a view of its own at full detail (8 arcmin, centred
+  on where the object was in that exposure), with one frame per exposure and
+  only the band that exposure was taken in, and goes to that frame. A wide
+  field is shown at overview resolution, where a faint object is lost; this
+  view is not. The object stays in its card with the other exposures and a
+  "Back to the field" button, the ring and the path stay on the image, and
+  the address gains `seen=<exposure>`, so the link opens that very frame.
 - **Votes**: "Real motion" and "False alarm". One vote per browser; choosing
   the same button again takes it back.
 - **Follow**: kept in this browser only (`localStorage`), marked with a star.

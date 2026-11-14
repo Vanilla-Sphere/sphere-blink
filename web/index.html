@@ -11,18 +11,18 @@
 <meta property="og:title" content="Vanilla Sphere - watch the infrared sky change">
 <meta property="og:description" content="Pick any spot on the sky map and watch NASA SPHEREx images of it play as a movie.">
 <meta property="og:url" content="https://vanillasphere.com/">
-<meta property="og:image" content="https://vanillasphere.com/static/og.png?v=37">
+<meta property="og:image" content="https://vanillasphere.com/static/og.png?v=38">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Vanilla Sphere - watch the infrared sky change">
 <meta name="twitter:description" content="Pick any spot on the sky map and watch NASA SPHEREx images of it play as a movie.">
-<meta name="twitter:image" content="https://vanillasphere.com/static/og.png?v=37">
-<link rel="icon" href="/static/favicon.svg?v=37" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=37">
+<meta name="twitter:image" content="https://vanillasphere.com/static/og.png?v=38">
+<link rel="icon" href="/static/favicon.svg?v=38" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=38">
 <link rel="preload" href="/static/fonts/HankenGrotesk.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/GeistMono.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/static/style.css?v=37">
+<link rel="stylesheet" href="/static/style.css?v=38">
 </head>
 <body>
 <header class="bar">
@@ -207,6 +207,7 @@
     <section class="panel adv" id="movercard" hidden>
       <div class="headtip"><h2>Moving objects</h2><div class="tip"><button type="button" class="tipbtn" aria-label="How moving objects are found" aria-describedby="tip-movers"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-movers"><p>When a wide field has finished loading, the server searches its exposures for anything that moves, with no catalogue to guide it: sources that appear in single exposures are linked into straight paths, and each path is then checked in the pixels of every exposure along it.</p><p>What is found is compared with the known asteroids and comets (SkyBoT, JPL). An object that is not listed is a candidate, not a discovery: say whether its motion looks real.</p></div></div></div>
       <p class="muted note" id="moverstatus" role="status"></p>
+      <button type="button" class="btn quiet" id="moverback" data-hint="mover.back.t" hidden>Back to the field</button>
       <ul id="moverlist" class="movers" hidden></ul>
       <p class="links"><button type="button" class="linkbtn" id="moverlog" data-hint="tip.discoveries">All discoveries</button></p>
     </section>
@@ -299,16 +300,16 @@
   </div>
 </div>
 
-<script src="/static/i18n.js?v=37"></script>
-<script src="/static/lore.js?v=37"></script>
-<script src="/static/hints.js?v=37"></script>
-<script src="/static/atlas.js?v=37"></script>
-<script src="/static/starmap.js?v=37"></script>
-<script src="/static/ambient.js?v=37"></script>
-<script src="/static/overtime.js?v=37"></script>
-<script src="/static/exports.js?v=37"></script>
-<script src="/static/movers.js?v=37"></script>
-<script src="/static/app.js?v=37"></script>
+<script src="/static/i18n.js?v=38"></script>
+<script src="/static/lore.js?v=38"></script>
+<script src="/static/hints.js?v=38"></script>
+<script src="/static/atlas.js?v=38"></script>
+<script src="/static/starmap.js?v=38"></script>
+<script src="/static/ambient.js?v=38"></script>
+<script src="/static/overtime.js?v=38"></script>
+<script src="/static/exports.js?v=38"></script>
+<script src="/static/movers.js?v=38"></script>
+<script src="/static/app.js?v=38"></script>
 <p id="netnote" class="netnote" role="status" hidden>Updating the site, back in a moment…</p>
 </body>
 </html>
