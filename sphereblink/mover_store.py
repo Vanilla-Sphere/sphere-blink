@@ -20,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import sqlite3
 import threading
 import time
@@ -29,7 +30,8 @@ from .movers import Detection, Track
 
 _local = threading.local()
 VOTES = ("real", "false")
-MAX_VOTERS_PER_ADDRESS = 3  # browsers behind one address that may judge the same object
+# browsers behind one address that may judge the same object: room for a team or a class on one network, not for a script
+MAX_VOTERS_PER_ADDRESS = int(os.environ.get("SPHEREX_MAX_VOTERS_PER_ADDRESS", "8"))
 
 _SCHEMA = """
 PRAGMA journal_mode=WAL;

@@ -163,8 +163,9 @@ it with the vote.
 
 - One vote per browser id and object; a new vote replaces the old one, `null`
   takes it back.
-- At most 3 browser ids behind one network address may vote on the same
-  object. The address is stored as a salted hash only; the salt is a random
+- At most 8 browser ids behind one network address may vote on the same
+  object (`SPHEREX_MAX_VOTERS_PER_ADDRESS`): room for a team or a class on
+  one network, not for a script. The address is stored as a salted hash only; the salt is a random
   file in the cache directory.
 - At most 20 votes per minute per caller (`SPHEREX_RATE_VOTES_PER_MIN`).
 - From 3 votes on, the log gives a verdict: `real` when real votes are at

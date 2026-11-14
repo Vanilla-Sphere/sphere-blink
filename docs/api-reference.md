@@ -809,7 +809,7 @@ makes up once and keeps. One vote per id and object; another vote replaces it,
 | --- | --- |
 | 400 | `voter` or `vote` malformed |
 | 404 | No such object |
-| 429 | More than 20 votes a minute from one caller, or more than 3 browser ids behind one address voting on the same object |
+| 429 | More than 20 votes a minute from one caller, or more than 8 browser ids behind one address voting on the same object |
 
 ## Examples
 

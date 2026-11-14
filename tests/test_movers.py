@@ -155,7 +155,8 @@ def test_an_object_keeps_its_id_and_grows_when_a_neighbouring_field_finds_more_o
     assert [m["id"] for m in listed] == ids and "detections" not in listed[0]
 
 
-def test_one_voice_per_browser_and_a_few_per_address(store):
+def test_one_voice_per_browser_and_a_few_per_address(store, monkeypatch):
+    monkeypatch.setattr(store, "MAX_VOTERS_PER_ADDRESS", 3)
     (mid,) = store.save_field("fieldA", 150.0, 10.0, 50.4, 100, found())
     assert store.vote(mid, "browser-0000000001", "real", "addr1") == {"real": 1, "false": 0, "verdict": None}
     assert store.vote(mid, "browser-0000000001", "false", "addr1") == {"real": 0, "false": 1, "verdict": None}  # changed, not added

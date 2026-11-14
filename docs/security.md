@@ -39,7 +39,7 @@ never limited. The code is `sphereblink/guard.py`.
 | Catalogue and archive queries that go out | 60 per minute | `SPHEREX_RATE_CATALOGS_PER_MIN` | 429 |
 | New measurements | 6 at once, then 30 per hour | `SPHEREX_RATE_MEASURES_BURST`, `SPHEREX_RATE_MEASURES_PER_HOUR` | 429 |
 | Measurements waiting or running | 12 in total | `SPHEREX_MAX_MEASURE_QUEUE` | 503 |
-| Votes on moving objects | 20 per minute per caller; 3 browser ids per address and object | `SPHEREX_RATE_VOTES_PER_MIN` | 429 |
+| Votes on moving objects | 20 per minute per caller; 8 browser ids per address and object | `SPHEREX_RATE_VOTES_PER_MIN`, `SPHEREX_MAX_VOTERS_PER_ADDRESS` | 429 |
 
 The numbers are far above what a person needs, and above what a classroom
 behind one address needs; they exist to stop a script. Only work that really
