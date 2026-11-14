@@ -108,7 +108,7 @@ async function api(url, alive) {
       let r = null, wait = 3000;
       try { r = await fetch(url); } catch (_) {}
       const own = r && /json|octet-stream|image\//.test(r.headers.get("content-type") || "");
-      if (r && r.status === 429) wait = Math.min(30, Math.max(1, parseFloat(r.headers.get("Retry-After")) || 3)) * 1000;
+      if (r && (r.status === 429 || (r.status === 503 && r.headers.get("Retry-After")))) wait = Math.min(30, Math.max(1, parseFloat(r.headers.get("Retry-After")) || 3)) * 1000;  // asked to wait: too many requests, or the server is full
       else if (r && (own || ![502, 503, 504].includes(r.status))) return r;
       if (Date.now() - t0 + wait > 75000 || (alive && !alive())) throw new Error(tr("err.net"));
       if (!waited) { waited = true; netWaiting++; $("netnote").hidden = false; }
@@ -290,7 +290,7 @@ function ovStatus() {
   }
   $("ovstatus").textContent = parts.join(" "); $("ovstatus").hidden = !parts.length;
 }
-/* A large and significant proper motion earns a catalogue source its orange mark. Around a saturated
+/* A large and significant proper motion earns a catalogue source its accent mark. Around a saturated
    star CatWISE lists dozens of false movers packed together (the star's halo, found at another place
    in each year's images). A real fast mover stands alone, so a candidate with three or more others
    within 60″ is not marked; and nothing moves faster than Barnard's Star (10.4″/yr). */

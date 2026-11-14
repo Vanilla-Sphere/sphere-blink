@@ -17,7 +17,7 @@ as static files.
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
 Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `starmap.js`, `app.js`.
-Asset URLs carry a version query (`?v=18`) that is raised when a file changes,
+Asset URLs carry a version query (`?v=20`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -234,17 +234,18 @@ references).
 
 | Token group | Definition |
 | --- | --- |
-| Surfaces | Warm black "paper" in three steps (`--color-paper`, `-2`, `-3`) and a lift tone |
+| Surfaces | Near-black "paper" with a violet cast in three steps (`--color-paper`, `-2`, `-3`) and a lift tone |
 | Text | Warm off-white "ink" in two steps and two muted steps |
 | Rules | Hairlines in two strengths; zero corner radius throughout |
-| Signal | Orange `oklch(72% 0.17 45)` for actions and current state only; sky blue as the second accent |
+| Signal | Nebula violet `oklch(72% 0.165 300)` for actions and current state only; pale cyan as the second accent |
+| Logo | Its own two colours, independent of the accent: an orange V (`--brand-v`) holding a vanilla-cream sphere (`--brand-sphere`) |
 | Data series | Six detector colours in wavelength order (`--d1` ... `--d6`), three channel colours, one colour for measured tracks, one for "no data" |
 | Type | Hanken Grotesk for interface text; Geist Mono with tabular figures for every measured value |
 | Motion | One easing curve, 140 ms; disabled under `prefers-reduced-motion` |
 
 Rules applied throughout:
 
-- Orange marks what can be acted on or what is current, nothing else.
+- Violet marks what can be acted on or what is current, nothing else.
 - Every measurement is set in the monospaced face; every time is labelled UTC.
 - Pixels without data have their own colour so they are never mistaken for sky.
 - Colours are defined in OKLCH and referenced only through custom properties.
