@@ -34,7 +34,8 @@ viewer, code structure, data sources, performance and deployment.
   subtract a chosen reference epoch, or add everything together.
 - **Spectrum on the fly.** Each exposure sees the target through a different
   slice of the linear variable filter, so the exposures together give a
-  0.75-5.0 um spectrum, plus a light curve per detector.
+  0.75-5.0 um spectrum, plus the flux over time with a line saying whether
+  the object changed between visits.
 - **Bright stars too.** A star brighter than about K = 9 saturates the
   detector core and an aperture on it reads 2-5 times low. Those points are
   measured from the star's halo instead, with a calibration fitted to 81

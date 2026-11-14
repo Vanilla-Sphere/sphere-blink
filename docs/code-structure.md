@@ -134,6 +134,7 @@ stubbed HTTP clients, need no network, and finish in about three seconds.
 | `tests/test_offline.py` | 29 | Coordinate parsing; proper-motion propagation of the featured targets; grid geometry; FITS header scanning; aperture photometry; sky plane; epoch grouping; median difference; cube round trip; PNG and GIF rendering; colour borrowing and white balance; disk and memory eviction; cell grid and stages; exactness of the coarse-lattice pixel mapping; binning; half-precision storage; SIA CSV parsing; wing photometry |
 | `tests/test_atlas.py` | 10 | The sky photograph kept on disk: one fetch then disk; addresses outside the atlas; answers that are not pictures; shared fetches; a silent archive; eviction that spares the kept orders; filling after a start; a nearly full disk; the two endpoints, their headers and allowances; the page's two sources |
 | `tests/test_measure.py` | 18 | Parallax factors; PSF fit accuracy; neighbour handling; wing fallback; track recovery with parallax; stacks for faint movers; light curve; storage and database synchronisation; saturated stars |
+| `tests/test_overtime_js.py` | 1 | Runs `tests/overtime_cases.js` with node on `web/overtime.js`: groups of days, the cut time axis, and the comparison of visits (steady, fading, saturated star, long stay, one visit, too few points, noise only) |
 | `tests/test_resolve_names.py` | 12 | Name resolution paths: Sesame, mirrors, redirects, SIMBAD fallback, spellings, "not found" against "unavailable", no network for built-in targets |
 
 ```bash

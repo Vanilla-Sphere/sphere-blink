@@ -319,6 +319,11 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 /* ------------------------------------------------------------------ analysis */
 #plot{display:block;width:100%;height:clamp(220px,34vh,320px)}
 #plot.none{display:none}
+.verdict{margin-top:10px;padding-left:10px;border-left:2px solid var(--color-rule);font-size:12.5px;line-height:1.45;color:var(--color-ink-2);max-width:68ch;text-wrap:pretty}
+.verdict b{font-weight:600;color:var(--color-ink)}
+.verdict b::after{content:"."}
+.verdict[data-state=varies]{border-left-color:var(--color-accent-2)}
+.seg button.flag::after{content:"";display:inline-block;width:5px;height:5px;margin-left:7px;vertical-align:2px;background:var(--color-accent-2)}
 .legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:11.5px;color:var(--color-ink-2)}
 .legend .sw{vertical-align:0}
 /* what a view gives away: small download buttons under a plot or a list */

@@ -451,7 +451,8 @@ Spectrum and light curve at the centre of the view, one point per exposure.
 | `mjd`, `detector`, `uid` | When and where the point was taken |
 
 Points are sorted by wavelength. For a spectrum, plot `flux_ujy` against
-`wave_um`; for a light curve, against `mjd`, comparing points of one detector.
+`wave_um`; for the flux over time, against `mjd`, comparing points of equal
+wavelength only (each exposure is at another wavelength).
 For a complete spectrum, call with `wait=60` and check that `job.status` is `ready`.
 
 ### GET /api/catalog

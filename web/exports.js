@@ -1,5 +1,5 @@
 /* Vanilla Sphere: what a researcher takes away from a view.
-   - the points of the spectrum / light curve as a CSV table, and the plot as a PNG with the credit on it;
+   - the points of the spectrum / the plot over time as a CSV table, and the plot as a PNG with the credit on it;
    - "Source files": the SPHEREx Level 2 exposures behind the view, each with its link to the NASA/IPAC IRSA archive,
      and three ways to take the list away: a download script, the bare addresses, a table. The files themselves never
      pass through this service: every address is the archive's own.
@@ -39,7 +39,7 @@ function exportNotes(what, measured = true) {
   ];
 }
 
-/* ------------------------------------------------------------------ spectrum and light curve */
+/* ------------------------------------------------------------------ spectrum and flux over time */
 function savePlotCsv() {
   if (!S.spectrum || !S.spectrum.length) return;
   const files = new Map((S.files || []).map((f) => [f.uid, f]));
@@ -47,8 +47,8 @@ function savePlotCsv() {
     p.wave_um, p.bandwidth_um, p.flux_ujy, p.flux_err_ujy, p.mjd, utc(p.mjd), p.detector, p.method || "", (p.flags || []).join(" "), p.uid,
     files.has(p.uid) ? fileUrl(files.get(p.uid)) : "",
   ]);
-  const notes = exportNotes("spectrum and light curve at the crosshair").concat([
-    "One row per exposure. Each exposure sees the position through one slice of the variable filter, so the rows give a spectrum (by wave_um) and a light curve (by mjd).",
+  const notes = exportNotes("spectrum and flux over time at the crosshair").concat([
+    "One row per exposure. Each exposure sees the position through one slice of the variable filter, so the rows give a spectrum (by wave_um) and the flux over time (by mjd). Fluxes of different dates are at different wavelengths: compare them only at equal wave_um.",
     "Units: wave_um and bandwidth_um in micrometres, flux_ujy and flux_err_ujy in microjansky, mjd in days (UTC).",
     "method: aperture = aperture photometry; wings = saturated core, flux from the halo around it (20 to 25% systematic error).",
     "flags: SPHEREx pixel flags inside the aperture, plus EXTRAPOLATED for a flux above the calibrated range. An empty flux means no clean measurement.",
@@ -60,7 +60,7 @@ function savePlotCsv() {
 /* The plot as a picture: drawn again at twice the size on its own canvas, with a title, the key and the credit. */
 function savePlotPng() {
   if (!S.spectrum) return;
-  const lc = S.plotmode === "lc", W = 820, H = 400, pad = 24, head = 62, foot = 86, k = 2;
+  const lc = S.plotmode === "lc", W = 820, H = 400, pad = 24, head = 62, foot = lc ? 108 : 86, k = 2;
   const cv = document.createElement("canvas"); cv.width = (W + 2 * pad) * k; cv.height = (head + H + foot) * k;
   const ctx = cv.getContext("2d"); ctx.scale(k, k);
   ctx.fillStyle = T.paper; ctx.fillRect(0, 0, W + 2 * pad, head + H + foot);
@@ -76,6 +76,7 @@ function savePlotPng() {
   // the key, as under the plot on the page
   ctx.textAlign = "left"; ctx.font = `12px ${T.mono}`;
   let x = pad, y = head + H + 20;
+  if (key.verdict) { ctx.fillStyle = T.ink; ctx.font = `12.5px ${T.sans}`; ctx.fillText(key.verdict, pad, y); y += 22; ctx.font = `12px ${T.mono}`; }
   for (const [name, color, shape] of key.items) {
     const w = ctx.measureText(name).width + 34;
     if (x + w > W + pad) { x = pad; y += 18; }
@@ -90,7 +91,7 @@ function savePlotPng() {
   ctx.fillStyle = T.muted; ctx.font = `11.5px ${T.sans}`;
   ctx.fillText("Data: " + DATA_CREDIT, pad, head + H + foot - 26);
   ctx.fillText("Measured and drawn by Vanilla Sphere, vanillasphere.com. Not an official SPHEREx data product.", pad, head + H + foot - 10);
-  cv.toBlob((blob) => { if (blob) saveBlob(blob, `${slug($("tname").textContent || S.target)}-spherex-${lc ? "light-curve" : "spectrum"}.png`); }, "image/png");
+  cv.toBlob((blob) => { if (blob) saveBlob(blob, `${slug($("tname").textContent || S.target)}-spherex-${lc ? "flux-over-time" : "spectrum"}.png`); }, "image/png");
 }
 
 /* ------------------------------------------------------------------ source files */

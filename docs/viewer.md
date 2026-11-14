@@ -15,13 +15,14 @@ as static files.
 | `movers.js` | about 240 lines | Moving objects found by the blind search: the card of a field, the paths on the image, votes, follow, and the "Discoveries" list |
 | `exports.js` | about 230 lines | What a researcher takes away: the plot's points as CSV, the plot as PNG with the credit, the "Source files" panel listing the Level 2 exposures with their IRSA links, its download script, URL list and table, and the "About the data" page |
 | `i18n.js` | 107 lines | Text that scripts put on the page (`STR.en`) and the `tr()` formatter |
+| `overtime.js` | about 130 lines | The Over time plot without the page: the time axis cut into groups of days, and the comparison of visits that says whether the object changed. Tested with node (`tests/overtime_cases.js`) |
 | `hints.js` | 74 lines | One-line notes on controls, shown on hover and keyboard focus |
 | `lore.js` | 130 lines | What the sky map says about each of the 88 constellations and 31 famous stars under the pointer (`LORE`) |
 | `data/sky.json` | - | Compact star chart: stars, names, constellations, Milky Way, boundary grid |
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
-Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `exports.js`, `movers.js`, `app.js`.
-Asset URLs carry a version query (`?v=36`) that is raised when a file changes,
+Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `app.js`.
+Asset URLs carry a version query (`?v=37`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -59,7 +60,7 @@ Three columns under a fixed top bar:
 | Top bar | Brand, "Sky map" button, search box, Field menu, "Show sky", Simple/Advanced switch, API link, credits note |
 | Left rail | Featured targets; Display panel: Bands, One frame per, Image math, Contrast, Overlays |
 | Stage | Target name and coordinates; the image; progress bar; a status strip with date, channels, wavelength range, exposure count and pointer coordinates; transport; timeline |
-| Right column | Spectrum or light curve; "This frame"; "Measured in this field"; "Position of the crosshair" with cross-links; "Link or embed this view" |
+| Right column | Spectrum or flux over time; "This frame"; "Measured in this field"; "Position of the crosshair" with cross-links; "Link or embed this view" |
 
 ### Layout in Simple mode
 
@@ -199,12 +200,16 @@ tabs filter the list of `/api/movers` at 20 arcsec per hour.
 
 ### Plots
 
-`drawPlot` draws the spectrum or the light curve on a canvas without a charting
+`drawPlot` draws the spectrum or the flux over time on a canvas without a charting
 library: axes with rounded tick steps, points coloured by sky pass (spectrum) or
-by detector (light curve), hollow points for flagged apertures, diamonds for
+by detector (over time), hollow points for flagged apertures, diamonds for
 halo-measured fluxes, hollow diamonds above the calibrated range, and a legend.
 The vertical axis reads in mJy and switches to Jy when the 98th percentile of
-the fluxes exceeds 1 Jy.
+the fluxes exceeds 1 Jy. The time axis of the Over time plot is cut into the
+groups of days in which SPHEREx observed the place (`groupedAxis` in
+`overtime.js`), and `changeText`/`showChange` write the line under it that says
+whether the object changed between visits (`brightnessChange`); see
+[features](features.md#9-spectrum-and-flux-over-time).
 
 ## Sky map
 
