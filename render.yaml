@@ -3,7 +3,7 @@ services:
     name: sphere-blink
     runtime: python
     region: virginia   # next to the SPHEREx bucket in AWS us-east-1
-    plan: standard
+    plan: pro plus   # 4 CPU, 8 GB
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn sphereblink.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
@@ -19,12 +19,12 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: SPHEREX_FETCH_PROCS
-        value: "1"
-      - key: SPHEREX_RAM_BUDGET_MB
-        value: "600"
-      - key: SPHEREX_DISK_BUDGET_GB
         value: "4"
+      - key: SPHEREX_RAM_BUDGET_MB
+        value: "2500"
+      - key: SPHEREX_DISK_BUDGET_GB
+        value: "16"
     disk:
       name: cache
       mountPath: /var/data
-      sizeGB: 5
+      sizeGB: 20
