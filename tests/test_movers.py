@@ -358,6 +358,50 @@ def _waiting(store, result, key, ra):
     return store.uncompared()
 
 
+def faint(grid_ra=150.0, snr=9.0, dec=10.3):
+    """A track as ``mover_stack`` gives it: a slow path that no single frame shows."""
+    t = found(grid_ra=grid_ra)["tracks"][0]
+    dets = [replace(d, exposure=f"F{k}:D2", ra=grid_ra + k * 0.8 / 3600.0, dec=dec, mjd=61000.0 + k * 0.5, snr=2.5) for k, d in enumerate(t.detections)]
+    t = movers._track_of(dets)
+    t.extra.update(method="stack", stack_snr=snr, stack_strong=snr >= 7.5, stack_frames=120, stack_distance={"distance_au": 40.0},
+                   covered=120, seen=30, times_seen=20, times_covered=80, points=[])
+    return t
+
+
+def test_a_stacked_path_is_judged_by_its_own_level_and_added_to_the_field(store, monkeypatch):
+    """The search for faint and slow objects runs after the linker, on a field already stored. Without a name
+    its paths are shown from 7.5 sigma on; between 5 and 7.5 chance gives one in every second field."""
+    from sphereblink import mover_stack, movers_api
+
+    assert movers.strong(faint(snr=9.0).extra) and not movers.strong(faint(snr=6.0).extra)
+    assert not movers.strong({**faint(snr=6.0).extra, "visits_seen": 9, "times_seen": 20, "times_covered": 20})  # not by the linker's rule
+    tracks = [faint(snr=9.0), faint(snr=6.0, dec=10.1), faint(snr=5.6, dec=9.9), faint(snr=6.2, dec=9.7)]
+    names = {0: {"checked": True, "name": None}, 1: {"checked": True, "name": None}, 2: {"checked": True, "name": "136199 Eris"}}
+    assert movers_api._shown(tracks, names) == ["shown", "dropped", "shown", "waiting"]
+    # stored beside what the linker found, and the field remembers that this search went through it
+    (linked,) = store.save_field("fieldA", 150.0, 10.0, 50.4, 100, found())
+    assert not store.stacked("fieldA", 1) and [f["key"] for f in store.unstacked_fields(1)] == ["fieldA"]
+    assert len(store.field_tracks("fieldA")) == 1
+    ids = store.add_tracks("fieldA", [tracks[0], tracks[2], tracks[3]], {0: names[0], 1: names[2], 2: {"checked": False}}, pending={2}, stats={"version": 1, "found": 3})
+    assert len(ids) == 2 and store.count() == 3 and linked not in ids
+    assert store.stacked("fieldA", 1) and not store.stacked("fieldA", 2) and store.unstacked_fields(1) == []
+    assert store.field("fieldA")["stats"]["movers"] == [linked, *ids] and store.field("fieldA")["stats"]["stack"]["found"] == 3
+    eris = next(m for m in store.listing() if (m.get("known") or {}).get("name") == "136199 Eris")
+    assert eris["method"] == "stack" and eris["stack_snr"] == 5.6 and eris["stack_distance"]["distance_au"] == 40.0
+    assert len(store.uncompared()) == 1  # the 6.2 sigma path waits for a catalogue to answer
+    assert store.settle(store.uncompared()[0][0], {"checked": True, "by": "SkyBoT", "name": None}) == "dropped"
+    # found again from a neighbouring field: the stronger find stays whole, a stacked path is not pieced together
+    again = store.add_tracks("fieldA", [faint(snr=11.0)], {0: {"checked": True, "name": None}}, stats={"version": 1})
+    assert again == [ids[0]] and store.get(ids[0])["stack_snr"] == 11.0 and store.count() == 3
+    assert store.add_tracks("nowhere", [faint()]) == []  # a field the linker has not stored takes nothing
+    # when the search fails, the field keeps what the linker found
+    def broken(*a, **k):
+        raise MemoryError()
+
+    monkeypatch.setattr(mover_stack, "search", broken)
+    assert movers_api.stacked(None, [], Grid.from_fov(150.0, 10.0, 50.4), None, []) == ([], {"found": 0, "error": "MemoryError"})
+
+
 def test_fields_of_an_earlier_search_are_listed_for_another_search(store, monkeypatch):
     store.save_field("fieldA", 150.0, 10.0, 50.4, 100, found())
     assert store.stale_fields() == []
@@ -386,7 +430,7 @@ def test_the_catalogues_are_asked_again_and_old_fields_searched_again(store, mon
     store.save_field(grid.key(), grid.ra, grid.dec, grid.fov_arcmin, 100, found(grid_ra=200.0))
     monkeypatch.setattr(movers, "VERSION", movers.VERSION + 1)
     started = []
-    monkeypatch.setattr(movers_api, "start", lambda g, min_cached=0.0: started.append((g.key(), min_cached)) or {"status": "ready"})
+    monkeypatch.setattr(movers_api, "start", lambda g, min_cached=0.0, stack=True: started.append((g.key(), min_cached)) or {"status": "ready"})
     assert movers_api.refresh_stale(wait_s=0.0) == 1
     assert started == [(grid.key(), movers_api.REFRESH_MIN_CACHED)]  # only from frames that are still in the cache
 

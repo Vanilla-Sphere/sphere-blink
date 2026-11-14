@@ -153,6 +153,8 @@ const STR = {
     "mover.found.0": "Nothing moving found in {f} exposures.", "mover.found.1": "1 found in {f} exposures.", "mover.found.n": "{n} found in {f} exposures.",
     "mover.searching": "Searching the exposures for anything that moves…", "mover.wait": "Searched when the whole field has loaded.", "mover.error": "The search did not finish. It runs again when the field is opened next.",
     "mover.facts": "Seen at {seen} of the {of} exposure times along its path. {id}.", "mover.match": "Matches the prediction of {by} within {sep}″.", "mover.cand": "No catalogue of asteroids and comets has an object on this path: a candidate, not a confirmed discovery.",
+    "mover.stack": "Too faint for a single exposure: {f} exposures added along its path show it at {s} sigma. {id}.", "mover.stack.far": "About {d} au from the Sun ({lo} to {hi}), from how its path bends.",
+    "mover.stacking": "Still looking for faint, slow ones…",
     "mover.real": "Real motion", "mover.false": "False alarm", "mover.real.t": "The same object moves along this path from frame to frame", "mover.false.t": "Noise, a star's leftover or unrelated blips, not one moving object",
     "mover.follow": "Follow", "mover.following": "Following", "mover.follow.t": "Keep this object in your list under Discoveries (stored in this browser)",
     "mover.frames": "{n} exposures looked at its path. Select one to go to that frame.",
