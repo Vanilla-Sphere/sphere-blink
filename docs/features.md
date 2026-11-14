@@ -487,19 +487,35 @@ usable points), and the source. The full references follow the table.
 | Kind | Entries | Source |
 | --- | --- | --- |
 | Atomic lines (25: H I Lyman α, Balmer α and β, Paschen α to δ, Brackett α to δ, Pfund β to δ; He I 1.0833 and 2.0587 µm; [S III] 0.9071 and 0.9533 µm; [Fe II] 1.2570 and 1.6440 µm; [O III] 0.4960 and 0.5008 µm; Mg II, C III], C IV) | Vacuum wavelengths, Ritz values where given, to 0.01 nm | NIST Atomic Spectra Database, version 5.12 (Kramida, Ralchenko, Reader and NIST ASD Team 2024, doi:10.18434/T4W30F), read on 2026-11-14 |
-| Water vapour bands (1.38, 1.88, 2.7 µm), methane ν₃ (3.31 µm) | Band positions | HITRAN2020 (Gordon et al. 2022, JQSRT 277, 107949); the bands in M, L and T dwarfs: Cushing, Rayner and Vacca 2005, ApJ 623, 1115 |
-| Water ice (3.05 µm), carbon dioxide (4.27 µm) | Band positions | Boogert, Gerakines and Whittet 2015, ARA&A 53, 541; Gibb et al. 2004, ApJS 151, 35 |
-| PAH band (3.29 µm) | Band position | Tielens 2008, ARA&A 46, 289 |
+| Water vapour, 1.38 µm (ν₁+ν₃ and 2ν₁) and 1.88 µm (ν₂+ν₃) | Band origins 7249.817, 7201.540 and 5331.267 cm⁻¹ | Polyansky et al. 2018, MNRAS 480, 2597, Table 1 (observed values of Tennyson et al. 2013); in L and T dwarfs: Geballe et al. 2002, ApJ 564, 466 ("H₂O at 1.35–1.50 µm, 1.75–2.05 µm") |
+| Water vapour, 2.70 µm (ν₁ and ν₃) | Fundamentals 3657 and 3756 cm⁻¹ (2.734 and 2.662 µm) | Shimanouchi 1972, NSRDS-NBS 39, as given in the NIST Chemistry WebBook; the same origins in Polyansky et al. 2018 |
+| Methane, 3.31 µm (ν₃) | Fundamental 3019 cm⁻¹ | Shimanouchi 1972 (NIST Chemistry WebBook); in L and T dwarfs: Cushing, Rayner and Vacca 2005, ApJ 623, 1115 ("the ν₃ fundamental band of CH₄ at ~3.3 µm"); Yamamura, Tsuji and Tanabé 2010, ApJ 722, 682 |
+| Water ice, 3.0 µm (O–H stretch) | 3.0 µm, 3333 cm⁻¹, with a 3.05 µm component for amorphous small grains | Boogert, Gerakines and Whittet 2015, ARA&A 53, 541, Table 1; McClure et al. 2023, Nature Astronomy 7, 431, Table 1 |
+| Carbon dioxide, 4.27 µm (C–O stretch) | 4.27 µm, 2341 cm⁻¹ in ice; "at 4.2 µm" as a gas in brown dwarfs | Boogert et al. 2015, Table 1; McClure et al. 2023, Table 1; Yamamura et al. 2010 |
+| PAH band, 3.29 µm (aromatic C–H stretch) | Peak at about 3.290 µm in most sources | van Diedenhoven et al. 2004, ApJ 611, 928; assignment: Draine and Li 2007, ApJ 657, 810, Table 1 |
 
-The atomic wavelengths were read from the NIST database on the date given
-and the hydrogen lines are checked in the tests against the Rydberg formula
-(they agree to 0.002 %). A band seen at a resolving power of 40 has no single
-wavelength: the catalogue gives the position the literature quotes to
-0.01 µm, and the windows in which the band and its continuum are measured,
-which are ours. The bibliographic details of the five papers were checked
-against Crossref on 2026-11-14. The air wavelengths familiar from optical
-spectra (H α 6563 Å, [O III] 5007 Å) are not used: SPHEREx wavelengths are
-in vacuum (H α 0.65646 µm, [O III] 0.50082 µm).
+The atomic wavelengths were read from the NIST database on 2026-11-14 and
+the hydrogen lines are checked in the tests against the Rydberg formula
+(they agree to 0.002 %). Every band position was read in its source on the
+same day, in the table or sentence named above, and the tests check that
+each wavelength is the one of the wavenumbers read. A band seen at a
+resolving power of 40 has no single wavelength: the catalogue gives the
+position its source prints, and the windows in which the band and its
+continuum are measured, which are ours (the water-ice window is centred at
+3.05 µm, the amorphous component). The bibliographic details of the eight
+papers were checked against Crossref, and those of Shimanouchi's tables
+against their title page.
+
+Sources named in the first version of this catalogue and withdrawn: the
+HITRAN2020 paper (Gordon et al. 2022) describes the database and prints no
+band centres, so it cannot be cited for them; Gibb et al. 2004 and Tielens
+2008 could not be read from here, so nothing rests on them. The gas-phase
+position of the carbon dioxide band (2349 cm⁻¹, 4.26 µm) was not found in a
+primary source that could be read and is no longer quoted.
+
+The air wavelengths familiar from optical spectra (H α 6563 Å, [O III]
+5007 Å) are not used: SPHEREx wavelengths are in vacuum (H α 0.65646 µm,
+[O III] 0.50082 µm).
 
 In Simple mode one plain sentence of the reading is shown beside the
 pictures ("What its light says"), and only when the reading names something

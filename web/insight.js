@@ -475,14 +475,14 @@ const Insight = (() => {
 
     /* what was looked for, where, and on whose authority */
     const featOf = (key) => out.features.find((x) => x.key === key);
-    const row = (e, kind, obs, status, m, mate) => out.tested.push({key: e.key, label: e.label, species: e.species, transition: e.transition, kind, rest_um: e.w, wave_um: obs, broad: kind === "band" || !!e.band, source: srcOf(e), status,
+    const row = (e, kind, obs, status, m, mate) => out.tested.push({key: e.key, label: e.label, species: e.species, transition: e.transition, kind, rest_um: e.w, wave_um: obs, broad: kind === "band" || !!e.band, source: srcOf(e), where: e.where || null, status,
       strength: m ? (kind === "band" ? m.depth : m.ratio - 1) : null, snr: m ? m.snr : null, with: mate ? mate.label : null});
     if (!far) for (const e of CAT.bands) { const m = bandOf[e.key], f = featOf(e.key); row(e, "band", e.at, !m ? "unmeasured" : f ? (f.tentative ? "possible" : "detected") : "absent", m); }
     for (const c of cand) { const f = c.status === "detected" && featOf(c.e.key); row(c.e, "line", c.obs, f && f.tentative ? "possible" : c.status, c.m, c.mate); }
     out.tested.sort((a, b) => a.wave_um - b.wave_um);
-    const used = new Set(out.tested.map((t) => t.source));
-    if (!far) for (const e of CAT.bands) used.add(CAT.sources[e.seen_in].short);
-    out.sources = Object.values(CAT.sources).filter((x) => used.has(x.short)).map((x) => ({short: x.short, cite: x.cite, doi: x.doi}));
+    const used = new Set();
+    for (const t of out.tested) for (const k of [CAT.by[t.key].source, ...(CAT.by[t.key].also || [])]) used.add(k);
+    out.sources = Object.keys(CAT.sources).filter((k) => used.has(k)).map((k) => ({short: CAT.sources[k].short, cite: CAT.sources[k].cite, doi: CAT.sources[k].doi, url: CAT.sources[k].url}));
 
     /* limits of this reading */
     if (far) out.caveats.push(`Lines are looked for where the published redshift (${zText}, ${zSrc}) puts them; the bands of cool stars and of ices are not tested for such a source. If the redshift belongs to another object in the aperture, these places are wrong.`);
@@ -561,14 +561,15 @@ function showReferences(r, far) {
     const tr = el("tr"); tr.dataset.status = t.status;
     const name = el("td"); const bare = t.label.replace(/[\[\]]/g, ""), what = t.transition.replace(/–/g, "–\u2060");
     name.append(el("b", t.label), el("small", bare === t.species || t.kind === "band" && t.species.startsWith(bare) ? (t.kind === "band" ? t.species.slice(bare.length).trim() + (t.species.length > bare.length ? ", " : "") + what : what) : `${t.species} ${what}`));
-    const wave = el("td", (t.broad ? t.rest_um.toFixed(2) : t.rest_um.toFixed(4)) + " µm", "num");
+    const wave = el("td", (t.broad ? t.rest_um.toFixed(t.key === "h2o_ice" ? 1 : 2) : t.rest_um.toFixed(4)) + " µm", "num");
     if (far) wave.append(el("small", t.wave_um.toFixed(3) + " µm"));
     tr.append(name, wave, el("td", result(t), "res"), el("td", t.source, "src"));
+    if (t.where) tr.lastChild.title = t.where;
     return tr;
   }));
   document.getElementById("readcite").replaceChildren(...(r.sources || []).map((s) => {
-    const li = el("li", s.cite + " "), a = el("a", "doi:" + s.doi);
-    a.href = "https://doi.org/" + s.doi; a.target = "_blank"; a.rel = "noopener";
+    const li = el("li", s.cite + " "), a = el("a", s.doi ? "doi:" + s.doi : "webbook.nist.gov");
+    a.href = s.doi ? "https://doi.org/" + s.doi : s.url; a.target = "_blank"; a.rel = "noopener";
     li.append(a);
     return li;
   }));
