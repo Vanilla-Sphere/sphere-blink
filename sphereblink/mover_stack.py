@@ -130,6 +130,7 @@ MOAT_ENOUGH = 3.0  # or this many sigma (Makemake's brightest frames happen to l
 OFF_PIXELS = 3.0  # the object is "elsewhere" when it is this many pixels from a place
 OFF_MIN = 4  # frames a place must have without the object
 SIGHT_SNR = 5.0  # a single frame that shows the object by itself
+SIGHT_APART = 2.0  # pixels between the places of two visits that count as two sightings of something that moves
 VISIT_SNR = 1.5  # a visit that shows the object by itself
 MIN_VISITS_SEEN = 3  # such visits a path needs
 VISITS_POSITIVE = 0.7  # share of the visits in which the object must at least be above zero
@@ -724,6 +725,24 @@ def clip_levels(z: np.ndarray, detector: np.ndarray, visit: np.ndarray, base: fl
     return out
 
 
+def sighted_visits(z: np.ndarray, visit: np.ndarray, t: np.ndarray, x: np.ndarray, y: np.ndarray) -> tuple[int, float]:
+    """Visits in which a single frame shows the object (SIGHT_SNR), each at
+    another place than the ones before, and the hours from the first to the
+    last. Two visits at one place are one sighting: what stays where it is
+    for hours is a star's leftover, however bright."""
+    kept: list[tuple[float, float, float]] = []
+    with np.errstate(invalid="ignore"):
+        seen = np.isfinite(z) & (z >= SIGHT_SNR)
+    for v in sorted(np.unique(visit[seen]), key=lambda v: float(t[seen & (visit == v)].mean())):
+        s = seen & (visit == v)
+        px, py = float(x[s].mean()), float(y[s].mean())
+        if all(math.hypot(px - a, py - b) >= SIGHT_APART for a, b, _ in kept):
+            kept.append((px, py, float(t[s].mean())))
+    if not kept:
+        return 0, 0.0
+    return len(kept), (max(k[2] for k in kept) - min(k[2] for k in kept)) * 24.0
+
+
 def _sigma_g(v: np.ndarray) -> float:
     q25, q75 = np.percentile(v, [25, 75])
     return 0.7413 * float(q75 - q25)
@@ -1230,8 +1249,13 @@ def vet(c: Candidate, cube, frames: list[dict], sky: StaticSky, mjd: np.ndarray,
     dets = np.array([r[3] for r in rows])
     t = mjd[idx]
     visit = _by_visit(t)
+    xr, yr = np.array([r[1] for r in rows]), np.array([r[2] for r in rows])
     with np.errstate(divide="ignore", invalid="ignore"):
-        top = clip_levels(a[:, 0] / sig[:, 0], dets, visit)
+        zp = a[:, 0] / sig[:, 0]
+    # one frame may count for more than VET_CLIP only for an object that frames show at three places or more
+    n_sight, span_sight = sighted_visits(zp, visit, t, xr, yr)
+    lift = n_sight >= MIN_VISITS_SEEN and span_sight >= MIN_SPAN_H
+    top = clip_levels(zp, dets, visit) if lift else np.full(n, VET_CLIP)
     plain = clipped_stack(a[:, 0], sig[:, 0], f, top)
     control = np.array([clipped_stack(a[:, j], sig[:, j], f) for j in range(1, a.shape[1]) if np.isfinite(a[:, j]).sum() >= 0.6 * n])
     # The scale of the significance. Pixels of a resampled frame are not independent and all frames of a detector
@@ -1261,7 +1285,9 @@ def vet(c: Candidate, cube, frames: list[dict], sky: StaticSky, mjd: np.ndarray,
         return None, "few_times"
     with np.errstate(divide="ignore", invalid="ignore"):
         zd = diff / dsig
-        top = clip_levels(zd, dets, visit)
+    n_sight, span_sight = sighted_visits(np.where(ok, zd, np.nan), visit, t, xr, yr)
+    sighted = bool(n_sight >= MIN_VISITS_SEEN and span_sight >= MIN_SPAN_H)
+    top = clip_levels(zd, dets, visit) if sighted else np.full(n, VET_CLIP)
     snr = clipped_stack(diff, dsig, f, top) / width
     if snr < MIN_SNR:
         return None, "static"
@@ -1294,12 +1320,9 @@ def vet(c: Candidate, cube, frames: list[dict], sky: StaticSky, mjd: np.ndarray,
     if n_visits < MIN_STACK_VISITS or visits_seen < MIN_VISITS_SEEN:
         return None, "few_visits"
     # An object that single frames show (5 sigma, above what the same pixel shows without it) in three visits or
-    # more, over a day and a half or more, has shown that it moves along this path. It need not show at every
+    # more, each at another place, over a day and a half or more, has shown that it moves along this path. It need not show at every
     # wavelength: Makemake, bright at 1 micron, is dark beyond 1.5 (methane ice), so the visits and the thirds of
     # the time span in which only the long wavelengths looked show nothing, and say nothing against it.
-    sight = ok & (zd >= SIGHT_SNR)
-    sight_visits = np.unique(visit[sight])
-    sighted = bool(sight_visits.size >= MIN_VISITS_SEEN and (t[sight].max() - t[sight].min()) * 24.0 >= MIN_SPAN_H)
     if positive < VISITS_POSITIVE * n_visits and not sighted:
         return None, "uneven"
     # each third of the frames, by weight, must show the object
@@ -1325,7 +1348,7 @@ def vet(c: Candidate, cube, frames: list[dict], sky: StaticSky, mjd: np.ndarray,
     return {"snr": round(snr, 2), "snr_plain": round((plain - centre) / width, 2), "control_width": round(width, 2),
             "flux": flux, "keep": keep, "rows": rows, "z": zz, "a": a[:, 0], "parts": [round(p, 2) for p in parts],
             "moved_pixels": round(moved, 1), "stamp": stamp, "frames": int(ok.sum()), "bright": bright, "visits": n_visits,
-            "visits_positive": positive, "visits_seen": visits_seen, "sighted_visits": int(sight_visits.size)}, ""
+            "visits_positive": positive, "visits_seen": visits_seen, "sighted_visits": int(n_sight)}, ""
 
 
 def _at_rest(c: Candidate, maps: PassMaps) -> float:
