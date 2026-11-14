@@ -66,6 +66,11 @@ sky as one oval with the featured targets marked.
   fall in (from IAU boundaries precomputed on a 1 degree grid).
 - **Featured targets** are pinned on the map and listed in a "Start here"
   panel (Simple) or "Featured targets" panel (Advanced).
+- **Names keep out of the heading.** While the heading "Pick a spot in the
+  sky" lies on the map, no constellation name, star name or featured target is
+  drawn under it (`keepOut` in `web/starmap.js`, the box comes from
+  `mapKeepOut` in `web/app.js`); they appear as soon as the map is moved and
+  the heading leaves.
 - **No dependencies.** The map is drawn on a canvas by `web/starmap.js` from a
   single compact data file, `web/data/sky.json`, built by `scripts/build_sky.py`.
   The photograph behind it (`web/atlas.js`) is an extra: the map is complete
@@ -331,7 +336,9 @@ spectral data product.
   wavelength, the spread inside a group is the object's spectrum; a change of
   the object shows as one colour shifting from group to group. Inside each
   group a line joins the points of one detector in order of time (Duy's idea),
-  so a colour can be followed; no line crosses the months cut out.
+  so a colour can be followed; no line crosses the months cut out. The tab is
+  part of the link (`plot=lc`), so a link can open on "Over time". On a phone
+  the name of the group on screen has a line of its own above its buttons.
 - **One group at a time.** A click on a group of days enlarges it to the whole
   width of the plot, at the same flux scale; a second click brings all groups
   back. The row under the plot (`#otnav`: previous, next, "All groups") steps

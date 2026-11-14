@@ -597,6 +597,9 @@ dd{margin:0;font-family:var(--font-measure);font-variant-numeric:tabular-nums;fo
   [data-ui="adv"] #q{flex:1 1 calc(100% - 60px)}
   #search #tomap{flex:none;width:40px}
   .maphead{top:10px}
+  /* the group of days gets a line of its own above its buttons: the dates are never cut */
+  .otnav{flex-wrap:wrap}
+  .otnav #otlabel{order:-1;flex:1 0 100%;white-space:normal}
   .maphead p{margin-top:4px;font-size:13px}
   .maphead p .long{display:none}
   .sheet{padding:0}
