@@ -1,5 +1,9 @@
 # Deployment and operations
 
+This document describes the production service. The dev site in front of it,
+and the path a change takes from a branch to production, are in
+[environments](environments.md).
+
 ## Production environment
 
 | Item | Value |
@@ -132,7 +136,10 @@ written to it at the next start.
 
 *Figure: Release process. Source: [`diagrams/release-flow.html`](diagrams/release-flow.html).*
 
-1. Changes are made on a branch and merged to `main` through a pull request.
+1. Changes are made on a branch (`feat/...`, `fix/...` or `chore/...`), merged to
+   `develop` through a pull request, looked at on the dev site, and promoted
+   by a pull request from `develop` to `main`. See
+   [environments](environments.md).
 2. A push to `main` triggers a deploy. Build and start take about 70 s. This
    applies to every merge, including one that changes only `docs/`, unless the
    deploy is skipped (see below).
@@ -163,8 +170,8 @@ message contains `[skip render]` (its documentation also lists `[render skip]`,
 the title of the merge commit. The skipped deploy is listed on the service's
 Events page, and the next ordinary merge deploys as usual.
 
-`render.yaml` also lists `docs/`, `tests/`, `scripts/` and Markdown files under
-`buildFilter.ignoredPaths`, so a merge that touches nothing else is skipped even
+`render.yaml` also lists `docs/`, `tests/`, `scripts/`, `.github/`, `render.dev.yaml`
+and Markdown files under `buildFilter.ignoredPaths`, so a merge that touches nothing else is skipped even
 without the phrase.
 
 Do not use the phrase on a change to code, `web/`, `requirements.txt` or
