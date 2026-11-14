@@ -29,7 +29,7 @@ Two consequences follow:
   stands behind it is the test suite. A viewer change that needs an engine
   change of the same release shows its real behaviour only after the
   promotion.
-- **Dev acts on production.** "Measure this object" on dev starts a real
+- **Dev acts on production.** "Measure motion and brightness" on dev starts a real
   measurement and stores a real result. There is no test data to spoil
   because there is no second data set.
 
