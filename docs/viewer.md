@@ -9,16 +9,17 @@ as static files.
 | `index.html` | 225 lines | Page structure for both screens and both modes; all fixed text |
 | `style.css` | 507 lines | Design tokens, layout, components, responsive rules |
 | `app.js` | about 1100 lines | State, URL handling, loading, image arithmetic, drawing, plots, routing |
-| `starmap.js` | 355 lines | The sky map (`SkyMap`): projection, drawing, pan and zoom, picking |
-| `ambient.js` | 230 lines | The motion of the sky map screen (`Ambient`): deep star field, rim glow, slow turn, aiming frame, pings, meteors |
+| `starmap.js` | about 510 lines | The sky map (`SkyMap`): projection, drawing, pan and zoom, picking |
+| `ambient.js` | about 330 lines | The motion of the sky map screen (`Ambient`): deep star field, rim glow, slow turn, aiming frame, pings, meteors |
+| `atlas.js` | 220 lines | The photograph of the real sky behind the zoomed-in map (`Atlas`): tiles of the 2MASS atlas, fetched from NASA/IPAC IRSA and drawn through the map's projection |
 | `i18n.js` | 107 lines | Text that scripts put on the page (`STR.en`) and the `tr()` formatter |
 | `hints.js` | 74 lines | One-line notes on controls, shown on hover and keyboard focus |
 | `lore.js` | 130 lines | What the sky map says about each of the 88 constellations and 31 famous stars under the pointer (`LORE`) |
 | `data/sky.json` | - | Compact star chart: stars, names, constellations, Milky Way, boundary grid |
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
-Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `starmap.js`, `ambient.js`, `app.js`.
-Asset URLs carry a version query (`?v=26`) that is raised when a file changes,
+Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `app.js`.
+Asset URLs carry a version query (`?v=27`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -249,6 +250,48 @@ coordinates.
   how strong the halo, the spikes and the colour are (0 to 1). Nothing here
   moves: stars do not twinkle, because that would redraw the whole map on
   every frame.
+- **The photograph behind the zoomed-in map.** From a little past twice the
+  opening zoom a photograph of the real sky comes up behind the chart, and
+  the drawn Milky Way makes way for it: the galaxy's dust lanes, nebulae,
+  clusters and the many stars too faint for the chart are then really there.
+  It is the 2MASS near-infrared atlas (J, H and K bands shown as blue, green
+  and red), chosen because SPHEREx looks at the same kind of light. It is a
+  backdrop and not SPHEREx data; a line at the top of the map says so while
+  it shows, and the credits name the survey. `atlas.js` (`Atlas`) does it
+  without a library:
+  - The atlas is published in the HiPS format (by CDS) and served by the
+    NASA/IPAC Infrared Science Archive, the same archive the SPHEREx images
+    come from. HiPS cuts the sky into the diamonds of the HEALPix grid;
+    order *k* has 12 x 4^k of them, each a 512 pixel JPEG at
+    `Norder{k}/Dir{d}/Npix{n}.jpg`.
+  - Each redraw the map asks `Atlas.draw()` for the view. It picks the order
+    whose tiles are 300 to 600 px wide on screen, finds the diamonds under a
+    net of screen points, and lays each tile over its diamond as a mesh of
+    textured triangles whose corners go through the map's own `project()`,
+    so the photograph lies exactly under the drawn stars (checked on Orion,
+    the Pleiades, the pole and the galactic centre).
+  - A tile is cleaned once when it arrives (`clean()`): the atlas' faint
+    magenta floor of noise becomes black, patches of a single colour that
+    the survey's detectors left near bright stars are removed (a real source
+    shines in all three bands), the colour is muted a little and faint stars
+    are lifted. The result is kept as a bitmap; a few screens' worth stay in
+    memory.
+  - It never holds the map up. Tiles arrive six at a time, nearest the
+    centre first, and fade in; a coarser tile already in memory stands in
+    meanwhile. If the archive is slow, the drawn map simply stays; after six
+    failures in a row it is left alone for a minute. Visitors who ask their
+    browser to save data get no photograph. With all of it missing the map
+    is the drawn chart it was before.
+  - Cost: about 1 to 5 ms more per frame without a graphics card (measured
+    at 1440 x 900, two device pixels per pixel), and tiles of 30 to 80 kB
+    each. Canvas smoothing is left on "low": "high" rebuilt a smaller copy
+    of every tile on every frame.
+  - `SkyMap.photo(from, show)` sets the zoom at which it starts (in
+    doublings past the whole sky) and its strength; `Atlas.mute(v, lift)`
+    the colour and the lift of faint stars; `Atlas.set(false)` turns it off.
+  The page's content security policy allows pictures from
+  `irsa.ipac.caltech.edu` for this and nothing else from outside
+  ([security](security.md#response-headers)).
 - **Input.** Pointer events for drag, pinch and click; wheel zoom about the
   pointer so the sky under it stays under it; keyboard pan, zoom and select.
 - **Drawing** is batched with `requestAnimationFrame` and only runs while the
