@@ -553,3 +553,8 @@ dd{margin:0;font-family:var(--font-measure);font-variant-numeric:tabular-nums;fo
   .neb canvas,.skyglow,.blinkmark i,.pinping i,.reticle b,.meteor{animation:none!important}
   .pinping,.meteor{display:none}
 }
+
+/* the note that names the sky photograph behind the zoomed-in map (atlas.js) */
+.atlasnote{position:absolute;left:calc(var(--pad) - 6px);top:10px;max-width:calc(100% - 2 * var(--pad));margin:0;padding:2px 6px;font-size:11.5px;line-height:1.35;color:var(--color-muted);background:color-mix(in srgb,var(--color-paper) 72%,transparent);pointer-events:none;opacity:0;transition:opacity var(--dur-short) var(--ease-out)}
+.mapscreen.atlas-on .atlasnote{opacity:1}
+@media (max-width:700px){.atlasnote span{display:none}}

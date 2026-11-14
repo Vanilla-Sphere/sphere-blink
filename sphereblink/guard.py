@@ -145,10 +145,13 @@ _open_lock = threading.Lock()
 
 
 # ----------------------------------------------------------------------------- response headers
-# The viewer loads everything from its own origin. Inline style attributes
-# are used for colour swatches; there is no inline script.
+# The viewer loads everything from its own origin, with one exception: the
+# photograph behind the zoomed-in sky map is made of tiles of the 2MASS atlas
+# fetched as images from the NASA/IPAC Infrared Science Archive. Inline style
+# attributes are used for colour swatches; there is no inline script.
 CSP = (
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob: https://irsa.ipac.caltech.edu; "
     "font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
 )
 # The interactive API pages (/docs, /redoc) are FastAPI's: they load Swagger UI
