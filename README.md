@@ -36,6 +36,12 @@ viewer, code structure, data sources, performance and deployment.
   slice of the linear variable filter, so the exposures together give a
   0.75-5.0 um spectrum, plus the flux over time with a line saying whether
   the object changed between visits.
+- **A first reading of the spectrum.** Under the plot the viewer says what the
+  curve shows: where it peaks, how it slopes, which bands and lines stand at
+  their rest wavelengths (water vapour, methane, water and carbon dioxide ice,
+  hydrogen lines, PAH), and which kinds of object give such a curve. It is
+  written by fixed rules in the browser (`web/insight.js`), labelled
+  preliminary, and states its confidence and limits.
 - **Bright stars too.** A star brighter than about K = 9 saturates the
   detector core and an aperture on it reads 2-5 times low. Those points are
   measured from the star's halo instead, with a calibration fitted to 81

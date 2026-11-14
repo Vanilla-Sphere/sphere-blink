@@ -17,7 +17,7 @@ implements it. Implementation detail is in [imaging engine](imaging-engine.md),
 | 6 | Frame grouping: exposure, day, sky pass | Advanced | `render.py` (`_groups`) |
 | 7 | Image arithmetic | Advanced | `web/app.js` (client side), `render.difference` (server side) |
 | 8 | Progressive fields, up to 7 x 7 cells | Advanced | `tiles.py`, `web/app.js` (`loadField`) |
-| 9 | Spectrum and flux over time at the crosshair | Advanced | `main.api_spectrum`, `cutout.aperture_flux`, `wings.py` |
+| 9 | Spectrum and flux over time at the crosshair, with a preliminary reading of the spectrum | Advanced (Simple shows one sentence of the reading) | `main.api_spectrum`, `cutout.aperture_flux`, `wings.py`, `web/insight.js` |
 | 10 | Gaia DR3 and CatWISE2020 overlays | Advanced | `catalogs.py`, `web/app.js` (`drawOverlays`) |
 | 11 | Automatic measurement of position, motion, brightness | Advanced | `measure.py`, `refcat.py`, `measure_api.py` |
 | 12 | "Measure motion and brightness" | Advanced | `web/app.js` (`measureHere`), `/api/measure` |
@@ -335,6 +335,80 @@ detector, method, flags, the exposure id and the address of its Level 2 file at
 IRSA), under comment lines that give the target, the position, the data
 credit and the link of the view. **PNG** saves the plot on screen, spectrum
 or flux over time (with its line on the change), with its key and the NASA credit.
+
+### Preliminary reading of the spectrum
+
+Under the plot the viewer writes what the curve shows, in sentences, with the
+numbers behind each one (`web/insight.js`, run in the browser on the points of
+`/api/spectrum`). It is labelled "Preliminary reading" and carries a
+confidence level (low, moderate or good) and the limits that apply. Every
+statement is a fixed test on the measured points: no language model, no
+catalogue and no training set is involved, so the same curve always gives the
+same reading and each sentence can be checked against the plot.
+
+The tests, in order:
+
+1. **Which points can be read.** Halo ("wings") points are compared with
+   direct aperture points at the same wavelengths. If they differ by more
+   than a third, only one kind is read and the reading says how many points
+   were left out and why. A halo three or more times too bright is not one
+   star (a galaxy, a nebula, a crowded field): the direct points are kept.
+2. **Change between sky passes.** Each pass is compared with the
+   best-sampled one at the same wavelengths. A pass that differs by more than
+   10 % is brought to its level, so that a variable source does not leave
+   steps in the curve that look like bands.
+3. **Whether a source is there.** If four in five points are below 3σ the
+   reading says so and stops.
+4. **Continuum.** Where the binned curve peaks, its slope in log-log (the
+   whole range, below 1.7 µm, above 2.3 µm), and the blackbody closest to it
+   with the range of temperatures that fit nearly as well.
+5. **Bands and lines at rest wavelengths.** Water vapour at 1.4, 1.9 and
+   2.7 µm, methane at 3.3 µm, water ice at 3.0 µm, carbon dioxide at 4.27 µm;
+   in emission, hydrogen Paschen α and β, Brackett α and γ, helium 1.083 µm,
+   [S III] 0.953 µm and the 3.3 µm PAH band. A band is the flux inside a
+   window against a continuum drawn between a window on each side; a line is
+   the points whose passband holds the wavelength against the points just
+   outside. The noise is taken from the differences of neighbouring points.
+   A feature counts at 4σ and above; names of the detected ones are drawn
+   along the top of the plot, with a question mark when they are not firm.
+
+The reading then names the kinds of object that give such a curve:
+
+| Reading | Rests on |
+| --- | --- |
+| Emission lines of ionised gas | Two lines or more, one of them hydrogen |
+| Ice absorption | The 3.0 µm band deepest at 3.0 µm, or carbon dioxide on a rising curve |
+| Brown dwarf atmosphere | Methane at 3.3 µm together with water vapour |
+| Cool star with water vapour | Two water bands or more |
+| Two components | A falling curve with extra light beyond 4 µm |
+| Red source | Flux still rising beyond 2.3 µm |
+| Hot photosphere | A smooth fall from the blue end, about λ^−2 |
+| Cool photosphere | A peak inside the range; a blackbody temperature if one fits within about a third |
+| Flat spectrum | No slope and no peak |
+| Too bright, only part readable, no source | More than half the points above the calibrated range of the halo method; less than 45 % of the range sampled; nothing above the noise |
+
+What it does not do: it does not classify the object, measure a redshift, or
+look for lines away from their rest wavelengths (a single line is reported as
+possible, "or another line moved there by redshift"). Between deep molecular
+bands the continuum stands up in narrow peaks that this resolution cannot
+tell from emission lines, so with such bands no line is claimed. Confidence
+drops with saturation, noise, gaps in the curve, changes between passes and
+points left out; a reading that rests on a strong band or line does not
+depend on the brightness scale and keeps its level.
+
+Checked on 14 real spectra (`tests/data/spectra/`): Epsilon Indi B (water and
+methane), Elias 16 and Elias 29 (water and carbon dioxide ice), NGC 7027
+(hydrogen lines, PAH), G191-B2B (hot tail), WISE 0855 (a background star plus
+the cold dwarf's light beyond 4 µm), Barnard's Star (3,000 to 3,700 K;
+catalogue 3,200 K), 3C 273 (red, a possible line at 2.17 µm where its
+redshifted Paschen α falls), RW Aurigae (red), R Draconis (water bands, low
+confidence), Vega (too bright), NGC 3379 and Sgr A* (only part readable), an
+empty field (no source). On 14,400 made-up featureless spectra with noise,
+with and without a 30 % change between passes, no firm band or line appeared.
+
+In Simple mode one plain sentence of the reading is shown beside the
+pictures ("What its light says"), and only when the reading names something
+and its confidence is not low.
 
 ## 10. Catalogue overlays
 

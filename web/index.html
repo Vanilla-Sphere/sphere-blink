@@ -11,18 +11,18 @@
 <meta property="og:title" content="Vanilla Sphere - watch the infrared sky change">
 <meta property="og:description" content="Pick any spot on the sky map and watch NASA SPHEREx images of it play as a movie.">
 <meta property="og:url" content="https://vanillasphere.com/">
-<meta property="og:image" content="https://vanillasphere.com/static/og.png?v=37">
+<meta property="og:image" content="https://vanillasphere.com/static/og.png?v=38">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Vanilla Sphere - watch the infrared sky change">
 <meta name="twitter:description" content="Pick any spot on the sky map and watch NASA SPHEREx images of it play as a movie.">
-<meta name="twitter:image" content="https://vanillasphere.com/static/og.png?v=37">
-<link rel="icon" href="/static/favicon.svg?v=37" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=37">
+<meta name="twitter:image" content="https://vanillasphere.com/static/og.png?v=38">
+<link rel="icon" href="/static/favicon.svg?v=38" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=38">
 <link rel="preload" href="/static/fonts/HankenGrotesk.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/GeistMono.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/static/style.css?v=37">
+<link rel="stylesheet" href="/static/style.css?v=38">
 </head>
 <body>
 <header class="bar">
@@ -164,6 +164,7 @@
     </div>
     <div class="sbody">
       <p id="sstory" class="story"></p>
+      <p id="sreading" class="snote sreading" hidden><b>What its light says</b><span></span><i>An automatic first reading of its spectrum, not a verdict.</i></p>
       <p id="ssat" class="snote" hidden>Very bright here: this object overloads the SPHEREx detectors, so its centre can look patchy or oddly coloured. That is the camera, not the sky.</p>
       <div class="sactions" data-hint-side="top">
         <button type="button" class="btn" id="sshare" data-hint="tip.share"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 1l6 6-6 6V9C5 9 3 10.500 1 13c0-5 3-8 8-8z"/></svg><span id="ssharelabel">Share</span></button>
@@ -182,6 +183,14 @@
       <div id="legend" class="legend measure"></div>
       <div class="dlrow" id="plotdl" data-hint-side="top"><button type="button" class="btn quiet" id="dl-csv" data-hint="tip.dl.csv"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 1h2v7l3-3 1.500 1.500L8 12 2.500 6.500 4 5l3 3zM2 13h12v2H2z"/></svg><span>CSV</span></button><button type="button" class="btn quiet" id="dl-png" data-hint="tip.dl.png"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 1h2v7l3-3 1.500 1.500L8 12 2.500 6.500 4 5l3 3zM2 13h12v2H2z"/></svg><span>PNG</span></button></div>
       <p class="muted note" id="specempty" hidden></p>
+      <div class="reading" id="reading" hidden>
+        <div class="readhead"><div class="headtip"><h3>Preliminary reading</h3><div class="tip"><button type="button" class="tipbtn" aria-label="How this reading is made" aria-describedby="tip-reading"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-reading"><p>Written by fixed rules from the points of this curve: where it peaks, how steeply it rises or falls, the blackbody closest to it, and whether known bands and lines are there at their rest wavelengths. No language model and no catalogue is involved.</p><p>It describes the curve and names the kinds of object that give one like it. It does not classify the object: check it on the original files before relying on it.</p></div></div></div><span class="readconf" id="readconf" data-hint="tip.readconf"></span></div>
+        <p class="readline" id="readline"></p>
+        <ul class="readlist" id="readlist"></ul>
+        <p class="readsub">Limits</p>
+        <ul class="readlist caveats" id="readcaveats" aria-label="Limits of this reading"></ul>
+        <p class="readfoot">Automatic, from this curve alone. Not a classification.</p>
+      </div>
     </section>
 
     <section class="panel" id="epochcard" hidden>
@@ -280,6 +289,7 @@
       <h3>Measurements</h3>
       <p>The spectrum and the plot over time are aperture photometry on each exposure, before any resampling: a radius of 2 pixels, the sky taken from a ring of 5 to 10 pixels, in microjansky. The wavelength of each point is the one the filter gives at that spot of the detector.</p>
       <p>Stars that saturate are measured from the halo around the core, with a systematic error of 20 to 25%. These are quick-look values, not an official SPHEREx data product. For publication, measure on the original files.</p>
+      <p>The preliminary reading under the spectrum is written by fixed rules from those points: where the curve peaks, its slope, the blackbody closest to it, and bands and lines at their rest wavelengths (water vapour at 1.4, 1.9 and 2.7 µm, methane at 3.3 µm, water ice at 3.0 µm, carbon dioxide at 4.27 µm, hydrogen and helium lines, the 3.3 µm PAH band). A band or line counts when it stands at least 4σ from the continuum beside it. The reading describes the curve and lists the kinds of object that fit; it is not a classification, and it says how far it can be trusted.</p>
 
       <h3>Get the originals</h3>
       <p>The Source files panel (Advanced) lists the exposures behind a view. Each one links to its file at NASA/IPAC IRSA, and the download script and URL list fetch them from the archive straight to your computer.</p>
@@ -299,16 +309,17 @@
   </div>
 </div>
 
-<script src="/static/i18n.js?v=37"></script>
-<script src="/static/lore.js?v=37"></script>
-<script src="/static/hints.js?v=37"></script>
-<script src="/static/atlas.js?v=37"></script>
-<script src="/static/starmap.js?v=37"></script>
-<script src="/static/ambient.js?v=37"></script>
-<script src="/static/overtime.js?v=37"></script>
-<script src="/static/exports.js?v=37"></script>
-<script src="/static/movers.js?v=37"></script>
-<script src="/static/app.js?v=37"></script>
+<script src="/static/i18n.js?v=38"></script>
+<script src="/static/lore.js?v=38"></script>
+<script src="/static/hints.js?v=38"></script>
+<script src="/static/atlas.js?v=38"></script>
+<script src="/static/starmap.js?v=38"></script>
+<script src="/static/ambient.js?v=38"></script>
+<script src="/static/overtime.js?v=38"></script>
+<script src="/static/exports.js?v=38"></script>
+<script src="/static/movers.js?v=38"></script>
+<script src="/static/insight.js?v=38"></script>
+<script src="/static/app.js?v=38"></script>
 <p id="netnote" class="netnote" role="status" hidden>Updating the site, back in a moment…</p>
 </body>
 </html>

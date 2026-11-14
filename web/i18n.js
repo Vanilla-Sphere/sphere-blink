@@ -152,6 +152,7 @@ const STR = {
     "log.loading": "Loading…", "log.total": "{n} so far. Select one to open the field it was found in.", "log.empty": "Nothing yet. Open a 50′ field (7×7 cells) and let it load: it is searched by itself.",
     "log.nofollow": "You follow nothing yet. Open an object and choose Follow.", "log.fail": "The list could not be read.",
     "tip.spectrum": "Brightness against wavelength: the object's infrared fingerprint",
+    "tip.readconf": "How far this reading can be trusted: it drops with saturation, noise, gaps in the curve and changes between dates",
     "tip.lc": "Flux of every exposure against its date, grouped by visit: shows fading, brightening or flickering",
     "tip.lc.varies": "Flux over time. This object changed brightness between visits",
     "tip.wiseview": "This field in WISE images since 2010, to check a motion",
