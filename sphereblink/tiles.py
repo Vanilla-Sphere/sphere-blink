@@ -20,7 +20,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 
-from . import config, guard
+from . import guard, settings
 from .cutout import Grid
 
 STEP = 0.12  # degrees
@@ -174,7 +174,7 @@ class Fields:
             client = guard.current()
             if client and not guard.internal(client):
                 loading = sum(1 for o in self.fields.values() if o.client == client and not o.finished)
-                if loading >= config.MAX_FIELDS_PER_CLIENT:
+                if loading >= settings.get("max_fields_per_client"):
                     raise guard.Busy("too many fields are loading for your address; wait for one to finish", 15.0)
             f = Field(seed=seed, levels=levels, tiles=tiles, client=client, stages=[
                 {"level": lv, "grid": stage_grid(seed["ra_c"], seed["dec_c"], lv), "status": "queued", "job": None}

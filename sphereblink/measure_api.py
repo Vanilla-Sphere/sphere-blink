@@ -6,7 +6,7 @@
 
 A job finds the exposures, then measures in a separate process (so the web
 server keeps answering), stores the result on disk and, when the database
-role allows it, in the team database. ``config.MEASURE_PROCS`` jobs are
+role allows it, in the team database. ``measure_procs`` (a setting) jobs are
 measured at a time; the next ones wait their turn, first come first served,
 and report their position in the queue. The five featured targets are measured
 by themselves shortly after the server starts, and again when the pipeline
@@ -29,7 +29,7 @@ from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException, Query
 
-from . import config, guard, measure, measurements, refcat
+from . import config, guard, measure, measurements, refcat, settings
 from . import resolve as resolver
 from .resolve import FEATURED, ResolverUnavailable, Target, resolve
 
@@ -49,6 +49,7 @@ _pool: ProcessPoolExecutor | None = None
 _turn = threading.Condition()  # guards the two below
 _waiting: list[str] = []  # keys of the jobs that wait for a measuring process, first come first
 _measuring = 0  # processes that are busy (also with a job that was given up after JOB_TIMEOUT_S)
+_most = 0  # the most that were busy at once since the pool was made: the processes it has started
 
 
 def attach(svc) -> None:
@@ -64,17 +65,22 @@ def _executor() -> ProcessPoolExecutor:
     global _pool
     with _lock:
         if _pool is None:
-            _pool = ProcessPoolExecutor(max_workers=config.MEASURE_PROCS, mp_context=multiprocessing.get_context("spawn"))
+            # Room for the most the setting may ever ask for: the pool starts a
+            # process only when a job finds none free, and _take_turn lets no
+            # more jobs in than the setting says now.
+            _pool = ProcessPoolExecutor(max_workers=int(settings.SETTINGS["measure_procs"].hi),
+                                        mp_context=multiprocessing.get_context("spawn"))
         return _pool
 
 
 def _take_turn(key: str) -> None:
     """Wait until this job is first in the queue and a measuring process is free."""
-    global _measuring
+    global _measuring, _most
     with _turn:
         _waiting.append(key)
         try:
-            while _waiting[0] != key or _measuring >= config.MEASURE_PROCS:
+            # the setting is read at every look: a change is in force within the 5 s of the wait
+            while _waiting[0] != key or _measuring >= settings.get("measure_procs"):
                 _turn.wait(timeout=5.0)
         except BaseException:
             _waiting.remove(key)
@@ -82,14 +88,22 @@ def _take_turn(key: str) -> None:
             raise
         _waiting.pop(0)
         _measuring += 1
+        _most = max(_most, _measuring)
         _turn.notify_all()
 
 
 def _turn_over(_future=None) -> None:
     """A measuring process is free again."""
-    global _measuring
+    global _measuring, _most, _pool
     with _turn:
         _measuring = max(0, _measuring - 1)
+        if _measuring == 0 and _most > settings.get("measure_procs") and _pool is not None:
+            # The setting went down and nothing is being measured: let go of
+            # the processes started for the higher number (about 250 MB
+            # each). The next job makes a new pool; no job can be on its way
+            # to this one, because it would count in _measuring.
+            _pool.shutdown(wait=False)
+            _pool, _most = None, 0
         _turn.notify_all()
 
 
@@ -145,7 +159,7 @@ def _work(key: str, target: Target) -> None:
         job["status"] = "measuring"
         try:
             # the measurements share 16 connections to the bucket, however many run at once
-            future = _executor().submit(run, target, exposures, wave_maps, max(4, 16 // config.MEASURE_PROCS))
+            future = _executor().submit(run, target, exposures, wave_maps, max(4, 16 // settings.get("measure_procs")))
         except BaseException:
             _turn_over()
             raise
@@ -182,7 +196,7 @@ def start(target: Target, refresh: bool = False, charge: bool = False) -> tuple[
         if not refresh and measurements.load_local(key) is not None:
             return key, {"status": "ready"}
         if charge:
-            if sum(1 for j in _jobs.values() if j["status"] in RUNNING) >= config.MAX_MEASURE_QUEUE:
+            if sum(1 for j in _jobs.values() if j["status"] in RUNNING) >= settings.get("max_measure_queue"):
                 raise guard.Busy("the measurement queue is full; try again in a few minutes", 60.0, 503)
             guard.charge(guard.measures, "measurements")
         if len(_jobs) > 500:  # finished jobs are only kept to report their error

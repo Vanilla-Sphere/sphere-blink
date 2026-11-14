@@ -202,7 +202,9 @@ minutes; resolved names survive a restart.
 ## How many jobs at once
 
 The pipeline works on a limited number of jobs and queues the rest (see
-[architecture](architecture.md#concurrency-model)). The limits are settings,
+[architecture](architecture.md#concurrency-model)). The limits are settings
+(rows of the table `settings` since 2026-11-15, changed without a deploy:
+[deployment](deployment.md#settings-in-the-database)),
 and their production values were chosen from the measurements below, made on
 2026-11-14 on a 4-core machine with the production settings (4 worker
 processes, 64 concurrent reads, 2000 MB of frames kept in memory). The
@@ -277,6 +279,13 @@ each one only runs slower, at about 0.25 GB per process.
 
 The queue itself is bounded (24 views per caller, 96 in all, 12
 measurements): beyond that a request is refused with `Retry-After`.
+
+The three numbers that fill the memory are held to this sum when they are
+changed in the table `settings`: frames kept + frames being gathered + 250 MB
+for each measuring process stay at 2000 + 2400 + 2 x 250 = 4900 MB, so the
+worst case stays 7.0 GB whatever the table holds. Raising one lowers the
+frames kept. Measure again before raising the sum itself (the environment
+variables of `render.yaml`).
 
 ## Bottlenecks that remain
 

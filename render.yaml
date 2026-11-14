@@ -60,6 +60,12 @@ services:
       # ACTIVE_MB (two 7 x 7 fields of the largest size). Measurements: two
       # (three or four measure no more per minute). Measure again before
       # raising them or changing the plan.
+      # These three and RAM_BUDGET_MB are also rows of the table "settings" of
+      # the database, which the service reads twice a minute: change them
+      # there, without a deploy (docs/deployment.md, "Settings in the
+      # database"). The values here are the ones without a row or without the
+      # database, and RAM_BUDGET_MB + ACTIVE_MB + 250 MB per measuring process
+      # is the memory the table may hand out in all.
       - key: SPHEREX_ACTIVE_VIEWS
         value: "4"
       - key: SPHEREX_ACTIVE_MB

@@ -28,7 +28,7 @@ import threading
 import time
 from contextvars import ContextVar
 
-from . import config
+from . import config, settings
 
 log = logging.getLogger("uvicorn.error")  # the server's own log, which the host keeps
 _client: ContextVar[str] = ContextVar("sphereblink_client", default="")
@@ -135,6 +135,25 @@ catalogs = Buckets(config.RATE_CATALOGS_PER_MIN / 60.0, config.RATE_CATALOGS_PER
 sky_tiles = Buckets(config.RATE_TILES_PER_S, config.RATE_TILES_BURST)  # tiles of the sky photograph asked for
 atlas = Buckets(config.RATE_ATLAS_PER_MIN / 60.0, config.RATE_ATLAS_PER_MIN)  # ... and those the server must fetch from the archive
 TILES = "/api/atlas/2mass/"
+
+
+def _rates_changed() -> None:
+    """The allowances are settings that can change while the server runs
+    (``settings.py``): a caller keeps what is left in the bucket, under the
+    new numbers."""
+    g = settings.get
+    for bucket, per_second, burst in (
+        (requests, g("rate_requests_per_s"), g("rate_requests_burst")),
+        (names, g("rate_names_per_min") / 60.0, g("rate_names_per_min")),
+        (measures, g("rate_measures_per_hour") / 3600.0, g("rate_measures_burst")),
+        (catalogs, g("rate_catalogs_per_min") / 60.0, g("rate_catalogs_per_min")),
+        (sky_tiles, g("rate_tiles_per_s"), g("rate_tiles_burst")),
+        (atlas, g("rate_atlas_per_min") / 60.0, g("rate_atlas_per_min")),
+    ):
+        bucket.rate, bucket.burst = float(per_second), float(burst)
+
+
+settings.on_change(_rates_changed)
 
 
 def charge(bucket: Buckets, what: str, cost: float = 1.0) -> None:
@@ -251,7 +270,7 @@ class Guard:
                     return await _refuse(send_with_headers, Busy("too many requests from your address; slow down", wait))
                 with _open_lock:
                     n = _open.get(client, 0)
-                    if n >= config.MAX_OPEN_REQUESTS:
+                    if n >= settings.get("max_open_requests"):
                         busy = Busy("too many requests open at once from your address", 2.0)
                     else:
                         _open[client], counted, busy = n + 1, True, None
