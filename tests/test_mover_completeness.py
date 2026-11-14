@@ -134,7 +134,7 @@ def test_any_search_with_the_same_input_is_measured():
         seen["frames"] = len(frames)
         t = movers.Track(detections=[], mjd0=fake.mjd0 + 0.1, ra0=float(fake.at(fake.mjd0 + 0.1)[0]), dec0=float(fake.at(fake.mjd0 + 0.1)[1]),
                          v_east=10.5, v_north=0.4, rms_arcsec=1.0, n_times=9, n_visits=3,
-                         extra={"times_seen": 9, "times_covered": 10, "covered": 20, "seen": 18})
+                         extra={"times_seen": 9, "times_covered": 10, "covered": 20, "seen": 18, "visits_seen": 3})
         stray = movers.Track(detections=[], mjd0=fake.mjd0, ra0=150.2, dec0=10.1, v_east=80.0, v_north=0.0, rms_arcsec=1.0,
                              n_times=4, n_visits=2)
         return {"tracks": [t, stray], "detections": [], "stats": {}}
