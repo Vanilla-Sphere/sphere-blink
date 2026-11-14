@@ -187,6 +187,21 @@ only) are below what the frames hold. Ixion (V 19.4) lies towards the
 Galactic bulge: 463 of the field's 703 frames are left out as too crowded,
 and half of the sky is masked or next to a bright star.
 
+### On the live site
+
+The search runs on production as the second stage of a field's
+moving-objects job (see [moving objects](moving-objects.md)), and the names
+of its paths come from the same catalogue lookup as the linker's. Checked on
+the live site on 15 November 2026 with two of the fields above:
+
+- Pluto's field (304.14 -23.58): the linker finds nothing, the stack finds
+  one path at 279.6 sigma, named "134340 Pluto" 0.2 arcsec from the
+  catalogue's position. Two paths without a name between 5 and 7.5 sigma
+  were dropped, as the rule says.
+- Orcus's field (160.98 -13.74): one path at 7.4 sigma, below the level
+  shown without a name. It is shown because the catalogue has "90482 Orcus"
+  4.4 arcsec away moving 1.19 arcsec per hour (the path: 1.14).
+
 ### What chance gives
 
 - **Thirteen real fields** (the six above, the fields of Varuna, Gonggong
