@@ -747,6 +747,9 @@ an object on is shown, as a candidate, only when it was seen in three
 separate visits; while no catalogue service answers, a weaker path is not
 shown at all. The algorithm, its validation on 3I/ATLAS and the asteroids of
 twelve fields, and its limits are in [moving objects](moving-objects.md).
+How much of what moves the search finds was measured with fake objects in
+real exposures: [how much the search finds](mover-completeness.md). The
+result is shown at the end of the Discoveries page (`web/completeness.js`).
 
 In the viewer (Advanced, `web/movers.js`):
 
