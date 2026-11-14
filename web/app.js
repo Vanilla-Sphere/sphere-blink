@@ -295,6 +295,7 @@ async function loadSpectrum(id, attempt = 0) {
   S.spectrum = d.points;
   try { S.insight = analyseSpectrum(d.points); } catch (_) { S.insight = null; }  // a reading that fails must not take the plot with it
   showReading(S.insight);
+  depthSpectrum(d.points);   // a redshift, where its emission lines give one
   $("speccard").hidden = false; drawPlot();
 }
 

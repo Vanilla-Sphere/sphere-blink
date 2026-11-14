@@ -66,6 +66,7 @@
 .cmpslide{flex:1 1 180px;min-width:120px;max-width:300px}
 .cmppub{flex:0 1 auto;font-size:12px}
 .cmprow .linkbtn{font-size:12.5px}
+.cmpest{font-family:var(--font-measure);white-space:nowrap}
 .cmprow .btn.icon{margin-left:auto;border-color:transparent}
 .cmpadd{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:12px}
 .cmpadd input{flex:0 1 320px;min-width:200px;height:32px;padding:0 10px;border:1px solid var(--color-rule);background:var(--color-paper-2);color:var(--color-ink);font:inherit}
