@@ -18,3 +18,24 @@ document.getElementById("dolist").addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-do]");
   if (b && DEMOS[b.dataset.do]) DEMOS[b.dataset.do]();
 });
+
+/* While the visitor drags or zooms the map the strip steps aside, and it comes back as soon as they stop,
+   whatever the zoom. A press that does not move is a choice of a place, not a drag: the strip stays. */
+(() => {
+  const map = document.getElementById("map"), screen = document.getElementById("mapscreen");
+  const down = new Map();   // the pointers on the map and where each went down
+  let timer = 0;
+  const busy = () => { clearTimeout(timer); screen.classList.add("moving"); };
+  const rest = (ms) => { clearTimeout(timer); timer = setTimeout(() => screen.classList.remove("moving"), ms); };
+  map.addEventListener("pointerdown", (ev) => down.set(ev.pointerId, [ev.clientX, ev.clientY]));
+  map.addEventListener("pointermove", (ev) => {
+    const at = down.get(ev.pointerId);
+    if (at && (down.size > 1 || Math.hypot(ev.clientX - at[0], ev.clientY - at[1]) > 4)) busy();
+  });
+  for (const type of ["pointerup", "pointercancel"]) window.addEventListener(type, (ev) => {
+    if (down.delete(ev.pointerId) && !down.size && screen.classList.contains("moving")) rest(300);
+  });
+  map.addEventListener("wheel", () => { busy(); rest(450); }, {passive: true});
+  map.addEventListener("keydown", (ev) => { if (/^Arrow|^[+=_-]$/.test(ev.key)) { busy(); rest(600); } });
+  for (const id of ["map-in", "map-out", "map-home"]) document.getElementById(id).addEventListener("click", () => { busy(); rest(600); });
+})();

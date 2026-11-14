@@ -98,7 +98,10 @@ features on the first screen):
 | See how far | the redshift layer of the map, from z > 1 |
 | Take the data | the "About the data" page |
 
-The strip fades when the map is zoomed in and is hidden in full screen. On a
+The strip steps aside while the visitor drags or zooms the map and comes back
+as soon as they stop, whatever the zoom (MiLy, 2026-11-14); a press that does
+not move is a choice of a place and leaves it alone. It is hidden in full
+screen. On a
 phone it is a row of its own above the start list, scrolled sideways, with the
 titles only. The code is `web/showcase.js`.
 
