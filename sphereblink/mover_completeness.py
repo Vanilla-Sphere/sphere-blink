@@ -311,9 +311,10 @@ def recover(result: dict, fakes: list[Fake], told: list[list[dict]], baseline: l
     Per fake: was it found, on which evidence, how well its motion was
     measured, and how many of its exposures gave a detection of the search
     (which tells where a fake that was not found got lost). ``others``
-    counts the returned paths that are neither a fake nor one of the
+    lists the returned paths that are neither a fake nor one of the
     ``baseline`` paths (what the same search finds without fakes): false
-    alarms that the fakes caused.
+    alarms. ``of_fakes`` tells what each is made of: detections of two
+    fakes mean the search joined two objects into a path neither follows.
     """
     tracks = list(result.get("tracks") or [])
     dets = list(result.get("detections") or [])
@@ -353,16 +354,30 @@ def recover(result: dict, fakes: list[Fake], told: list[list[dict]], baseline: l
         rows.append(row)
     known = 0
     others = []
+    placed: dict[str, list] = {}
+    for fake, sightings in zip(fakes, told):
+        for s in sightings:
+            placed.setdefault(s["exposure"], []).append((s["ra"], s["dec"], fake.label))
     for k, t in enumerate(tracks):
         if k in used:
             continue
         if baseline is not None and any(same_path(t, b) for b in baseline):
             known += 1
-        else:
-            others.append({"rate": round(t.rate, 2), "ra0": round(t.ra0, 5), "dec0": round(t.dec0, 5), "mjd0": round(t.mjd0, 5),
-                           "n_times": t.n_times, "times_seen": t.extra.get("times_seen"),
-                           "times_covered": t.extra.get("times_covered"),
-                           "strong": bool(movers.strong(t.extra)) if "times_seen" in t.extra else None})
+            continue
+        # what the path is made of: detections of which fakes, and how many of none
+        made: dict[int, int] = {}
+        for d in t.detections:
+            for ra, dec, label in placed.get(d.exposure, []):
+                e, n = movers.project(d.ra, d.dec, ra, dec)
+                if math.hypot(float(e), float(n)) <= NEAR_ARCSEC:
+                    made[label] = made.get(label, 0) + 1
+                    break
+        others.append({"rate": round(t.rate, 2), "pa_deg": round(t.pa_deg, 1), "ra0": round(t.ra0, 5), "dec0": round(t.dec0, 5),
+                       "mjd0": round(t.mjd0, 5), "n_times": t.n_times, "n_visits": t.n_visits,
+                       "times_seen": t.extra.get("times_seen"), "times_covered": t.extra.get("times_covered"),
+                       "visits_seen": t.extra.get("visits_seen"), "detections": len(t.detections),
+                       "of_fakes": {str(label): n for label, n in sorted(made.items())},
+                       "strong": bool(movers.strong(t.extra)) if "times_seen" in t.extra else None})
     return {"fakes": rows, "baseline_found": known, "others": others, "stats": result.get("stats", {})}
 
 

@@ -183,6 +183,7 @@ def main() -> None:
     s.add_argument("--search", default="movers")
     s.add_argument("--out", type=Path, default=Path("web/data/mover-completeness.json"))
     s.add_argument("--plot", type=Path, default=None)
+    s.add_argument("--made", default=time.strftime("%Y-%m-%d"), help="date of the measurement")
     args = p.parse_args()
     args.dir.mkdir(parents=True, exist_ok=True)
     {"fetch": fetch, "prepare": prepare, "run": run, "shuffle": shuffle, "report": report}[args.command](args)

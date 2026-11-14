@@ -24,6 +24,7 @@
 <link rel="preload" href="/static/fonts/GeistMono.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/style.css?v=53">
 <link rel="stylesheet" href="/static/depth.css?v=53">
+<link rel="stylesheet" href="/static/completeness.css?v=53">
 </head>
 <body>
 <header class="bar">
@@ -340,6 +341,10 @@
       <p>Stars that saturate are measured from the halo around the core, with a systematic error of 20 to 25%. These are quick-look values, not an official SPHEREx data product. For publication, measure on the original files.</p>
       <p>The preliminary reading under the spectrum is written by fixed rules from those points: where the curve peaks, its slope, the blackbody closest to it, and bands and lines at reference wavelengths (water vapour at 1.4, 1.9 and 2.7 µm, methane at 3.3 µm, water ice at 3.0 µm, carbon dioxide at 4.27 µm, lines of hydrogen, helium, sulphur and iron, the 3.3 µm PAH band). The wavelengths of atomic lines are the vacuum values of the NIST Atomic Spectra Database (version 5.12); the bands of water vapour and methane are the band origins of Polyansky et al. (2018) and of Shimanouchi's tables (NIST Chemistry WebBook), those of ices come from Boogert et al. (2015) and the PAH band from van Diedenhoven et al. (2004). Every row of the list under the reading names its source, and each number was read in that source. For an object with a published redshift the lines are looked for where the redshift puts them, which brings the lines of visible and ultraviolet light into range. A band or line counts when it stands at least 4σ from the continuum beside it. The reading describes the curve and lists the kinds of object that fit; it is not a classification, and it says how far it can be trusted.</p>
 
+      <h3>Moving objects</h3>
+      <p>When a wide field has loaded, its exposures are searched for anything that moves, with no catalogue to guide the search: what appears in single exposures is linked into straight paths, each path is checked in the pixels of every exposure along it, and only then compared with the known asteroids and comets.</p>
+      <p>How much such a search finds cannot be read off its results, so it was measured: fake asteroids of known brightness and speed were added to the real exposures of three fields and searched for with the same code. The share found, by brightness, speed and field, is at the end of the <button type="button" class="linkbtn" id="about-complete">Discoveries</button> page.</p>
+
       <h3>Get the originals</h3>
       <p>The Source files panel (Advanced) lists the exposures behind a view. Each one links to its file at NASA/IPAC IRSA, and the download script and URL list fetch them from the archive straight to your computer.</p>
       <p class="credit">Data: SPHEREx Level 2 spectral images, NASA/JPL-Caltech, served by <a href="https://irsa.ipac.caltech.edu/Missions/spherex.html" target="_blank" rel="noopener">NASA/IPAC IRSA</a>.</p>
@@ -354,6 +359,7 @@
       <p class="lead">Moving objects found in the SPHEREx images as people open wide fields of the map.</p>
       <p class="muted" id="lognote" role="status"></p>
       <ul id="loglist" class="movers"></ul>
+      <section class="complete" data-completeness hidden></section>
     </div>
   </div>
 </div>
@@ -386,6 +392,7 @@
 <script src="/static/overtime.js?v=53"></script>
 <script src="/static/exports.js?v=53"></script>
 <script src="/static/movers.js?v=53"></script>
+<script src="/static/completeness.js?v=53"></script>
 <script src="/static/linelist.js?v=53"></script>
 <script src="/static/insight.js?v=53"></script>
 <script src="/static/redshift.js?v=53"></script>
