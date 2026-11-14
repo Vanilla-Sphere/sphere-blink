@@ -677,6 +677,12 @@ In the viewer (Advanced, `web/movers.js`):
   view is not. The object stays in its card with the other exposures and a
   "Back to the field" button, the ring and the path stay on the image, and
   the address gains `seen=<exposure>`, so the link opens that very frame.
+  Nothing is drawn inside the ring, so the marks never cover the object; when
+  the bands on screen are not those of the selected exposure, a line under
+  the list says which detector to choose. Going back to the field restores
+  the grouping and bands the field was shown with, because a wide field with
+  one frame per exposure exceeds the size limit of `/api/cube` (413); a link
+  that asks for it anyway is shown by day.
 - **Votes**: "Real motion" and "False alarm". One vote per browser; choosing
   the same button again takes it back.
 - **Follow**: kept in this browser only (`localStorage`), marked with a star.
