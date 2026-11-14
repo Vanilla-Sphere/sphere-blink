@@ -256,5 +256,7 @@ const Atlas = (() => {
     set(v) { on = !!v; if (wake) wake(); },
     mute(v, lift) { MUTE = v; if (lift) LIFT = lift; for (const k of [...tiles.keys()]) drop(k); if (wake) wake(); },   // try another strength of colour; the tiles are fetched again (from the browser's cache)
     get on() { return on; },
+    /* the address, on our server, of the tile of an order that holds a sky position */
+    tileAt(order, ra, dec) { const pix = number(order, ...diamond(order, ra, dec)); return `${BASE}/Norder${order}/Dir${Math.floor(pix / 10000) * 10000}/Npix${pix}.jpg`; },
   };
 })();

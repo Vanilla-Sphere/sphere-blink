@@ -20,6 +20,7 @@ as static files.
 | `completeness.js`, `completeness.css` | about 150 and 40 lines | "How much the search finds" at the end of the Discoveries page: three figures, a chart of the share of fake objects found against brightness (one line per test field, hover for the numbers), and the same numbers as tables. Reads `data/mover-completeness.json`; asks the server for nothing else |
 | `data/mover-completeness.json` | 50 KB | The result of the injection test of the blind search (`scripts/mover_completeness.py report`, [how much the search finds](mover-completeness.md)) |
 | `exports.js` | about 230 lines | What a researcher takes away: the plot's points as CSV, the plot as PNG with the credit, the "Source files" panel listing the Level 2 exposures with their IRSA links, its download script, URL list and table, and the "About the data" page |
+| `apilist.js` | about 120 lines | "All API endpoints" under "Link or embed this view" (`ApiList`): one row per endpoint that only reads, with its address for the view on screen as a link and a Copy button; updated by `writeUrl` and when the list is opened. `tests/test_apilist.py` holds the rows to the routes of the server |
 | `showcase.js` | about 20 lines | The strip "What you can do here" of the first screen: six cards (`.do`, markup in `index.html`), each opening a live example through functions the other files already have (`openFeatured`, `setLog`, `setDepthPanel`, `setAbout`); it also sets the class `moving` on the map screen while the map is dragged or zoomed, which hides the strip until the visitor stops |
 | `linelist.js` | about 110 lines | `LINE_CATALOG`: the reference wavelengths of the reading, 25 atomic lines (vacuum, NIST ASD 5.12) and 7 bands of molecules, ices and dust, each with its source, and the full references. Data only |
 | `insight.js` | about 610 lines | The preliminary reading of a spectrum (`analyseSpectrum(points, {z, zSource, measured})`): which points can be read, continuum shape, bands and lines at the wavelengths of `linelist.js` (moved by a published redshift when one is given, or by the one read off the lines where `readingRedshift()` of `depth.js` hands that one over), confidence and limits; `showReading` puts it under the plot with the table of reference wavelengths and `markFeatures` names the detected features on the plot. Pure rules, no network |
@@ -69,7 +70,7 @@ Three columns under a fixed top bar:
 | Top bar | Brand, "Sky map" button, search box, Field menu, "Show sky", Simple/Advanced switch, API link, credits note |
 | Left rail | Featured targets; Display panel: Bands, One frame per, Image math, Contrast, Overlays |
 | Stage | Target name and coordinates; the image; progress bar; a status strip with date, channels, wavelength range, exposure count and pointer coordinates; transport; timeline |
-| Right column | Spectrum or flux over time; "Distance and redshift"; "This frame"; "Measured in this field"; "Position of the crosshair" with cross-links; "Link or embed this view" |
+| Right column | Spectrum or flux over time; "Distance and redshift"; "This frame"; "Measured in this field"; "Position of the crosshair" with cross-links; "Link or embed this view" with "All API endpoints" |
 
 ### Layout in Simple mode
 
