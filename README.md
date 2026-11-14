@@ -49,7 +49,7 @@ viewer, code structure, data sources, performance and deployment.
   Gaia says it should be on that date, and fits proper motion with parallax.
   Objects too faint for one exposure are added up along their predicted path,
   one stack per sky pass. Variable objects get a light curve that is
-  independent of wavelength. The five challenge targets are measured
+  independent of wavelength. The five featured targets are measured
   automatically; see [Measurements](#measurements).
 - **Coordinates in the URL** and an image API, so any view can be linked or embedded:
 
@@ -86,9 +86,10 @@ Settings are environment variables (see `sphereblink/config.py`):
 | --- | --- | --- |
 | `SPHEREX_COLLECTIONS` | `spherex_dr1,spherex_qr3` | IRSA collections to search, newest first. A new data release only needs its name added here. |
 | `SPHEREX_CACHE_DIR` | `.cache/sphereblink` | Where the SQLite cutout cache lives (put it on a persistent disk). |
-| `SPHEREX_FETCH_WORKERS` | `32` | Concurrent exposures being read. |
+| `SPHEREX_FETCH_WORKERS` | `64` | Concurrent exposures being read. |
 | `SPHEREX_MAX_FOV_ARCMIN` | `51` | Largest field of view. |
-| `SPHEREX_AUTO_MEASURE` | `1` | Measure the five challenge targets by itself after start (`0` = only on request). |
+| `SPHEREX_AUTO_MEASURE` | `1` | Measure the five featured targets by itself after start (`0` = only on request). |
+| `SPHEREX_WARM_CATALOGS` | `1` | Store the Gaia and CatWISE overlays of the five featured targets after start, so they show at once (`0` = only on request). |
 | `DATABASE_URL` | empty | Postgres for measured positions and tracks (`sql/`). Without it they are kept on disk only. |
 
 ## How it works
@@ -145,7 +146,7 @@ browser ──> FastAPI ──> IRSA SIA v2            which exposures cover (RA
 6. **Light curve.** Every flux is divided by the object's mean spectrum at
    that wavelength, which makes exposures at different wavelengths comparable.
 
-What it gives on the challenge targets (DR1 + QR3, measured 2026-11-14):
+What it gives on the featured targets (DR1 + QR3, measured 2026-11-14):
 
 | Target | Positions | Fitted proper motion (mas/yr) | Catalogue | Note |
 | --- | --- | --- | --- | --- |
@@ -165,6 +166,10 @@ A PSF fit to what is left of a saturated core reads 2-5 times low, so such
 exposures give a position but no core flux; a star saturated in most of its
 exposures (RW Aurigae, Barnard's Star, R Draconis) gets its whole light curve
 from the ring.
+A position where nothing is found gives no track, and neither does one
+where the only source found lies more than 3 arcsec (half a pixel) from the
+place asked for: that is a neighbour, reported as `stats.nearby_source` with
+its positions marked unused. Such a result is not written to the database.
 The pipeline only writes rows with `method` `psf`, `wings` or `stack`;
 measurements loaded by hand under another method name are left alone.
 

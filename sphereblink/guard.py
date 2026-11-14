@@ -78,13 +78,17 @@ def client_of(scope) -> str:
     return _normal(peer[0]) if peer else "unknown"
 
 
+_INSIDE = [ipaddress.ip_network(n) for n in ("127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16",
+                                             "::1/128", "fc00::/7", "fe80::/10")]
+
+
 def internal(client: str) -> bool:
-    """Calls from inside (health checks, the server itself) are never limited."""
+    """Calls from inside (the host's health checks, the server itself) are never limited."""
     try:
         a = ipaddress.ip_address(client)
     except ValueError:
         return False
-    return a.is_loopback or a.is_private or a.is_link_local
+    return any(a.version == n.version and a in n for n in _INSIDE)
 
 
 # ----------------------------------------------------------------------------- how much

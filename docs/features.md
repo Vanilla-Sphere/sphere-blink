@@ -24,7 +24,7 @@ implements it. Implementation detail is in [imaging engine](imaging-engine.md),
 | 13 | Measured tracks overlay | Advanced | `measurements.py`, `/api/tracks` |
 | 14 | Per-frame quality flags and provenance | Advanced | `cutout.py`, `render.Epoch.meta` |
 | 15 | Share links, embeddable GIF and PNG, data API | Simple, Advanced | `main.py`, `web/app.js` (`writeUrl`) |
-| 16 | Challenge targets | Simple, Advanced | `resolve.FEATURED`, `refcat.TARGETS` |
+| 16 | Featured targets | Simple, Advanced | `resolve.FEATURED`, `refcat.TARGETS` |
 
 ## 1. Sky map start screen
 
@@ -32,7 +32,7 @@ The product opens on a drawn map of the whole sky, the same for both modes.
 
 ![The sky map start screen](img/sky-map.png)
 
-*The start screen: a drawn map of the whole sky with the challenge targets marked.*
+*The start screen: a drawn map of the whole sky with the featured targets marked.*
 
 - **Projection.** Hammer equal-area, east to the left as on the sky. Dragging
   turns the sphere; near the centre the scale is uniform, so a zoomed-in map is
@@ -45,8 +45,8 @@ The product opens on a drawn map of the whole sky, the same for both modes.
   centre. Buttons zoom in, zoom out and reset to the whole sky.
 - **Readout.** The coordinates under the pointer and the constellation they
   fall in (from IAU boundaries precomputed on a 1 degree grid).
-- **Challenge targets** are pinned on the map and listed in a "Start here"
-  panel (Simple) or "Challenge targets" panel (Advanced).
+- **Featured targets** are pinned on the map and listed in a "Start here"
+  panel (Simple) or "Featured targets" panel (Advanced).
 - **No dependencies.** The map is drawn on a canvas by `web/starmap.js` from a
   single compact data file, `web/data/sky.json`, built by `scripts/build_sky.py`.
 
@@ -62,7 +62,7 @@ The search box accepts three kinds of input, resolved by
 | --- | --- | --- |
 | Decimal degrees | `269.4486 +4.7387` or `269.4486, 4.7387` | Parsed locally; RA in [0, 360), Dec in [-90, 90] |
 | Sexagesimal | `08h55m10.831s -07d14m42.53s` | Parsed locally with Astropy, hours and degrees |
-| Challenge target or alias | `barnard`, `GJ 699`, `WISE 0855`, `R Dra` | Built-in table, no network |
+| Featured target or alias | `barnard`, `GJ 699`, `WISE 0855`, `R Dra` | Built-in table, no network |
 | Any other object name | `Vega`, `M31`, `TRAPPIST-1` | CDS Sesame (SIMBAD, then NED, then VizieR), with SIMBAD TAP as fallback |
 
 Objects with a known proper motion are placed where they are at the SPHEREx
@@ -104,7 +104,7 @@ are restored when the user returns to it. A link that carries display
 parameters (`det`, `group`, `mode`, `gaia`, `catwise`, `levels`) opens in
 Advanced even without `ui=adv`.
 
-For the five challenge targets, Simple mode shows a two- or three-sentence
+For the five featured targets, Simple mode shows a two- or three-sentence
 description written for a general reader. For any other position it names the
 constellation and explains what to look for.
 
@@ -308,7 +308,7 @@ description in [measurement pipeline](measurement-pipeline.md)):
    and jackknife errors.
 6. Derive a light curve that is independent of wavelength.
 
-The five challenge targets are measured automatically shortly after the service
+The five featured targets are measured automatically shortly after the service
 starts and again when the pipeline version changes or a week has passed.
 
 ## 12. Measure this object
@@ -361,7 +361,7 @@ from (`/api/epochs`, `/api/exposures`).
 
 All endpoints allow cross-origin requests. See [API reference](api-reference.md).
 
-## 16. Challenge targets
+## 16. Featured targets
 
 The five test objects named by the challenge are built in. Their positions and
 motions are held in the service so that they resolve without any network call:

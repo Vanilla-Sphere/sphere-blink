@@ -79,6 +79,13 @@ def save_local(key: str, result: dict) -> None:
         _cache.clear()
 
 
+def delete_local(key: str) -> None:
+    with _conn() as c:
+        c.execute("DELETE FROM results WHERE key=?", (key,))
+    with _lock:
+        _cache.clear()
+
+
 def load_local(key: str) -> dict | None:
     row = _conn().execute("SELECT payload FROM results WHERE key=?", (key,)).fetchone()
     return json.loads(row[0]) if row else None
@@ -146,7 +153,9 @@ def local_near(ra: float, dec: float, radius_deg: float) -> list[dict]:
         return out
     for r_ra, r_dec, payload in rows:
         if _sep_deg(ra, dec, r_ra, r_dec) <= radius_deg:
-            out.append(to_source(json.loads(payload)))
+            result = json.loads(payload)
+            if result.get("track"):  # a search that found nothing is not a measured source
+                out.append(to_source(result))
     return out
 
 
@@ -184,11 +193,25 @@ def db_near(ra: float, dec: float, radius_deg: float) -> list[dict]:
 def save_db(result: dict) -> bool:
     """Write a pipeline result to the team database (sources, detections,
     tracks). Returns False when there is no database or its role may not
-    write; the result is in the local store either way."""
+    write; the result is in the local store either way. A result without a
+    track (nothing was detected) is not written: it only takes the
+    pipeline's earlier rows for that source away."""
     if not db_enabled():
         return False
     src = to_source(result)
     tr = src["track"]
+    if not tr:
+        try:
+            with _connect() as conn:
+                row = conn.execute("select id from sources where name = %s", (src["name"],)).fetchone()
+                if row:
+                    conn.execute("delete from detections where source_id = %s and method = any(%s)", (row[0], PIPELINE_METHODS))
+                    conn.execute("delete from tracks where source_id = %s", (row[0],))
+            with _lock:
+                _cache.clear()
+        except Exception as exc:
+            log.warning("could not clear %s in the measurement database: %s: %s", result.get("name"), type(exc).__name__, exc)
+        return False
     try:
         with _connect() as conn:
             sid = conn.execute(
@@ -243,8 +266,8 @@ def sync_db() -> int:
     n = 0
     for key, payload in _conn().execute("SELECT key, payload FROM results").fetchall():
         result = json.loads(payload)
-        if result.get("stats", {}).get("in_database"):
-            continue
+        if result.get("stats", {}).get("in_database") or not result.get("track"):
+            continue  # already there, or nothing was detected: nothing to write
         if not save_db(result):
             break  # the database refuses or is away: the next start tries again
         result.setdefault("stats", {})["in_database"] = True

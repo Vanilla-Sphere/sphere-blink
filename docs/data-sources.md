@@ -5,15 +5,15 @@
 | Dataset | Provider | Used for | Access |
 | --- | --- | --- | --- |
 | SPHEREx Level 2 spectral images, releases DR1 and QR3 | NASA / Caltech IPAC, Infrared Science Archive (IRSA) | Every image, spectrum and measurement in the product | Exposure search through IRSA SIA v2; pixels from the AWS Open Data mirror |
-| Gaia DR3 | European Space Agency (ESA), Gaia mission | Overlay; reference astrometry and neighbour stars for measurements | IRSA TAP (`gaia_dr3_source`); ESA Gaia archive TAP (`gaiadr3.gaia_source`) |
-| CatWISE2020 | NASA WISE / NEOWISE; IRSA | Overlay of infrared sources with proper motions | IRSA TAP (`catwise_2020`) |
+| Gaia DR3 | European Space Agency (ESA), Gaia mission | Overlay; reference astrometry and neighbour stars for measurements | ESA Gaia archive TAP (`gaiadr3.gaia_source`); IRSA TAP (`gaia_dr3_source`) as the fallback |
+| CatWISE2020 | NASA WISE / NEOWISE; IRSA | Overlay of infrared sources with proper motions | IRSA Gator cone search (`catwise_2020`); IRSA TAP as the fallback |
 | 2MASS Point Source Catalog | NASA / IPAC, University of Massachusetts | Calibration and validation of photometry (81 stars, offline) | Values stored in `scripts/wing_calibrators.csv` |
 | SIMBAD, NED, VizieR through Sesame | CDS Strasbourg; NASA/IPAC Extragalactic Database | Resolving object names to positions and proper motions | CDS Sesame; SIMBAD TAP |
 | AllWISE position and Kirkpatrick et al. 2021 (ApJS 253, 7) | NASA WISE; published literature | Astrometry of WISE 0855-0714, which is not in Gaia | Constants in `refcat.py` |
 | d3-celestial star, constellation and Milky Way data | Olaf Frohn (BSD 3-Clause) | The drawn sky map | Reduced to `web/data/sky.json` at build time |
 
 No data are bundled with the product apart from the sky-map chart, the
-calibration star list and the catalogue rows of the five challenge targets.
+calibration star list and the catalogue rows of the five featured targets.
 
 ## SPHEREx Level 2 images
 
@@ -70,16 +70,18 @@ search result. If that column is empty the IRSA download URL is used instead.
 
 | Service | Endpoint | Called by | Timeout | On failure |
 | --- | --- | --- | --- | --- |
-| IRSA SIA v2 | `https://irsa.ipac.caltech.edu/SIA` | `sia.py` | 90 s | One retry; stale cached list; else the view fails with 502 |
-| AWS S3 (SPHEREx bucket) | `https://nasa-irsa-spherex.s3.us-east-1.amazonaws.com` | `cutout.py`, `measure.py` | 60 s (20 s connect) | Three attempts per exposure; the exposure is then counted as failed |
-| IRSA TAP | `https://irsa.ipac.caltech.edu/TAP/sync` | `catalogs.py`, `refcat.py` | 90 s / 40 s | Overlay: 502 and client retry. Measurement: second choice after ESA |
-| ESA Gaia archive TAP | `https://gea.esac.esa.int/tap-server/tap/sync` | `refcat.py` | 40 s | Falls back to IRSA TAP |
+| IRSA SIA v2 | `https://irsa.ipac.caltech.edu/SIA` | `sia.py` | 60 s for a new position, 10 s when an older list is stored | One retry; then the stored list of any age; else the view fails with 502 |
+| AWS S3 (SPHEREx bucket) | `https://nasa-irsa-spherex.s3.us-east-1.amazonaws.com` | `cutout.py`, `measure.py` | 60 s (8 s connect) | The same byte range is read from IRSA (`https://irsa.ipac.caltech.edu/ibe/data/spherex/<key>`), which is about five times slower; after three failures in a row the bucket is skipped for a minute. Three attempts per exposure; the exposure is then counted as failed |
+| ESA Gaia archive TAP | `https://gea.esac.esa.int/tap-server/tap/sync` | `catalogs.py`, `refcat.py` | 25 s / 40 s | Falls back to IRSA TAP |
+| IRSA Gator | `https://irsa.ipac.caltech.edu/cgi-bin/Gator/nph-query` | `catalogs.py` | 25 s | CatWISE overlay; falls back to IRSA TAP |
+| IRSA TAP | `https://irsa.ipac.caltech.edu/TAP/sync` | `catalogs.py`, `refcat.py` | 25 s / 40 s | Second choice for both overlays and for measurement. Overlay: 502 and client retry when both services fail |
 | CDS Sesame | `https://cds.unistra.fr/cgi-bin/nph-sesame`, then `https://vizier.cfa.harvard.edu/viz-bin/nph-sesame` | `resolve.py` | 8 s (4 s connect) | Next host, then SIMBAD TAP |
-| SIMBAD TAP | `https://simbad.cds.unistra.fr/simbad/sim-tap/sync`, then `https://simbad.cfa.harvard.edu/simbad/sim-tap/sync` | `resolve.py` | 8 s | 503 "name services are not answering" |
+| SIMBAD TAP | `https://simbad.cds.unistra.fr/simbad/sim-tap/sync`, then `https://simbad.cfa.harvard.edu/simbad/sim-tap/sync` | `resolve.py` | 8 s | A stored answer of any age; else 503 "name services are not answering" |
 
 All of these are public and need no key. Results are cached: exposure lists for
-24 hours, catalogue overlays per view, name lookups in memory (512 entries),
-Gaia reference rows of the challenge targets in the source code.
+24 hours (and kept for when the archive is away), catalogue overlays per view,
+name lookups on disk for 30 days and in memory (2000 entries),
+Gaia reference rows of the featured targets in the source code.
 
 ## Data model
 

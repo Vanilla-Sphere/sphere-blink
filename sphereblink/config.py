@@ -23,7 +23,7 @@ S3_HTTP_BASE = os.environ.get(
 )
 
 # The archive's own copy of the same files (IRSA), used when the bucket does
-# not answer. It also serves byte ranges, at about a third of the speed.
+# not answer. It also serves byte ranges, several times slower.
 MIRROR_HTTP_BASE = os.environ.get("SPHEREX_MIRROR_HTTP_BASE", "https://irsa.ipac.caltech.edu/ibe/data/spherex")
 
 CACHE_DIR = Path(os.environ.get("SPHEREX_CACHE_DIR", ".cache/sphereblink"))
@@ -36,6 +36,8 @@ MAX_FOV_ARCMIN = float(os.environ.get("SPHEREX_MAX_FOV_ARCMIN", "51"))  # 7 x 7 
 # part of the view (see Grid.search_radius_deg).
 WIDE_FOV_ARCMIN = float(os.environ.get("SPHEREX_WIDE_FOV_ARCMIN", "12"))
 MAX_FRAMES = int(os.environ.get("SPHEREX_MAX_FRAMES", "1200"))
+# Fill the overlay catalogues of the featured targets in the background after a start.
+WARM_CATALOGS = os.environ.get("SPHEREX_WARM_CATALOGS", "1") not in ("0", "false", "no")
 FETCH_WORKERS = int(os.environ.get("SPHEREX_FETCH_WORKERS", "64"))  # concurrent exposures per view
 # Processes that cut exposures. Set it to the number of CPUs the server really
 # has: inside a container os.cpu_count() reports the host's cores.

@@ -90,7 +90,7 @@ Accuracy is part of performance for this product. The figures are derived in
 | Halo flux of saturated stars against 2MASS, 0.15-20 Jy | median ratio 0.90-1.06, scatter 11-25 % | same |
 | Single-exposure position | 0.2-0.5 arcsec | Residuals of the track fits (RMS 0.26-0.95 arcsec including saturated stars) |
 | Agreement of the Level 2 WCS with Gaia | about 0.05 arcsec | Pointing check on reference stars |
-| Proper motion of fast movers | recovered within the stated errors of 50-1000 mas/yr | Five challenge targets and four further nearby stars |
+| Proper motion of fast movers | recovered within the stated errors of 50-1000 mas/yr | Five featured targets and four further nearby stars |
 | Relative brightness between sky passes | 2 % (PSF fluxes), 12 % (ring fluxes) | Non-variable stars |
 | Coarse-lattice pixel mapping | error below 1/1000 pixel | Unit test |
 
@@ -138,7 +138,9 @@ real rate is 85-220 MB/s. The start command now pins one worker, and
 | Largest field of view | 51 arcmin (7 x 7 cells is 50.4) | `SPHEREX_MAX_FOV_ARCMIN` |
 | Largest progressive level | 3 | `tiles.MAX_LEVELS` |
 | Exposures per view | 1200, thinned evenly in time beyond that | `SPHEREX_MAX_FRAMES` |
-| Concurrent exposure reads | 32, shared by the worker processes | `SPHEREX_FETCH_WORKERS` |
+| Concurrent exposure reads | 64, shared by the worker processes | `SPHEREX_FETCH_WORKERS` |
+| Views being gathered at once | 24 per caller, 96 in total | `SPHEREX_MAX_JOBS_PER_CLIENT`, `SPHEREX_MAX_JOBS` |
+| Request threads | 160 | `SPHEREX_REQUEST_THREADS` |
 | Worker processes | 4 | `SPHEREX_FETCH_PROCS` |
 | Pixels per cube response | 40 million | `main.CUBE_BUDGET` |
 | Frames held in memory | 2 GB in production (default 600 MB) | `SPHEREX_RAM_BUDGET_MB` |
@@ -160,6 +162,28 @@ Planning numbers:
   processes; set `SPHEREX_FETCH_PROCS` to match). Horizontal scaling would
   require moving job state out of process memory, which was not needed at
   the present load.
+
+## Several visitors at once
+
+Measured on a 4-core machine on 2026-11-14 (not in production): eight visitors
+open eight different cold 8 arcmin views (249-341 exposures each) at the same
+moment.
+
+| | First frames on screen (slowest visitor) | All frames, mean | All frames, slowest |
+| --- | --- | --- | --- |
+| Chunks handed to the pool view by view (before) | 34.8 s | 23.6 s | 40.8 s |
+| Fair scheduler, 64 concurrent reads (now) | 3.6 s | 18.2 s | 31.4 s |
+
+A single cold view on the same machine went from 9.1-9.6 s to 8.1 s (the reads
+wait on the network for more than half of their time, so 64 concurrent reads
+keep the four processes busier than 32 did). The total work is unchanged: the
+scheduler decides who waits, and nobody waits without a picture.
+
+Other changes of the same date: the disk cache evicts by last use and keeps a
+running size per view (it used to scan the whole frame index after every cold
+view, before the view was reported ready); cubes are compressed outside the
+event loop; the cube of a finished view may be kept by the browser for ten
+minutes; resolved names survive a restart.
 
 ## Bottlenecks that remain
 
