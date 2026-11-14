@@ -45,6 +45,7 @@ function readUrl() {
   if (p.get("det")) S.det = p.get("det");
   if (["day", "visit", "exposure"].includes(p.get("group"))) S.group = p.get("group");
   if (["blink", "diffmed", "diffref", "stack"].includes(p.get("mode"))) S.mode = p.get("mode");
+  if (["spec", "lc"].includes(p.get("plot"))) S.plotmode = p.get("plot");
   if (p.get("gaia") === "1") $("ov-gaia").checked = true;
   if (p.get("catwise") === "1") $("ov-catwise").checked = true;
   if (p.get("tracks") === "0") $("ov-tracks").checked = false;
@@ -78,6 +79,7 @@ function writeUrl(push) {
   if (S.det !== "rgb") p.set("det", S.det);
   if (S.group !== "day") p.set("group", S.group);
   if (S.mode !== "blink") p.set("mode", S.mode);
+  if (S.plotmode === "lc") p.set("plot", "lc");   // the plot tab, so that a link can open on "Over time"
   if ($("ov-gaia").checked) p.set("gaia", "1");
   if ($("ov-catwise").checked) p.set("catwise", "1");
   if (S.tracks && !$("ov-tracks").checked) p.set("tracks", "0");
@@ -1285,6 +1287,12 @@ function route() {
   const byCoords = !p.get("target");
   load({target: p.get("target") || null, ra: byCoords ? parseFloat(p.get("ra")) : null, dec: byCoords ? parseFloat(p.get("dec")) : null, byCoords}, true);
 }
+/* The box of the map where the heading lies, for as long as it is on screen: the map draws no name there. */
+function mapKeepOut() {
+  const sc = $("mapscreen"), a = document.querySelector(".maphead").getBoundingClientRect(), m = $("map").getBoundingClientRect();
+  if (!a.width || (sc.classList.contains("zoomed") && !sc.classList.contains("opening"))) return null;
+  return [a.left - m.left - 8, a.top - m.top - 6, a.right - m.left + 8, a.bottom - m.top + 6];
+}
 function mapTag(x, y, html) {
   const tag = $("maptag"), box = $("mapscreen").getBoundingClientRect();
   tag.innerHTML = html; tag.hidden = false;
@@ -1363,7 +1371,7 @@ function init() {
   buildDets();
   seg("group", "group", reloadCube);
   seg("mode", "mode", () => { $("refrow").hidden = S.mode !== "diffref"; S.limits = null; if (S.mode === "stack") stop(); draw(); writeUrl(); });
-  seg("plotmode", "plotmode", () => drawPlot());
+  seg("plotmode", "plotmode", () => { drawPlot(); writeUrl(); });
   $("plot").addEventListener("click", plotClick);
   $("otprev").addEventListener("click", () => stepGroup(-1)); $("otnext").addEventListener("click", () => stepGroup(1)); $("otall").addEventListener("click", () => stepGroup(0));
   initExports();
@@ -1371,7 +1379,7 @@ function init() {
   initDepth();
   $("refrow").hidden = S.mode !== "diffref";
   setUi(prefs.ui, true);
-  SkyMap.init($("map"), {coords: () => S.ui === "adv", onPick: mapPick, onHover: mapHover, onReady: () => { if (S.t) showStory(S.t); },
+  SkyMap.init($("map"), {coords: () => S.ui === "adv", onPick: mapPick, onHover: mapHover, onReady: () => { if (S.t) showStory(S.t); }, keepOut: mapKeepOut,
     onView: (v) => { $("mapscreen").classList.toggle("zoomed", v.zoomed); $("mapscreen").classList.toggle("opening", !!v.opening); }});
   buildFeatured();
   $("ui").addEventListener("click", (ev) => { const b = ev.target.closest("button"); if (b && b.dataset.v !== S.ui) setUi(b.dataset.v); });
