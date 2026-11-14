@@ -201,11 +201,27 @@ snapped to; `app.js` turns that into the map tag (pin, then a star with a name
 or a designation, then constellation, with the text from `lore.js`), and the
 map brightens the figure of the constellation under the pointer.
 
+**The first view.** The first time the map is shown it looks at the centre of
+the Milky Way (`OPEN` in `starmap.js`: RA 266.4, Dec -29) instead of the whole
+sky, so the photograph of the real sky is on screen from the start. The zoom
+(`openZoom`) is set by how much sky fits: 64 degrees across the width, never
+less than 28 degrees over the height, at least 4 times the whole-sky zoom
+(where the photograph is fully in) and just short of 6 times, where every
+star to the third magnitude would get its name. That is 5.2 times the
+whole-sky zoom at 1440 x 900, 5.6 at 1920 x 1000 and 4 on a phone. A view
+asked for by `lookAt` before the map is shown wins over it. Until the visitor
+moves the map, `onView` reports `opening: true` and `app.js` keeps the class
+`opening` on `#mapscreen`, which keeps the heading on the map although it is
+zoomed in. Zooming out is not limited: the whole sky is one button or a few
+wheel steps away. Star names are counted from the whole-sky zoom
+(`view.k / homeZoom()`), so a phone, which starts closer, does not fill up
+with names.
+
 **Snapping to stars.** Pointing and picking snap to the nearest drawn star
 (`starAt`): the aiming frame jumps onto it, the readout shows the star's own
 coordinates and a click opens the star, not a place a few pixels beside it. A
-star is within reach when the pointer is within 6 px of its disc at the opening
-zoom, growing by 3 px for each doubling of the zoom up to 16 px, and 1.6 times
+star is within reach when the pointer is within 6 px of its disc at the
+whole-sky zoom, growing by 3 px for each doubling of the zoom up to 16 px, and 1.6 times
 that for a finger; a finger also prefers the brighter of two close stars.
 Holding Alt points and picks freely, between the stars. A star with a proper
 name (493 of them) is opened by that name, so the view carries the name and the

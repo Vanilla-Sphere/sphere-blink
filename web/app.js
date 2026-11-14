@@ -1200,7 +1200,7 @@ function init() {
   $("refrow").hidden = S.mode !== "diffref";
   setUi(prefs.ui, true);
   SkyMap.init($("map"), {coords: () => S.ui === "adv", onPick: mapPick, onHover: mapHover, onReady: () => { if (S.t) showStory(S.t); },
-    onView: (v) => $("mapscreen").classList.toggle("zoomed", v.zoomed)});
+    onView: (v) => { $("mapscreen").classList.toggle("zoomed", v.zoomed); $("mapscreen").classList.toggle("opening", !!v.opening); }});
   buildFeatured();
   $("ui").addEventListener("click", (ev) => { const b = ev.target.closest("button"); if (b && b.dataset.v !== S.ui) setUi(b.dataset.v); });
   $("toadv").addEventListener("click", () => setUi("adv"));
