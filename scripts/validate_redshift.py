@@ -3,7 +3,8 @@
 Takes bright quasars with a spectroscopic redshift from web/data/redshift.json, asks a running engine
 for the SPHEREx spectrum of each, runs the estimator on it (the same file the viewer loads, under
 Node) and prints, object by object, the estimate next to the published value. Stars and nearby
-galaxies go through the same way: for them the right answer is no redshift, or zero.
+galaxies go through the same way: for a star the right answer is no redshift (or zero), for a
+galaxy none or its own small one (asked of the engine's lookup, /api/object).
 
     uvicorn sphereblink.main:app --port 8000          # an engine of your own: never the public site
     python scripts/validate_redshift.py --keep /tmp/zcheck
@@ -59,6 +60,16 @@ def sample(first: int, last: int, seed: int) -> list[dict]:
     return out
 
 
+def published(engine: str, query: str) -> float | None:
+    """The published redshift of an object, from the engine's own lookup (SIMBAD, then NED)."""
+    try:
+        with urllib.request.urlopen(f"{engine}/api/object?{query}", timeout=60) as r:
+            z = json.load(r).get("redshift") or {}
+    except OSError:
+        return None
+    return z.get("z")
+
+
 def spectrum(engine: str, query: str) -> list | None:
     """The points of /api/spectrum, waiting until the engine has read every exposure."""
     for _ in range(10):
@@ -101,8 +112,13 @@ def main() -> None:
             if points is None:
                 print(f"{o['name']}: no spectrum", file=sys.stderr)
                 continue
+            if o["kind"] == "galaxy":
+                o["z"] = published(args.engine, o["query"])
             path.write_text(json.dumps({**o, "points": points}))
-        spectra.append({"name": o["name"], "points": json.loads(path.read_text())["points"]})
+        kept = json.loads(path.read_text())
+        if o["kind"] == "galaxy":
+            o["z"] = kept.get("z")
+        spectra.append({"name": o["name"], "points": kept["points"]})
 
     run = subprocess.run(["node", str(ROOT / "tests" / "redshift_runner.js")], input=json.dumps(spectra), capture_output=True, text=True, timeout=600)
     if run.returncode:
@@ -110,7 +126,7 @@ def main() -> None:
     found = json.loads(run.stdout)
 
     tally = {kind: {"n": 0, "given": 0, "right": 0, "wrong": 0, "q4": 0, "off": [], "none": {}} for kind in ("quasar", "star", "galaxy")}
-    for o in sorted(objects, key=lambda o: (o["kind"] != "quasar", o["kind"], o.get("z", 0))):
+    for o in sorted(objects, key=lambda o: (o["kind"] != "quasar", o["kind"], o.get("z") or 0)):
         e = found.get(o["name"])
         if e is None:
             continue
@@ -122,14 +138,14 @@ def main() -> None:
         else:
             t["given"] += 1
             t["q4"] += e["quality"] == 4
-            if o["kind"] == "quasar":
+            if o.get("z") is not None:
                 t["off"].append(abs(e["z"] - o["z"]) / (1 + o["z"]))
                 right = t["off"][-1] < 0.02
-            else:   # a star or a galaxy next door: the lines can only be at rest
-                right = abs(e["z"]) < 0.05
+            else:   # a star: its lines can only be at rest
+                right = abs(e["z"]) < 0.01
             t["right" if right else "wrong"] += 1
             verdict = "right" if right else "WRONG"
-        known = f"z = {o['z']:<7} K = {o['K']:<5}" if "z" in o else o["kind"].ljust(21)
+        known = (f"z = {o['z']:<7} " + (f"K = {o['K']:<5}" if "K" in o else o["kind"].ljust(9))) if o.get("z") is not None else o["kind"].ljust(21)
         given = f"z = {e['z']:.3f} ± {e['zErr']:.3f}  quality {e['quality']}" if e["z"] is not None else f"none ({e['reason']})"
         lines = ", ".join(f"{line['name']} {line['wave']:.2f}" for line in e["lines"]) if e["z"] is not None else ""
         print(f"{o['name'][:28]:<29}{known}  {given:<34}{verdict:<6} {lines}")

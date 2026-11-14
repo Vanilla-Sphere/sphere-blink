@@ -26,7 +26,7 @@ implements it. Implementation detail is in [imaging engine](imaging-engine.md),
 | 15 | Share links, embeddable GIF and PNG, data API | Simple, Advanced | `main.py`, `web/app.js` (`writeUrl`) |
 | 16 | Featured targets | Simple, Advanced | `resolve.FEATURED`, `refcat.TARGETS` |
 | 17 | Blind search for moving objects, with a log ("Discoveries"), names, follow and votes | Advanced | `movers.py`, `mover_store.py`, `movers_api.py`, `known_objects.py`, `web/movers.js` |
-| 18 | Distance and redshift: the object of a view, the sky map by redshift, comparing spectra in the rest frame | Simple, Advanced | `distance.py`, `/api/object`, `scripts/build_redshift.py`, `web/depth.js` |
+| 18 | Distance and redshift: the object of a view, the sky map by redshift, comparing spectra in the rest frame, a redshift read from the emission lines of the spectrum | Simple, Advanced | `distance.py`, `/api/object`, `scripts/build_redshift.py`, `web/depth.js`, `web/redshift.js` |
 
 ## 1. Sky map start screen
 
@@ -616,9 +616,10 @@ months apart) are not searched.
 ## 18. Distance and redshift
 
 How far away the object of a view is, which galaxies and quasars lie at a
-given redshift, and how their SPHEREx spectra compare. All distances and
-redshifts are published values with their source; none is measured from the
-SPHEREx images. The rules, the sources and the checks are in
+given redshift, and how their SPHEREx spectra compare. Distances and
+redshifts are published values with their source. One value is our own and
+labelled so: the redshift read from the emission lines of a SPHEREx spectrum.
+The rules, the sources and the checks are in
 [distance and redshift](distance-redshift.md).
 
 **The object of a view** (`/api/object`):
@@ -639,6 +640,18 @@ SPHEREx images. The rules, the sources and the checks are in
 - When the lookup does not answer, the card falls back to the all-sky list
   below for the objects it holds, and says so.
 
+**A redshift from the lines** (`web/redshift.js`, in the browser):
+
+- Where the spectrum of the view shows emission lines, the card gets the rows
+  "From its lines" (for example "z = 1.343 ± 0.006 · quality 4 of 4 · within
+  0.2 % of the published value") and "Lines found" (each line and where it
+  stands). Two methods have to agree on at least two lines, Hα among them;
+  otherwise nothing is shown.
+- With no published redshift, Simple says it in one sentence that ends "Our
+  own reading, not a published value."
+- Stars never get one. Blazars, faint objects and spectra with a single line
+  get none either.
+
 **The sky map by redshift** (button "Redshift" on the map, both modes):
 
 - Lowest redshift to show: Off, All, z > 0.1, 1, 3, 5, 6 or 7.
@@ -658,5 +671,7 @@ on the distance card and on the redshift panel):
 - Each object has its redshift in a field and on a slider, starting at the
   published value. Moving it shows where the lines would fall; "Reset" goes
   back to the published value.
+- "from its lines" next to the published value is the redshift the spectrum's
+  own lines give, where they give one; pressing it moves the spectrum there.
 - Example "four quasars, z = 0.16 to 6.3": in the rest frame their Hα lines
   fall on one marker.

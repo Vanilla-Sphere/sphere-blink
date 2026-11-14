@@ -25,7 +25,7 @@ when it was measured.
 | [Imaging engine](imaging-engine.md) | How a view is produced: exposure search, FITS range reads, cutout, resampling, epochs, false colour, progressive fields |
 | [Measurement pipeline](measurement-pipeline.md) | Automatic astrometry, track fitting, light curves, bright-star photometry, validation results |
 | [Moving objects](moving-objects.md) | The blind search for asteroids, comets and other moving objects: algorithm, validation, the log, names of known objects, votes |
-| [Distance and redshift](distance-redshift.md) | Distances of stars and redshifts of galaxies from published catalogues, the sky map by redshift, comparing spectra in the rest frame, what is not derived from SPHEREx and why |
+| [Distance and redshift](distance-redshift.md) | Distances of stars and redshifts of galaxies from published catalogues, the sky map by redshift, comparing spectra in the rest frame, the redshift read from the emission lines of a SPHEREx spectrum and how it was checked, what is not done and why |
 | [API reference](api-reference.md) | Every HTTP endpoint: parameters, responses, status codes, binary cube format |
 | [Viewer](viewer.md) | The web client: screens, Simple and Advanced modes, URL state, rendering, design system |
 | [Code structure](code-structure.md) | Repository layout, module responsibilities and dependencies, tests, conventions |

@@ -13,6 +13,8 @@ as static files.
 | `ambient.js` | about 330 lines | The motion of the sky map screen (`Ambient`): deep star field, rim glow, slow turn, aiming frame, pings, meteors |
 | `atlas.js` | 220 lines | The photograph of the real sky behind the zoomed-in map (`Atlas`): tiles of the 2MASS atlas, from our server's copy (`/api/atlas/2mass/`) or NASA/IPAC IRSA itself, drawn through the map's projection |
 | `depth.js`, `depth.css` | about 480 and 80 lines | Distance and redshift: the card and the sentence of a view, the redshift layer of the sky map, the "Compare spectra" sheet; its own text (added to `STR.en`) and styles |
+| `redshift.js` | about 400 lines | `Redshift.estimate(points, template)`: a redshift from the emission lines of a spectrum, or the reason there is none (continuum by visit, cross-correlation with the quasar template, line matching, quality 1 to 4); no text and no page elements of its own |
+| `data/quasar-template.json` | 18 KB | The mean quasar spectrum from 0.1 to 3.5 µm at rest (Selsing et al. 2016, Glikman et al. 2006), loaded with the first spectrum that is read for lines |
 | `data/redshift.json` | 600 KB | 10 037 galaxies and quasars with a spectroscopic redshift (SIMBAD), loaded when the redshift layer is first used |
 | `movers.js` | about 240 lines | Moving objects found by the blind search: the card of a field, the paths on the image, votes, follow, and the "Discoveries" list |
 | `exports.js` | about 230 lines | What a researcher takes away: the plot's points as CSV, the plot as PNG with the credit, the "Source files" panel listing the Level 2 exposures with their IRSA links, its download script, URL list and table, and the "About the data" page |
@@ -24,7 +26,7 @@ as static files.
 | `data/sky.json` | - | Compact star chart: stars, names, constellations, Milky Way, boundary grid |
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
-Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `insight.js`, `depth.js`, `app.js`.
+Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `insight.js`, `redshift.js`, `depth.js`, `app.js`.
 Asset URLs carry a version query (`?v=40`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
@@ -219,6 +221,14 @@ does the same for a link that carries `mover` and `seen`.
 target. `depthTarget` asks `/api/object` (twice at most); with no answer it
 looks for the object in `data/redshift.json` and, failing that, hides the
 card, so the viewer also works against a server without the endpoint.
+
+When the spectrum of the view has arrived, `app.js` calls
+`depthSpectrum(points)`. It runs `Redshift.estimate` on them with the quasar
+template (`zTemplate`, fetched once) and keeps the result in `DP.est` when
+its quality is 3 or 4; `showDepth` then adds the rows "From its lines" and
+"Lines found", and shows the card for the estimate alone when the catalogues
+know nothing. An object the lookup calls a star gets no such rows. The
+compare sheet does the same for each of its objects (`it.est`).
 
 The redshift layer uses one hook of the sky map: `SkyMap.layer({groups, dim})`
 draws groups of objects (one colour each; dots, or diamonds for `kind: "q"`)

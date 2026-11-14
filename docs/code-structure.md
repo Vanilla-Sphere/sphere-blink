@@ -115,6 +115,8 @@ of HTML, CSS and JavaScript in the viewer.
 | `scripts/wing_calibrators.csv` | The 81 isolated 2MASS stars used for the calibration | - |
 | `scripts/build_sky.py` | Build `web/data/sky.json` from d3-celestial data | `python scripts/build_sky.py path/to/d3-celestial/data` |
 | `scripts/build_redshift.py` | Build `web/data/redshift.json`, the galaxies and quasars of the redshift layer, from SIMBAD (about 4 minutes) | `python scripts/build_redshift.py` |
+| `scripts/build_quasar_template.py` | Build `web/data/quasar-template.json`, the mean quasar spectrum the redshift estimate is compared with, from two composites in VizieR | `python scripts/build_quasar_template.py` |
+| `scripts/validate_redshift.py` | Check the redshift estimate (`web/redshift.js`) against published redshifts on bright quasars, and on stars and nearby galaxies, with a local engine | `python scripts/validate_redshift.py --keep DIR` |
 | `scripts/build_dev_site.sh` | Lay `web/` out as the static dev site (see [environments](environments.md)) | `sh scripts/build_dev_site.sh [output dir]` |
 
 ## Database files
@@ -139,6 +141,7 @@ stubbed HTTP clients, need no network, and finish in about three seconds.
 | `tests/test_measure.py` | 18 | Parallax factors; PSF fit accuracy; neighbour handling; wing fallback; track recovery with parallax; stacks for faint movers; light curve; storage and database synchronisation; saturated stars |
 | `tests/test_overtime_js.py` | 1 | Runs `tests/overtime_cases.js` with node on `web/overtime.js`: groups of days, the cut time axis, and the comparison of visits (steady, fading, saturated star, long stay, one visit, too few points, noise only) |
 | `tests/test_resolve_names.py` | 12 | Name resolution paths: Sesame, mirrors, redirects, SIMBAD fallback, spellings, "not found" against "unavailable", no network for built-in targets |
+| `tests/test_redshift.py` | 38 | The redshift from the lines (`web/redshift.js`, run under Node by `tests/redshift_runner.js`): 13 real quasar spectra kept in `tests/data/redshift/` (eight with lines from z = 0.16 to 6.5 give their published redshift, four blazars and one with a single line give none), the star spectra of `tests/data/spectra/` give none, and made-up spectra (lines at five redshifts, bare continuum, one line, a flare at one visit, noise, flagged points) |
 | `tests/test_insight.py` | 16 | The preliminary reading of a spectrum (`web/insight.js`, run under Node by `tests/insight_runner.js`): 14 real spectra kept in `tests/data/spectra/` (brown dwarf, ices, planetary nebula, white dwarf, cold neighbour, cool star, quasar, extended galaxy, saturated stars, empty sky) and made-up curves (blackbodies, a power law, ice bands, emission lines, noise); no band or line from noise; nothing claimed from too few points. Skipped where Node is not installed |
 
 ```bash

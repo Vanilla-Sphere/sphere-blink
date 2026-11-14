@@ -62,6 +62,7 @@ const Redshift = (() => {
     faintLine: 3.0,      // ... or from this many at a place another line predicts
     tol: 0.013,          // a peak is "on" a line within this, in ln(wavelength): half a resolution element
     agree: 0.013,        // the two methods agree within this, in ln(1+z)
+    floor: 0.004,        // least error of a redshift, in (1 + z)
     minPoints: 60,
     noisePoints: 40,
     clip: [3, 12],       // a point counts for at most this many sigma below and above the continuum
@@ -375,11 +376,12 @@ const Redshift = (() => {
     if (pass(CFG.q4)) out.quality = 4;
     else if (pass(CFG.q3)) out.quality = 3;
     else { out.quality = 2; out.reason = at && at.strength >= CFG.q3.match ? "disagree" : "weak"; return out; }
-    // the redshift is the one of the line centres; its error, the larger of their disagreement and of
-    // what the noise allows (a resolution element over the strength of the lines)
+    // the redshift is the one of the line centres; its error, the larger of their disagreement, of what
+    // the noise allows (a resolution element over the strength of the lines) and of 0.4 % of (1 + z):
+    // twice the median distance from the published values of the quasars it was checked on
     const formal = 0.6 * (1 / 41) / Math.max(top, 1);
     out.z = out.linesZ;
-    out.zErr = (1 + out.z) * Math.max(lm.spread, formal, 0.002);
+    out.zErr = (1 + out.z) * Math.max(lm.spread, formal, CFG.floor);
     return out;
   }
 
