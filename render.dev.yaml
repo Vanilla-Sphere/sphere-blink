@@ -11,6 +11,8 @@ services:
     branch: develop
     buildCommand: sh scripts/build_dev_site.sh dev-site
     staticPublishPath: ./dev-site
+    domains:
+      - dev.vanillasphere.com
     # Only a change to the viewer (or to how this site is built) deploys it.
     buildFilter:
       paths:

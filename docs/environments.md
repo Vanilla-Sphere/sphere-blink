@@ -8,7 +8,7 @@ the viewer of the next release before the public sees it.
 | Purpose | The public product | Looking at a change to the viewer (`web/`) first |
 | Branch | `main` | `develop` |
 | Blueprint file | `render.yaml`, read from `main` | `render.dev.yaml`, read from `develop` |
-| Address | <https://vanillasphere.com> | The site's address on the hosting platform, shared within the team and not published |
+| Address | <https://vanillasphere.com> | <https://dev.vanillasphere.com> |
 | What runs | The web service: engine, measurement pipeline, viewer | A static site: the viewer only |
 | Engine, disk, database | Its own | Production's: `/api/` is passed on to the live service |
 | Search engines | Pages may be indexed, the API may not | Closed entirely |
