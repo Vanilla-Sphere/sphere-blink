@@ -77,7 +77,8 @@ finished stage. See [imaging engine](imaging-engine.md#progressive-fields).
 ### Measuring an object
 
 `/api/measure` starts a job in the web process that finds the exposures and
-wavelength maps, then submits the numerical work to the measurement process.
+wavelength maps, then submits the numerical work to one of the measurement processes (waiting
+in a queue when all are busy).
 The result is written to the local SQLite store and, when a database is
 configured, to Postgres. The browser polls the same URL until `status` is
 `ready`. See [measurement pipeline](measurement-pipeline.md#job-execution).
@@ -108,14 +109,23 @@ configured, to Postgres. The browser polls the same URL until `status` is
   set to 1 before NumPy is imported. Inside a container the maths libraries
   otherwise start one thread per host core and contend for the few CPUs the
   container may use.
-- **Views share the worker processes fairly.** A view does not hand all its
-  chunks to the pool at once. `service.Scheduler` keeps only a few chunks in
-  the processes and chooses the next one each time a chunk returns: a view
-  that has not been served yet first (its first chunk is four exposures, so
-  every visitor sees frames within seconds), then the view with the least
-  left to do, and every fourth chunk the view that has waited longest, so a
-  wide mosaic keeps moving while small views arrive. The views of one caller
-  beyond four wait behind everyone else's.
+- **The pipeline works on a limited number of jobs; the rest wait in a queue.**
+  `service.Scheduler` works on `SPHEREX_ACTIVE_VIEWS` views at a time (one per
+  worker process), which together may hold `SPHEREX_ACTIVE_MB` of frames in
+  memory: on the production machine that is two 7 x 7 fields of the largest
+  size, or any four 8 arcmin views. The others wait first come, first served,
+  with the callers taking turns (the first view of every caller comes before
+  anybody's second one); a wide field that does not fit in the memory left
+  waits for another to finish while lighter views go ahead. Every waiting job
+  reports its position (`job.queue`), which the viewer shows. A
+  waiting view still gets its first chunk of four exposures, so every visitor
+  has a picture within seconds (`SPHEREX_QUEUE_PREVIEW`). A view does not
+  hand all its chunks to the pool at once: the scheduler keeps a few chunks in
+  the processes and chooses the next one each time a chunk returns, first for
+  a view that has not been served yet, then for the active view with the
+  least left to do, and every fourth chunk for the one that started first.
+  The numbers are chosen from measurements of the production machine's size;
+  see [performance](performance.md#how-many-jobs-at-once).
 - **Requests wait in threads, the page does not.** Endpoints that wait (for
   the archive, a name service, a view being gathered) run in a pool of 160
   threads (`SPHEREX_REQUEST_THREADS`). The page, the health check and the
@@ -123,8 +133,11 @@ configured, to Postgres. The browser polls the same URL until `status` is
   Cubes are gzip-compressed in the request's thread, not on the event loop.
 - **Stages run one at a time.** The stages of a progressive field would only
   compete for the same worker processes, and the small one should finish first.
-- **Measurements are isolated.** The measurement pool has one process, so a
-  long measurement does not occupy the imaging workers or block the web process.
+- **Measurements are isolated.** The measurement pool has
+  `SPHEREX_MEASURE_PROCS` processes of its own, so a long measurement does not
+  block the web process. A job that finds them busy waits its turn, first
+  come, first served, and reports its position in the queue; the 600 s limit
+  of a job counts from the moment it starts measuring, not from the request.
 - **Searches are de-duplicated.** A per-key lock makes a second request for the
   same exposure search wait for the first instead of repeating it. The same
   pattern protects wavelength-map reads.

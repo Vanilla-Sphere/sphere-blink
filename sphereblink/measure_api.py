@@ -6,7 +6,9 @@
 
 A job finds the exposures, then measures in a separate process (so the web
 server keeps answering), stores the result on disk and, when the database
-role allows it, in the team database. The five featured targets are measured
+role allows it, in the team database. ``config.MEASURE_PROCS`` jobs are
+measured at a time; the next ones wait their turn, first come first served,
+and report their position in the queue. The five featured targets are measured
 by themselves shortly after the server starts, and again when the pipeline
 changes or new exposures may have arrived; what visitors had measured is
 measured again when the pipeline changes.
@@ -44,6 +46,9 @@ _resolve = resolve  # main.py puts its cached, rate-limited resolver here
 _jobs: dict[str, dict] = {}
 _lock = threading.Lock()
 _pool: ProcessPoolExecutor | None = None
+_turn = threading.Condition()  # guards the two below
+_waiting: list[str] = []  # keys of the jobs that wait for a measuring process, first come first
+_measuring = 0  # processes that are busy (also with a job that was given up after JOB_TIMEOUT_S)
 
 
 def attach(svc) -> None:
@@ -59,8 +64,39 @@ def _executor() -> ProcessPoolExecutor:
     global _pool
     with _lock:
         if _pool is None:
-            _pool = ProcessPoolExecutor(max_workers=1, mp_context=multiprocessing.get_context("spawn"))
+            _pool = ProcessPoolExecutor(max_workers=config.MEASURE_PROCS, mp_context=multiprocessing.get_context("spawn"))
         return _pool
+
+
+def _take_turn(key: str) -> None:
+    """Wait until this job is first in the queue and a measuring process is free."""
+    global _measuring
+    with _turn:
+        _waiting.append(key)
+        try:
+            while _waiting[0] != key or _measuring >= config.MEASURE_PROCS:
+                _turn.wait(timeout=5.0)
+        except BaseException:
+            _waiting.remove(key)
+            _turn.notify_all()
+            raise
+        _waiting.pop(0)
+        _measuring += 1
+        _turn.notify_all()
+
+
+def _turn_over(_future=None) -> None:
+    """A measuring process is free again."""
+    global _measuring
+    with _turn:
+        _measuring = max(0, _measuring - 1)
+        _turn.notify_all()
+
+
+def place(key: str) -> tuple[int, int]:
+    """(position in the queue, jobs waiting); position 0: not waiting."""
+    with _turn:
+        return (_waiting.index(key) + 1 if key in _waiting else 0), len(_waiting)
 
 
 # ----------------------------------------------------------------------------- the job (runs in a child process)
@@ -104,8 +140,19 @@ def _work(key: str, target: Target) -> None:
         job["exposures"] = len(exposures)
         firsts = {f"{e.collection}_D{e.detector}": e for e in exposures}
         wave_maps = {k: _svc.wave_map(e) for k, e in firsts.items()}
+        job["status"] = "queued"  # with its place in the queue, see _public
+        _take_turn(key)
         job["status"] = "measuring"
-        result = _executor().submit(run, target, exposures, wave_maps).result(timeout=JOB_TIMEOUT_S)
+        try:
+            # the measurements share 16 connections to the bucket, however many run at once
+            future = _executor().submit(run, target, exposures, wave_maps, max(4, 16 // config.MEASURE_PROCS))
+        except BaseException:
+            _turn_over()
+            raise
+        # The place is given back when the process is really done: a job given
+        # up after JOB_TIMEOUT_S keeps its process busy until it returns.
+        future.add_done_callback(_turn_over)
+        result = future.result(timeout=JOB_TIMEOUT_S)
         measurements.save_local(key, result)
         result["stats"]["in_database"] = measurements.save_db(result)
         measurements.save_local(key, result)
@@ -141,7 +188,7 @@ def start(target: Target, refresh: bool = False, charge: bool = False) -> tuple[
         if len(_jobs) > 500:  # finished jobs are only kept to report their error
             for k in [k for k, j in _jobs.items() if j["status"] not in RUNNING][:250]:
                 _jobs.pop(k, None)
-        job = _jobs[key] = {"status": "queued", "started": time.time(), "name": target.name}
+        job = _jobs[key] = {"status": "queued", "started": time.time(), "name": target.name, "key": key}
     threading.Thread(target=_work, args=(key, target), daemon=True).start()
     return key, job
 
@@ -232,6 +279,8 @@ def _refresh_stored() -> None:
 
 def _public(job: dict) -> dict:
     out = {k: job[k] for k in ("status", "name", "exposures", "error") if k in job}
+    position, waiting = place(job["key"]) if job.get("status") == "queued" and "key" in job else (0, 0)
+    out["queue"] = {"position": position, "waiting": waiting} if position else None
     if "started" in job:
         out["elapsed_s"] = round((job.get("finished") or time.time()) - job["started"], 1)
     return out
@@ -252,6 +301,8 @@ def api_measure(
     date, and a straight-line motion with parallax is fitted. Variable
     objects also get a light curve. The first call starts the job and
     answers ``status: queued``; ask again until ``status`` is ``ready``.
+    Two objects are measured at a time: while others are ahead, ``job.queue``
+    gives the position in the queue.
     """
     if _svc is None:
         raise HTTPException(503, "measurement service not started")

@@ -74,12 +74,27 @@ RATE_CATALOGS_PER_MIN = float(os.environ.get("SPHEREX_RATE_CATALOGS_PER_MIN", "6
 RATE_MEASURES_PER_HOUR = float(os.environ.get("SPHEREX_RATE_MEASURES_PER_HOUR", "30"))  # new measurements
 RATE_MEASURES_BURST = float(os.environ.get("SPHEREX_RATE_MEASURES_BURST", "6"))
 MAX_OPEN_REQUESTS = int(os.environ.get("SPHEREX_MAX_OPEN_REQUESTS", "32"))  # API calls being answered at once
-# Views being gathered at once: per caller (more are refused with 429) and
-# in total (503). A caller's views beyond FAIR_JOBS wait behind everyone
-# else's, so one script cannot hold the fetch processes.
+# The pipeline works on a limited number of jobs at a time; the next ones
+# wait in a queue and their position is reported. The limits follow from what
+# the machine has (docs/performance.md, "How many jobs at once"):
+# * views whose exposures are being cut: one per worker process
+#   (ACTIVE_VIEWS; 0 = no limit), and together no more frames in memory than
+#   ACTIVE_MB (a 7 x 7 field holds 0.5-1.2 GB while it is gathered, an
+#   8 arcmin view 9 MB; one view is always worked on, whatever its size);
+# * measurements: MEASURE_PROCS, each in a process of its own. Two measure as
+#   much per minute as three or four, because they share the connections to
+#   the bucket.
+ACTIVE_VIEWS = int(os.environ.get("SPHEREX_ACTIVE_VIEWS", str(FETCH_PROCS)))
+ACTIVE_MB = float(os.environ.get("SPHEREX_ACTIVE_MB", "1200"))
+MEASURE_PROCS = max(1, int(os.environ.get("SPHEREX_MEASURE_PROCS", "2")))
+# A view that waits in the queue still gets its first few exposures cut, so
+# there is a picture on screen while it waits. 0: nothing before its turn.
+QUEUE_PREVIEW = os.environ.get("SPHEREX_QUEUE_PREVIEW", "1") not in ("0", "false", "no")
+# Views gathered or waiting at once: per caller (more are refused with 429)
+# and in total (503). In the queue the callers take turns: the first view of
+# every caller comes before anybody's second one.
 MAX_JOBS_PER_CLIENT = int(os.environ.get("SPHEREX_MAX_JOBS_PER_CLIENT", "24"))
 MAX_JOBS = int(os.environ.get("SPHEREX_MAX_JOBS", "96"))
-FAIR_JOBS = int(os.environ.get("SPHEREX_FAIR_JOBS", "4"))
 MAX_FIELDS_PER_CLIENT = int(os.environ.get("SPHEREX_MAX_FIELDS_PER_CLIENT", "8"))  # progressive fields loading at once
 MAX_MEASURE_QUEUE = int(os.environ.get("SPHEREX_MAX_MEASURE_QUEUE", "12"))  # measurements waiting or running
 # Threads that answer requests. Most of them only wait (for the archive, a

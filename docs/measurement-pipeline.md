@@ -208,8 +208,13 @@ identification and timing:
 
 - **Keys.** A featured target is keyed by its short name; any other position by
   `pos_<ra>_<dec>` rounded to four decimals.
-- **Isolation.** The numerical work runs in a dedicated child process so the web
-  process keeps answering. A job is abandoned after 600 s.
+- **Isolation.** The numerical work runs in dedicated child processes
+  (`SPHEREX_MEASURE_PROCS`) so the web process keeps answering. A job is
+  abandoned 600 s after it started measuring.
+- **Queue.** When every measuring process is busy, a job waits its turn, first
+  come, first served, visitors and the server's own runs alike. While it
+  waits, its status is `queued` and `job.queue` gives its position. The
+  running measurements share 16 connections to the bucket between them.
 - **Storage.** The result is always written to the local store first; the shared
   database is written when configured and reachable. Results measured while the
   database was unavailable are pushed at the next start.

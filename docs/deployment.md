@@ -82,7 +82,11 @@ noted.
 | `SPHEREX_KEEP_FEATURED` | `1` | default | After start, fetch the 8 arcmin views of the featured targets if they are not on disk; they are never evicted |
 | `SPHEREX_REQUEST_THREADS` | `160` | default | Threads that answer requests |
 | `SPHEREX_NAME_TTL_DAYS` | `30` | default | How long a resolved object name is kept on disk |
-| `SPHEREX_RATE_*`, `SPHEREX_MAX_*`, `SPHEREX_FAIR_JOBS` | see [security](security.md#request-limits) | default | Request limits per caller |
+| `SPHEREX_RATE_*`, `SPHEREX_MAX_*` | see [security](security.md#request-limits) | default | Request limits per caller |
+| `SPHEREX_ACTIVE_VIEWS` | `SPHEREX_FETCH_PROCS` | `4` | Views whose exposures are cut at the same time; the next ones wait in a queue. `0` removes the limit. Sized to the machine: see [performance](performance.md#how-many-jobs-at-once) |
+| `SPHEREX_ACTIVE_MB` | `1200` | `2400` | Frames (MB) the views being cut may hold in memory together; a wide field that does not fit waits for another to finish. `0` removes the limit |
+| `SPHEREX_QUEUE_PREVIEW` | `1` | default | A view in the queue gets its first four exposures at once; `0`: nothing before its turn |
+| `SPHEREX_MEASURE_PROCS` | `2` | `2` | Measurements running at the same time, each in a process of its own; the next ones wait in a queue |
 | `SPHEREX_FETCH_PROCS` | `min(4, CPU count)` | `4` | Imaging worker processes |
 | `SPHEREX_RAM_BUDGET_MB` | `600` | `2000` | Frames kept in memory |
 | `SPHEREX_DISK_BUDGET_GB` | `4` | `16` | Size of the frame cache on disk |

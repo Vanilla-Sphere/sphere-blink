@@ -167,6 +167,7 @@ async function load(next, nopush) {
     if (job.status === "error") return fail(new Error(job.error), id);
     setProgress(job.total ? job.done / job.total : 0,
       job.status === "ready" ? tr("load.done", {n: job.frames, s: job.elapsed_s}) :
+      job.queue ? queueText(job) :
       job.total ? tr("load.read", {done: job.done, total: job.total}) : tr("load.search"));
     if (job.status === "ready") break;
     await sleep(job.done === last ? 900 : 1300);
@@ -176,6 +177,10 @@ async function load(next, nopush) {
   loadSpectrum(id);
   loadCatalogs();
   loadTracks();
+}
+/* The pipeline works on a few views at a time; the others wait their turn and are told where they stand. */
+function queueText(job) {
+  return tr(job.done ? "load.queue" : "load.queue.none", {p: job.queue.position, n: job.queue.waiting, done: job.done, total: job.total});
 }
 function searchError(message, what) {
   const el = $("searcherr");
@@ -210,7 +215,7 @@ async function loadField(id, f) {
     const cells = (s) => tr(s.tiles > 1 ? "field.cells" : "field.cell", {n: s.tiles}), j = next && next.job;
     if (!next) { setProgress(1, tr("field.done", {cells: cells(done), n: done.job.frames, s: f.elapsed_s})); break; }
     setProgress(j && j.total ? j.done / j.total : 0,
-      (done ? tr("field.shown", {cells: cells(done)}) : "") + (j && j.total ? tr("field.read", {done: j.done, total: j.total, cells: cells(next)}) : tr("field.search", {cells: cells(next)})));
+      (done ? tr("field.shown", {cells: cells(done)}) : "") + (j && j.queue ? queueText(j) : j && j.total ? tr("field.read", {done: j.done, total: j.total, cells: cells(next)}) : tr("field.search", {cells: cells(next)})));
     await sleep(done ? 1000 : 1300);
     try {
       const r = await api("/api/tiles?" + paramsOf(S), () => id === S.loadId); f = await r.json();
@@ -372,14 +377,15 @@ async function measureHere() {
   const say = (key, vars) => { if (id === S.loadId) $("measurestatus").textContent = tr(key, vars); };
   say("measure.start");
   try {
-    for (let n = 0; n < 80; n++) {
+    for (let n = 0; n < 80; n++) {  // 4 minutes of measuring; the time spent waiting in the queue is not counted
       const r = await fetch("/api/measure?" + q);
       if (!r.ok) { let msg = r.status; try { msg = (await r.json()).detail || msg; } catch (_) {} throw new Error(msg); }
       const d = await r.json();
       if (id !== S.loadId) return;
       if (d.status === "ready") { S.measuring = null; say(d.result && d.result.track ? "measure.done" : "measure.nothing"); await loadTracks(); if (id === S.loadId) say(d.result && d.result.track ? "measure.done" : "measure.nothing"); return; }
       if (d.status === "error") throw new Error(d.job.error || "error");
-      say(d.status === "measuring" && d.job.exposures ? "measure.measuring" : "measure.searching", {n: d.job.exposures, s: Math.round(d.job.elapsed_s || 0)});
+      if (d.job.queue) { say("measure.queued", {p: d.job.queue.position, n: d.job.queue.waiting}); n--; }
+      else say(d.status === "measuring" && d.job.exposures ? "measure.measuring" : "measure.searching", {n: d.job.exposures, s: Math.round(d.job.elapsed_s || 0)});
       await sleep(3000);
       if (id !== S.loadId) return;
     }
