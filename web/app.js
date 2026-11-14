@@ -684,7 +684,10 @@ function drawPlot() {
   const visits = []; let lastM = -1e9;
   [...pts].sort((a, b) => a.mjd - b.mjd).forEach((p) => { if (p.mjd - lastM > 20) visits.push(p.mjd); p.visit = visits.length - 1; lastM = p.mjd; });
   const ml = 56, mr = 10, mt = 8, mb = 40;
-  const xs = pts.map((p) => lc ? p.mjd : p.wave_um), ys = pts.map((p) => p.flux_ujy / 1000);
+  // bright stars reach tens of Jy: the axis reads in Jy once the 98th percentile passes 1000 mJy
+  const top = [...pts.map((p) => p.flux_ujy)].sort((a, b) => a - b)[Math.min(pts.length - 1, Math.floor(pts.length * 0.98))];
+  const unit = top >= 1e6 ? 1e6 : 1000;
+  const xs = pts.map((p) => lc ? p.mjd : p.wave_um), ys = pts.map((p) => p.flux_ujy / unit);
   const sorted = [...ys].sort((a, b) => a - b);
   let ymin = Math.min(0, sorted[Math.floor(sorted.length * 0.02)]), ymax = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.98))] * 1.25;
   if (ymax <= ymin) ymax = ymin + 1;
@@ -714,21 +717,31 @@ function drawPlot() {
   }
   ctx.font = sans; ctx.fillStyle = T.muted;
   ctx.fillText(tr(lc ? "plot.x.lc" : "plot.x.spec"), (ml + W - mr) / 2, H - 4);
-  ctx.save(); ctx.translate(12, (mt + base) / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(tr("plot.y"), 0, 0); ctx.restore();
+  ctx.save(); ctx.translate(12, (mt + base) / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(tr(unit === 1e6 ? "plot.y.jy" : "plot.y"), 0, 0); ctx.restore();
   if (lc && S.meta && S.meta.epochs[S.i]) { const x = X(S.meta.epochs[S.i].mjd); hair(x, mt, x, base, T.accent); }
+  // dot = aperture flux; diamond = saturated core, flux from the halo; hollow = flagged pixels or above the calibrated range
+  let nWings = 0, nExtra = 0, nDirty = 0;
   for (const p of pts) {
-    const x = X(lc ? p.mjd : p.wave_um), y = Y(p.flux_ujy / 1000);
+    const x = X(lc ? p.mjd : p.wave_um), y = Y(p.flux_ujy / unit);
     if (y < mt - 2 || y > base + 2) continue;
     const col = lc ? DET_COLOR[p.detector] : VISIT_COLORS[p.visit % VISIT_COLORS.length];
     ctx.strokeStyle = ctx.fillStyle = col; ctx.lineWidth = 1;
-    if (p.flux_err_ujy) { const e = p.flux_err_ujy / 1000; ctx.globalAlpha = 0.45; ctx.beginPath(); ctx.moveTo(x, Math.max(mt, Y(p.flux_ujy / 1000 + e))); ctx.lineTo(x, Math.min(base, Y(p.flux_ujy / 1000 - e))); ctx.stroke(); }
-    const dirty = p.flags.some((f) => f !== "SOURCE" && f !== "FULLSAMPLE");
-    ctx.globalAlpha = 0.95; ctx.beginPath(); ctx.arc(x, y, 2.3, 0, 2 * Math.PI); dirty ? ctx.stroke() : ctx.fill();
+    if (p.flux_err_ujy) { const e = p.flux_err_ujy / unit; ctx.globalAlpha = 0.45; ctx.beginPath(); ctx.moveTo(x, Math.max(mt, Y(p.flux_ujy / unit + e))); ctx.lineTo(x, Math.min(base, Y(p.flux_ujy / unit - e))); ctx.stroke(); }
+    const wings = p.method === "wings", extra = p.flags.includes("EXTRAPOLATED");
+    const dirty = !wings && p.flags.some((f) => f !== "SOURCE" && f !== "FULLSAMPLE");  // a saturated core always carries flags
+    if (wings) nWings++; if (extra) nExtra++; if (dirty) nDirty++;
+    ctx.globalAlpha = 0.95; ctx.beginPath();
+    if (wings) { const r = 3; ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); }
+    else ctx.arc(x, y, 2.3, 0, 2 * Math.PI);
+    dirty || extra ? ctx.stroke() : ctx.fill();
   }
   ctx.globalAlpha = 1;
   const items = lc ? [1, 2, 3, 4, 5, 6].map((dn) => ["D" + dn, DET_COLOR[dn]]) : visits.map((m, k) => [tr("plot.pass", {m: mjdDate(m).toISOString().slice(0, 7)}), VISIT_COLORS[k % VISIT_COLORS.length]]);
-  $("legend").innerHTML = items.slice(0, 8).map(([name, col]) => `<span>${swatch(col)}${name}</span>`).join("") + `<span><i class="sw hollow"></i>${tr("plot.flagged")}</span>`;
-  $("specnote").textContent = tr(lc ? "plot.note.lc" : "plot.note.spec", {n: pts.length});
+  $("legend").innerHTML = items.slice(0, 8).map(([name, col]) => `<span>${swatch(col)}${name}</span>`).join("")
+    + (nDirty || !nWings ? `<span><i class="sw hollow"></i>${tr("plot.flagged")}</span>` : "")
+    + (nWings ? `<span><i class="sw dia"></i>${tr("plot.wings")}</span>` : "")
+    + (nExtra ? `<span><i class="sw dia hollow"></i>${tr("plot.extra")}</span>` : "");
+  $("specnote").textContent = tr(lc ? "plot.note.lc" : "plot.note.spec", {n: pts.length}) + (nWings ? " " + tr("plot.note.wings") : "") + (nExtra ? " " + tr("plot.note.extra") : "");
 }
 
 /* ------------------------------------------------------------------ transport */
