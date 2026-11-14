@@ -29,6 +29,12 @@ Apps Challenge, "Planet X and SPHEREx". Live at <https://vanillasphere.com>.
 - **Spectrum on the fly.** Each exposure sees the target through a different
   slice of the linear variable filter, so the exposures together give a
   0.75-5.0 um spectrum, plus a light curve per detector.
+- **Bright stars too.** A star brighter than about K = 9 saturates the
+  detector core and an aperture on it reads 2-5 times low. Those points are
+  measured from the star's halo instead, with a calibration fitted to 81
+  2MASS stars (`sphereblink/wings.py`, `scripts/calibrate_wings.py`): within
+  20-25 % of 2MASS from 0.15 to 20 Jy, marked `method: "wings"`, and flagged
+  `EXTRAPOLATED` beyond that range.
 - **Overlays**: Gaia DR3 and CatWISE2020 sources, moved by their proper
   motion to the date of each frame; fast movers get a track and a label.
 - **Quality flags** of the pixels under the target are shown for every frame.

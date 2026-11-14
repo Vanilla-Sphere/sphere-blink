@@ -31,6 +31,12 @@ def init(connections: int) -> None:
     _client = httpx.AsyncClient(timeout=httpx.Timeout(60, connect=20), limits=limits)
 
 
+def ready(pause: float = 0.0) -> bool:
+    """Does nothing: asking every worker for it makes the pool start them."""
+    time.sleep(pause)
+    return _client is not None
+
+
 async def cut_one(client: httpx.AsyncClient, key: str, e: Exposure, grid: Grid, wmap) -> Result:
     last = ""
     for attempt in range(3):

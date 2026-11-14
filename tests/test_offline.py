@@ -302,3 +302,48 @@ def test_archive_csv_answer_gives_exposures_and_skips_other_products():
     e = found[0]
     assert (e.uid, e.collection, e.s3_key) == ("2025W33_2C_0321_1_D3", "spherex_qr3", "qr3/level2/2025W33_2C/l2b/x_D3.fits")
     assert e.wave_min_um == pytest.approx(1.64) and e.mjd == pytest.approx(60900.55)
+
+
+def _star_with_halo(level_at_5px: float, npix: int = 157, scale: float = 3.075, core: bool = True) -> np.ndarray:
+    """A star at the centre: halo falling as r^-2.5, on a noisy flat sky."""
+    from sphereblink import wings
+
+    r = np.maximum(wings._radius(npix, scale), 0.3)
+    img = level_at_5px * (r / 5.0) ** -2.5 + np.random.default_rng(3).normal(0, 0.004, (npix, npix))
+    if core:
+        img[r < 3.5] = img.max()  # saturated core, painted at the brightest level
+    return img.astype(np.float32)
+
+
+def test_wing_levels_follow_the_halo_and_skip_the_saturated_core():
+    from sphereblink import wings
+
+    levels = wings.ring_levels(_star_with_halo(2.0), 3.075, saturated=True)
+    assert all(np.isfinite(lv[0]) and lv[2] > 0.9 for lv in levels)
+    assert levels[0][0] > levels[1][0] > levels[2][0] > 0
+    twice = wings.ring_levels(_star_with_halo(4.0), 3.075, saturated=True)
+    assert twice[1][0] == pytest.approx(2 * levels[1][0], rel=0.03)  # a ring level is linear in the halo
+    # a core that reaches into the first ring makes the next ring take over
+    big = _star_with_halo(2.0)
+    big[wings._radius(157, 3.075) < 5.5] = big.max()
+    assert not np.isfinite(wings.ring_levels(big, 3.075, saturated=True)[0][0])
+    assert wings.measure(big, 3.075, 2.2, 0.054)["ring"] == 1
+
+
+def test_wing_flux_is_calibrated_corrected_and_honest_about_its_range():
+    from sphereblink import wings
+
+    faint = wings.measure(_star_with_halo(0.05), 3.075, 2.2, 0.054)
+    bright = wings.measure(_star_with_halo(5.0), 3.075, 2.2, 0.054)
+    huge = wings.measure(_star_with_halo(60.0), 3.075, 2.2, 0.054)
+    assert 0.1e6 < faint["flux_ujy"] < 1e6 and not faint["extrapolated"]
+    # 100 times the halo is less than 100 times the flux: the excess is taken out
+    assert 30 < bright["flux_ujy"] / faint["flux_ujy"] < 70
+    assert bright["flux_err_ujy"] / bright["flux_ujy"] == pytest.approx(0.25, abs=0.02)
+    assert huge["extrapolated"] and huge["flux_err_ujy"] / huge["flux_ujy"] >= 0.5
+    # the same halo through a narrow channel (R = 130) is a slower photon rate: smaller correction
+    assert wings.measure(_star_with_halo(5.0), 3.075, 4.7, 4.7 / 130)["flux_ujy"] > 0
+    assert wings._excess(0.1) == wings._excess(0.5) < wings._excess(5) < wings._excess(20)
+    # no halo, no flux; no wavelength, no flux
+    assert wings.measure(_star_with_halo(0.0, core=False), 3.075, 2.2, 0.054, saturated=False) is None
+    assert wings.measure(_star_with_halo(2.0), 3.075, float("nan")) is None
