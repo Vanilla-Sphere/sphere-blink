@@ -14,6 +14,10 @@ services:
         value: /var/data/sphereblink
       # Keep these three in step with the plan and the disk below:
       # processes = CPUs of the plan, disk budget = about 80% of the disk.
+      # Read-only connection string of the measurement database (role
+      # blink_web). Set it in the Render dashboard, never in this file.
+      - key: DATABASE_URL
+        sync: false
       - key: SPHEREX_FETCH_PROCS
         value: "1"
       - key: SPHEREX_RAM_BUDGET_MB
