@@ -59,6 +59,7 @@ const STR = {
     "kind.barnard": "Fastest-moving star", "kind.eps-indi-b": "Pair of brown dwarfs", "kind.wise-0855": "Coldest brown dwarf",
     "kind.rw-aur": "Young flickering star", "kind.r-dra": "Pulsing red giant",
     "map.aria": "Map of the whole sky. Drag to turn it, scroll to zoom, select a point to open it.",
+    "map.star": "Bright star in {con}", "map.star.none": "Bright star",
     "map.open": "Opening…", "s.share": "Share",
     "map.in": "Zoom in", "map.out": "Zoom out", "map.reset": "Show the whole sky",
     "det.one.t": "Detector {n} only, {range} µm",

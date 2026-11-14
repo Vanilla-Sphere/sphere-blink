@@ -12,11 +12,12 @@ as static files.
 | `starmap.js` | 327 lines | The sky map (`SkyMap`): projection, drawing, pan and zoom, picking |
 | `i18n.js` | 107 lines | Text that scripts put on the page (`STR.en`) and the `tr()` formatter |
 | `hints.js` | 74 lines | One-line notes on controls, shown on hover and keyboard focus |
+| `lore.js` | 130 lines | What the sky map says about each of the 88 constellations and 31 famous stars under the pointer (`LORE`) |
 | `data/sky.json` | - | Compact star chart: stars, names, constellations, Milky Way, boundary grid |
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
-Scripts are loaded in the order `i18n.js`, `hints.js`, `starmap.js`, `app.js`.
-Asset URLs carry a version query (`?v=16`) that is raised when a file changes,
+Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `starmap.js`, `app.js`.
+Asset URLs carry a version query (`?v=18`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`.
 
 ## Screens and modes
@@ -185,7 +186,11 @@ the fluxes exceeds 1 Jy.
 
 `SkyMap` in `starmap.js` exposes `init`, `show`, `redraw`, `zoom`, `home`,
 `lookAt`, `setMark`, `setPins`, `highlight`, `idle` and `constellation`, and
-takes the callbacks `onPick`, `onHover` and `onReady`.
+takes the callbacks `onPick`, `onHover`, `onView` and `onReady`. `onHover` reports
+the sky position, the constellation, a target pin and a named star within 9 px
+of the pointer; `app.js` turns that into the map tag (pin, then star, then
+constellation, with the text from `lore.js`), and the map brightens the figure
+of the constellation under the pointer.
 
 - **Projection.** Hammer equal-area about a movable centre. Positions are
   rotated as unit vectors so the centre can be any point of the sky.
