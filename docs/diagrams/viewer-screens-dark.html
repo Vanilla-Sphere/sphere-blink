@@ -11,7 +11,7 @@
       --color-paper:   #0d0b08;
       --color-ink:     #efebe4;
       --color-muted:   #afaaa3;
-      --color-accent:  #f97c3d;
+      --color-accent:  #b58afb;
       --font-sans:     'Hanken Grotesk', system-ui, sans-serif;
       --font-serif:    'Instrument Serif', serif;
       --font-mono:     'Geist Mono', ui-monospace, monospace;
@@ -70,23 +70,23 @@
         <desc id="viewer-screens-dark-desc">State diagram showing the sky map screen and the view screen, how the address chooses between them, and the Simple and Advanced modes inside the view screen.</desc>
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#afaaa3"/></marker>
-          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f97c3d"/></marker>
-          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6db0f4"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b58afb"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6cd7e3"/></marker>
         </defs>
 
         <rect width="100%" height="100%" fill="#0d0b08"/>
 
         <!-- Zones and lifelines -->
-        <rect x="520" y="96" width="400" height="208" rx="8" fill="rgba(249,124,61,0.10)" stroke="#f97c3d" stroke-width="1"/>
-        <rect x="528" y="104" width="40" height="12" rx="2" fill="transparent" stroke="rgba(249,124,61,0.50)" stroke-width="0.8"/>
-        <text x="548" y="113" fill="#f97c3d" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">STATE</text>
+        <rect x="520" y="96" width="400" height="208" rx="8" fill="rgba(181,138,251,0.10)" stroke="#b58afb" stroke-width="1"/>
+        <rect x="528" y="104" width="40" height="12" rx="2" fill="transparent" stroke="rgba(181,138,251,0.50)" stroke-width="0.8"/>
+        <text x="548" y="113" fill="#b58afb" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">STATE</text>
         <text x="544" y="140" fill="#efebe4" font-size="14" font-weight="600" font-family="'Hanken Grotesk', system-ui, sans-serif">View screen</text>
         <text x="544" y="156" fill="#afaaa3" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">data-screen=view</text>
 
         <!-- Connectors (behind the nodes) -->
         <line x1="70" y1="192" x2="176" y2="192" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
         <path d="M 64,198 V 272 Q 64,280 72,280 H 520" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <line x1="352" y1="176" x2="520" y2="176" fill="none" stroke="#f97c3d" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <line x1="352" y1="176" x2="520" y2="176" fill="none" stroke="#b58afb" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
         <line x1="520" y1="208" x2="352" y2="208" fill="none" stroke="#afaaa3" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
         <path d="M 680,96 V 72 Q 680,64 688,64 H 752 Q 760,64 760,72 V 96" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
         <line x1="688" y1="204" x2="752" y2="204" fill="none" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
@@ -98,7 +98,7 @@
         <rect x="228" y="260" width="128" height="12" rx="2" fill="#0d0b08"/>
         <text x="292.0" y="269" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">ADDRESS HAS A POSITION</text>
         <rect x="398" y="156" width="76" height="12" rx="2" fill="#0d0b08"/>
-        <text x="436.0" y="165" fill="#f97c3d" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">PICK A PLACE</text>
+        <text x="436.0" y="165" fill="#b58afb" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">PICK A PLACE</text>
         <rect x="396" y="216" width="80" height="12" rx="2" fill="#0d0b08"/>
         <text x="436.0" y="225" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">SKY MAP, BACK</text>
         <rect x="768" y="58" width="136" height="12" rx="2" fill="#0d0b08"/>
@@ -132,11 +132,11 @@
         <!-- Legend and notes -->
         <line x1="40" y1="336" x2="920" y2="336" stroke="rgba(239,235,228,0.10)" stroke-width="0.8"/>
         <text x="40" y="352" fill="#afaaa3" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" letter-spacing="0.18em">LEGEND</text>
-        <rect x="40" y="368" width="14" height="10" rx="2" fill="rgba(249,124,61,0.10)" stroke="#f97c3d" stroke-width="1"/>
+        <rect x="40" y="368" width="14" height="10" rx="2" fill="rgba(181,138,251,0.10)" stroke="#b58afb" stroke-width="1"/>
         <text x="60" y="376" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Where the data is shown</text>
         <rect x="200" y="368" width="14" height="10" rx="2" fill="#1b1814" stroke="#efebe4" stroke-width="1"/>
         <text x="220" y="376" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">State or mode</text>
-        <line x1="312" y1="374" x2="340" y2="374" stroke="#f97c3d" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <line x1="312" y1="374" x2="340" y2="374" stroke="#b58afb" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
         <text x="348" y="376" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Main route</text>
         <line x1="424" y1="374" x2="452" y2="374" stroke="#afaaa3" stroke-width="1.2" marker-end="url(#arrow)"/>
         <text x="460" y="376" fill="#afaaa3" font-size="8.5" font-family="'Hanken Grotesk', system-ui, sans-serif">Transition</text>
