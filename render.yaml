@@ -22,8 +22,9 @@ services:
         value: "1"
       - key: SPHEREX_CACHE_DIR
         value: /var/data/sphereblink
-      # Read-only connection string of the measurement database (role
-      # blink_web). Set it in the Render dashboard, never in this file.
+      # Connection string of the measurement database (role blink_service:
+      # the viewer reads it, the measurement pipeline writes what it
+      # measures). Set it in the Render dashboard, never in this file.
       - key: DATABASE_URL
         sync: false
       # Keep these three in step with the plan and the disk below:

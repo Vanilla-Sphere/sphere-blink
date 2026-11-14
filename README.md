@@ -32,16 +32,25 @@ Apps Challenge, "Planet X and SPHEREx". Live at <https://vanillasphere.com>.
 - **Overlays**: Gaia DR3 and CatWISE2020 sources, moved by their proper
   motion to the date of each frame; fast movers get a track and a label.
 - **Quality flags** of the pixels under the target are shown for every frame.
+- **Measures by itself.** For any object the server finds its position on the
+  native detector pixels of every exposure (PSF fit), compares it with where
+  Gaia says it should be on that date, and fits proper motion with parallax.
+  Objects too faint for one exposure are added up along their predicted path,
+  one stack per sky pass. Variable objects get a light curve that is
+  independent of wavelength. The five challenge targets are measured
+  automatically; see [Measurements](#measurements).
 - **Coordinates in the URL** and an image API, so any view can be linked or embedded:
 
   ```
   /?target=Barnard's Star&fov=8
-  /?ra=133.76808&dec=-7.24292&fov=8&det=5,6&group=visit
+  /?ra=133.76010&dec=-7.24227&fov=8&det=5,6&group=visit
   /api/movie.gif?target=barnard&fov=8&group=day
   /api/frame.png?ra=269.44629&dec=4.76792&fov=8&i=-1
   /api/spectrum?target=R Dra&wait=60
   /?ra=206.005&dec=-10.763&levels=3                 progressive field, 7 x 7 cells
   /api/tiles?ra=206.005&dec=-10.763&levels=3        its cells, stages and progress
+  /api/measure?target=WISE 0855                     positions, fitted motion, light curve
+  /api/measured                                     everything measured so far
   ```
 
   Interactive API documentation is served at `/docs`.
@@ -67,6 +76,8 @@ Settings are environment variables (see `sphereblink/config.py`):
 | `SPHEREX_CACHE_DIR` | `.cache/sphereblink` | Where the SQLite cutout cache lives (put it on a persistent disk). |
 | `SPHEREX_FETCH_WORKERS` | `32` | Concurrent exposures being read. |
 | `SPHEREX_MAX_FOV_ARCMIN` | `30` | Largest field of view. |
+| `SPHEREX_AUTO_MEASURE` | `1` | Measure the five challenge targets by itself after start (`0` = only on request). |
+| `DATABASE_URL` | empty | Postgres for measured positions and tracks (`sql/`). Without it they are kept on disk only. |
 
 ## How it works
 
@@ -87,17 +98,66 @@ browser ──> FastAPI ──> IRSA SIA v2            which exposures cover (RA
 | `sphereblink/render.py` | epoch stacking, shared stretch, PNG / GIF / binary cube |
 | `sphereblink/resolve.py` | coordinates and names, proper-motion propagation |
 | `sphereblink/catalogs.py` | Gaia DR3 / CatWISE2020 overlays through IRSA TAP |
+| `sphereblink/measure.py` | native stamps, PSF fits, stacks for faint objects, track fit, light curve |
+| `sphereblink/refcat.py` | catalogue astrometry of the targets (Gaia DR3 at ESA, IRSA as fallback) |
+| `sphereblink/measure_api.py` | measurement jobs, `/api/measure`, `/api/measured` |
+| `sphereblink/measurements.py` | stored results and the team database behind `/api/tracks` |
 | `sphereblink/service.py` | background jobs and cache |
 | `sphereblink/tiles.py` | fixed 0.12 degree cell grid, progressive fields |
 | `sphereblink/main.py` | HTTP API |
 | `web/` | the viewer (plain HTML/JS, no build step): `app.js` the views, `starmap.js` the sky map, `i18n.js` English and Vietnamese text |
 | `sql/` | optional shared Postgres schema for measured positions and tracks |
 
+## Measurements
+
+`GET /api/measure?target=...` (or `ra=&dec=`) starts a job and is polled until
+`status` is `ready`. What the job does, in `sphereblink/measure.py`:
+
+1. **Stamps.** For each exposure, a 49 x 81 pixel piece of the detector around
+   the predicted position is read with range requests (about 0.4 MB), with
+   its flags. No resampling: positions are measured on the pixels the
+   detector recorded.
+2. **Prediction.** The catalogue position is moved to the date of the
+   exposure by proper motion and parallax (Earth ephemeris from Astropy).
+3. **PSF fit.** A pixel-integrated Gaussian is fitted at the prediction; Gaia
+   stars within 30 arcsec are fitted along with it so that a bright neighbour
+   cannot capture the fit. A star whose core is saturated is centred on its
+   wings instead, and its brightness is taken from a ring outside the core.
+4. **Stacks.** Where fewer than half of the exposures of a sky pass show the
+   object, the exposures of that pass and detector are added along the
+   predicted path and the stack is measured. Its errors come from
+   bootstrapping the exposures.
+5. **Track.** Position, proper motion and (catalogue) parallax are fitted to
+   all positions, with outlier rejection and jackknife errors over
+   (sky pass, detector) groups. With three passes the parallax is also fitted.
+6. **Light curve.** Every flux is divided by the object's mean spectrum at
+   that wavelength, which makes exposures at different wavelengths comparable.
+
+What it gives on the challenge targets (DR1 + QR3, measured 2026-11-14):
+
+| Target | Positions | Fitted proper motion (mas/yr) | Catalogue | Note |
+| --- | --- | --- | --- | --- |
+| Barnard's Star | 86 on detectors 5-6 (254 more from saturated wings, not used) | -992 ± 472, +10327 ± 249 | -801.6, +10362.4 (Gaia DR3) | position 0.1 arcsec from the Gaia prediction |
+| Epsilon Indi B | 431 | +3945 ± 48, -2513 ± 49 | +3982.0, -2466.8 (Gaia DR3) | 0.6 arcsec from the Gaia prediction (unresolved pair Ba+Bb); brightness constant to 2 % |
+| WISE 0855-0714 | 6, of which 5 are stacks of 14-25 exposures | -8766 ± 992, +1536 ± 992 | -8123.7, +673.2 (Kirkpatrick et al. 2021) | invisible in single exposures, found at 4-5 um in the stacks |
+| RW Aurigae | 271 | +316 ± 288, +49 ± 84 | +4.9, -24.6 (Gaia DR3) | 34 % brighter in Sep 2026 than in Sep 2025 (6 sigma) |
+| R Draconis | 515, all from saturated wings | +154 ± 334, +241 ± 426 | -20.6, +6.1 (Gaia DR3) | faded by a factor 2.0 from Jun 2025 to Jun 2026 (Mira variable) |
+
+Honest limits: SPHEREx pixels are 6.15 arcsec and the PSF is undersampled, so
+one exposure gives 0.2-0.5 arcsec at best; with three or four sky passes
+spread over little more than a year the proper motion errors are tens to
+hundreds of mas/yr. The spacecraft is turned around between passes, which
+leaves a 0.1-0.3 arcsec offset that changes sign each pass and limits the
+free parallax fit. Ring fluxes of saturated stars are good to about 12 %.
+The pipeline only writes rows with `method` `psf`, `wings` or `stack`;
+measurements loaded by hand under another method name are left alone.
+
 ## Data and credits
 
 - NASA SPHEREx Level 2 spectral images (DR1, QR3), NASA/IPAC Infrared Science
   Archive, read from the AWS Open Data mirror `nasa-irsa-spherex`.
-- ESA Gaia DR3 and CatWISE2020 catalogues, queried through IRSA TAP.
+- ESA Gaia DR3 (ESA Gaia Archive and IRSA) and CatWISE2020 (IRSA) catalogues.
+- WISE 0855-0714 astrometry: AllWISE position; Kirkpatrick et al. 2021 (ApJS 253, 7) motion and parallax.
 - Astropy, NumPy, SciPy, FastAPI, Pillow.
 - Interface: the "Rim" theme of [Hallmark](https://github.com/nutlope/hallmark) (MIT), laid out by the
   tool-interface rules of [Impeccable](https://github.com/pbakaus/impeccable). Typefaces Hanken Grotesk and
