@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+import csv
 import io
 import json
 import re
 from dataclasses import asdict, dataclass
 
 import httpx
-from astropy.io.votable import parse_single_table
 
 from . import config
 
@@ -63,10 +63,9 @@ def _s3_key(cloud_access: str, access_url: str) -> str:
     return m.group(1) if m else ""
 
 
-def parse_sia_votable(payload: bytes, collection: str) -> list[Exposure]:
-    table = parse_single_table(io.BytesIO(payload)).to_table(use_names_over_ids=True)
+def _exposures_of(rows, collection: str) -> list[Exposure]:
     out: list[Exposure] = []
-    for row in table:
+    for row in rows:
         if str(row["dataproduct_subtype"]).strip() not in ("image", "science"):
             continue
         if str(row["dataproduct_type"]).strip() != "image":
@@ -93,6 +92,26 @@ def parse_sia_votable(payload: bytes, collection: str) -> list[Exposure]:
             )
         )
     return out
+
+
+def parse_sia_csv(payload: bytes, collection: str) -> list[Exposure]:
+    """The archive's CSV answer: the same columns as the VOTable at under half
+    the size, and read in a few milliseconds instead of ~0.2 s. That matters
+    for a wide view, which asks at 9 or 25 points for each data release."""
+    return _exposures_of(csv.DictReader(io.StringIO(payload.decode("utf-8"))), collection)
+
+
+def parse_sia_votable(payload: bytes, collection: str) -> list[Exposure]:
+    from astropy.io.votable import parse_single_table
+
+    table = parse_single_table(io.BytesIO(payload)).to_table(use_names_over_ids=True)
+    return _exposures_of(table, collection)
+
+
+def parse_sia(payload: bytes, content_type: str, collection: str) -> list[Exposure]:
+    if "csv" in content_type:
+        return parse_sia_csv(payload, collection)
+    return parse_sia_votable(payload, collection)  # a service that ignores RESPONSEFORMAT
 
 
 def find_exposures(
@@ -129,9 +148,12 @@ def find_exposures_at(
         last: Exception | None = None
         for _ in range(2):  # the archive occasionally drops one of many parallel queries
             try:
-                r = client.get(config.SIA_URL, params={"COLLECTION": coll, "POS": f"circle {ra} {dec} 0.0005"})
+                r = client.get(
+                    config.SIA_URL,
+                    params={"COLLECTION": coll, "POS": f"circle {ra} {dec} 0.0005", "RESPONSEFORMAT": "csv"},
+                )
                 r.raise_for_status()
-                return parse_sia_votable(r.content, coll)
+                return parse_sia(r.content, r.headers.get("content-type", ""), coll)
             except httpx.HTTPError as exc:
                 last = exc
         raise last  # type: ignore[misc]
