@@ -132,6 +132,7 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 .maphead{text-shadow:0 0 3px var(--color-paper),0 0 8px var(--color-paper),0 0 14px var(--color-paper)}
 .maphead h1{font-size:clamp(20px,2.1vw,28px);letter-spacing:-.035em;text-wrap:balance}
 .maphead p{margin-top:8px;font-size:13.5px;line-height:1.45;color:var(--color-muted);text-wrap:pretty}
+.maphead .dataline{margin-top:10px;font-size:11.5px;line-height:1.4;color:var(--color-muted)}
 .maphead{transition:opacity var(--dur-short) var(--ease-out)}
 .mapscreen.zoomed .maphead{opacity:0}
 .mapstart{position:absolute;left:var(--pad);bottom:48px;width:232px;border:1px solid var(--color-rule);background:color-mix(in oklab,var(--color-paper) 90%,transparent)}
@@ -227,6 +228,13 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 .canvaswrap{position:relative;aspect-ratio:1;overflow:hidden}
 #sky{width:100%;height:100%;display:block;cursor:crosshair}
 #sky:focus-visible{outline-offset:-2px}
+#sky.zoomed{cursor:grab;touch-action:none}
+#sky.dragging{cursor:grabbing}
+.imgzoom{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;align-items:flex-end}
+.imgzoom .btn{margin-top:-1px;background:color-mix(in oklab,var(--color-paper) 82%,transparent)}
+.imgzoom .btn:hover:not(:disabled){background:var(--color-paper-2)}
+#empty:not([hidden])~.imgzoom{display:none}
+#zoom-x{height:24px;margin-bottom:6px;padding:0 7px;font:400 11.5px/1 var(--font-measure);color:var(--color-ink-2)}
 .strip{display:flex;justify-content:space-between;align-items:center;gap:12px;height:34px;padding:0 10px;border-top:1px solid var(--color-rule);background:var(--color-paper);color:var(--color-ink-2);white-space:nowrap;overflow:hidden}
 .hud{display:flex;align-items:center;gap:16px;min-width:0;flex:1 1 auto;overflow:hidden}
 .hud>span{flex:none}
@@ -285,6 +293,47 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 #plot.none{display:none}
 .legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:11.5px;color:var(--color-ink-2)}
 .legend .sw{vertical-align:0}
+/* what a view gives away: small download buttons under a plot or a list */
+.dlrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.dlrow .btn svg{width:11px;height:11px}
+.dlrow a.btn:hover{text-decoration:none}
+.files{list-style:none;margin:8px 0 0;padding:0;max-height:214px;overflow-y:auto;border:1px solid var(--color-rule);font-size:11.5px;color:var(--color-ink-2)}
+.files li{display:grid;grid-template-columns:minmax(0,1fr) 38px 98px 34px;gap:8px;align-items:center;padding:4px 8px;border-top:1px solid var(--color-rule-2);white-space:nowrap}
+.files li:first-child{border-top:0}
+.files a{font-family:var(--font-display);font-size:12.5px;font-weight:500;text-align:right;text-decoration:underline;text-decoration-color:var(--color-muted-2)}
+.files a:hover{text-decoration-color:var(--color-ink)}
+#filesnote{margin:0}
+.linkbtn{padding:0;border:0;background:none;color:var(--color-ink);font:inherit;text-decoration:underline;text-decoration-color:var(--color-muted-2);text-underline-offset:3px;text-decoration-thickness:1px;cursor:pointer}
+.linkbtn:hover{text-decoration-color:var(--color-ink)}
+.fileslinks{margin-top:12px}
+.dataline .linkbtn{display:block;width:max-content;margin-top:3px;color:var(--color-ink-2);pointer-events:auto}
+.mapscreen.zoomed .dataline .linkbtn{pointer-events:none}
+
+/* "About the data": a page laid over the app. Not a <dialog>, so the hover notes still show above it. */
+.sheet{position:fixed;inset:0;z-index:50;display:flex;justify-content:center;align-items:flex-start;padding:5vh var(--pad);background:color-mix(in oklab,var(--color-paper-3) 78%,transparent)}
+.sheet[hidden]{display:none}
+.sheetpage{display:flex;flex-direction:column;width:min(680px,100%);max-height:100%;border:1px solid var(--color-muted-2);background:var(--color-paper);outline:0}
+.sheetpage header{flex:none;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px 10px 24px;border-bottom:1px solid var(--color-rule);background:var(--color-paper)}
+.sheetpage header h2{font-size:15px;font-weight:600;color:var(--color-ink)}
+.sheetbody{overflow-y:auto;overscroll-behavior:contain;padding:6px 24px 26px;font-size:13.5px;line-height:1.55;color:var(--color-ink-2)}
+.sheetbody .lead{margin-top:14px;font-size:15px;line-height:1.5;color:var(--color-ink)}
+.sheetbody h3{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--color-rule-2);font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--color-muted)}
+.sheetbody p{max-width:66ch}
+.sheetbody p+p{margin-top:8px}
+.sheetbody table{width:100%;margin-top:12px;border-collapse:collapse}
+.sheetbody th,.sheetbody td{padding:6px 0;border-top:1px solid var(--color-rule-2);text-align:left;vertical-align:top;font-weight:400}
+.sheetbody th{width:104px;padding-right:14px;font-family:var(--font-measure);font-size:12.5px;color:var(--color-ink);white-space:nowrap}
+.sheetbody .bands td{width:calc(50% - 60px);font-family:var(--font-measure);font-size:12.5px}
+.sheetbody .bands th{width:60px}
+.sheetbody .bands .sw{width:8px;height:8px;margin-right:6px;vertical-align:0}
+.sw.d1{background:var(--d1)}.sw.d2{background:var(--d2)}.sw.d3{background:var(--d3)}.sw.d4{background:var(--d4)}.sw.d5{background:var(--d5)}.sw.d6{background:var(--d6)}
+.sheetbody ol{margin:0;padding:0;list-style:none;counter-reset:step}
+.sheetbody ol li{position:relative;padding:7px 0 7px 30px;border-top:1px solid var(--color-rule-2);counter-increment:step;max-width:70ch}
+.sheetbody ol li:first-child{border-top:0}
+.sheetbody ol li::before{content:counter(step);position:absolute;left:0;top:8px;font-family:var(--font-measure);font-size:12.5px;color:var(--color-muted)}
+.sheetbody b{font-weight:600;color:var(--color-ink)}
+.sheetbody .credit{margin-top:18px;font-size:12.5px;color:var(--color-muted)}
+.sheetbody a{text-decoration:underline;text-decoration-color:var(--color-muted-2)}
 .legend .sw.dia{transform:rotate(45deg);background:var(--color-ink-2);margin-right:6px}
 .legend .sw.dia.hollow{background:none;border:1px solid var(--color-ink-2)}
 .legend .hollow{background:none;border:1px solid var(--color-muted)}
@@ -432,6 +481,10 @@ dd{margin:0;font-family:var(--font-measure);font-variant-numeric:tabular-nums;fo
   .maphead{top:10px}
   .maphead p{margin-top:4px;font-size:13px}
   .maphead p .long{display:none}
+  .sheet{padding:0}
+  .sheetpage{border-width:0;height:100%}
+  .sheetpage header{padding-left:16px}
+  .sheetbody{padding:6px 16px 32px}
   .mapstart{left:0;right:0;bottom:0;width:auto;border-width:1px 0 0;background:var(--color-paper)}
   .mapstart h2{display:none}
   .mapstart .targets{padding:8px var(--pad)}
@@ -452,6 +505,8 @@ dd{margin:0;font-family:var(--font-measure);font-variant-numeric:tabular-nums;fo
   .btn,.seg button,.dets button,.panelhead .seg button{min-height:40px}
   .btn.quiet{min-height:36px}
   .btn.icon{min-width:40px}
+  .files li{padding:9px 8px}
+  .files{max-height:238px}
   select,input[type="text"],input[type="search"],input[type="number"]{min-height:40px}
   .checks label{min-height:36px}
   .rail .target{min-height:40px;align-items:center}

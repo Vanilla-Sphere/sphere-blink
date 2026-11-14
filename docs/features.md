@@ -20,7 +20,7 @@ implements it. Implementation detail is in [imaging engine](imaging-engine.md),
 | 9 | Spectrum and light curve at the crosshair | Advanced | `main.api_spectrum`, `cutout.aperture_flux`, `wings.py` |
 | 10 | Gaia DR3 and CatWISE2020 overlays | Advanced | `catalogs.py`, `web/app.js` (`drawOverlays`) |
 | 11 | Automatic measurement of position, motion, brightness | Advanced | `measure.py`, `refcat.py`, `measure_api.py` |
-| 12 | "Measure this object" | Advanced | `web/app.js` (`measureHere`), `/api/measure` |
+| 12 | "Measure motion and brightness" | Advanced | `web/app.js` (`measureHere`), `/api/measure` |
 | 13 | Measured tracks overlay | Advanced | `measurements.py`, `/api/tracks` |
 | 14 | Per-frame quality flags and provenance | Advanced | `cutout.py`, `render.Epoch.meta` |
 | 15 | Share links, embeddable GIF and PNG, data API | Simple, Advanced | `main.py`, `web/app.js` (`writeUrl`) |
@@ -118,7 +118,7 @@ overlays, the measured track and the spectrum at the crosshair.*
 | Picture | False colour, one frame per day, 8 arcmin | Any band, grouping, field size or progressive field |
 | Text | Object name, kind, a short description in plain language | Coordinates, epoch metadata, flags |
 | Controls | Play, slider, Share, Download GIF | Bands, grouping, image arithmetic, contrast, overlays, speed, timeline |
-| Analysis | - | Spectrum, light curve, measured tracks, "Measure this object", cross-links |
+| Analysis | - | Spectrum, light curve, measured tracks, "Measure motion and brightness", cross-links |
 | Search placeholder | "Search a star or galaxy by name" | "RA Dec or an object name" |
 
 Switching keeps the target and the frame on screen. Settings chosen in Advanced
@@ -162,6 +162,14 @@ The browser plays the epochs in time order.
 - **Orientation aids.** North up, east left, with a compass, a scale bar, and a
   crosshair on the target. Double-clicking the image recentres the view on that
   point.
+- **Zoom.** The image can be magnified up to 16 times: the mouse wheel or a
+  trackpad pinch zooms about the pointer, the `+` and `-` buttons at the lower
+  right (and the same keys) about the middle, and dragging moves the magnified
+  image. Zooming out stops at the whole view (1.0): the image is never shown
+  smaller than that. A readout shows the factor and returns to the whole view
+  on a press (key `0`). Overlays, the scale bar and the pointer's coordinates
+  follow the zoom; a new position starts whole, a progressive field that grows
+  keeps what is on screen.
 - **No data.** Pixels without data are drawn in a distinct warm dark tone, never
   as black sky.
 
@@ -294,6 +302,13 @@ spectral data product.
 
 The same data are served as JSON by `/api/spectrum`.
 
+Two buttons under the plot save it (`web/exports.js`): **CSV** writes one row
+per exposure (wavelength, bandwidth, flux and error in µJy, MJD and UTC date,
+detector, method, flags, the exposure id and the address of its Level 2 file at
+IRSA), under comment lines that give the target, the position, the data
+credit and the link of the view. **PNG** saves the plot on screen, spectrum
+or light curve, with its key and the NASA credit.
+
 ## 10. Catalogue overlays
 
 Two optional overlays, queried through IRSA TAP and cached per view:
@@ -333,7 +348,7 @@ description in [measurement pipeline](measurement-pipeline.md)):
 The five featured targets are measured automatically shortly after the service
 starts and again when the pipeline version changes or a week has passed.
 
-## 12. Measure this object
+## 12. Measure motion and brightness
 
 In Advanced mode the "Measured in this field" card offers a "Measure this
 object" button whenever nothing has been measured at the centre of the view. It
@@ -352,6 +367,12 @@ Proxima Centauri on 2026-11-14) shows:
 - the scatter of the positions around the fit;
 - whether the brightness is steady or varies between sky passes, with the
   amplitude and its significance.
+
+The pipeline measures what is at the crosshair. When it finds no source there
+it says so ("No source at the crosshair, so there is no motion to measure").
+When the light it found belongs to a source more than 3 arcsec away, the card
+names the distance and direction of that source and offers "Measure that
+source", which centres the view on it and measures it.
 
 If the position matches a Gaia star within 4 arcsec, the star's astrometry is
 used for the prediction; otherwise the position itself is measured as an object
@@ -385,6 +406,36 @@ the fraction of the field covered, and the SPHEREx quality flags present in the
 aperture at the target. Every epoch also carries the identifiers of its
 exposures, so any displayed image can be traced to the archive files it came
 from (`/api/epochs`, `/api/exposures`).
+
+The "Source files" card (Advanced, `web/exports.js`) shows that trace on the
+page: the SPHEREx Level 2 exposures of the frame on screen, or all exposures
+that cover the position, each with its UTC time, detector, wavelength range
+and a link to the original FITS file at NASA/IPAC IRSA. The note under the
+switch gives the size of the listed files (about 63 MB each; a file is 62 to 65 MB).
+
+Three buttons take the list away. All three are written in the browser, and
+every address in them is the archive's own, so no FITS file ever passes
+through this service:
+
+- **Download script** saves a POSIX shell script that fetches the listed files
+  (the frame, or all) with curl, or wget where curl is missing, into a folder
+  named after the target. Each file is written as `name.part` and renamed when
+  complete, so a second run resumes a broken download and skips finished
+  files. Only addresses that are plainly `https://` archive addresses are
+  written, and the target name appears in comment lines only.
+- **URL list** saves the same addresses, one per line, for `wget -i` or a
+  download manager.
+- **CSV** saves every exposure with its times, wavelength range, whether it is
+  in the frame on screen, and its IRSA and S3 addresses.
+
+"About the data" (in the same card, and on the data line of the start screen)
+opens a page over the app: the structure of a Level 2 file (extensions IMAGE,
+FLAGS, VARIANCE, ZODI, EPSF, WCS-WAVE), the six bands, the steps from file to
+picture (find, cut out, mask, subtract the background, align, group, show),
+how the photometry is done and what its limits are. Its text is fixed in
+`index.html` and must follow [imaging engine](imaging-engine.md) when the
+processing changes. The start screen states the source in one line: SPHEREx
+Level 2 exposures, 0.75-5 µm, NASA/IPAC IRSA, processed on the fly.
 
 ## 15. Sharing, embedding and data access
 
