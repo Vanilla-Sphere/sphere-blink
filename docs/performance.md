@@ -213,6 +213,15 @@ and their 64 reads from the bucket are the bottleneck, and memory does not
 move. What matters is the first chunk of four exposures that a waiting view
 gets at once: without it the last visitor looks at an empty screen for 35 s.
 
+The same test on the production service (2026-11-14, after the deploy of
+these limits; ten cold 8 arcmin views, 2910 exposures, all asked for from one
+address): every visitor had a first picture within 2.8-3.6 s, all frames
+after 27.3 s on average and 45.7 s for the last one, with queue positions up
+to 7. Nothing failed and nothing was refused. A further visitor who kept
+asking for the health check, the featured targets and a stored view got 157
+answers out of 157, with a median of 120 ms (the same as on the idle server)
+and 228 ms at most. The service used 1.07 GB of its 8 GB.
+
 **The heavy mix: four 7 x 7 fields, six 8 arcmin views and four measurements at the same moment:**
 
 | Views worked on at once | Peak memory (web process + child processes) | Slowest small view: first picture, all frames | Slowest field | Slowest measurement |

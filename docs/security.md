@@ -122,7 +122,7 @@ endpoint is `GET`; nothing else is accepted.
 | CDS Sesame | Object names | Second host (Harvard), then SIMBAD TAP on two hosts, then the answer stored on disk (kept 30 days, used at any age when no service answers). Coordinates and the featured targets need no service |
 | ESA Gaia archive, IRSA Gator | Catalogue overlays | Each catalogue has two services; the overlays of the featured targets are stored at start. See [data and sources](data-sources.md#external-services) |
 | Supabase Postgres | Team measurements | The service's own results are also in a local store and are served from there |
-| The server itself (Render) | Everything | One instance: a deploy or a crash interrupts the site. A stop now takes about 3 s instead of 30 s, the viewer retries by itself, and a worker process that dies is replaced. A second server was considered on 2026-11-14 and not taken |
+| The server itself (Render) | Everything | One instance: a deploy or a crash interrupts the site. The server now stops at once instead of after 30 s, which leaves the 27 s the host needs to start the new instance (measured 2026-11-14); the viewer retries by itself, and a worker process that dies is replaced. A second server was considered on 2026-11-14 and not taken |
 
 ## The audit of 2026-11-14
 
