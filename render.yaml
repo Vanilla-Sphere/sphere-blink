@@ -12,6 +12,14 @@ services:
         value: 3.12.7
       - key: SPHEREX_CACHE_DIR
         value: /var/data/sphereblink
+      # Keep these three in step with the plan and the disk below:
+      # processes = CPUs of the plan, disk budget = about 80% of the disk.
+      - key: SPHEREX_FETCH_PROCS
+        value: "1"
+      - key: SPHEREX_RAM_BUDGET_MB
+        value: "600"
+      - key: SPHEREX_DISK_BUDGET_GB
+        value: "4"
     disk:
       name: cache
       mountPath: /var/data
