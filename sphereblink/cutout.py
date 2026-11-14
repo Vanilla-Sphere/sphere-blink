@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import time
 import warnings
 from dataclasses import dataclass, field
 
@@ -162,9 +163,17 @@ def _bits(planes: dict[str, int], names) -> int:
     return v
 
 
+# Running totals of archive traffic in this process (see Job.stats).
+NET = {"requests": 0, "bytes": 0, "seconds": 0.0}
+
+
 async def _get(client: httpx.AsyncClient, url: str, start: int, end: int) -> bytes:
+    t0 = time.perf_counter()
     r = await client.get(url, headers={"Range": f"bytes={start}-{end - 1}"})
     r.raise_for_status()
+    NET["requests"] += 1
+    NET["bytes"] += len(r.content)
+    NET["seconds"] += time.perf_counter() - t0
     return r.content
 
 

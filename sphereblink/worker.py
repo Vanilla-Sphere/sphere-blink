@@ -9,11 +9,12 @@ cut in several processes, each with its own event loop and HTTP connections.
 from __future__ import annotations
 
 import asyncio
+import time
 
 import httpx
 import numpy as np
 
-from .cutout import Frame, Grid, cut_async
+from .cutout import NET, Frame, Grid, cut_async
 from .sia import Exposure
 
 _loop: asyncio.AbstractEventLoop | None = None
@@ -41,11 +42,30 @@ async def cut_one(client: httpx.AsyncClient, key: str, e: Exposure, grid: Grid, 
     return key, e, None, last or "failed"
 
 
-def cut_chunk(grid: Grid, items: list[Item]) -> list[Result]:
+class Meter:
+    """Measures what a batch of cutouts cost: archive traffic and CPU."""
+
+    def __enter__(self):
+        self._net, self._cpu, self._wall = dict(NET), time.process_time(), time.perf_counter()
+        return self
+
+    def __exit__(self, *exc):
+        self.stats = {
+            "requests": NET["requests"] - self._net["requests"],
+            "mb": (NET["bytes"] - self._net["bytes"]) / 1e6,
+            "net_s": NET["seconds"] - self._net["seconds"],  # summed over concurrent requests
+            "cpu_s": time.process_time() - self._cpu,
+            "busy_s": time.perf_counter() - self._wall,  # summed over worker processes
+        }
+
+
+def cut_chunk(grid: Grid, items: list[Item]) -> tuple[list[Result], dict]:
     """Cut a chunk of exposures concurrently (runs inside a worker process)."""
     assert _loop is not None and _client is not None, "worker not initialised"
 
     async def run() -> list[Result]:
         return list(await asyncio.gather(*(cut_one(_client, k, e, grid, w) for k, e, w in items)))
 
-    return _loop.run_until_complete(run())
+    with Meter() as m:
+        results = _loop.run_until_complete(run())
+    return results, m.stats

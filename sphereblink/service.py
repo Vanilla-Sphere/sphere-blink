@@ -162,6 +162,7 @@ class Job:
     started: float = field(default_factory=time.time)
     finished: float = 0.0
     last_used: float = field(default_factory=time.time)
+    stats: dict = field(default_factory=dict)  # where the time went (seconds, MB)
     frames: list[Frame] = field(default_factory=list)  # grows while fetching
 
     def public(self) -> dict:
@@ -175,6 +176,7 @@ class Job:
             "frames": len(self.frames),
             "error": self.error,
             "elapsed_s": round(end - self.started, 1),
+            "stats": {k: round(v, 2) for k, v in self.stats.items()},
         }
 
     def snapshot(self) -> list[Frame]:
@@ -263,7 +265,9 @@ class Service:
     def _run(self, job: Job, grid: Grid) -> None:
         try:
             job.status = "searching"
+            t0 = time.time()
             exps = self.exposures(grid.ra, grid.dec)
+            job.stats["search_s"] = time.time() - t0
             if len(exps) > config.MAX_FRAMES:  # deep fields: thin evenly in time, keep first and last
                 step = (len(exps) - 1) / (config.MAX_FRAMES - 1)
                 exps = [exps[round(k * step)] for k in range(config.MAX_FRAMES)]
@@ -281,6 +285,7 @@ class Service:
                         job.frames.append(got)
             if todo:
                 # wavelength maps: one per release+detector, fetched once ever
+                t0 = time.time()
                 firsts = {f"{e.collection}_D{e.detector}": e for _, e in todo}.values()
                 threads = [threading.Thread(target=self.wave_map, args=(e,), daemon=True) for e in firsts]
                 for t in threads:
@@ -288,10 +293,15 @@ class Service:
                 for t in threads:
                     t.join()
                 items = [(k, e, self.wave_map(e)) for k, e in todo]
+                job.stats["wave_s"] = time.time() - t0
+                t0 = time.time()
                 if config.FETCH_PROCS > 1:
                     self._fetch_in_processes(job, grid, items)
                 else:
-                    asyncio.run(self._fetch_in_loop(job, grid, items))
+                    with worker.Meter() as m:
+                        asyncio.run(self._fetch_in_loop(job, grid, items))
+                    job.stats.update(m.stats)
+                job.stats["fetch_s"] = time.time() - t0
                 self.store.trim(config.DISK_BUDGET_GB * 1e9, keep=grid.key())
             job.status = "ready"
         except Exception as exc:  # surfaced to the UI
@@ -328,7 +338,12 @@ class Service:
         pool = self._pool()
         futures = [pool.submit(worker.cut_chunk, grid, items[i : i + chunk]) for i in range(0, len(items), chunk)]
         for fut in as_completed(futures):
-            self._collect(job, grid, fut.result())
+            results, stats = fut.result()
+            for k, v in stats.items():
+                job.stats[k] = job.stats.get(k, 0) + v
+            t0 = time.time()
+            self._collect(job, grid, results)
+            job.stats["store_s"] = job.stats.get("store_s", 0) + time.time() - t0
 
     async def _fetch_in_loop(self, job: Job, grid: Grid, items: list[worker.Item]) -> None:
         """One core: everything in this process, frames arrive one by one."""
