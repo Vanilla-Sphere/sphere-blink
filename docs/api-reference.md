@@ -1,0 +1,697 @@
+# API reference
+
+All functionality of the product is available over HTTP. The viewer uses only
+the endpoints documented here.
+
+- **Base URL:** `https://vanillasphere.com`
+- **Interactive documentation:** `/docs` (OpenAPI schema at `/openapi.json`)
+- **Methods:** every endpoint is `GET`
+- **Authentication:** none
+- **CORS:** any origin; the response header `X-Job` is exposed
+- **Compression:** responses above 2 kB are gzip-compressed when the client accepts it
+- **API version:** 0.2.0
+
+## Conventions
+
+### Addressing a view
+
+Most endpoints act on a *view*: a position and a field of view.
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `target` | string | - | Object name, challenge-target key, or coordinates as text (`"269.4486 4.7387"`, `"08h55m10.8s -07d14m42s"`) |
+| `ra`, `dec` | float | - | ICRS position in decimal degrees. When both are given they take precedence; `target` is then used only as the display name |
+| `fov` | float | `8` | Field of view in arcminutes, greater than 0 and at most 51. Values below 1 are raised to 1 |
+
+Either `target` or both `ra` and `dec` is required. Two requests with the same
+resolved position and `fov` address the same view and share its cached data.
+
+### Selecting bands and grouping
+
+| Parameter | Values | Default | Description |
+| --- | --- | --- | --- |
+| `det` | `rgb`, `all`, or a list such as `1,2,6` or `D5,D6` | `rgb` | `rgb` is false colour (R = D6 or D5, G = D4 or D3, B = D2 or D1); `all` averages the six detectors |
+| `band` | `RGB`, `D1` ... `D6` | - | Alternative spelling of `det`; takes precedence when given |
+| `group` | `exposure`, `day`, `visit` | `day` | One epoch per exposure, per UTC day, or per sky pass |
+| `diff` | boolean | `false` | Subtract the median of all epochs (PNG and GIF endpoints) |
+
+### Asynchronous jobs
+
+Gathering the frames of a view is a background job. Endpoints that need the
+frames accept `wait` (seconds): the request is held until the job is ready or
+the time has passed.
+
+- If the job is not ready in time, the answer is **HTTP 202** with
+  `{"pending": true, "job": {...}}`. Repeat the request.
+- A request may be held up to 6 s regardless of `wait` while the exposure search
+  or the cache lookup of a previously loaded view is in progress.
+- `/api/cube` and, by default, `/api/spectrum` do not wait for completion: they
+  return what has arrived so far together with the job status.
+
+The job object:
+
+```json
+{
+  "id": "9cdfd6c58979",
+  "status": "ready",
+  "total": 358,
+  "done": 358,
+  "failed": 0,
+  "frames": 358,
+  "error": "",
+  "elapsed_s": 0.4,
+  "stats": {"search_s": 0.01}
+}
+```
+
+| Field | Description |
+| --- | --- |
+| `status` | `queued`, `searching`, `fetching`, `ready` or `error` |
+| `total` | Exposures found for the view |
+| `done` | Exposures processed (from cache or archive) |
+| `failed` | Exposures that could not be read after three attempts |
+| `frames` | Exposures that intersect the view and produced a frame |
+| `elapsed_s` | Wall time of the job |
+| `stats` | Seconds and megabytes by phase: `search_s`, `wave_s`, `fetch_s`, `store_s`, `requests`, `mb`, `net_s` (summed over concurrent requests), `cpu_s`, `busy_s` (summed over worker processes). Keys are present only for phases that ran |
+
+### Errors
+
+Errors are JSON of the form `{"detail": "message"}`.
+
+| Status | Meaning |
+| --- | --- |
+| 400 | Invalid input: unknown object name, malformed coordinates, invalid `det`, `group`, `cat` or `tile_id`, missing position |
+| 404 | No SPHEREx data at this position (PNG and GIF endpoints) |
+| 413 | The requested cube exceeds 40 million pixels |
+| 422 | A parameter is outside its allowed range or of the wrong type (FastAPI validation) |
+| 502 | An upstream service failed: the data archive, the catalogue service, or the measurement database |
+| 503 | The name services are unreachable, or the measurement service has not started |
+
+## Endpoint summary
+
+| Endpoint | Returns | Purpose |
+| --- | --- | --- |
+| [`/api/health`](#get-apihealth) | JSON | Liveness and instance identity |
+| [`/api/featured`](#get-apifeatured) | JSON | The challenge targets |
+| [`/api/resolve`](#get-apiresolve) | JSON | Name or coordinates to a position |
+| [`/api/exposures`](#get-apiexposures) | JSON | Every exposure covering a position |
+| [`/api/view`](#get-apiview) | JSON | Start a view; job status |
+| [`/api/tiles`](#get-apitiles) | JSON | Start a progressive field; stage and cell status |
+| [`/api/cube`](#get-apicube) | binary | All epochs of a view for interactive display |
+| [`/api/epochs`](#get-apiepochs) | JSON | Epoch metadata of a view |
+| [`/api/frame.png`](#get-apiframepng) | PNG | One epoch as an image |
+| [`/api/movie.gif`](#get-apimoviegif) | GIF | The whole time series as an animation |
+| [`/api/spectrum`](#get-apispectrum) | JSON | Spectrum and light curve at the centre |
+| [`/api/catalog`](#get-apicatalog) | JSON | Gaia DR3 or CatWISE2020 sources in the field |
+| [`/api/tracks`](#get-apitracks) | JSON | Measured objects in the field |
+| [`/api/measure`](#get-apimeasure) | JSON | Measure an object; job status and result |
+| [`/api/measured`](#get-apimeasured) | JSON | Everything measured so far |
+| `/` | HTML | The viewer; accepts the URL parameters in [viewer](viewer.md#url-state) |
+| `/static/*` | files | Viewer assets |
+
+## Service
+
+### GET /api/health
+
+```json
+{"ok": true, "collections": ["spherex_dr1", "spherex_qr3"], "instance": "60-1794633151"}
+```
+
+`instance` identifies the web process (process id and start time). It must be
+identical on successive calls; differing values mean more than one web process
+is running, which the service does not support.
+
+### GET /api/featured
+
+The challenge targets, for menus.
+
+```json
+[
+  {"key": "barnard", "name": "Barnard's Star", "note": "Highest proper motion star (10.4 arcsec/yr)."},
+  {"key": "eps-indi-b", "name": "Epsilon Indi B", "note": "Pair of brown dwarfs orbiting Epsilon Indi A."}
+]
+```
+
+## Positions and exposures
+
+### GET /api/resolve
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `q` | string | yes | Name or coordinates |
+
+```json
+{
+  "name": "Barnard's Star",
+  "ra": 269.4462878681711,
+  "dec": 4.767916718333334,
+  "ra_input": 269.452083,
+  "dec_input": 4.693364,
+  "pmra": -802.8,
+  "pmdec": 10362.54,
+  "epoch": 2000.0,
+  "note": "Highest proper motion star (10.4 arcsec/yr).",
+  "source": "featured"
+}
+```
+
+| Field | Description |
+| --- | --- |
+| `ra`, `dec` | Position at the SPHEREx epoch (2025.9), after applying proper motion. This is the centre of the view |
+| `ra_input`, `dec_input`, `epoch` | Catalogue position and its epoch (Julian year) |
+| `pmra`, `pmdec` | Proper motion in mas/yr; `pmra` includes cos(dec) |
+| `source` | `featured`, `coordinates`, `SIMBAD`, `NED` or `VizieR` |
+
+This target object is embedded in the response of every view endpoint.
+
+### GET /api/exposures
+
+Parameters: `target` or `ra` and `dec`.
+
+Every SPHEREx Level 2 exposure whose footprint contains the position, oldest first.
+
+```json
+{
+  "target": {"...": "..."},
+  "count": 358,
+  "exposures": [
+    {
+      "obs_id": "2025W33_2C_0321_1",
+      "detector": 3,
+      "collection": "spherex_dr1",
+      "mjd_start": 60902.864715,
+      "mjd_end": 60902.866047,
+      "wave_min_um": 1.6301,
+      "wave_max_um": 2.4346,
+      "s3_key": "dr1/level2/2025W33_2C/l2b-v27-2026-228/3/level2_2025W33_2C_0321_1D3_spx_l2b-v27-2026-228.fits",
+      "access_url": "https://irsa.ipac.caltech.edu/ibe/data/spherex/dr1/level2/...",
+      "s_region": "POLYGON ICRS 266.69 5.48 270.17 5.17 269.99 1.68 266.50 2.00 266.69 5.48",
+      "ra_center": 268.3392384983133,
+      "dec_center": 3.6055052194421444,
+      "uid": "2025W33_2C_0321_1_D3",
+      "mjd": 60902.865381
+    }
+  ]
+}
+```
+
+`uid` (`obs_id` plus detector) identifies an exposure throughout the API and in
+the measurement database. `s3_key` is the object key in the public bucket
+`nasa-irsa-spherex`.
+
+## Views
+
+### GET /api/view
+
+Parameters: view address.
+
+Starts gathering the frames of a view, or reports on a view already started.
+Returns immediately. Poll until `job.status` is `ready`.
+
+```json
+{
+  "target": {"name": "Barnard's Star", "ra": 269.4462878681711, "dec": 4.767916718333334, "...": "..."},
+  "grid": {"ra": 269.4462878681711, "dec": 4.767916718333334, "npix": 157, "scale_arcsec": 3.075, "fov_arcmin": 8.046},
+  "job": {"id": "9cdfd6c58979", "status": "ready", "total": 358, "done": 358, "failed": 0, "frames": 358, "error": "", "elapsed_s": 0.4, "stats": {"search_s": 0.01}}
+}
+```
+
+`grid` describes the image grid of the view: centre, pixels per side, pixel
+scale and the resulting exact field of view.
+
+### GET /api/tiles
+
+Starts a progressive field on the cell grid `icrs012-v1`, or reports on one
+already started. Poll until `status` is `ready`.
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `target`, `ra`, `dec` | - | - | Position inside the seed cell |
+| `tile_id` | string | - | Seed cell by identifier, for example `icrs012-v1-1716-0660`; overrides the position |
+| `levels` | integer 0-3 | `3` | Rings of cells around the seed cell; 3 gives 7 x 7 cells |
+| `neighbors` | integer 0-3 | - | Same as `levels`; takes precedence when given |
+
+```json
+{
+  "target": {"...": "..."},
+  "scheme": "icrs012-v1",
+  "step_deg": 0.12,
+  "levels": 3,
+  "seed": {"tile_id": "icrs012-v1-1716-0660", "ra_c": 205.98, "dec_c": -10.74, "level": 0,
+           "ra_min": 205.92, "ra_max": 206.04, "dec_min": -10.8, "dec_max": -10.68},
+  "ready_level": -1,
+  "status": "loading",
+  "elapsed_s": 0.0,
+  "stages": [
+    {"level": 0, "tiles": 1,  "ra": 205.98, "dec": -10.74, "fov": 7.2,  "npix": 141, "status": "queued", "job": null},
+    {"level": 1, "tiles": 9,  "ra": 205.98, "dec": -10.74, "fov": 21.6, "npix": 211, "status": "queued", "job": null},
+    {"level": 3, "tiles": 49, "ra": 205.98, "dec": -10.74, "fov": 50.4, "npix": 493, "status": "queued", "job": null}
+  ],
+  "tiles": [
+    {"tile_id": "icrs012-v1-1716-0660", "ra_c": 205.98, "dec_c": -10.74, "level": 0,
+     "ra_min": 205.92, "ra_max": 206.04, "dec_min": -10.8, "dec_max": -10.68, "status": "loading"}
+  ]
+}
+```
+
+| Field | Description |
+| --- | --- |
+| `status` | `loading`, `ready` or `error` for the whole field |
+| `ready_level` | Highest level whose stage has finished; -1 before the first |
+| `stages[]` | One entry per loaded stage. `ra`, `dec` and `fov` address the stage as an ordinary view for `/api/cube`, `/api/frame.png`, `/api/movie.gif`, `/api/epochs` and `/api/spectrum`. `job` is the job object of the stage once it has started |
+| `tiles[]` | Every cell of the block, centre first then ring by ring, with its corners and a status of `done`, `loading` or `queued` |
+
+### GET /api/cube
+
+All epochs of a view in one binary response, for interactive display. It does
+not wait for the job to finish: while the job is running the cube contains the
+epochs available so far.
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| view address | | | |
+| `det`, `band`, `group` | | `rgb`, -, `day` | See conventions |
+| `bin` | integer 1-4 | `1` | Average `bin` x `bin` pixels (overview of a wide mosaic) |
+
+Response: `application/octet-stream`, header `X-Job: <status>`,
+`Cache-Control: no-store`. Returns 413 when epochs x planes x pixels exceeds
+40 million; reduce the field of view, group by day or sky pass, select one
+detector, or bin.
+
+#### Binary cube format
+
+```
+offset 0        uint32, little-endian   N = length of the JSON block in bytes
+offset 4        N bytes                 JSON metadata, UTF-8, padded with spaces so that 4 + N is even
+offset 4 + N    uint16, little-endian   pixels in the order [epoch][plane][row][column]
+```
+
+- `plane` is present only for colour cubes (3 planes: R, G, B); grey cubes have one.
+- Rows run from south to north; columns from east to west. To draw north up and
+  east left, flip the rows.
+- Pixel value 0 means "no data". Any other value `q` decodes to
+
+  ```
+  value = sinh(a_lo + (q - 1) / 65534 * (a_hi - a_lo))
+  ```
+
+  with `a_lo` and `a_hi` from `encoding`. The unit is the robust sky noise of a
+  single exposure (sigma); colour planes are in white-balanced display units.
+
+JSON metadata:
+
+```json
+{
+  "target": {"...": "..."},
+  "grid": {"ra": 269.446, "dec": 4.768, "npix": 157, "scale_arcsec": 3.075, "fov_arcmin": 8.046},
+  "job": {"...": "..."},
+  "encoding": {"a_lo": -0.4958639, "a_hi": 3.7789884, "n": 39, "planes": 3},
+  "epochs": [{"...": "see /api/epochs"}]
+}
+```
+
+With `bin` greater than 1, `grid.npix` and `grid.scale_arcsec` describe the
+binned cube and `grid.native_npix` gives the size of the unbinned view.
+
+A decoder in JavaScript:
+
+```javascript
+const buf = await (await fetch(url)).arrayBuffer();
+const n = new DataView(buf).getUint32(0, true);
+const meta = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, n)));
+const q = new Uint16Array(buf, 4 + n);
+const {a_lo, a_hi} = meta.encoding, k = (a_hi - a_lo) / 65534;
+const cube = Float32Array.from(q, (v) => (v === 0 ? NaN : Math.sinh(a_lo + (v - 1) * k)));
+```
+
+### GET /api/epochs
+
+Parameters: view address, `det`, `band`, `group`, `wait` (0-60 s, default 0).
+
+The epoch metadata of a view without the pixels.
+
+```json
+{
+  "target": {"...": "..."},
+  "grid": {"...": "..."},
+  "job": {"...": "..."},
+  "epochs": [
+    {
+      "channels": [
+        {"color": "R", "detector": 6, "date": "2025-08-15", "borrowed": false},
+        {"color": "G", "detector": 3, "date": "2025-08-15", "borrowed": false},
+        {"color": "B", "detector": 2, "date": "2025-08-21", "borrowed": true}
+      ],
+      "label": "2025-08-15",
+      "mjd": 60902.86687,
+      "n_exposures": 6,
+      "detectors": [3, 6],
+      "coverage": 0.999,
+      "wave_um": [2.3, 4.996],
+      "flags_at_target": ["BLOOM", "DICHROIC", "NONFUNC", "OVERFLOW", "SOURCE", "SUR_ERROR", "TRANSIENT"],
+      "exposures": ["2025W33_2C_0321_1_D3", "2025W33_2C_0321_1_D6", "2025W33_2C_0321_2_D3",
+                    "2025W33_2C_0321_2_D6", "2025W33_2C_0321_3_D3", "2025W33_2C_0321_3_D6"]
+    }
+  ]
+}
+```
+
+| Field | Description |
+| --- | --- |
+| `label` | UTC date, or `first .. last` for an epoch spanning several days |
+| `mjd` | Mean MJD of the member exposures |
+| `channels` | Colour epochs only: for each of R, G, B the detector and date it came from, and whether it was borrowed from another epoch |
+| `coverage` | Fraction of pixels with data |
+| `wave_um` | Minimum and maximum wavelength at the target among the member exposures |
+| `flags_at_target` | SPHEREx quality flags set within the aperture at the target in any member exposure |
+| `exposures` | `uid` of every member exposure |
+
+### GET /api/frame.png
+
+One epoch rendered as a PNG, annotated with the date, the detectors (an asterisk
+marks a borrowed colour channel), the target name, a crosshair, and "N up, E left".
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| view address, `det`, `band`, `group`, `diff` | | | See conventions |
+| `i` | integer | `-1` | Epoch index; negative values count from the end |
+| `size` | integer 128-1024 | `480` | Image size in pixels |
+| `wait` | float 0-120 | `55` | Seconds to wait for the job |
+
+Response: `image/png`, `Cache-Control: public, max-age=3600`; 202 if pending;
+404 if there are no data.
+
+### GET /api/movie.gif
+
+The whole time series as an animated GIF, with one contrast stretch for all
+frames. Suitable for embedding in any page or message.
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| view address, `det`, `band`, `group`, `diff` | | | See conventions |
+| `fps` | float, up to 10 | `2` | Frames per second |
+| `size` | integer 128-720 | `360` | Image size in pixels |
+| `max_frames` | integer 2-200 | `60` | Longer series are thinned evenly in time |
+| `wait` | float 0-120 | `55` | Seconds to wait for the job |
+
+Response: `image/gif`, `Cache-Control: public, max-age=3600`; loops
+indefinitely with a pause on the last frame; 202 if pending; 404 if there are
+no data.
+
+## Measurements at the centre
+
+### GET /api/spectrum
+
+Spectrum and light curve at the centre of the view, one point per exposure.
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| view address | | | |
+| `wait` | float 0-120 | `0` | Seconds to wait for the job |
+| `partial` | boolean | `true` | Return the points available so far. With `false`, the answer is 202 until the job is ready |
+
+```json
+{
+  "target": {"...": "..."},
+  "job": {"...": "..."},
+  "units": {"flux": "uJy", "wave": "um"},
+  "points": [
+    {
+      "wave_um": 0.7374,
+      "bandwidth_um": 0.0176,
+      "flux_ujy": 3245088.53,
+      "flux_err_ujy": 649261.05,
+      "method": "wings",
+      "detector": 1,
+      "mjd": 61277.25238,
+      "uid": "2026W35_1A_0249_4_D1",
+      "flags": ["BLOOM", "OVERFLOW", "SOURCE", "SUR_ERROR", "TRANSIENT"]
+    }
+  ]
+}
+```
+
+| Field | Description |
+| --- | --- |
+| `wave_um`, `bandwidth_um` | Central wavelength and bandwidth of the filter slice at the target in this exposure |
+| `flux_ujy`, `flux_err_ujy` | Flux density and its 1 sigma error in microjansky |
+| `method` | `aperture`: sky-subtracted aperture of radius 2 native pixels. `wings`: the star saturates the core and the flux comes from its halo, with a 20-25 % systematic error included |
+| `flags` | Quality flags in the aperture. `EXTRAPOLATED` is added to wing fluxes above the calibrated range (error 50 %) |
+| `mjd`, `detector`, `uid` | When and where the point was taken |
+
+Points are sorted by wavelength. For a spectrum, plot `flux_ujy` against
+`wave_um`; for a light curve, against `mjd`, comparing points of one detector.
+For a complete spectrum, call with `wait=60` and check that `job.status` is `ready`.
+
+### GET /api/catalog
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| view address | | | |
+| `cat` | `gaia` or `catwise` | `gaia` | Gaia DR3 or CatWISE2020 |
+
+The 250 brightest sources within 0.75 x `fov` of the centre, brightest first.
+
+```json
+{
+  "cat": "gaia",
+  "sources": [
+    {"id": "4472832130942575872", "ra": 269.44850252544, "dec": 4.73942005111,
+     "pmra": -801.551, "pmdec": 10362.394, "pm_snr": 288884.5,
+     "mag": 8.193974, "parallax": 546.9759, "epoch": 2016.0}
+  ]
+}
+```
+
+| Field | Description |
+| --- | --- |
+| `ra`, `dec`, `epoch` | Position and the Julian year it refers to (2016.0 for Gaia; the mean observation epoch for CatWISE) |
+| `pmra`, `pmdec` | Proper motion in mas/yr for both catalogues (CatWISE values are converted from arcsec/yr) |
+| `pm_snr` | Total proper motion divided by its error. Use it to disregard the large but insignificant motions of faint CatWISE sources |
+| `mag` | G magnitude (Gaia) or W2 magnitude (CatWISE) |
+| `parallax` | mas (Gaia only) |
+
+To place a source on a frame taken in Julian year `t`:
+
+```
+ra(t)  = ra  + pmra  / 3.6e6 * (t - epoch) / cos(dec)
+dec(t) = dec + pmdec / 3.6e6 * (t - epoch)
+```
+
+## Measured objects
+
+### GET /api/tracks
+
+Parameters: view address.
+
+Objects measured within 0.75 x `fov` of the centre: pipeline results merged with
+any measurements held in the team database.
+
+```json
+{
+  "enabled": true,
+  "sources": [
+    {
+      "name": "Barnard's Star",
+      "kind": "star",
+      "ra": 269.44850252544, "dec": 4.73942005111, "epoch": 2016.0,
+      "pmra": -801.551, "pmdec": 10362.394, "parallax": 546.976,
+      "gaia_source_id": "4472832130942575872", "catwise_id": null,
+      "note": "Highest proper motion star (10.4 arcsec/yr).",
+      "track": {
+        "epoch": 2026.23709, "ra": 269.44619368, "dec": 4.76890604,
+        "pmra": -992.21, "pmdec": 10327.03, "pmra_err": 471.8, "pmdec_err": 249.31,
+        "n_detections": 86, "rms_arcsec": 0.388,
+        "model": "linear motion, catalogue parallax",
+        "summary": {"track": {"...": "..."}, "light_curve": {"...": "..."}, "stats": {"...": "..."},
+                    "catalog": {"...": "..."}, "measured_at": 1794632085.6, "version": 2}
+      },
+      "detections": [
+        {"obs_id": "2025W33_2C_0321_1", "detector": 6, "mjd": 60902.865381,
+         "ra": 269.4460906, "dec": 4.7672754, "pos_err_arcsec": 0.092,
+         "wave_um": 4.9234, "flux_ujy": 27476.81, "flux_err_ujy": 773.84,
+         "flags": ["BLOOM", "OVERFLOW", "RING_FLUX", "SATURATED", "SOURCE", "SUR_ERROR", "TRANSIENT"],
+         "method": "psf", "east": -0.498, "north": 0.416,
+         "snr": 7.7, "n_exposures": 1, "used": true, "rel_flux": 0.9405}
+      ]
+    }
+  ]
+}
+```
+
+`enabled` is `false`, with an empty list, when the service has neither a
+database nor any stored result.
+
+| Object | Fields |
+| --- | --- |
+| Source | `ra`, `dec`, `epoch`, `pmra`, `pmdec`, `parallax`: the catalogue astrometry used for prediction. `kind`: `star`, `brown_dwarf`, `variable`, `moving`, `candidate` or `artifact` |
+| `track` | Fitted position at `epoch` (Julian year), proper motion and errors in mas/yr, number of detections in the fit, RMS of the residuals. `summary.track` holds the full fit, `summary.light_curve` the brightness analysis. `null` if no track could be fitted |
+| `detections[]` | Measured position in one exposure or stack. `east`, `north`: offset from the catalogue prediction in arcsec. `method`: `psf`, `wings` or `stack`. `used`: whether the detection entered the track fit. `rel_flux`: flux divided by the object's mean spectrum at that wavelength |
+
+The flags `SATURATED` and `RING_FLUX` are added by the pipeline: the first marks
+an exposure whose core is saturated (position only), the second a flux taken
+from the ring outside the core. The example is the response served on
+14 November 2026.
+
+### GET /api/measure
+
+Measures where an object is in every exposure and fits its motion. The first
+call starts the job; repeat the call until `status` is `ready`. A stored result
+is returned at once.
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `target` or `ra`, `dec` | | | The object or position |
+| `refresh` | boolean | `false` | Measure again even when a result is stored |
+| `detections` | boolean | `true` | Include the per-exposure positions in the result |
+
+```json
+{
+  "key": "wise-0855",
+  "target": {"...": "..."},
+  "job": {"status": "measuring", "name": "WISE 0855-0714", "exposures": 258, "elapsed_s": 12.4},
+  "status": "measuring"
+}
+```
+
+The example above shows the shape of a response while the job runs. `status`
+is `queued`, `searching`, `measuring`, `ready` or `error` (with `job.error`).
+When ready, `result` is present:
+
+```json
+{
+  "key": "r-dra",
+  "status": "ready",
+  "result": {
+    "name": "R Draconis",
+    "kind": "variable",
+    "ra": 248.1673, "dec": 66.7550,
+    "note": "Mira variable, period ~246 days.",
+    "target": {"name": "R Draconis", "ra": 248.1673783673, "dec": 66.7550067455, "epoch": 2016.0,
+               "pmra": -20.643, "pmdec": 6.149, "parallax": 1.251, "mag": 6.37,
+               "catalog": "Gaia DR3", "catalog_id": "1648328016354496384"},
+    "track": {
+      "model": "linear motion, catalogue parallax",
+      "epoch": 2025.95929, "ra": 248.16731578, "dec": 66.75506245,
+      "pmra": 153.52, "pmdec": 241.17, "pmra_err": 334.0, "pmdec_err": 425.93,
+      "ra_err_arcsec": 0.114, "dec_err_arcsec": 0.201,
+      "parallax_mas": 1.251, "parallax_fit_mas": null, "parallax_fit_err": null,
+      "n_detections": 515, "n_rejected": 2, "n_passes": 3, "span_years": 1.166,
+      "rms_arcsec": 0.922, "chi2_red": 7.46,
+      "mjd_min": 60811.9565, "mjd_max": 61237.87241, "pm_fitted": true,
+      "catalog_offset_east": 0.117, "catalog_offset_north": 0.139,
+      "catalog_dpmra": 174.17, "catalog_dpmdec": 235.02
+    },
+    "light_curve": {
+      "method": "wings", "n": 510,
+      "passes": [
+        {"mjd": 60845.155, "rel_flux": 1.4561, "err": 0.0219, "scatter": 0.2557, "n": 136},
+        {"mjd": 61006.236, "rel_flux": 1.0003, "err": 0.0155, "scatter": 0.2204, "n": 202},
+        {"mjd": 61198.695, "rel_flux": 0.7398, "err": 0.0136, "scatter": 0.1783, "n": 172}
+      ],
+      "days": [{"mjd": 60811.959, "rel_flux": 1.5614, "n": 8}],
+      "amplitude": 1.968, "significance": 3.6, "floor": 0.12, "variable": true
+    },
+    "stats": {"stamps": 529, "passes": 3, "detections": 517, "single": 0, "wings": 517, "stacks": 0,
+              "neighbours": 2, "pointing_east": -0.05, "pointing_north": -0.004,
+              "pointing_scatter": 0.321, "pointing_stamps": 146,
+              "exposures": 539, "failed": 0, "gaia": true, "seconds": 45.4, "in_database": true},
+    "detections": [{"...": "as in /api/tracks, plus collection"}],
+    "version": 2,
+    "measured_at": 1794632400.0
+  }
+}
+```
+
+Field meanings are given in
+[measurement pipeline](measurement-pipeline.md#7-result). Notable ones:
+
+| Field | Description |
+| --- | --- |
+| `track.pm_fitted` | `false` when only one sky pass exists; the motion is then the catalogue value and its errors are `null` |
+| `track.parallax_fit_mas` | Parallax fitted freely as a check (three or more passes); the main fit holds the catalogue parallax |
+| `track.catalog_offset_*`, `catalog_dpm*` | Fitted minus catalogue: position in arcsec, proper motion in mas/yr |
+| `light_curve.amplitude` | Brightest sky pass divided by the faintest |
+| `light_curve.variable` | `true` at a significance of 3 or more |
+| `stats.in_database` | Whether the result was written to the team database |
+
+The values in this example are the result served on 14 November 2026, except
+`measured_at` (a Unix time), which is illustrative.
+
+### GET /api/measured
+
+Every object the pipeline has measured, without per-exposure detections.
+
+```json
+{
+  "version": 2,
+  "database": true,
+  "running": {},
+  "results": [{"key": "barnard", "name": "Barnard's Star", "kind": "star", "track": {"...": "..."},
+               "light_curve": {"...": "..."}, "stats": {"...": "..."}, "target": {"...": "..."}}]
+}
+```
+
+`running` maps job keys to the status of measurements in progress. `database`
+states whether a team database is configured.
+
+## Examples
+
+Open the viewer on a target:
+
+```
+https://vanillasphere.com/?target=Barnard's Star&fov=8
+https://vanillasphere.com/?ra=133.76010&dec=-7.24227&fov=8&det=5,6&group=visit
+https://vanillasphere.com/?ra=206.005&dec=-10.763&levels=3
+```
+
+Embed a movie or a frame:
+
+```html
+<img src="https://vanillasphere.com/api/movie.gif?target=barnard&fov=8&group=day">
+<img src="https://vanillasphere.com/api/frame.png?ra=269.44629&dec=4.76792&fov=8&i=-1">
+```
+
+Fetch a spectrum with Python:
+
+```python
+import httpx
+
+r = httpx.get("https://vanillasphere.com/api/spectrum",
+              params={"target": "R Dra", "wait": 60}, timeout=90)
+points = r.json()["points"]
+wave = [p["wave_um"] for p in points]
+flux_mjy = [p["flux_ujy"] / 1000 for p in points]
+```
+
+Measure an object and wait for the result:
+
+```python
+import time, httpx
+
+url = "https://vanillasphere.com/api/measure"
+params = {"ra": 164.0925, "dec": 6.9953, "detections": "false"}
+while True:
+    d = httpx.get(url, params=params, timeout=30).json()
+    if d["status"] in ("ready", "error"):
+        break
+    time.sleep(3)
+print(d["result"]["track"])
+```
+
+Load a 7 x 7 field and fetch its mosaic:
+
+```python
+import time, httpx
+
+base = "https://vanillasphere.com"
+while True:
+    f = httpx.get(base + "/api/tiles", params={"ra": 206.005, "dec": -10.763, "levels": 3}).json()
+    if f["status"] != "loading":
+        break
+    time.sleep(2)
+stage = f["stages"][-1]
+gif = httpx.get(base + "/api/movie.gif",
+                params={"ra": stage["ra"], "dec": stage["dec"], "fov": stage["fov"], "group": "visit"},
+                timeout=120).content
+```

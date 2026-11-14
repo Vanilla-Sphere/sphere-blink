@@ -7,6 +7,12 @@ NASA SPHEREx image of that patch as a short movie, so moving and variable
 objects stand out. Built by the team of the same name for the 2026 NASA Space
 Apps Challenge, "Planet X and SPHEREx". Live at <https://vanillasphere.com>.
 
+## Documentation
+
+The product design documentation is in [`docs/`](docs/README.md): overview,
+features, architecture, imaging engine, measurement pipeline, API reference,
+viewer, code structure, data sources, performance and deployment.
+
 ## What it does
 
 - **Any coordinates, on demand.** Nothing is pre-downloaded. The server finds
@@ -81,7 +87,7 @@ Settings are environment variables (see `sphereblink/config.py`):
 | `SPHEREX_COLLECTIONS` | `spherex_dr1,spherex_qr3` | IRSA collections to search, newest first. A new data release only needs its name added here. |
 | `SPHEREX_CACHE_DIR` | `.cache/sphereblink` | Where the SQLite cutout cache lives (put it on a persistent disk). |
 | `SPHEREX_FETCH_WORKERS` | `32` | Concurrent exposures being read. |
-| `SPHEREX_MAX_FOV_ARCMIN` | `30` | Largest field of view. |
+| `SPHEREX_MAX_FOV_ARCMIN` | `51` | Largest field of view. |
 | `SPHEREX_AUTO_MEASURE` | `1` | Measure the five challenge targets by itself after start (`0` = only on request). |
 | `DATABASE_URL` | empty | Postgres for measured positions and tracks (`sql/`). Without it they are kept on disk only. |
 
@@ -89,7 +95,7 @@ Settings are environment variables (see `sphereblink/config.py`):
 
 ```
 browser ──> FastAPI ──> IRSA SIA v2            which exposures cover (RA, Dec)?
-                   └──> s3://nasa-irsa-spherex  3 range requests per exposure:
+                   └──> s3://nasa-irsa-spherex  4 range requests in 3 steps:
                           1. IMAGE header (WCS)
                           2. the pixel rows of the cutout + FLAGS row index
                           3. the RICE-compressed FLAGS rows
