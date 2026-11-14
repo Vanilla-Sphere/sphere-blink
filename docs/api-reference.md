@@ -7,7 +7,8 @@ the endpoints documented here.
 - **Interactive documentation:** `/docs` (OpenAPI schema at `/openapi.json`)
 - **Methods:** every endpoint is `GET`
 - **Authentication:** none
-- **CORS:** any origin; the response header `X-Job` is exposed
+- **CORS:** any origin, `GET` and `HEAD` only, no credentials; the response headers `X-Job` and `Retry-After` are exposed
+- **Limits:** per caller address; a refused request gets `429` or `503` with `Retry-After` (see [Errors](#errors) and [security](security.md))
 - **Compression:** responses above 2 kB are gzip-compressed when the client accepts it
 - **API version:** 0.2.0
 
@@ -20,7 +21,7 @@ Most endpoints act on a *view*: a position and a field of view.
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
 | `target` | string | - | Object name, challenge-target key, or coordinates as text (`"269.4486 4.7387"`, `"08h55m10.8s -07d14m42s"`) |
-| `ra`, `dec` | float | - | ICRS position in decimal degrees. When both are given they take precedence; `target` is then used only as the display name |
+| `ra`, `dec` | float | - | ICRS position in decimal degrees, `0 <= ra < 360` and `-90 <= dec <= 90` (anything else, including `nan` and `inf`, is `400`). When both are given they take precedence; `target` is then used only as the display name (printable text, cut to 80 characters; `/api/measure` ignores it) |
 | `fov` | float | `8` | Field of view in arcminutes, greater than 0 and at most 51. Values below 1 are raised to 1 |
 
 Either `target` or both `ra` and `dec` is required. Two requests with the same
@@ -84,8 +85,9 @@ Errors are JSON of the form `{"detail": "message"}`.
 | 404 | No SPHEREx data at this position (PNG and GIF endpoints) |
 | 413 | The requested cube exceeds 40 million pixels |
 | 422 | A parameter is outside its allowed range or of the wrong type (FastAPI validation) |
+| 429 | This caller asks too much: too many requests, too many views being gathered at once, or the allowance for name lookups, catalogue queries or measurements is used up. `Retry-After` gives the seconds to wait |
 | 502 | An upstream service failed: the data archive, the catalogue service, or the measurement database |
-| 503 | The name services are unreachable, or the measurement service has not started |
+| 503 | The name services are unreachable, the measurement service has not started, or the server as a whole is full (views being gathered, measurement queue); the last case carries `Retry-After` |
 
 ## Endpoint summary
 

@@ -70,16 +70,17 @@ search result. If that column is empty the IRSA download URL is used instead.
 
 | Service | Endpoint | Called by | Timeout | On failure |
 | --- | --- | --- | --- | --- |
-| IRSA SIA v2 | `https://irsa.ipac.caltech.edu/SIA` | `sia.py` | 90 s | One retry; stale cached list; else the view fails with 502 |
-| AWS S3 (SPHEREx bucket) | `https://nasa-irsa-spherex.s3.us-east-1.amazonaws.com` | `cutout.py`, `measure.py` | 60 s (20 s connect) | Three attempts per exposure; the exposure is then counted as failed |
+| IRSA SIA v2 | `https://irsa.ipac.caltech.edu/SIA` | `sia.py` | 60 s for a new position, 10 s when an older list is stored | One retry; then the stored list of any age; else the view fails with 502 |
+| AWS S3 (SPHEREx bucket) | `https://nasa-irsa-spherex.s3.us-east-1.amazonaws.com` | `cutout.py`, `measure.py` | 60 s (8 s connect) | The same byte range is read from IRSA (`https://irsa.ipac.caltech.edu/ibe/data/spherex/<key>`), which is about five times slower; after three failures in a row the bucket is skipped for a minute. Three attempts per exposure; the exposure is then counted as failed |
 | ESA Gaia archive TAP | `https://gea.esac.esa.int/tap-server/tap/sync` | `catalogs.py`, `refcat.py` | 25 s / 40 s | Falls back to IRSA TAP |
 | IRSA Gator | `https://irsa.ipac.caltech.edu/cgi-bin/Gator/nph-query` | `catalogs.py` | 25 s | CatWISE overlay; falls back to IRSA TAP |
 | IRSA TAP | `https://irsa.ipac.caltech.edu/TAP/sync` | `catalogs.py`, `refcat.py` | 25 s / 40 s | Second choice for both overlays and for measurement. Overlay: 502 and client retry when both services fail |
 | CDS Sesame | `https://cds.unistra.fr/cgi-bin/nph-sesame`, then `https://vizier.cfa.harvard.edu/viz-bin/nph-sesame` | `resolve.py` | 8 s (4 s connect) | Next host, then SIMBAD TAP |
-| SIMBAD TAP | `https://simbad.cds.unistra.fr/simbad/sim-tap/sync`, then `https://simbad.cfa.harvard.edu/simbad/sim-tap/sync` | `resolve.py` | 8 s | 503 "name services are not answering" |
+| SIMBAD TAP | `https://simbad.cds.unistra.fr/simbad/sim-tap/sync`, then `https://simbad.cfa.harvard.edu/simbad/sim-tap/sync` | `resolve.py` | 8 s | A stored answer of any age; else 503 "name services are not answering" |
 
 All of these are public and need no key. Results are cached: exposure lists for
-24 hours, catalogue overlays per view, name lookups in memory (512 entries),
+24 hours (and kept for when the archive is away), catalogue overlays per view,
+name lookups on disk for 30 days and in memory (2000 entries),
 Gaia reference rows of the featured targets in the source code.
 
 ## Data model

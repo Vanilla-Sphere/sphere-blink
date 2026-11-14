@@ -8,23 +8,27 @@ embedded elsewhere, e.g.
 
 from __future__ import annotations
 
+import gzip
 import json
 import os
+import signal
 import struct
+import sys
 import threading
 import time
 from collections import OrderedDict
-from functools import lru_cache
 from pathlib import Path
 
+import anyio.to_thread
 import numpy as np
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import catalogs, config, measure_api, measurements, render, tiles, wings
+from . import catalogs, config, guard, measure_api, measurements, render, tiles, wings
+from . import resolve as resolver
 from .cutout import Grid
 from .resolve import FEATURED, NameNotFound, ResolverUnavailable, Target, resolve
 from .service import Service
@@ -33,20 +37,96 @@ WEB = Path(__file__).resolve().parent.parent / "web"
 CUBE_BUDGET = 40_000_000  # max pixels (epochs * npix^2) sent to a browser at once
 
 app = FastAPI(title="Vanilla Sphere", version="0.2.0", description=__doc__)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"],
-                   expose_headers=["X-Job"])
-app.add_middleware(GZipMiddleware, minimum_size=2000, compresslevel=4)  # cubes are large: speed over the last few %
+app.add_middleware(GZipMiddleware, minimum_size=2000, compresslevel=4)
+# The API only reads: any site may show its pictures and fetch its data
+# (no cookies, no credentials), and nothing but GET is offered.
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "HEAD"], expose_headers=["X-Job", "Retry-After"])
+app.add_middleware(guard.Guard)  # outermost: caller, request limits, security headers on every answer
 svc = Service()
 fields = tiles.Fields(svc)
 measure_api.attach(svc)  # measurement pipeline: /api/measure, /api/measured
 app.include_router(measure_api.router)
+# The usual views of the featured targets are fetched once and then stay in
+# the disk cache whatever else is opened: they open without the archive.
+FEATURED_GRIDS = [Grid.from_fov(t.ra, t.dec, 8.0) for t in (resolve(k) for k in FEATURED)]
+svc.pinned = {g.key() for g in FEATURED_GRIDS}
+_closing = threading.Event()
+
+
+@app.exception_handler(guard.Busy)
+async def _busy(request: Request, exc: guard.Busy):
+    guard.log.warning("guard: refused %s (%s)", guard.current(), exc.detail)
+    return JSONResponse({"detail": exc.detail}, status_code=exc.status,
+                        headers={"Retry-After": str(int(exc.retry_after + 0.999)), "Cache-Control": "no-store"})
 
 
 @app.on_event("startup")
-def _warm_up() -> None:
-    threading.Thread(target=svc.warm_up, daemon=True).start()
+async def _warm_up() -> None:
+    # Requests are answered in threads that mostly wait (for the archive, a
+    # name service, a view being gathered): allow many more than the default 40.
+    anyio.to_thread.current_default_thread_limiter().total_tokens = config.REQUEST_THREADS
+
+    def warm() -> None:
+        svc.warm_up()
+        if os.environ.get("SPHEREX_KEEP_FEATURED", "1") != "0" and "pytest" not in sys.modules:
+            svc.keep_ready(FEATURED_GRIDS)
+
+    threading.Thread(target=warm, daemon=True).start()
     if config.WARM_CATALOGS:
         threading.Thread(target=_warm_catalogs, daemon=True).start()
+    _stop_fast()
+
+
+def _stop_children() -> None:
+    import multiprocessing
+
+    for child in multiprocessing.active_children():  # the fetch and measurement processes
+        try:
+            child.kill()
+        except Exception:
+            pass
+
+
+def _exit_now() -> None:
+    _stop_children()
+    os._exit(0)
+
+
+def _leave(after: float) -> None:
+    if "pytest" not in sys.modules:
+        t = threading.Timer(after, _exit_now)
+        t.daemon = True
+        t.start()
+
+
+def _stop_fast() -> None:
+    """A deploy stops this server before the next one may start (they share
+    one disk), so every second spent stopping is a second of downtime, and
+    the host kills a server that has not left after its grace period (30 s
+    by default, which is what a deploy used to cost). On the stop signal
+    the requests that only wait are let go at once; the process then leaves
+    without waiting for its worker processes. The caches on disk are safe
+    at any moment (SQLite with a write-ahead log)."""
+    try:
+        previous = signal.getsignal(signal.SIGTERM)
+
+        def on_term(signum, frame):
+            _closing.set()
+            _leave(8.0)  # whatever else happens
+            if callable(previous):
+                previous(signum, frame)
+
+        signal.signal(signal.SIGTERM, on_term)
+    except ValueError:  # not the main thread (tests, embedding): the shutdown hook below still runs
+        pass
+
+
+@app.on_event("shutdown")
+def _shut_down() -> None:
+    _closing.set()
+    if "pytest" not in sys.modules:
+        _stop_children()  # they would outlive a server that ends before the timer below
+    _leave(0.3)
 
 
 def _catalog(cat: str, grid: Grid, cached_only: bool = False) -> list[dict] | None:
@@ -54,6 +134,9 @@ def _catalog(cat: str, grid: Grid, cached_only: bool = False) -> list[dict] | No
     key = f"{cat}_v3_{grid.key()}"
     sources = svc.store.get_catalog(key)
     if sources is None and not cached_only:
+        if cat not in catalogs.QUERIES:
+            raise ValueError("cat must be gaia or catwise")
+        guard.charge(guard.catalogs, "catalogue queries")  # only a query that goes out counts against the caller
         sources = catalogs.query(cat, grid.ra, grid.dec, grid.fov_arcmin / 60.0 * 0.75)
         svc.store.put_catalog(key, sources)
     return sources
@@ -103,33 +186,72 @@ _unknown_names: dict[str, tuple[float, str]] = {}  # name -> (when asked, the se
 UNKNOWN_NAME_TTL = 900.0  # seconds a "no such object" answer is repeated without asking again
 
 
-@lru_cache(maxsize=512)
-def _resolve_known(text: str) -> Target:
-    return resolve(text)
+_names: "OrderedDict[str, Target]" = OrderedDict()  # names resolved since the start
+_name_locks: dict[str, threading.Lock] = {}
+_names_lock = threading.Lock()
 
 
 def _resolve_cached(text: str) -> Target:
-    """Resolve a name once. A name the services do not know costs them several
-    seconds (SIMBAD, then NED, then VizieR), so that answer is remembered too,
-    for a while: a typo typed twice, or polled by the page, answers at once."""
-    seen = _unknown_names.get(text.lower())
+    """Resolve a name once. Coordinates and the featured targets need no
+    service. Anything else is looked up at the name services, which takes
+    seconds: the answer is kept in memory and on disk, and "no such object"
+    is remembered for a while too, so a typo typed twice, or polled by the
+    page, answers at once. Only a real lookup counts against the caller."""
+    text = " ".join(text.split())
+    key = text.lower()
+    seen = _unknown_names.get(key)
     if seen and time.time() - seen[0] < UNKNOWN_NAME_TTL:
         raise NameNotFound(seen[1])
-    try:
-        return _resolve_known(text)
-    except NameNotFound as exc:
-        if len(_unknown_names) > 2000:
-            _unknown_names.clear()
-        _unknown_names[text.lower()] = (time.time(), str(exc))
-        raise
+    with _names_lock:
+        hit = _names.get(key)
+        if hit is not None:
+            _names.move_to_end(key)
+            return Target(**hit.to_dict())
+        lock = _name_locks.setdefault(key, threading.Lock())
+        if len(_name_locks) > 4000:
+            _name_locks.clear()
+    with lock:  # the same name asked twice at once is looked up once
+        with _names_lock:
+            hit = _names.get(key)
+        if hit is None and key not in FEATURED and key not in resolver.ALIASES and resolver.parse_coords(text) is None:
+            stored = svc.store.get_name(key, config.NAME_TTL_DAYS * 86400)
+            if stored is not None:
+                try:
+                    hit = Target(**stored)
+                except TypeError:
+                    hit = None
+            if hit is None:
+                guard.charge(guard.names, "name lookups")
+                try:
+                    hit = resolve(text)
+                except NameNotFound as exc:
+                    if len(_unknown_names) > 2000:
+                        _unknown_names.clear()
+                    _unknown_names[key] = (time.time(), str(exc))
+                    raise
+                except ResolverUnavailable:
+                    old = svc.store.get_name(key, float("inf"))  # the services are away: an old answer will do
+                    if old is None:
+                        raise
+                    hit = Target(**old)
+                if hit.source != "coordinates":
+                    svc.store.put_name(key, hit.to_dict())
+        elif hit is None:
+            hit = resolve(text)
+        with _names_lock:
+            _names[key] = hit
+            while len(_names) > 2000:
+                _names.popitem(last=False)
+    return Target(**hit.to_dict())
 
 
 def _target(target: str | None, ra: float | None, dec: float | None) -> Target:
     try:
         if ra is not None and dec is not None:
-            t = resolve(f"{ra} {dec}")
-            if target:
-                t.name = target
+            t = resolver.at(ra, dec)
+            label = resolver.clean_name(target or "")
+            if label:
+                t.name = label
             return t
         if target:
             return _resolve_cached(target.strip())
@@ -138,6 +260,9 @@ def _target(target: str | None, ra: float | None, dec: float | None) -> Target:
         raise HTTPException(503, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
+
+
+measure_api._resolve = _resolve_cached  # names asked of /api/measure: the same cache and allowance
 
 
 def _dets(det: str) -> list[int] | None:
@@ -169,9 +294,9 @@ def _frames(grid: Grid, wait: float, partial: bool = False):
     # A view that was dropped from memory (or belongs to a server that has just
     # restarted) is back from the disk cache within a moment: wait for that
     # instead of answering with an empty partial result.
-    while (job.status in ("queued", "searching") or job.resuming) and time.time() - t0 < max(wait, 6.0):
+    while (job.status in ("queued", "searching") or job.resuming) and time.time() - t0 < max(wait, 6.0) and not _closing.is_set():
         time.sleep(0.05)
-    while job.status not in ("ready", "error") and time.time() - t0 < wait:
+    while job.status not in ("ready", "error") and time.time() - t0 < wait and not _closing.is_set():
         time.sleep(0.2)
     if job.status == "error":
         raise HTTPException(502, f"data archive error: {job.error}")
@@ -228,13 +353,14 @@ INSTANCE = f"{os.getpid()}-{int(time.time())}"
 
 
 @app.get("/api/health")
-def health():
+async def health():
     return {"ok": True, "collections": config.COLLECTIONS, "instance": INSTANCE}
 
 
 @app.get("/api/featured")
-def featured():
-    return [{"key": k, "name": v["name"], "note": v["note"]} for k, v in FEATURED.items()]
+async def featured():
+    return JSONResponse([{"key": k, "name": v["name"], "note": v["note"]} for k, v in FEATURED.items()],
+                        headers={"Cache-Control": "public, max-age=3600"})
 
 
 @app.get("/api/resolve")
@@ -246,6 +372,7 @@ def api_resolve(q: str):
 def api_exposures(target: str | None = None, ra: float | None = None, dec: float | None = None):
     """Every SPHEREx Level 2 exposure covering the position (with S3 keys)."""
     t = _target(target, ra, dec)
+    guard.charge(guard.catalogs, "archive queries")
     exps = svc.exposures(t.ra, t.dec)
     return {"target": t.to_dict(), "count": len(exps), "exposures": [e.to_dict() for e in exps]}
 
@@ -286,6 +413,7 @@ def api_tiles(
 
 @app.get("/api/cube")
 def api_cube(
+    request: Request,
     target: str | None = None,
     ra: float | None = None,
     dec: float | None = None,
@@ -320,7 +448,18 @@ def api_cube(
     js = json.dumps(meta).encode()
     js += b" " * ((4 + len(js)) % 2)
     body = struct.pack("<I", len(js)) + js + blob
-    return Response(body, media_type="application/octet-stream", headers={"X-Job": job.status, "Cache-Control": "no-store"})
+    # A finished view does not change (until the archive adds exposures): the
+    # browser may keep its cube for a while, so going back to a view, or
+    # switching bands back and forth, does not download megabytes again.
+    headers = {"X-Job": job.status, "Vary": "Accept-Encoding",
+               "Cache-Control": "private, max-age=600" if job.status == "ready" and not job.failed else "no-store"}
+    if "gzip" in request.headers.get("accept-encoding", "").lower() and len(body) > 2000:
+        # Compressed here, in this request's thread (zlib works outside the
+        # interpreter lock), not by the middleware on the server's one event
+        # loop, where tens of megabytes would hold up every other answer.
+        body = gzip.compress(body, compresslevel=3 if len(body) > 20e6 else 4)
+        headers["Content-Encoding"] = "gzip"
+    return Response(body, media_type="application/octet-stream", headers=headers)
 
 
 @app.get("/api/epochs")
@@ -477,14 +616,14 @@ if WEB.exists():
     app.mount("/static", _Static(directory=WEB), name="static")
 
     @app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
-    def index():
+    async def index():
         return FileResponse(WEB / "index.html", headers={"Cache-Control": "no-cache"})
 
     @app.api_route("/robots.txt", methods=["GET", "HEAD"], include_in_schema=False)
-    def robots():
+    async def robots():
         # pages may be indexed; the API is for the viewer (every call can start an archive read)
         return PlainTextResponse("User-agent: *\nAllow: /\nDisallow: /api/\n", headers={"Cache-Control": "public, max-age=86400"})
 
     @app.api_route("/favicon.ico", methods=["GET", "HEAD"], include_in_schema=False)
-    def favicon():
+    async def favicon():
         return FileResponse(WEB / "apple-touch-icon.png", media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})

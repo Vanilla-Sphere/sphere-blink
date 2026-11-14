@@ -77,7 +77,12 @@ noted.
 | `SPHEREX_MAX_FOV_ARCMIN` | `51` | default | Largest field of view |
 | `SPHEREX_WIDE_FOV_ARCMIN` | `12` | default | Above this a view is a mosaic and searches on a lattice |
 | `SPHEREX_MAX_FRAMES` | `1200` | default | Exposures per view before thinning |
-| `SPHEREX_FETCH_WORKERS` | `32` | default | Concurrent exposure reads per view |
+| `SPHEREX_FETCH_WORKERS` | `64` | default | Concurrent exposure reads, shared by the worker processes |
+| `SPHEREX_MIRROR_HTTP_BASE` | `https://irsa.ipac.caltech.edu/ibe/data/spherex` | default | Second source of the same files, used when the bucket fails |
+| `SPHEREX_KEEP_FEATURED` | `1` | default | After start, fetch the 8 arcmin views of the featured targets if they are not on disk; they are never evicted |
+| `SPHEREX_REQUEST_THREADS` | `160` | default | Threads that answer requests |
+| `SPHEREX_NAME_TTL_DAYS` | `30` | default | How long a resolved object name is kept on disk |
+| `SPHEREX_RATE_*`, `SPHEREX_MAX_*`, `SPHEREX_FAIR_JOBS` | see [security](security.md#request-limits) | default | Request limits per caller |
 | `SPHEREX_FETCH_PROCS` | `min(4, CPU count)` | `4` | Imaging worker processes |
 | `SPHEREX_RAM_BUDGET_MB` | `600` | `2000` | Frames kept in memory |
 | `SPHEREX_DISK_BUDGET_GB` | `4` | `16` | Size of the frame cache on disk |
@@ -129,7 +134,11 @@ written to it at the next start.
    deploy is skipped (see below).
 3. Because the service has an attached disk, the old instance stops before the
    new one starts: there is an interruption on each deploy. On 2026-11-14 the
-   site answered HTTP 502 for at least 35 s during a deploy.
+   site answered HTTP 502 for at least 35 s during a deploy; the logs showed
+   that 30 s of it was the old server waiting for open connections until the
+   host killed it. The server now leaves within about 3 s of the stop signal
+   (`--timeout-graceful-shutdown 3` and `main._stop_fast`), and the viewer
+   waits and retries by itself while the site is away.
 4. Jobs in memory are lost on a deploy. Cached frames remain on disk, so open
    views resume from the cache when requested again. A measurement in progress
    is abandoned and can be requested again.

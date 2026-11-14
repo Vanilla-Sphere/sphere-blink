@@ -100,7 +100,7 @@ configured, to Postgres. The browser polls the same URL until `status` is
 - **Parallelism comes from processes, not threads.** Cutting one exposure costs
   a few network waits plus about 40 ms of CPU (Rice decoding, WCS, resampling),
   and the Python interpreter lock limits one process to one core. The exposures
-  of a view are therefore split into chunks of 8 (`SPHEREX_FETCH_WORKERS` /
+  of a view are therefore split into chunks of 16 (`SPHEREX_FETCH_WORKERS` /
   `SPHEREX_FETCH_PROCS`) and cut in worker processes, each with its own asyncio
   event loop and connection pool. The pool uses the `spawn` start method and is
   warmed at server start so the first view does not wait for Astropy to import.
@@ -108,6 +108,19 @@ configured, to Postgres. The browser polls the same URL until `status` is
   set to 1 before NumPy is imported. Inside a container the maths libraries
   otherwise start one thread per host core and contend for the few CPUs the
   container may use.
+- **Views share the worker processes fairly.** A view does not hand all its
+  chunks to the pool at once. `service.Scheduler` keeps only a few chunks in
+  the processes and chooses the next one each time a chunk returns: a view
+  that has not been served yet first (its first chunk is four exposures, so
+  every visitor sees frames within seconds), then the view with the least
+  left to do, and every fourth chunk the view that has waited longest, so a
+  wide mosaic keeps moving while small views arrive. The views of one caller
+  beyond four wait behind everyone else's.
+- **Requests wait in threads, the page does not.** Endpoints that wait (for
+  the archive, a name service, a view being gathered) run in a pool of 160
+  threads (`SPHEREX_REQUEST_THREADS`). The page, the health check and the
+  static files are answered on the event loop and never wait for a thread.
+  Cubes are gzip-compressed in the request's thread, not on the event loop.
 - **Stages run one at a time.** The stages of a progressive field would only
   compete for the same worker processes, and the small one should finish first.
 - **Measurements are isolated.** The measurement pool has one process, so a
@@ -124,7 +137,7 @@ Four layers, from fastest to most durable:
 | --- | --- | --- | --- |
 | Epoch cache | Web process memory | Stacked epochs of recent (view, band, grouping, diff) combinations | 500 MB, least recently used |
 | Job frames | Web process memory | Decoded frames of recently opened views | `SPHEREX_RAM_BUDGET_MB` (2000 on Render) and at most 500 jobs; least recently used views are forgotten |
-| Cutout cache | `cache.sqlite` on the persistent disk | Frames, exposure lists, wavelength maps, catalogue results | `SPHEREX_DISK_BUDGET_GB` (16 on Render); least recently fetched views are dropped whole |
+| Cutout cache | `cache.sqlite` on the persistent disk | Frames, exposure lists, wavelength maps, catalogue results | `SPHEREX_DISK_BUDGET_GB` (16 on Render); least recently opened views are dropped whole; the 8 arcmin views of the featured targets are never dropped |
 | Measurement store | `measurements.sqlite`, Postgres | Pipeline results | Not evicted; re-measured after 7 days or a pipeline version change |
 
 Details:
@@ -183,7 +196,10 @@ local store.
 - Inputs are validated by FastAPI parameter types and ranges. Object names are
   limited to 80 characters and are URL-encoded or SQL-quoted before being sent
   to name services. Catalogue queries are built from numeric values only.
-- CORS is open for `GET` and `POST` so that images and data can be embedded.
+- CORS is open for `GET` and `HEAD` only, without credentials, so that images
+  and data can be embedded.
+- Every response carries security headers, and each caller has request
+  limits; see [security and resilience](security.md).
 - Response size is bounded: a cube above 40 million pixels is refused with 413.
 
 ## Key design decisions

@@ -27,7 +27,8 @@ from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException, Query
 
-from . import config, measure, measurements, refcat
+from . import config, guard, measure, measurements, refcat
+from . import resolve as resolver
 from .resolve import FEATURED, ResolverUnavailable, Target, resolve
 
 log = logging.getLogger(__name__)
@@ -39,6 +40,7 @@ JOB_TIMEOUT_S = 600
 MID_MJD = 61000.0  # a date inside the SPHEREx data, for cone searches
 
 _svc = None
+_resolve = resolve  # main.py puts its cached, rate-limited resolver here
 _jobs: dict[str, dict] = {}
 _lock = threading.Lock()
 _pool: ProcessPoolExecutor | None = None
@@ -115,15 +117,30 @@ def _work(key: str, target: Target) -> None:
         job["finished"] = time.time()
 
 
-def start(target: Target, refresh: bool = False) -> tuple[str, dict]:
-    """Start measuring a target unless it is running or already stored."""
+RUNNING = ("queued", "searching", "measuring")
+
+
+def start(target: Target, refresh: bool = False, charge: bool = False) -> tuple[str, dict]:
+    """Start measuring a target unless it is running or already stored.
+
+    ``charge`` is set for requests from outside: a measurement that really
+    starts counts against the caller, and is refused (``guard.Busy``) when
+    the caller has used up the allowance or the queue is full. The server's
+    own measurements of the featured targets are never refused."""
     key = job_key(target)
     with _lock:
         job = _jobs.get(key)
-        if job and job["status"] in ("queued", "searching", "measuring"):
+        if job and job["status"] in RUNNING:
             return key, job
         if not refresh and measurements.load_local(key) is not None:
             return key, {"status": "ready"}
+        if charge:
+            if sum(1 for j in _jobs.values() if j["status"] in RUNNING) >= config.MAX_MEASURE_QUEUE:
+                raise guard.Busy("the measurement queue is full; try again in a few minutes", 60.0, 503)
+            guard.charge(guard.measures, "measurements")
+        if len(_jobs) > 500:  # finished jobs are only kept to report their error
+            for k in [k for k, j in _jobs.items() if j["status"] not in RUNNING][:250]:
+                _jobs.pop(k, None)
         job = _jobs[key] = {"status": "queued", "started": time.time(), "name": target.name}
     threading.Thread(target=_work, args=(key, target), daemon=True).start()
     return key, job
@@ -240,18 +257,19 @@ def api_measure(
         raise HTTPException(503, "measurement service not started")
     try:
         if ra is not None and dec is not None:
-            t = resolve(f"{ra} {dec}")
-            if target:
-                t.name = target
+            # A position is measured under its own name. A label from the
+            # caller is not used: with the name of a featured target it would
+            # store a measurement of some other place under that name.
+            t = resolver.at(ra, dec)
         elif target:
-            t = resolve(target.strip())
+            t = _resolve(target.strip())
         else:
             raise ValueError("give target=<name or coordinates> or ra=&dec=")
     except ResolverUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    key, job = start(t, refresh)
+    key, job = start(t, refresh, charge=True)
     out = {"key": key, "target": asdict(t), "job": _public(job), "status": job["status"]}
     if job["status"] == "ready":
         result = measurements.load_local(key)

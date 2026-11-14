@@ -10,11 +10,15 @@ services:
     # the heavy work. Render sets WEB_CONCURRENCY to the CPU count, which
     # uvicorn would read as "run 4 servers" - each then loads every view
     # again and they answer the progress polls with different states.
-    startCommand: uvicorn sphereblink.main:app --host 0.0.0.0 --port $PORT --workers 1
+    # A deploy stops this server before the next one starts, so it must
+    # leave quickly: 3 s for the answers in flight, then it exits (see
+    # main._stop_fast). Without this it waited for open connections until
+    # the host killed it after 30 s, every deploy.
+    startCommand: uvicorn sphereblink.main:app --host 0.0.0.0 --port $PORT --workers 1 --timeout-graceful-shutdown 3
     healthCheckPath: /api/health
     # A deploy restarts the one server (the disk can belong to one instance
-    # only), which takes the site down for about half a minute and forgets
-    # the views being gathered. Changes that cannot affect the running
+    # only), which takes the site down for a short while and forgets the
+    # views being gathered (the viewer waits and retries by itself). Changes that cannot affect the running
     # service do not deploy.
     buildFilter:
       ignoredPaths:

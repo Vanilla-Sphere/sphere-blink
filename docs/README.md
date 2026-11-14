@@ -29,6 +29,7 @@ when it was measured.
 | [Code structure](code-structure.md) | Repository layout, module responsibilities and dependencies, tests, conventions |
 | [Data and sources](data-sources.md) | Datasets, external services, data model, units, credits and licences |
 | [Performance](performance.md) | Measured timings and volumes, the optimisations behind them, capacity limits |
+| [Security and resilience](security.md) | Threat model, request limits, response headers, input checks, database access, what happens when each external service fails |
 | [Deployment and operations](deployment.md) | Hosting, configuration, release process, health checks, runbook |
 
 ## Diagrams

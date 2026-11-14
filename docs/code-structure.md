@@ -14,6 +14,7 @@ sphere-blink/
 │   ├── tiles.py            fixed 0.12 degree cell grid, progressive fields
 │   ├── render.py           epochs, false colour, stretch, PNG, GIF, binary cube
 │   ├── resolve.py          coordinates and object names to positions
+│   ├── guard.py            caller identity, request limits, security headers
 │   ├── catalogs.py         Gaia DR3 and CatWISE2020 overlays (IRSA TAP)
 │   ├── wings.py            flux of saturated stars from their halo
 │   ├── measure.py          native stamps, PSF fits, stacks, track fit, light curve
@@ -47,6 +48,7 @@ of HTML, CSS and JavaScript in the viewer.
 | `tiles.py` | 202 | Cell arithmetic and identifiers; block and stage geometry; field lifecycle | `cell_of`, `tile_id`, `block`, `stage_grid`, `Field`, `Fields` |
 | `render.py` | 393 | Grouping into epochs; colour composition with provenance; shared limits; asinh rendering; binning; cube, PNG and GIF encoding | `Epoch`, `build_epochs`, `build_color_epochs`, `difference`, `shared_limits`, `encode_cube` |
 | `resolve.py` | 277 | Parse coordinates; featured targets and aliases; Sesame and SIMBAD lookups with mirrors; proper-motion propagation | `Target`, `resolve`, `FEATURED`, `NameNotFound`, `ResolverUnavailable` |
+| `guard.py` | 200 | Who is calling (Cloudflare's address); token buckets and open-request counts per caller; the security headers; the ASGI middleware that applies them | `Guard`, `Buckets`, `Busy`, `charge`, `client_of` |
 | `catalogs.py` | 78 | ADQL cone queries for the overlays; unit and epoch normalisation; motion significance | `query` |
 | `wings.py` | 134 | Ring levels around a saturated star; calibration table; flux with systematic error | `ring_levels`, `measure`, `CALIBRATION` |
 | `measure.py` | 1070 | The measurement algorithms; no HTTP endpoints, no database | `Body`, `Stamp`, `Detection`, `fit_psf`, `fit_wings`, `measure_stack`, `fit_track`, `light_curve`, `measure_all`, `fetch_stamps` |
@@ -116,6 +118,7 @@ stubbed HTTP clients, need no network, and finish in about three seconds.
 
 | File | Tests | Covers |
 | --- | --- | --- |
+| `tests/test_guard.py` | 17 | Caller identity; token buckets; security headers and CORS; refusal of non-positions; the measurement name rule; job and queue caps; scheduler order; disk cache eviction and pinning; name cache; second source for files; stale exposure lists |
 | `tests/test_offline.py` | 22 | Coordinate parsing; proper-motion propagation of the featured targets; grid geometry; FITS header scanning; aperture photometry; sky plane; epoch grouping; median difference; cube round trip; PNG and GIF rendering; colour borrowing and white balance; disk and memory eviction; cell grid and stages; exactness of the coarse-lattice pixel mapping; binning; half-precision storage; SIA CSV parsing; wing photometry |
 | `tests/test_measure.py` | 14 | Parallax factors; PSF fit accuracy; neighbour handling; wing fallback; track recovery with parallax; stacks for faint movers; light curve; storage and database synchronisation; saturated stars |
 | `tests/test_resolve_names.py` | 12 | Name resolution paths: Sesame, mirrors, redirects, SIMBAD fallback, spellings, "not found" against "unavailable", no network for built-in targets |

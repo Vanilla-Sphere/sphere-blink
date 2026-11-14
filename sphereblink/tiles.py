@@ -20,6 +20,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 
+from . import config, guard
 from .cutout import Grid
 
 STEP = 0.12  # degrees
@@ -109,6 +110,7 @@ class Field:
     started: float = field(default_factory=time.time)
     finished: float = 0.0
     last_used: float = field(default_factory=time.time)
+    client: str = ""  # who asked first
 
     def ready_level(self) -> int:
         return max((s["level"] for s in self.stages if s["status"] == "ready"), default=-1)
@@ -166,7 +168,12 @@ class Fields:
             if f is not None and not f.failed():
                 f.last_used = time.time()
                 return f
-            f = Field(seed=seed, levels=levels, tiles=tiles, stages=[
+            client = guard.current()
+            if client and not guard.internal(client):
+                loading = sum(1 for o in self.fields.values() if o.client == client and not o.finished)
+                if loading >= config.MAX_FIELDS_PER_CLIENT:
+                    raise guard.Busy("too many fields are loading for your address; wait for one to finish", 15.0)
+            f = Field(seed=seed, levels=levels, tiles=tiles, client=client, stages=[
                 {"level": lv, "grid": stage_grid(seed["ra_c"], seed["dec_c"], lv), "status": "queued", "job": None}
                 for lv in stage_levels(levels)
             ])
@@ -186,7 +193,8 @@ class Fields:
         # numbers, not the job, so the service stays free to drop its frames
         # from memory.
         for s in f.stages:
-            job = self.service.start(s["grid"])
+            # the field was admitted as a whole in start(): its stages are not counted again
+            job = self.service.start(s["grid"], client=f.client, capped=False)
             while job.status not in ("ready", "error"):
                 s["status"], s["job"] = job.status, job.public()
                 time.sleep(0.25)

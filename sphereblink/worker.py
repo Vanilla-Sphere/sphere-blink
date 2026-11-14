@@ -28,7 +28,7 @@ def init(connections: int) -> None:
     global _loop, _client
     _loop = asyncio.new_event_loop()
     limits = httpx.Limits(max_connections=connections * 2, max_keepalive_connections=connections * 2)
-    _client = httpx.AsyncClient(timeout=httpx.Timeout(60, connect=20), limits=limits)
+    _client = httpx.AsyncClient(timeout=httpx.Timeout(60, connect=8), limits=limits)
 
 
 def ready(pause: float = 0.0) -> bool:

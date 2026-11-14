@@ -86,7 +86,7 @@ Settings are environment variables (see `sphereblink/config.py`):
 | --- | --- | --- |
 | `SPHEREX_COLLECTIONS` | `spherex_dr1,spherex_qr3` | IRSA collections to search, newest first. A new data release only needs its name added here. |
 | `SPHEREX_CACHE_DIR` | `.cache/sphereblink` | Where the SQLite cutout cache lives (put it on a persistent disk). |
-| `SPHEREX_FETCH_WORKERS` | `32` | Concurrent exposures being read. |
+| `SPHEREX_FETCH_WORKERS` | `64` | Concurrent exposures being read. |
 | `SPHEREX_MAX_FOV_ARCMIN` | `51` | Largest field of view. |
 | `SPHEREX_AUTO_MEASURE` | `1` | Measure the five featured targets by itself after start (`0` = only on request). |
 | `SPHEREX_WARM_CATALOGS` | `1` | Store the Gaia and CatWISE overlays of the five featured targets after start, so they show at once (`0` = only on request). |
