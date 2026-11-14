@@ -28,6 +28,7 @@ Object.assign(STR.en, {
   "d.pc": "{pc} pc · {ly} light-years", "d.pcrange": "{lo} to {hi} pc",
   "d.mas": "{v} ± {e} mas", "d.mas1": "{v} mas",
   "d.rv.to": "{v} km/s, towards us", "d.rv.away": "{v} km/s, away from us",
+  "d.rv.median": " · median of {n} published values (SIMBAD lists {v} km/s first)",
   "d.z.val": "z = {z}", "d.z.err": "z = {z} ± {e}",
   "d.ago": "{t} ago", "d.old": "{t} old",
   "d.gyr": "{v} billion years", "d.myr": "{v} million years",
@@ -225,7 +226,7 @@ function showDepth() {
     if (m) { const dist = tr("d.mpc", {mpc: dSig(m.mpc), ly: dLy(m.mpc * 3.2616e6)}); row("d.measured", m.count > 1 ? tr("d.measured.n", {d: dist, n: m.count, lo: dSig(m.mpc_min), hi: dSig(m.mpc_max)}) : tr("d.measured.1", {d: dist}), "measure"); }
     row("d.source", source(z.source, z.bibcode));
   }
-  if (d.radial_velocity && !z) row("d.rv", dMinus(tr(d.radial_velocity.km_s < 0 ? "d.rv.to" : "d.rv.away", {v: dFix(Math.abs(d.radial_velocity.km_s), 1)})), "measure");
+  if (d.radial_velocity && !z) row("d.rv", dMinus(tr(d.radial_velocity.km_s < 0 ? "d.rv.to" : "d.rv.away", {v: dFix(Math.abs(d.radial_velocity.km_s), 1)})) + (d.radial_velocity.listed ? tr("d.rv.median", {n: d.radial_velocity.count, v: dMinus(dFix(d.radial_velocity.listed.km_s, 1))}) : ""), "measure");
   if (est) {
     const far = est.z >= 0.02 && est.z > 3 * est.zErr, off = z ? Math.abs(est.z - z.z) / (1 + z.z) : null;
     row("d.est", tr("d.est.val", {z: dMinus(est.z.toFixed(3)), e: est.zErr.toFixed(3), q: est.quality})
