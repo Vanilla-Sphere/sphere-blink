@@ -7,6 +7,9 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn sphereblink.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
+    domains:
+      - vanillasphere.com
+      - www.vanillasphere.com
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7

@@ -22,6 +22,8 @@
     <label class="fov"><span>Field</span>
       <select id="fov" aria-label="Field of view">
         <option value="4">4′</option><option value="8" selected>8′</option><option value="15">15′</option><option value="30">30′</option>
+        <option value="p1" title="Progressive field: the 0.12° cell of the position, then the ring of 8 cells around it">22′ · 3×3 cells</option>
+        <option value="p3" title="Progressive field: the cell of the position, then ring by ring out to 7×7 cells">50′ · 7×7 cells</option>
       </select>
     </label>
     <button type="submit" class="btn primary" id="go">Show sky</button>
@@ -71,6 +73,7 @@
           <label><input type="checkbox" id="ov-catwise"><span>CatWISE</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="var(--color-ink-2)"/></svg></label>
           <label><input type="checkbox" id="ov-cross" checked><span>Crosshair</span></label>
           <label><input type="checkbox" id="ov-smooth"><span>Smooth pixels</span></label>
+          <label class="wide" id="tileopt" hidden title="Outlines of the 0.12° cells of the progressive field, and a map of the block that fills in as the rings arrive"><input type="checkbox" id="ov-tiles" checked><span>Cell grid</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 1.5h9v9h-9zM6 1.5v9M1.5 6h9" fill="none" stroke="var(--color-accent-2)"/></svg></label>
           <p id="ovstatus" class="wide muted note" role="status" hidden></p>
           <label class="wide" id="trackopt" hidden title="Positions and fitted tracks the team has measured in this field"><input type="checkbox" id="ov-tracks" checked><span>Measured tracks</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1l5 5-5 5-5-5z" fill="none" stroke="var(--color-measured)"/></svg></label>
         </div>

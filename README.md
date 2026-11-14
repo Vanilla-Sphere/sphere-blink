@@ -12,7 +12,14 @@ Challenge, "Planet X and SPHEREx".
 - **Any coordinates, on demand.** Nothing is pre-downloaded. The server finds
   every SPHEREx Level 2 exposure covering the position (IRSA SIA) and reads
   only the bytes it needs from the public AWS Open Data mirror with HTTP range
-  requests: about 600 kB per exposure instead of the 65 MB file.
+  requests: 1.3-1.9 MB per exposure for an 8 arcmin view instead of the 65 MB
+  file, pixel for pixel identical to a cut from the full download.
+- **Progressive fields, 7 x 7 cells.** The sky is addressed by the fixed
+  0.12 degree cells of the team's measurement grid (`icrs012-v1-XXXX-YYYY`).
+  A field starts at the cell of the requested position and grows ring by
+  ring: the cell is on screen after seconds, its 3 x 3 neighbourhood next,
+  then the whole 7 x 7 block (0.84 degrees, about 700 exposures) as one
+  false-colour mosaic. Each exposure is read once for the whole block.
 - **Blink movie** with a shared contrast stretch, time slider, keyboard
   control, and a timeline of the real observation dates.
 - **Six detector bands** (0.75-5.0 um). Frames can be stacked per UTC day or
@@ -33,6 +40,8 @@ Challenge, "Planet X and SPHEREx".
   /api/movie.gif?target=barnard&fov=8&group=day
   /api/frame.png?ra=269.44629&dec=4.76792&fov=8&i=-1
   /api/spectrum?target=R Dra&wait=60
+  /?ra=206.005&dec=-10.763&levels=3                 progressive field, 7 x 7 cells
+  /api/tiles?ra=206.005&dec=-10.763&levels=3        its cells, stages and progress
   ```
 
   Interactive API documentation is served at `/docs`.
@@ -75,6 +84,7 @@ browser ──> FastAPI ──> IRSA SIA v2            which exposures cover (RA
 | `sphereblink/resolve.py` | coordinates and names, proper-motion propagation |
 | `sphereblink/catalogs.py` | Gaia DR3 / CatWISE2020 overlays through IRSA TAP |
 | `sphereblink/service.py` | background jobs and cache |
+| `sphereblink/tiles.py` | fixed 0.12 degree cell grid, progressive fields |
 | `sphereblink/main.py` | HTTP API |
 | `web/` | the viewer (plain HTML/JS, no build step) |
 | `sql/` | optional shared Postgres schema for measured positions and tracks |

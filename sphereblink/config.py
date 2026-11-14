@@ -27,7 +27,10 @@ DB_URL = os.environ.get("DATABASE_URL", "")  # postgres://... ; empty = SQLite i
 
 # Native SPHEREx pixel is 6.15 arcsec.
 NATIVE_PIXEL_ARCSEC = 6.15
-MAX_FOV_ARCMIN = float(os.environ.get("SPHEREX_MAX_FOV_ARCMIN", "30"))
+MAX_FOV_ARCMIN = float(os.environ.get("SPHEREX_MAX_FOV_ARCMIN", "51"))  # 7 x 7 cells of 0.12 deg
+# Views wider than this are mosaics: they also use exposures that cover only
+# part of the view (see Grid.search_radius_deg).
+WIDE_FOV_ARCMIN = float(os.environ.get("SPHEREX_WIDE_FOV_ARCMIN", "12"))
 MAX_FRAMES = int(os.environ.get("SPHEREX_MAX_FRAMES", "1200"))
 FETCH_WORKERS = int(os.environ.get("SPHEREX_FETCH_WORKERS", "32"))  # concurrent exposures per view
 # Processes that cut exposures. Set it to the number of CPUs the server really

@@ -107,18 +107,45 @@ def find_exposures(
     When the same exposure/detector appears in several releases, the release
     listed first in ``collections`` wins (newest processing by default).
     """
+    return find_exposures_at([(ra, dec)], collections, client, timeout)
+
+
+def find_exposures_at(
+    points: list[tuple[float, float]],
+    collections: list[str] | None = None,
+    client: httpx.Client | None = None,
+    timeout: float = 90.0,
+    parallel: int = 12,
+) -> list[Exposure]:
+    """All exposures whose footprint contains at least one of ``points``."""
+    from concurrent.futures import ThreadPoolExecutor
+
     collections = collections or config.COLLECTIONS
     own = client is None
     client = client or httpx.Client(timeout=timeout, follow_redirects=True)
+
+    def query(arg: tuple[str, tuple[float, float]]) -> list[Exposure]:
+        coll, (ra, dec) = arg
+        last: Exception | None = None
+        for _ in range(2):  # the archive occasionally drops one of many parallel queries
+            try:
+                r = client.get(config.SIA_URL, params={"COLLECTION": coll, "POS": f"circle {ra} {dec} 0.0005"})
+                r.raise_for_status()
+                return parse_sia_votable(r.content, coll)
+            except httpx.HTTPError as exc:
+                last = exc
+        raise last  # type: ignore[misc]
+
     try:
+        jobs = [(coll, p) for coll in collections for p in points]  # release order = priority
+        if len(jobs) == 1:
+            found = [query(jobs[0])]
+        else:
+            with ThreadPoolExecutor(min(parallel, len(jobs))) as ex:
+                found = list(ex.map(query, jobs))
         seen: dict[str, Exposure] = {}
-        for coll in collections:
-            r = client.get(
-                config.SIA_URL,
-                params={"COLLECTION": coll, "POS": f"circle {ra} {dec} 0.0005"},
-            )
-            r.raise_for_status()
-            for e in parse_sia_votable(r.content, coll):
+        for exps in found:
+            for e in exps:
                 seen.setdefault(e.uid, e)
         return sorted(seen.values(), key=lambda e: (e.mjd, e.detector))
     finally:

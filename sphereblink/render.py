@@ -341,6 +341,22 @@ def frame_image(
     return im
 
 
+def binned(epochs: list[Epoch], b: int) -> list[Epoch]:
+    """Epochs with b x b pixels averaged (wide mosaics are sent to the browser
+    at overview resolution; pixels without data do not count)."""
+    if b <= 1 or not epochs:
+        return epochs
+    out = []
+    for e in epochs:
+        img = e.image if e.image.ndim == 3 else e.image[None]
+        n = img.shape[-1] // b * b
+        blocks = img[:, :n, :n].reshape(img.shape[0], n // b, b, n // b, b)
+        with _quiet():
+            small = np.nanmean(blocks, axis=(2, 4)).astype(np.float32)
+        out.append(Epoch(e.label, e.mjd, small if e.image.ndim == 3 else small[0], e.members, e.channels))
+    return out
+
+
 def encode_cube(epochs: list[Epoch]) -> tuple[bytes, dict]:
     """Pack epoch images for the browser: uint16, asinh-compressed, 0 = no data.
     Order is [epoch, (channel R, G, B for colour,) row, column].
