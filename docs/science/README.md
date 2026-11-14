@@ -344,7 +344,7 @@ Surveys measure completeness by adding objects they know to their own data and c
 
 1. **Real exposures.** Every exposure of a field, with its real stars, noise, masked pixels and cosmic-ray hits. Nothing about the field is simulated.
 2. **Fake objects.** Twelve per round, each on a straight line at constant speed, at a random place, time and direction, with a speed of 2 to 400 arcsec per hour (uniform in the logarithm) and a visual magnitude of 15.5 to 19.8.
-3. **Brightness per exposure.** Every exposure has another wavelength. A fake has the colours of sunlight (Willmer 2018), which is what an asteroid without colour of its own reflects.
+3. **Brightness per exposure.** Every exposure has another wavelength. Two kinds of fake are used in turn. One is a main-belt asteroid: reflected sunlight (the colours of the Sun of Willmer 2018) plus its own heat at 2.7 au from the Sun, from the standard thermal model NEATM. The other is a body without heat of its own: reflected sunlight only.
 4. **Shape.** A Gaussian spot integrated over detector pixels at a random offset and angle, then interpolated onto the grid with the engine's own rule, with the trail of its motion during the exposure. The width is set so the brightest pixel holds the share of light it holds for real stars.
 5. **Injected first.** Fakes are added before the search starts, so the loss of a slow object into the median sky is part of the result.
 6. **The unchanged search** runs on the frames. A fake is found when a returned path passes within 20 arcsec of its true place with its motion (within 15 % or 3 arcsec per hour). Two levels are counted: the evidence asked of a known object, and the evidence asked of a path without a name.
