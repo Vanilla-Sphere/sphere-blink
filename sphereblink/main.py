@@ -308,7 +308,8 @@ def _frames(grid: Grid, wait: float, partial: bool = False):
     while job.status not in ("ready", "error") and time.time() - t0 < wait and not _closing.is_set():
         time.sleep(0.2)
     if job.status == "error":
-        raise HTTPException(502, f"data archive error: {job.error}")
+        # the job says it in a sentence fit for the page (service.say); not kept, so asking again tries again
+        raise HTTPException(502, job.error, headers={"Cache-Control": "no-store"})
     if job.status != "ready" and not partial:
         return None, job
     return job.snapshot(), job
