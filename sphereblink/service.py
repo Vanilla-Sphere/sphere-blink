@@ -365,6 +365,14 @@ class Service:
                 )
             return self._procs
 
+    def warm_up(self) -> None:
+        """Start the worker processes now (each takes a few seconds to import
+        astropy), so the first view after a restart does not wait for them."""
+        if config.FETCH_PROCS > 1:
+            pool = self._pool()
+            for fut in [pool.submit(worker.ready, 0.5) for _ in range(config.FETCH_PROCS)]:
+                fut.result()
+
     def _fetch_in_processes(self, job: Job, grid: Grid, items: list[worker.Item]) -> None:
         """Several cores: chunks of exposures are cut in worker processes."""
         chunk = max(4, config.FETCH_WORKERS // config.FETCH_PROCS)

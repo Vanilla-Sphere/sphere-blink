@@ -24,7 +24,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import catalogs, config, measure_api, measurements, render, tiles
+from . import catalogs, config, measure_api, measurements, render, tiles, wings
 from .cutout import Grid
 from .resolve import FEATURED, ResolverUnavailable, Target, resolve
 from .service import Service
@@ -40,6 +40,11 @@ svc = Service()
 fields = tiles.Fields(svc)
 measure_api.attach(svc)  # measurement pipeline: /api/measure, /api/measured
 app.include_router(measure_api.router)
+
+
+@app.on_event("startup")
+def _warm_up() -> None:
+    threading.Thread(target=svc.warm_up, daemon=True).start()
 
 
 # --------------------------------------------------------------------------- helpers
@@ -312,6 +317,9 @@ def api_spectrum(
     Each exposure sees the target through one narrow slice of a linear
     variable filter, so all exposures together sample 0.75-5.0 um. Points are
     aperture fluxes (r = 2 native pixels) with empirical sky-noise errors.
+    Where the star saturates the detector the point comes from its halo
+    instead (``method`` = "wings", see ``sphereblink/wings.py``): good to
+    about 20-25 %, and flagged EXTRAPOLATED beyond the calibrated range.
     """
     t, grid = _view(target, ra, dec, fov)
     frames, job = _frames(grid, wait, partial=partial)
@@ -319,17 +327,29 @@ def api_spectrum(
         return _pending(job)
     pts = []
     for f in frames:
-        if not np.isfinite(f.flux_ujy) or not np.isfinite(f.wave_um):
+        if not np.isfinite(f.wave_um):
+            continue
+        flux, err, method, flags = f.flux_ujy, f.flux_err_ujy, "aperture", f.flags_at_target
+        if any(x in flags for x in wings.SATURATION_FLAGS):
+            # The core is saturated: an aperture on it reads 2-5 times low
+            # (checked against 2MASS). Measure the star from its halo instead.
+            w = wings.measure(f.image, grid.scale_arcsec, f.wave_um, f.bandwidth_um)
+            if w is None:
+                continue
+            flux, err, method = w["flux_ujy"], w["flux_err_ujy"], "wings"
+            flags = flags + (["EXTRAPOLATED"] if w["extrapolated"] else [])
+        if not np.isfinite(flux):
             continue
         pts.append({
             "wave_um": round(f.wave_um, 4),
             "bandwidth_um": round(f.bandwidth_um, 4) if np.isfinite(f.bandwidth_um) else None,
-            "flux_ujy": round(f.flux_ujy, 2),
-            "flux_err_ujy": round(f.flux_err_ujy, 2) if np.isfinite(f.flux_err_ujy) else None,
+            "flux_ujy": round(flux, 2),
+            "flux_err_ujy": round(err, 2) if np.isfinite(err) else None,
+            "method": method,
             "detector": f.exposure.detector,
             "mjd": round(f.exposure.mjd, 5),
             "uid": f.exposure.uid,
-            "flags": f.flags_at_target,
+            "flags": flags,
         })
     pts.sort(key=lambda p: p["wave_um"])
     return {"target": t.to_dict(), "job": job.public(), "units": {"flux": "uJy", "wave": "um"}, "points": pts}
