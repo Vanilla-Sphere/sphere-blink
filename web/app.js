@@ -309,6 +309,7 @@ async function loadSpectrum(id, attempt = 0) {
   if (!d) return;
   S.spectrum = d.points;
   readSpectrum();
+  depthSpectrum(d.points);   // a redshift, where its emission lines give one
   $("speccard").hidden = false; drawPlot();
 }
 
