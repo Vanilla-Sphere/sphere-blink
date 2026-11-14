@@ -24,7 +24,8 @@
         <option value="4">4′</option><option value="8" selected>8′</option><option value="15">15′</option><option value="30">30′</option>
       </select>
     </label>
-    <button type="submit" class="btn primary">Show sky</button>
+    <button type="submit" class="btn primary" id="go">Show sky</button>
+    <p id="searcherr" class="searcherr" role="alert" hidden></p>
   </form>
   <nav class="barlinks" aria-label="Project">
     <a href="/docs">API</a>
@@ -70,6 +71,7 @@
           <label><input type="checkbox" id="ov-catwise"><span>CatWISE</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="var(--color-ink-2)"/></svg></label>
           <label><input type="checkbox" id="ov-cross" checked><span>Crosshair</span></label>
           <label><input type="checkbox" id="ov-smooth"><span>Smooth pixels</span></label>
+          <p id="ovstatus" class="wide muted note" role="status" hidden></p>
           <label class="wide" id="trackopt" hidden title="Positions and fitted tracks the team has measured in this field"><input type="checkbox" id="ov-tracks" checked><span>Measured tracks</span><svg class="key" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1l5 5-5 5-5-5z" fill="none" stroke="var(--color-measured)"/></svg></label>
         </div>
       </div>
