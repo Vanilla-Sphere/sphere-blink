@@ -62,6 +62,7 @@ HALF_ROWS = 24  # stamp half height in detector pixels (2.5 arcmin)
 HALF_COLS = 40  # stamp half width (4 arcmin); the rows are downloaded whole anyway
 BOX = 3  # the PSF is fitted in a (2*BOX+1)^2 pixel window
 WING_BOX = 12  # window for a star whose core is saturated
+RING_MIN = 2.5  # smallest inner radius of the ring that measures a saturated star, pixels
 MAX_SHIFT = 1.5  # how far [pixels] from the prediction the object may be found
 MIN_SNR = 6.0  # a single-exposure position is kept above this
 STACK_MIN_SNR = 5.0
@@ -498,8 +499,10 @@ def measure_stamp(stamp: Stamp, target: Body, neighbours: list[Body] | None = No
     flux, eflux = f.flux * TO_UJY, f.eflux * TO_UJY
     if f.kind == "wings":
         names = sorted(set(names) | {"SATURATED"})
-    elif f.core_masked > 2:
-        # the brightest pixels are missing: the position holds, the flux does not
+    elif f.core_masked > 2 or set(names) & set(SATURATION_FLAGS):
+        # The brightest pixels are missing or past the linear range: the
+        # position holds, the flux does not. A fit to what is left of a
+        # saturated core reads 2-5 times low (checked against 2MASS).
         names = sorted(set(names) | {"SATURATED"})
         flux = eflux = float("nan")
     return Detection(
@@ -845,6 +848,13 @@ def fit_track(dets: list[Detection], target: Body) -> dict | None:
 
 
 # ----------------------------------------------------------------------------- brightness
+def _flux_kind(d: Detection) -> str | None:
+    """Which scale a flux is on: the PSF fit, or the ring of a saturated star."""
+    if d.method == "stack":
+        return None
+    return "wings" if "RING_FLUX" in d.flags else d.method
+
+
 def light_curve(dets: list[Detection]) -> dict | None:
     """Brightness against time for an object measured at a different
     wavelength in every exposure.
@@ -857,7 +867,7 @@ def light_curve(dets: list[Detection]) -> dict | None:
     whatever the wavelength."""
     best = None
     for method in ("psf", "wings"):  # the two kinds of flux are not on the same scale
-        pts = [d for d in dets if d.method == method and d.flux_ujy is not None and np.isfinite(d.flux_ujy)
+        pts = [d for d in dets if _flux_kind(d) == method and d.flux_ujy is not None and np.isfinite(d.flux_ujy)
                and d.wave_um is not None and d.flux_ujy > 0]
         if len(pts) >= 30 and (best is None or len(pts) > len(best)):
             best = pts
@@ -898,8 +908,8 @@ def light_curve(dets: list[Detection]) -> dict | None:
         m = np.floor(mjd).astype(int) == day
         if m.sum() >= 3:
             days.append({"mjd": round(float(mjd[m].mean()), 3), "rel_flux": round(float(np.median(rel[m])), 4), "n": int(m.sum())})
-    floor = FLUX_FLOOR[pts[0].method]
-    out = {"method": pts[0].method, "n": len(pts), "passes": rows, "days": days, "amplitude": None, "significance": None,
+    floor = FLUX_FLOOR[_flux_kind(pts[0])]
+    out = {"method": _flux_kind(pts[0]), "n": len(pts), "passes": rows, "days": days, "amplitude": None, "significance": None,
            "floor": floor, "variable": False}
     if len(rows) >= 2:
         r = np.array([x["rel_flux"] for x in rows])
@@ -986,12 +996,17 @@ def measure_all(stamps: list[Stamp], target: Body, field: list[Body] | None = No
             dets += good  # a few clear single exposures are still worth keeping
     dets.sort(key=lambda d: (d.mjd, d.detector))
 
-    # saturated stars: brightness from a ring just outside the largest masked core
-    wings = [d for d in dets if d.method == "wings"]
-    if wings:
-        r_in = float(np.ceil(np.percentile([d.mask_radius for d in wings], 90))) + 1.5
+    # Saturated stars: brightness from a ring just outside the largest masked
+    # core. When most exposures are saturated every exposure gets the ring,
+    # the clean ones too, so that the whole light curve is on one scale.
+    one = [d for d in dets if d.method != "stack"]
+    wings = [d for d in one if d.method == "wings"]
+    saturated = [d for d in one if "SATURATED" in d.flags]
+    ringed = one if len(saturated) > 0.5 * len(one) else wings
+    if ringed:
+        r_in = max(float(np.ceil(np.percentile([d.mask_radius for d in wings], 90))) + 1.5 if wings else 0.0, RING_MIN)
         by_uid = {s.exposure.uid: s for s in stamps}
-        for d in wings:
+        for d in ringed:
             st = by_uid[f"{d.obs_id}_D{d.detector}"]
             flux, eflux = ring_flux(st.data, d.x, d.y, st.sigma, r_in, r_in + 3.0)
             d.flux_ujy, d.flux_err_ujy = flux * TO_UJY, eflux * TO_UJY
