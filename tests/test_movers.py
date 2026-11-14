@@ -284,9 +284,15 @@ def test_what_an_earlier_search_found_is_shown_again_only_when_the_new_search_fi
     assert store.save_field("fieldA", 150.0, 10.0, 50.4, 100, found(shift_h=0.0)) == [real]  # found again: the same object
     again = store.get(real)
     assert again["n_detections"] == 8 and again["fields"] == ["fieldA"] and again["votes"]["real"] == 1
+    # a name the catalogues gave before is kept when they do not answer during the new search
+    monkeypatch.setattr(movers, "VERSION", movers.VERSION - 1)
+    (named,) = store.save_field("fieldC", 250.0, 10.0, 50.4, 100, found(grid_ra=250.0), {0: {"checked": True, "name": "159 Aemilia"}})
+    monkeypatch.setattr(movers, "VERSION", movers.VERSION + 1)
+    assert store.save_field("fieldC", 250.0, 10.0, 50.4, 100, found(grid_ra=250.0), {0: {"checked": False}}, pending={0}) == [named]
+    assert store.get(named)["known"]["name"] == "159 Aemilia"
     empty = {"detections": [], "tracks": [], "stats": {"frames": 100, "detections": 0, "tracks": 0}, "version": movers.VERSION}
     assert store.save_field("fieldB", 200.0, 10.0, 50.4, 100, empty) == []  # not found again: it stays out of the log
-    assert store.get(chance) is None and [m["id"] for m in store.listing()] == [real]
+    assert store.get(chance) is None and {m["id"] for m in store.listing()} == {real, named}
 
 
 def test_a_weak_path_nobody_could_name_waits_out_of_sight(store):
@@ -326,6 +332,32 @@ def test_fields_of_an_earlier_search_are_listed_for_another_search(store, monkey
     assert store.stale_fields() == []
     monkeypatch.setattr(movers, "VERSION", movers.VERSION + 1)
     assert [f["key"] for f in store.stale_fields()] == ["fieldA"]
+
+
+def test_the_catalogues_are_asked_again_and_old_fields_searched_again(store, monkeypatch):
+    from sphereblink import movers_api
+
+    store.save_field("fieldA", 150.0, 10.0, 50.4, 100, found(), {0: {"checked": False}}, pending={0})
+    assert store.count() == 0
+    asked = []
+
+    def identify(tracks):
+        asked.append(len(tracks))
+        return {0: {"checked": True, "by": "SkyBoT", "name": "412 Elisabetha", "kind": "asteroid"}}
+
+    monkeypatch.setattr(known_objects, "identify", identify)
+    monkeypatch.setattr(movers_api, "_rechecked", 0.0)
+    assert movers_api.settle_uncompared() == {"named": 1} and store.count() == 1
+    assert movers_api.settle_uncompared() == {} and asked == [1]  # not again within ten minutes, and nothing waits now
+    # a field the current search went through is left alone; one of an earlier search is searched again
+    grid = Grid.from_fov(200.0, 10.0, 50.4)
+    monkeypatch.setattr(movers, "VERSION", movers.VERSION - 1)
+    store.save_field(grid.key(), grid.ra, grid.dec, grid.fov_arcmin, 100, found(grid_ra=200.0))
+    monkeypatch.setattr(movers, "VERSION", movers.VERSION + 1)
+    started = []
+    monkeypatch.setattr(movers_api, "start", lambda g, min_cached=0.0: started.append((g.key(), min_cached)) or {"status": "ready"})
+    assert movers_api.refresh_stale(wait_s=0.0) == 1
+    assert started == [(grid.key(), movers_api.REFRESH_MIN_CACHED)]  # only from frames that are still in the cache
 
 
 def test_one_voice_per_browser_and_a_few_per_address(store, monkeypatch):

@@ -177,6 +177,67 @@ Barnard field found one. Of 542 chance paths linked in those shuffled
 searches of the Barnard field none was seen at 8 exposure times, the level
 step 8 asks of a path without a name.
 
+### The static pair (why a path without a name needs three visits)
+
+Searching eight more fields the same evening, away from the ecliptic and in
+the plane of the Milky Way, showed a kind of false path that the tests above
+cannot see. In the field RA 281.22, Dec -2.58 (653 exposures, 502 of them
+with more leftovers of stars than a frame may have) eleven paths passed
+steps 3 and 4, and none of them is an object:
+
+- A leftover of a star stays at one place of the sky through the 2 to 4
+  exposures of one visit. A second leftover does the same in another visit.
+  A line through the two places is a path with 4 to 6 detections in two
+  visits, and every exposure that covers it "sees" a compact source: 4 of 4
+  to 8 of 8 exposure times. Step 4 measures the same two bursts again and
+  cannot refute it; no exposure of that detector lies between them.
+- Shuffling the exposure times tears each pair apart, so the chance figure
+  of step 6 was 0 for this field while the sky itself made eleven.
+- The completeness test with injected sources found the same independently in the field RA 167.13, Dec +5.17: two
+  injected sources that hardly move, 11 hours apart, came out as one path of
+  75.6 arcsec per hour seen at 8 of 8 times.
+
+All eleven are seen in exactly two visits. Hence step 8: a path that no
+catalogue has an object on must be seen in three visits, at two or more
+exposure times in each. Three leftovers on one line at the right times is
+what the visit shuffle of step 6 counts. Twelve fields with version 3, six
+shuffles of each kind per field:
+
+| Field | Exposures (with too many leftovers) | Paths after step 4 | Shown | Chance paths, exposures shuffled | Chance candidates, visits shuffled |
+| --- | --- | --- | --- | --- | --- |
+| Barnard's star, 269.46 +4.74 | 518 (267) | 1 | 1 named | 1 in 6 | 0 |
+| 3I/ATLAS, 167.13 +5.17 | 535 (6) | 1 | 1 named | 0 | 0 |
+| 3I/ATLAS, 248.37 -17.00 | 713 (131) | 7 | 7 named | 0 | 0 |
+| 3I/ATLAS, 101.65 +20.42 | 450 (63) | 4 | 4 named | 0 | 0 |
+| Epsilon Indi, 331.14 -56.82 | 737 (188) | 0 | 0 | 0 | 0 |
+| WISE 0855-0714, 133.74 -7.26 | 495 (23) | 0 | 0 | 0 | 0 |
+| RW Aurigae, 76.98 +30.42 | 695 (144) | 2 | 2 (9 and 4 visits) | 1 in 6 | 0 |
+| R Draconis, 248.22 +66.78 | 1081 (109) | 0 | 0 | 1 in 6 | 0 |
+| Galactic plane, 281.22 -2.58 | 653 (502) | 11 | 0 | 0 | 0 |
+| Galactic bulge, 270.06 -25.02 | 383 (312) | 1 | 0 | 0 | 0 |
+| Galactic latitude 5, 285.06 +4.98 | 596 (400) | 0 | 0 | 1 in 6 | 0 |
+| Ecliptic, 190.02 -4.02 | 578 (5) | 1 | 1 (3 visits, 12 of 12 times) | 0 | 0 |
+
+- The 12 named objects are the 14 tracks of the first table: Astraea and
+  Nha are one object each now. The three shown without a name in this table
+  were searched where no catalogue service can be reached; on the server
+  they are compared like any other.
+- The four chance paths of the exposure shuffle (and one more in 24 further
+  shuffles of the Barnard field) are seen at 6 to 7 exposure times in two
+  visits: enough for step 4, not for step 8. A path like that is shown only
+  under the name of a catalogue object that is at its place with its motion.
+- 96 visit shuffles (72 above, 24 more of the Barnard field) gave no path
+  with the evidence of step 8.
+- What the rule costs: a real object that no catalogue lists and that is
+  seen in only two visits is not shown. (412) Elisabetha and (159) Aemilia
+  have two visits in field 2 and are shown because the catalogues name them.
+
+The threshold of a sighting (step 4) was measured again on these fields: at
+30,000 random empty places per field an exposure "sees" a compact source in
+2.0 to 3.4 % of the cases (5 to 12 % with the brightest pixel alone), and at
+JPL's positions of the real asteroids in 70 to 76 %. No other choice of the
+three numbers separated the two better, so they stayed.
+
 Limits found in the same test:
 
 - 3I/ATLAS at 8.7 arcsec per hour and V about 15.2 (field 3, March 2026) was

@@ -204,6 +204,11 @@ def save_field(key: str, ra: float, dec: float, fov: float, frames: int, result:
                 # its age and its votes, the evidence is the new one alone
                 mid = same[0][0]
                 created = c.execute("SELECT created FROM movers WHERE id=?", (mid,)).fetchone()[0]
+                if not (payload.get("known") or {}).get("checked"):
+                    # no catalogue service answers now: the name they gave this object before still holds
+                    named = next((o["known"] for _, o in same if (o.get("known") or {}).get("name")), None)
+                    if named:
+                        payload["known"] = named
             elif same:
                 mid, old = same[0]
                 # the same object from an overlapping or a neighbouring field: one path, all its exposures

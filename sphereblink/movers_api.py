@@ -230,11 +230,16 @@ def settle_uncompared(force: bool = False) -> dict:
         return {}
     from . import known_objects
 
-    names = known_objects.identify([t for _, t, _ in waiting])
+    # field by field: one question to a service covers one piece of the sky
+    fields: dict[str, list] = {}
+    for mid, track, payload in waiting:
+        fields.setdefault((payload.get("fields") or [mid])[0], []).append((mid, track))
     out: dict[str, int] = {}
-    for i, (mid, _, _) in enumerate(waiting):
-        what = mover_store.settle(mid, names.get(i) or {})
-        out[what] = out.get(what, 0) + 1
+    for group in fields.values():
+        names = known_objects.identify([t for _, t in group])
+        for i, (mid, _) in enumerate(group):
+            what = mover_store.settle(mid, names.get(i) or {})
+            out[what] = out.get(what, 0) + 1
     log.info("movers: %d objects waited for the catalogues: %s", len(waiting), out)
     return out
 
