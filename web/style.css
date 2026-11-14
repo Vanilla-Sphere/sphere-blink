@@ -178,6 +178,11 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 .checks .key{width:11px;height:11px;flex:none}
 .checks .wide{grid-column:1 / -1}
 #tracklist dt{color:var(--color-ink)}
+#tracklist dd span{display:grid;grid-template-columns:86px minmax(0,1fr)}
+#tracklist dd span+span{margin-top:2px}
+#tracklist dd b{font:500 12.5px/1.5 var(--font-display);color:var(--color-muted)}
+.measure-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px}
+#tracklist:not(:empty)+.measure-row{margin-top:12px}
 
 /* ------------------------------------------------------------------ stage */
 .stage{width:calc(var(--img) + 2 * var(--pad) + 2px);padding:0 var(--pad) 12px;min-width:0;container-type:inline-size}
