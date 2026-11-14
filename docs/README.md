@@ -26,6 +26,7 @@ when it was measured.
 | [Measurement pipeline](measurement-pipeline.md) | Automatic astrometry, track fitting, light curves, bright-star photometry, validation results |
 | [Moving objects](moving-objects.md) | The blind search for asteroids, comets and other moving objects: algorithm, validation, the log, names of known objects, votes |
 | [Distance and redshift](distance-redshift.md) | Distances of stars and redshifts of galaxies from published catalogues, the sky map by redshift, comparing spectra in the rest frame, the redshift read from the emission lines of a SPHEREx spectrum and how it was checked, what is not done and why |
+| [Science and algorithms](science/README.md) | The physical reason and the algorithm behind every processing step in one document: SPHEREx data, RGB simulation, photometry, astrometry, the blind search for moving objects and its validation, the reading of a spectrum and its line list, redshift, distance, change over time, known limits |
 | [API reference](api-reference.md) | Every HTTP endpoint: parameters, responses, status codes, binary cube format |
 | [Viewer](viewer.md) | The web client: screens, Simple and Advanced modes, URL state, rendering, design system |
 | [Code structure](code-structure.md) | Repository layout, module responsibilities and dependencies, tests, conventions |
@@ -63,6 +64,8 @@ files. Where a figure merges or omits elements, its caption says so.
 
 - **Evaluating the product:** [overview](overview.md), then [features](features.md), then the
   validation table in [measurement pipeline](measurement-pipeline.md#validation-on-the-challenge-targets).
+- **Understanding the science:** [science and algorithms](science/README.md), then the document of
+  the subsystem for its full validation tables.
 - **Integrating with the API:** [API reference](api-reference.md), with
   [data and sources](data-sources.md#units-and-conventions) for units.
 - **Working on the code:** [architecture](architecture.md), [code structure](code-structure.md),
