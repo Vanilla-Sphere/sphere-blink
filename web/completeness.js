@@ -181,7 +181,7 @@ function cpRender(host) {
   det.appendChild(cpEl("summary", null, "The numbers as tables"));
   cpTables(d, det);
   host.appendChild(det);
-  host.appendChild(cpEl("p", {class: "muted note"}, `Measured ${d.made} on search version ${d.version}; method and every number in the documentation of the project (mover-completeness).`));
+  host.appendChild(cpEl("p", {class: "muted note"}, `Measured ${d.made} on search version ${d.version}${d.same_on ? ` (version ${d.same_on.version} finds the same fakes in the ${d.same_on.rounds} rounds repeated on it)` : ""}; method and every number in the documentation of the project (mover-completeness).`));
 }
 
 function initCompleteness() {

@@ -152,8 +152,12 @@ def build(args) -> None:
             c = summarise(rounds, "sun")
             cold_fields[name] = {"fakes": c["fakes"], "observable": c["observable"],
                                  **{level: {"curve": c[level]["curve"], "limits": c[level]["limits"]} for level in ("found", "strong")}}
+    told = {t["version"] for t in every if t.get("version")}  # the rounds say which search made them
+    if len(told) > 1:
+        raise SystemExit(f"the rounds were made with more than one version of the search: {sorted(told)}")
+    version = told.pop() if told else getattr(args, "version", None) or movers.VERSION
     out = {
-        "search": args.search, "version": movers.VERSION, "made": args.made,
+        "search": args.search, "version": version, "made": args.made,
         "fake": {"spectrum": main, "v_mag": [V_EDGES[0], V_EDGES[-1]], "rate_arcsec_h": [RATE_EDGES[0], RATE_EDGES[-1]],
                  "min_times": MIN_TIMES, "bright_below": BRIGHT, "asteroid": mc.ASTEROID},
         "v_edges": V_EDGES, "v_coarse": V_COARSE, "rate_edges": RATE_EDGES,
@@ -166,6 +170,8 @@ def build(args) -> None:
                                **{level: {"curve": c[level]["curve"], "limits": c[level]["limits"], "grid": c[level]["grid"]}
                                   for level in ("found", "strong")}},
                        "fields": cold_fields}
+    if getattr(args, "same_on", None):  # a later search, run on some of the same rounds, found the same fakes
+        out["same_on"] = {"version": args.same_on[0], "rounds": args.same_on[1]}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(out, separators=(",", ":")) + "\n")
     a = out["all"]
