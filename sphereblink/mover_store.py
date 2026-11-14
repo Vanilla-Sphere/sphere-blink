@@ -173,6 +173,65 @@ def _same(c: sqlite3.Connection, track: Track) -> list[tuple[str, dict]]:
     return out
 
 
+def _put(c: sqlite3.Connection, key: str, track: Track, match: dict | None, wait: bool, given: set, now: float) -> tuple[str, bool]:
+    """Store one track of the field ``key``: under the id of the stored object it is, or a new one. ``match`` is
+    what the catalogues said of it, ``wait`` that it is to stay out of sight while it has neither a name nor
+    strong evidence. Returns its id and whether it is shown."""
+    payload = track.to_dict()
+    payload["fields"] = [key]
+    if match:
+        payload["known"] = match
+    same = _same(c, track)
+    if same and same[0][1].get("_version") != movers.VERSION:
+        # found by an earlier search, whose evidence was judged by other rules: the object keeps its id,
+        # its age and its votes, the evidence is the new one alone
+        mid = same[0][0]
+        created = c.execute("SELECT created FROM movers WHERE id=?", (mid,)).fetchone()[0]
+        if not (payload.get("known") or {}).get("checked"):
+            # no catalogue service answers now: the name they gave this object before still holds
+            named = next((o["known"] for _, o in same if (o.get("known") or {}).get("name")), None)
+            if named:
+                payload["known"] = named
+    elif same:
+        mid, old = same[0]
+        if old.get("method") == "stack" or payload.get("method") == "stack":
+            # A path found by adding frames up is evidence of all its frames together and cannot be put
+            # together from two fields: the linker's find stays, or else the stronger of the two.
+            merged = dict(max((old, payload), key=lambda p: (p.get("method") != "stack", p.get("stack_snr") or 0.0)))
+            merged.pop("_version", None)
+            joined = _track(merged)
+        else:
+            # the same object from an overlapping or a neighbouring field: one path, all its exposures
+            dets = _by_exposure(old["detections"], payload["detections"])
+            joined = movers._track_of([Detection(**{k: d.get(k) for k in (
+                "exposure", "mjd", "ra", "dec", "snr", "flux_mjy", "npix", "detector", "wave_um")}) for d in dets])
+            merged = joined.to_dict()
+            merged["points"] = _by_exposure(old.get("points", []), payload.get("points", []))
+            merged.update(movers.tally([d["mjd"] for d in merged["detections"]], merged["points"]))
+        merged["fields"] = sorted(set(old.get("fields", [])) | {key})
+        merged["known"] = max((payload.get("known"), old.get("known")), key=lambda k: (
+            bool((k or {}).get("name")), bool((k or {}).get("checked")), k is not None))
+        payload, track = merged, joined
+        created = c.execute("SELECT created FROM movers WHERE id=?", (mid,)).fetchone()[0]
+        for other, _ in same[1:]:  # two stored pieces turn out to be one object
+            c.execute("UPDATE OR IGNORE votes SET mover=? WHERE mover=?", (mid, other))
+            c.execute("DELETE FROM votes WHERE mover=?", (other,))
+            c.execute("DELETE FROM movers WHERE id=?", (other,))
+    else:
+        # Not an id this search has just given: an object that came out as two pieces was stored under
+        # the id of the first, and the second one, whose own id that was, took its place.
+        mid, created = _new_id(track, given), now
+    given.add(mid)
+    payload["id"] = mid
+    payload.pop("pending", None)
+    shown = not (wait and not (payload.get("known") or {}).get("checked") and not movers.strong(payload))
+    if not shown:
+        payload["pending"] = True
+    c.execute("INSERT OR REPLACE INTO movers VALUES (?,?,?,?,?,?,?,?,?)",
+              (mid, track.ra0, track.dec0, track.mjd0, track.rate, created, now, movers.VERSION, json.dumps(payload)))
+    return mid, shown
+
+
 def save_field(key: str, ra: float, dec: float, fov: float, frames: int, result: dict, known: dict | None = None,
                pending: set | None = None) -> list[str]:
     """Store what the search of one field found. Returns the ids of its objects.
@@ -199,56 +258,56 @@ def save_field(key: str, ra: float, dec: float, fov: float, frames: int, result:
             (d.exposure, d.mjd, d.ra, d.dec, d.snr, d.flux_mjy, d.npix, d.detector, d.wave_um, _cell(d.ra, d.dec), key)
             for d in result["detections"]])
         for i, track in enumerate(result["tracks"]):
-            payload = track.to_dict()
-            payload["fields"] = [key]
-            match = (known or {}).get(i)
-            if match:
-                payload["known"] = match
-            same = _same(c, track)
-            if same and same[0][1].get("_version") != movers.VERSION:
-                # found by an earlier search, whose evidence was judged by other rules: the object keeps its id,
-                # its age and its votes, the evidence is the new one alone
-                mid = same[0][0]
-                created = c.execute("SELECT created FROM movers WHERE id=?", (mid,)).fetchone()[0]
-                if not (payload.get("known") or {}).get("checked"):
-                    # no catalogue service answers now: the name they gave this object before still holds
-                    named = next((o["known"] for _, o in same if (o.get("known") or {}).get("name")), None)
-                    if named:
-                        payload["known"] = named
-            elif same:
-                mid, old = same[0]
-                # the same object from an overlapping or a neighbouring field: one path, all its exposures
-                dets = _by_exposure(old["detections"], payload["detections"])
-                joined = movers._track_of([Detection(**{k: d.get(k) for k in (
-                    "exposure", "mjd", "ra", "dec", "snr", "flux_mjy", "npix", "detector", "wave_um")}) for d in dets])
-                merged = joined.to_dict()
-                merged["points"] = _by_exposure(old.get("points", []), payload.get("points", []))
-                merged.update(movers.tally([d["mjd"] for d in merged["detections"]], merged["points"]))
-                merged["fields"] = sorted(set(old.get("fields", [])) | {key})
-                merged["known"] = max((payload.get("known"), old.get("known")), key=lambda k: (
-                    bool((k or {}).get("name")), bool((k or {}).get("checked")), k is not None))
-                payload, track = merged, joined
-                created = c.execute("SELECT created FROM movers WHERE id=?", (mid,)).fetchone()[0]
-                for other, _ in same[1:]:  # two stored pieces turn out to be one object
-                    c.execute("UPDATE OR IGNORE votes SET mover=? WHERE mover=?", (mid, other))
-                    c.execute("DELETE FROM votes WHERE mover=?", (other,))
-                    c.execute("DELETE FROM movers WHERE id=?", (other,))
-            else:
-                # Not an id this search has just given: an object that came out as two pieces was stored under
-                # the id of the first, and the second one, whose own id that was, took its place.
-                mid, created = _new_id(track, given), now
-            given.add(mid)
-            payload["id"] = mid
-            payload.pop("pending", None)
-            if i in (pending or ()) and not (payload.get("known") or {}).get("checked") and not movers.strong(payload):
-                payload["pending"] = True
-            else:
+            mid, shown = _put(c, key, track, (known or {}).get(i), i in (pending or ()), given, now)
+            if shown:
                 ids.append(mid)
-            c.execute("INSERT OR REPLACE INTO movers VALUES (?,?,?,?,?,?,?,?,?)",
-                      (mid, track.ra0, track.dec0, track.mjd0, track.rate, created, now, movers.VERSION, json.dumps(payload)))
         c.execute("INSERT OR REPLACE INTO fields VALUES (?,?,?,?,?,?,?,?,?)",
                   (key, ra, dec, fov, frames, movers.VERSION, now, json.dumps(cells),
                    json.dumps({**result["stats"], "movers": ids})))
+    return ids
+
+
+def field_tracks(key: str) -> list[Track]:
+    """The paths the current search has stored for a field, shown or not."""
+    rows = _conn().execute("SELECT payload FROM movers WHERE version=? AND instr(payload, ?)>0", (movers.VERSION, f'"{key}"')).fetchall()
+    return [_track(p) for p in (json.loads(r[0]) for r in rows) if key in (p.get("fields") or [])]
+
+
+def stacked(key: str, version: int) -> bool:
+    """Has the search for faint and slow objects (``mover_stack``, this version of it) gone through the field
+    since the linker last did?"""
+    f = field(key)
+    return bool(f) and f["version"] == movers.VERSION and (f["stats"].get("stack") or {}).get("version") == version
+
+
+def unstacked_fields(version: int) -> list[dict]:
+    """Fields of the current search that ``mover_stack`` (this version of it) has not gone through, newest first."""
+    rows = _conn().execute("SELECT key, ra, dec, fov, frames, stats FROM fields WHERE version=? ORDER BY searched DESC",
+                           (movers.VERSION,)).fetchall()
+    return [{"key": r[0], "ra": r[1], "dec": r[2], "fov": r[3], "frames": r[4]} for r in rows
+            if (json.loads(r[5]).get("stack") or {}).get("version") != version]
+
+
+def add_tracks(key: str, tracks: list[Track], known: dict | None = None, pending: set | None = None,
+               stats: dict | None = None) -> list[str]:
+    """Add what a second search of a field found (``mover_stack``) to what the linker stored for it, and note
+    in the field's record that it ran. Returns the ids of the objects shown."""
+    c = _conn()
+    now = time.time()
+    ids: list[str] = []
+    given: set[str] = set()
+    with c:
+        row = c.execute("SELECT stats FROM fields WHERE key=?", (key,)).fetchone()
+        if not row:
+            return ids
+        for i, track in enumerate(tracks):
+            mid, shown = _put(c, key, track, (known or {}).get(i), i in (pending or ()), given, now)
+            if shown:
+                ids.append(mid)
+        old = json.loads(row[0])
+        old["stack"] = {**(stats or {}), "movers": ids}
+        old["movers"] = list(old.get("movers") or []) + [m for m in ids if m not in (old.get("movers") or [])]
+        c.execute("UPDATE fields SET stats=? WHERE key=?", (json.dumps(old), key))
     return ids
 
 

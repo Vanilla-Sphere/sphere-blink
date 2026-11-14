@@ -43,6 +43,7 @@ from scipy import ndimage as ndi
 VERSION = 5  # 2: a sighting must be a compact source; 3: curved paths, and three visits for a path without a name;
 # 4: four visits of any size count too, and twice as many detections per pass take part in the linking;
 # 5: a stray detection in one of its pieces no longer keeps a curved path in two
+# (The search for faint and slow objects, mover_stack, has a version of its own and runs after this one.)
 
 MIN_SNR = 5.0  # peak of a detection, in units of the local noise
 GROW_SNR = 2.5  # pixels joined to a peak
@@ -819,6 +820,9 @@ def strong(c: dict) -> bool:
     """The evidence asked of a path without a name. Nearly everything bright
     enough for SPHEREx is a known asteroid or comet, so a nameless path is
     far more often chance than a new object, and has to show more."""
+    if c.get("method") == "stack":
+        # a path found by adding frames up (mover_stack) shows in no single one: its own level decides
+        return bool(c.get("stack_strong"))
     if c.get("strong_piece"):  # a path joined from pieces, one of which shows this much on its own
         return True
     visits = c.get("visits_seen", 0) >= CANDIDATE_VISITS or len(c.get("seen_by_visit") or ()) >= CANDIDATE_SINGLE_VISITS
