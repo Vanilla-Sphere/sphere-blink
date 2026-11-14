@@ -347,3 +347,76 @@ def test_wing_flux_is_calibrated_corrected_and_honest_about_its_range():
     # no halo, no flux; no wavelength, no flux
     assert wings.measure(_star_with_halo(0.0, core=False), 3.075, 2.2, 0.054, saturated=False) is None
     assert wings.measure(_star_with_halo(2.0), 3.075, float("nan")) is None
+
+
+def test_out_of_range_coordinates_are_refused_without_asking_the_name_services():
+    class NoNetwork:
+        def get(self, *a, **k):
+            raise AssertionError("coordinates must not be sent to a name service")
+
+    for text in ("400 100", "10 -95", "500.0 3.0", "-1, 5"):
+        with pytest.raises(resolve.ResolveError, match="out of range"):
+            resolve.resolve(text, client=NoNetwork())
+    assert resolve.resolve("359.9 -90").dec == -90
+
+
+def _catwise(ra, dec, pm=(0.0, 0.0), mag=14.0, snr=30.0, flags="00"):
+    return {"id": "", "ra": ra, "dec": dec, "pmra": pm[0], "pmdec": pm[1], "pm_snr": snr if any(pm) else 0.0,
+            "mag": mag, "parallax": None, "epoch": 2014.6, "ab_flags": flags}
+
+
+def test_catwise_motions_around_a_bright_star_are_marked_and_real_movers_kept():
+    from sphereblink import catalogs
+
+    asec = 1 / 3600.0
+    # a real fast mover, listed as three pieces along its path that agree, and one that does not
+    mover = [_catwise(10.0 + k * 6 * asec, 5.0, (-7900.0 - 50 * k, 500.0 + 200 * k), 15.6) for k in range(3)]
+    stray = _catwise(10.0 + 9 * asec, 5.0, (-4200.0, -3600.0), 16.1)
+    # two unrelated stars with honest motions in the same field
+    slow = [_catwise(10.03, 5.03, (-170.0, -140.0), 13.3), _catwise(10.012, 5.001, (90.0, -260.0), 15.7, snr=8.0)]
+    quiet = [_catwise(10.05 + 0.002 * k, 4.95, (5.0, -3.0), 12.0 + k, snr=2.0) for k in range(5)]
+    field = mover + [stray] + slow + quiet
+    out = catalogs.flag_artifacts([dict(s) for s in field])
+    assert not any(s.get("suspect") for s in out)
+    assert out[0]["pmra"] == -7900.0 and "ab_flags" not in out[0]
+
+    # the same field with a bright star in it: its halo is listed as a dozen "fast" sources
+    star = _catwise(10.2, 5.0, (3200.0, 100.0), 8.5, snr=100.0, flags="0H")
+    halo = [_catwise(10.2 + (20 + 12 * k) * asec * (-1) ** k, 5.0 + 15 * k * asec, (300.0 * (k + 1), -200.0 * k), 13.0 + k / 4)
+            for k in range(12)]
+    out = catalogs.flag_artifacts([dict(s) for s in field + [star] + halo])
+    n = len(field)
+    assert all(s.get("suspect") and s["pmra"] == 0.0 and s["pm_snr"] == 0.0 for s in out[n:])
+    assert not any(s.get("suspect") for s in out[:n])  # 12 arcmin away: untouched
+
+    # a lone entry next to a merely bright, unsaturated star, and an impossible motion
+    out = catalogs.flag_artifacts([_catwise(20.0, 0.0, mag=6.0), _catwise(20.0 + 50 * asec, 0.0, (240.0, 10.0)),
+                                   _catwise(21.0, 0.0, (20000.0, 0.0))])
+    assert [bool(s.get("suspect")) for s in out] == [False, True, True]
+
+
+def test_exported_pictures_carry_the_nasa_credit():
+    eps = render.build_epochs([frame(60900.1), frame(60901.1)], None, "day")
+    limits = render.shared_limits(eps)
+    with_credit = render.frame_image(eps[0], limits, size=360, title="t")
+    without = render.frame_image(eps[0], limits, size=360, title="t", credit=False)
+    assert np.asarray(with_credit).tobytes() != np.asarray(without).tobytes()
+    assert b"NASA/JPL-Caltech" in render.gif_bytes([with_credit, with_credit])
+
+
+def test_static_files_say_how_long_they_may_be_kept(tmp_path, monkeypatch):
+    monkeypatch.setenv("SPHEREX_CACHE_DIR", str(tmp_path))
+    monkeypatch.setenv("SPHEREX_AUTO_MEASURE", "0")
+    from fastapi.testclient import TestClient
+
+    from sphereblink import main
+
+    c = TestClient(main.app)
+    assert "immutable" in c.get("/static/app.js?v=1").headers["cache-control"]
+    assert c.get("/static/app.js").headers["cache-control"] == "no-cache"
+    assert "max-age=86400" in c.get("/static/favicon.svg").headers["cache-control"]
+    assert c.head("/").status_code == 200
+    assert "Disallow: /api/" in c.get("/robots.txt").text
+    assert c.get("/favicon.ico").headers["content-type"] == "image/png"
+    assert c.get("/api/resolve", params={"q": "500 3"}).status_code == 400
+    assert c.get("/api/view", params={"ra": 400, "dec": 100}).status_code == 400

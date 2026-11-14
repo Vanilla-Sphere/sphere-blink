@@ -12,6 +12,16 @@ services:
     # again and they answer the progress polls with different states.
     startCommand: uvicorn sphereblink.main:app --host 0.0.0.0 --port $PORT --workers 1
     healthCheckPath: /api/health
+    # A deploy restarts the one server (the disk can belong to one instance
+    # only), which takes the site down for about half a minute and forgets
+    # the views being gathered. Changes that cannot affect the running
+    # service do not deploy.
+    buildFilter:
+      ignoredPaths:
+        - docs/**
+        - tests/**
+        - scripts/**
+        - "**/*.md"
     domains:
       - vanillasphere.com
       - www.vanillasphere.com
@@ -31,8 +41,15 @@ services:
       # processes = CPUs of the plan, disk budget = about 80% of the disk.
       - key: SPHEREX_FETCH_PROCS
         value: "4"
+      # Frames kept in the server's memory. With the four fetch processes,
+      # a measurement run and the pictures being rendered, 2500 took the
+      # service to 6.6 of its 8 GB under load; 2000 leaves more room and
+      # still holds two 7 x 7 fields at once.
       - key: SPHEREX_RAM_BUDGET_MB
-        value: "2500"
+        value: "2000"
+      # glibc otherwise keeps one heap per thread and hands little back
+      - key: MALLOC_ARENA_MAX
+        value: "2"
       - key: SPHEREX_DISK_BUDGET_GB
         value: "16"
     disk:

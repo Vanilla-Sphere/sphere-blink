@@ -21,12 +21,12 @@ import numpy as np
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import catalogs, config, measure_api, measurements, render, tiles, wings
 from .cutout import Grid
-from .resolve import FEATURED, ResolverUnavailable, Target, resolve
+from .resolve import FEATURED, NameNotFound, ResolverUnavailable, Target, resolve
 from .service import Service
 
 WEB = Path(__file__).resolve().parent.parent / "web"
@@ -48,9 +48,29 @@ def _warm_up() -> None:
 
 
 # --------------------------------------------------------------------------- helpers
+_unknown_names: dict[str, tuple[float, str]] = {}  # name -> (when asked, the services' answer)
+UNKNOWN_NAME_TTL = 900.0  # seconds a "no such object" answer is repeated without asking again
+
+
 @lru_cache(maxsize=512)
-def _resolve_cached(text: str) -> Target:
+def _resolve_known(text: str) -> Target:
     return resolve(text)
+
+
+def _resolve_cached(text: str) -> Target:
+    """Resolve a name once. A name the services do not know costs them several
+    seconds (SIMBAD, then NED, then VizieR), so that answer is remembered too,
+    for a while: a typo typed twice, or polled by the page, answers at once."""
+    seen = _unknown_names.get(text.lower())
+    if seen and time.time() - seen[0] < UNKNOWN_NAME_TTL:
+        raise NameNotFound(seen[1])
+    try:
+        return _resolve_known(text)
+    except NameNotFound as exc:
+        if len(_unknown_names) > 2000:
+            _unknown_names.clear()
+        _unknown_names[text.lower()] = (time.time(), str(exc))
+        raise
 
 
 def _target(target: str | None, ra: float | None, dec: float | None) -> Target:
@@ -111,7 +131,7 @@ def _frames(grid: Grid, wait: float, partial: bool = False):
 
 _epoch_cache: "OrderedDict[tuple, list]" = OrderedDict()
 _epoch_lock = threading.Lock()
-EPOCH_CACHE_BYTES = 500e6
+EPOCH_CACHE_BYTES = 300e6
 
 
 def _epochs(frames, det, group, diff=False, grid: Grid | None = None):
@@ -361,7 +381,7 @@ def api_catalog(
 ):
     """Brightest Gaia DR3 or CatWISE2020 sources in the field (with proper motions)."""
     t, grid = _view(target, ra, dec, fov)
-    key = f"{cat}_v2_{grid.key()}"
+    key = f"{cat}_v3_{grid.key()}"
     sources = svc.store.get_catalog(key)
     if sources is None:
         try:
@@ -390,8 +410,34 @@ def api_tracks(target: str | None = None, ra: float | None = None, dec: float | 
 
 # --------------------------------------------------------------------------- web
 if WEB.exists():
-    app.mount("/static", StaticFiles(directory=WEB), name="static")
+    class _Static(StaticFiles):
+        """Static files with cache rules. The page asks for its scripts and
+        styles as ``file.js?v=N``, so those never change under one address and
+        browsers may keep them; fonts and pictures are kept for a day;
+        anything else is checked with the server each time (a cheap 304)."""
 
-    @app.get("/", include_in_schema=False)
+        async def get_response(self, path: str, scope):
+            r = await super().get_response(path, scope)
+            if r.status_code in (200, 304):
+                if b"v=" in scope.get("query_string", b""):
+                    r.headers["Cache-Control"] = "public, max-age=604800, immutable"
+                elif path.rsplit(".", 1)[-1].lower() in ("woff2", "woff", "ttf", "png", "svg", "jpg", "webp", "ico"):
+                    r.headers["Cache-Control"] = "public, max-age=86400"
+                else:
+                    r.headers["Cache-Control"] = "no-cache"
+            return r
+
+    app.mount("/static", _Static(directory=WEB), name="static")
+
+    @app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
     def index():
         return FileResponse(WEB / "index.html", headers={"Cache-Control": "no-cache"})
+
+    @app.api_route("/robots.txt", methods=["GET", "HEAD"], include_in_schema=False)
+    def robots():
+        # pages may be indexed; the API is for the viewer (every call can start an archive read)
+        return PlainTextResponse("User-agent: *\nAllow: /\nDisallow: /api/\n", headers={"Cache-Control": "public, max-age=86400"})
+
+    @app.api_route("/favicon.ico", methods=["GET", "HEAD"], include_in_schema=False)
+    def favicon():
+        return FileResponse(WEB / "apple-touch-icon.png", media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})

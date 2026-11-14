@@ -396,7 +396,9 @@ frames. Suitable for embedding in any page or message.
 
 Response: `image/gif`, `Cache-Control: public, max-age=3600`; loops
 indefinitely with a pause on the last frame; 202 if pending; 404 if there are
-no data.
+no data. Every frame carries the line `SPHEREx: NASA/JPL-Caltech/IPAC` (as
+does `/api/frame.png`), and the full credit is stored in the file's comment
+field, so the source stays with the picture wherever it is embedded.
 
 ## Measurements at the centre
 
@@ -470,6 +472,16 @@ The 250 brightest sources within 0.75 x `fov` of the centre, brightest first.
 | `pm_snr` | Total proper motion divided by its error. Use it to disregard the large but insignificant motions of faint CatWISE sources |
 | `mag` | G magnitude (Gaia) or W2 magnitude (CatWISE) |
 | `parallax` | mas (Gaia only) |
+| `suspect` | CatWISE only, present and `true` when the catalogue's motion was judged an artifact of a bright star; `pmra`, `pmdec` and `pm_snr` are then 0 |
+
+CatWISE splits the halo and diffraction spikes of a bright star into many
+entries with large, confident and wrong proper motions (48 of the 250
+brightest entries around Barnard's star). An entry that reports a fast motion
+(above 150 mas/yr at `pm_snr` of 5 or more) is marked `suspect` when it is a
+saturated star, lies in the halo of a bright entry, carries a CatWISE artifact
+flag, or has four or more unrelated fast entries within 200 arcsec. Pieces of
+one moving object (WISE 0855-0714 is listed four times along its path) count
+once and stay.
 
 To place a source on a frame taken in Julian year `t`:
 

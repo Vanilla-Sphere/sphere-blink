@@ -141,7 +141,7 @@ real rate is 85-220 MB/s. The start command now pins one worker, and
 | Concurrent exposure reads | 32, shared by the worker processes | `SPHEREX_FETCH_WORKERS` |
 | Worker processes | 4 | `SPHEREX_FETCH_PROCS` |
 | Pixels per cube response | 40 million | `main.CUBE_BUDGET` |
-| Frames held in memory | 2.5 GB in production (default 600 MB) | `SPHEREX_RAM_BUDGET_MB` |
+| Frames held in memory | 2 GB in production (default 600 MB) | `SPHEREX_RAM_BUDGET_MB` |
 | Epoch cache | 500 MB | `main.EPOCH_CACHE_BYTES` |
 | Disk cache | 16 GB of the 20 GB disk in production (default 4 GB) | `SPHEREX_DISK_BUDGET_GB` |
 | Concurrent measurements | 1 process; further jobs queue | `measure_api._executor` |

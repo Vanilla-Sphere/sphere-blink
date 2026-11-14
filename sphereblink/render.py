@@ -296,6 +296,12 @@ def _color_rgb8(img: np.ndarray, limits, diff: bool) -> np.ndarray:
     return out[::-1]
 
 
+# Printed on every exported picture and stored in the GIF itself, so the
+# source travels with the file wherever it is embedded.
+CREDIT = "SPHEREx: NASA/JPL-Caltech/IPAC"
+CREDIT_LONG = "SPHEREx Level 2 images, NASA/JPL-Caltech, served by NASA/IPAC IRSA. Rendered by Vanilla Sphere."
+
+
 def _font(size: int):
     for name in ("DejaVuSans.ttf", "Arial.ttf"):
         try:
@@ -312,6 +318,7 @@ def frame_image(
     diff: bool = False,
     title: str = "",
     crosshair: bool = True,
+    credit: bool = True,
 ) -> Image.Image:
     rgb = to_rgb8(epoch.image, limits, None, diff) if epoch.planes == 3 else to_rgb8(epoch.image, limits[0], limits[1], diff)
     im = Image.fromarray(rgb).resize((size, size), Image.NEAREST)
@@ -334,10 +341,16 @@ def frame_image(
     fs = int(getattr(f, 'size', 12))
     d.rectangle([0, 0, size, fs + 10], fill=(0, 0, 0))
     d.text((6, 4), text, fill=(255, 255, 255), font=f)
-    if title:
-        d.text((6, size - fs - 8), title, fill=(255, 220, 120), font=f)
     small = _font(max(9, fs - 3))
     d.text((size - d.textlength("N up, E left", font=small) - 6, 4), "N up, E left", fill=(150, 190, 230), font=small)
+    if title or credit:  # bottom bar: what the picture shows on the left, whose data it is on the right
+        d.rectangle([0, size - fs - 10, size, size], fill=(0, 0, 0))
+    if title:
+        d.text((6, size - fs - 7), title, fill=(255, 220, 120), font=f)
+    if credit:
+        w = d.textlength(CREDIT, font=small)
+        if w + 12 + (d.textlength(title, font=f) + 12 if title else 0) <= size:  # never over the title
+            d.text((size - w - 6, size - fs - 5), CREDIT, fill=(170, 180, 195), font=small)
     return im
 
 
@@ -389,5 +402,6 @@ def gif_bytes(images: list[Image.Image], fps: float = 2.0) -> bytes:
     durations = [dur] * len(images)
     if durations:
         durations[-1] = dur + 1200  # pause on the last frame
-    images[0].save(buf, format="GIF", save_all=True, append_images=images[1:], duration=durations, loop=0, optimize=False)
+    images[0].save(buf, format="GIF", save_all=True, append_images=images[1:], duration=durations, loop=0, optimize=False,
+                   comment=CREDIT_LONG.encode())
     return buf.getvalue()

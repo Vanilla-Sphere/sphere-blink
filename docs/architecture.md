@@ -123,7 +123,7 @@ Four layers, from fastest to most durable:
 | Layer | Location | Holds | Bound and eviction |
 | --- | --- | --- | --- |
 | Epoch cache | Web process memory | Stacked epochs of recent (view, band, grouping, diff) combinations | 500 MB, least recently used |
-| Job frames | Web process memory | Decoded frames of recently opened views | `SPHEREX_RAM_BUDGET_MB` (2500 on Render) and at most 500 jobs; least recently used views are forgotten |
+| Job frames | Web process memory | Decoded frames of recently opened views | `SPHEREX_RAM_BUDGET_MB` (2000 on Render) and at most 500 jobs; least recently used views are forgotten |
 | Cutout cache | `cache.sqlite` on the persistent disk | Frames, exposure lists, wavelength maps, catalogue results | `SPHEREX_DISK_BUDGET_GB` (16 on Render); least recently fetched views are dropped whole |
 | Measurement store | `measurements.sqlite`, Postgres | Pipeline results | Not evicted; re-measured after 7 days or a pipeline version change |
 
