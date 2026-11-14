@@ -104,9 +104,10 @@ What the product does not do, by design or by the nature of the data:
 - **Faint objects need stacking.** A source invisible in single exposures is
   found only by adding exposures along a predicted path, which requires a
   hypothesis for its motion.
-- **Saturated stars have approximate fluxes.** Stars brighter than about K = 9
-  saturate the detector core at the shorter wavelengths; their fluxes come
-  from the halo and carry a 20-25 % systematic error.
+- **Saturated stars have approximate fluxes.** Stars brighter than about K = 6
+  (2 to 3 Jy) saturate the detector core at the shorter wavelengths; their
+  fluxes come from the halo and carry a 20-25 % systematic error. A halo
+  flux is only right for a single star: a nebula or a neighbour adds to it.
 - **Coverage follows the public releases.** The product reads the collections
   `spherex_dr1` and `spherex_qr3`. A position not yet observed returns no frames.
 - **False colour is a composite.** A position is seen by only one or two

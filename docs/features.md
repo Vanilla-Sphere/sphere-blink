@@ -312,7 +312,7 @@ spectral data product.
   width of the plot, at the same flux scale; a second click brings all groups
   back. The row under the plot (`#otnav`: previous, next, "All groups") steps
   through the groups and names the one on screen with its dates (`showGroups`,
-  `stepGroup`, `plotClick` in `web/app.js`; the enlarged group is `S.otZoom`,
+  `stepGroup`, `plotClick` in `web/app.js`; the enlarged group is the one that holds the date `S.otZoom`,
   forgotten when a new view is loaded). The PNG export saves what is on screen.
 - **Did it change?** A line under the Over time plot answers in words
   (`brightnessChange` in `web/overtime.js`, the method of the pipeline's
@@ -328,7 +328,16 @@ spectral data product.
   open. On 2026-11-14: R Draconis about x1.9 between 2025-06 and 2026-06
   (3.8 sigma); Barnard's Star, Vega and Epsilon Indi B steady within 4-7 %;
   RW Aurigae 23 % (1.2 sigma, not significant).
-- **Quality marks.** Points with flagged pixels in the aperture are drawn hollow.
+- **Quality marks.** A point is flagged when a pixel of its aperture was left
+  out of the sum (`PARTIAL`) or carries a defect flag such as `HOT` or
+  `PERSIST`. The flags a bright source sets on its own core (`OVERFLOW`,
+  `TRANSIENT`, `SUR_ERROR`, `BLOOM`) do not count: those pixels are measured
+  ([why](imaging-engine.md#flagged-pixels-in-the-aperture)). Flagged points
+  are left out of the plot by default, on the advice of an outside researcher
+  (2026-11-14). A button in the legend ("Show N flagged") brings them back,
+  drawn hollow. If a plot has no other points they are shown anyway. The CSV
+  always holds every point with its flags; the PNG shows what is on screen and
+  says how many points were left out.
 - **Saturated stars.** Where the core saturates the detector, the flux is
   measured from the star's halo instead (see
   [bright-star photometry](measurement-pipeline.md#bright-star-photometry)).

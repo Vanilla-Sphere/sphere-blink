@@ -234,16 +234,24 @@ identification and timing:
 This section concerns the spectrum endpoint (`/api/spectrum`, `wings.py`), which
 needs absolute fluxes, unlike the light curve above, which needs only relative ones.
 
-**The problem.** Stars brighter than about K = 9 fill the wells of the central
-pixels at wavelengths below about 3.5 um. The pipeline flags those pixels
-`OVERFLOW` or `NONLINEAR`, and an aperture on the core reads 2-5 times low or
-not at all. Two of the five featured targets were affected: Barnard's Star had
-3 usable points of 358, R Draconis none of 539.
+**The problem.** Stars brighter than about 2 to 3 Jy (K = 6) fill the wells of
+the central pixels at wavelengths below about 3.5 um: the archive gives those
+pixels no value, and an aperture on the core measures nothing. Two of the five
+featured targets are affected: Barnard's Star at all wavelengths below 3.7 um,
+R Draconis everywhere.
+
+Fainter stars, down to about 0.1 Jy, only carry flags on their core
+(`OVERFLOW`, `TRANSIENT`, `SUR_ERROR`); the pixels have good values and the
+aperture sums them
+([Flagged pixels in the aperture](imaging-engine.md#flagged-pixels-in-the-aperture)).
+Until 2026-11-14 those cores were masked too and measured from the halo. That
+read 1.4 to 3 times too high wherever the source was not a single star on an
+empty sky.
 
 **The method.** A few pixels out, the same star is still there, hundreds of
 times fainter and inside the linear range. The surface brightness of that halo
 in a ring around the star is proportional to the star's flux. When the aperture
-holds saturation flags, the flux is taken as:
+has no flux and holds saturation flags, the flux is taken as:
 
 ```
 flux = (median ring level - ring offset) x factor(wavelength, ring) x 0.97 / excess(flux)
