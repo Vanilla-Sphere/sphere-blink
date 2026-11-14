@@ -272,6 +272,9 @@ def resolve(text: str, client: httpx.Client | None = None) -> Target:
     if xy:
         return Target(name=f"RA {xy[0]:.5f} Dec {xy[1]:+.5f}", ra=xy[0], dec=xy[1], ra_input=xy[0], dec_input=xy[1],
                       epoch=SPHEREX_EPOCH)
+    if re.fullmatch(rf"{_NUM}[\s,]+{_NUM}", text):
+        # two numbers that parse_coords refused: say so, do not ask the name services about them
+        raise ResolveError("coordinates out of range: RA is 0 to 360 degrees, Dec is -90 to +90")
     if len(text) > MAX_NAME_LENGTH:
         raise ResolveError(f"target name is longer than {MAX_NAME_LENGTH} characters")
     return resolve_name(text, client)

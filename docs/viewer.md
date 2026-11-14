@@ -17,7 +17,10 @@ as static files.
 
 Scripts are loaded in the order `i18n.js`, `hints.js`, `starmap.js`, `app.js`.
 Asset URLs carry a version query (`?v=16`) that is raised when a file changes,
-and `index.html` is served with `Cache-Control: no-cache`.
+and `index.html` is served with `Cache-Control: no-cache`. A file asked for
+with a version query is served as `public, max-age=604800, immutable`, so a
+changed file must get a new version number; fonts and images are kept for a
+day; a file asked for without a version is revalidated on every load.
 
 ## Screens and modes
 

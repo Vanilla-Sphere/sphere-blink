@@ -79,7 +79,7 @@ noted.
 | `SPHEREX_MAX_FRAMES` | `1200` | default | Exposures per view before thinning |
 | `SPHEREX_FETCH_WORKERS` | `32` | default | Concurrent exposure reads per view |
 | `SPHEREX_FETCH_PROCS` | `min(4, CPU count)` | `4` | Imaging worker processes |
-| `SPHEREX_RAM_BUDGET_MB` | `600` | `2500` | Frames kept in memory |
+| `SPHEREX_RAM_BUDGET_MB` | `600` | `2000` | Frames kept in memory |
 | `SPHEREX_DISK_BUDGET_GB` | `4` | `16` | Size of the frame cache on disk |
 | `SPHEREX_AUTO_MEASURE` | `1` | default | Measure the challenge targets after start; `0` disables (read in `measure_api.py`) |
 | `SPHEREX_AUTO_MEASURE_DELAY` | `40` | default | Seconds after start before automatic measurement begins |
@@ -144,6 +144,10 @@ message contains `[skip render]` (its documentation also lists `[render skip]`,
 `[skip deploy]` and `[skip cd]`). Put the phrase in the commit message and in
 the title of the merge commit. The skipped deploy is listed on the service's
 Events page, and the next ordinary merge deploys as usual.
+
+`render.yaml` also lists `docs/`, `tests/`, `scripts/` and Markdown files under
+`buildFilter.ignoredPaths`, so a merge that touches nothing else is skipped even
+without the phrase.
 
 Do not use the phrase on a change to code, `web/`, `requirements.txt` or
 `render.yaml`: the service would keep running the previous build.
