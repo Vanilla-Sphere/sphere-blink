@@ -130,9 +130,27 @@ const Atlas = (() => {
      and its rows along the x edge. The diamond is cut into n x n pieces, so the curve of the
      projection is followed; each piece is one drawImage under the straight (affine) map that fits
      its four corners best, drawn 0.6 px wider all round so no hairline shows between neighbours.
-     There is no clipping: on a graphics card a clip per piece cost several times the picture. */
+     There is no clipping: on a graphics card a clip per piece cost several times the picture.
+     n is as small as keeps the picture within about half a pixel of its true place: it is worked
+     out from how far the projection bends across this diamond (how far its centre lies from the
+     mean of its corners, and how far the corners are from a parallelogram). */
   const grid = [], vec = [0, 0, 0], scr = [0, 0, 0];
   let base = null;                      // the canvas' own transform (device pixels), set by draw()
+  const cx = [0, 0, 0, 0, 0], cy = [0, 0, 0, 0, 0];
+  function pieces(o, order, face, ix, iy) {
+    const side = 1 / (1 << order);
+    let cut = false, l0 = 0;
+    for (let k = 0; k < 5; k++) {         // the four corners, then the centre
+      point(face, (ix + (k === 4 ? 0.5 : k & 1)) * side, (iy + (k === 4 ? 0.5 : k >> 1)) * side, vec);
+      o.project(vec[0], vec[1], vec[2], scr);
+      cx[k] = scr[0]; cy[k] = scr[1];
+      if (k === 0) l0 = scr[2]; else if (Math.abs(scr[2] - l0) > Math.PI) cut = true;
+    }
+    if (cut) return 10;                   // the cut of the projection runs through it: small pieces, so few are left out
+    const bend = Math.hypot(cx[4] - (cx[0] + cx[1] + cx[2] + cx[3]) / 4, cy[4] - (cy[0] + cy[1] + cy[2] + cy[3]) / 4);
+    const twist = Math.hypot(cx[0] + cx[3] - cx[1] - cx[2], cy[0] + cy[3] - cy[1] - cy[2]) / 4;
+    return Math.max(1, Math.min(10, Math.ceil(Math.sqrt(Math.max(bend, twist) / 0.4))));
+  }
   function lay(ctx, o, img, order, face, ix, iy, tx, ty, ts, n) {
     const side = 1 / (1 << order), w = img.width || 512;
     for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
@@ -179,13 +197,12 @@ const Atlas = (() => {
     }
     if (!want.size || want.size > 60) return 0;
     keep = Math.max(30, Math.min(100, 3 * want.size));   // tiles kept in memory: a few screens' worth
-    const n = Math.max(3, Math.min(10, Math.ceil(58.6 / (1 << order) / 3.5)));   // pieces of 3.5 degrees or less follow the projection to within a pixel
     base = ctx.getTransform();
     const queue = [];
     let covered = 0, fading = false;
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "low";   // plain smoothing: "high" builds a smaller copy of every tile on every frame, about 80 ms without a graphics card
     for (const w of want.values()) {
-      const t = ask(order, w.face, w.ix, w.iy);
+      const t = ask(order, w.face, w.ix, w.iy), n = pieces(o, order, w.face, w.ix, w.iy);
       const age = t.ok ? (still.matches ? 1 : Math.min(1, (now - t.at) / 350)) : 0;
       if (age < 1) {
         // not here yet, or still fading in: show the part of a coarser tile that is already in memory
