@@ -249,22 +249,46 @@ objects with known answers and runs the same file the viewer loads. A redshift
 counts as right within 2 % of the published value in (1 + z), which is less
 than one resolution element. Checked on 2026-11-14:
 
-@@TABLE@@
+| Sample | Spectra | Given a redshift | Right | Wrong |
+| --- | --- | --- | --- | --- |
+| Quasars, first sample (the six brightest in K of 15 redshift ranges, and 14 fainter) | 100 | 44 (41 of quality 4) | 44 | 0 |
+| Quasars, second sample (the next six of each range, and 14 other fainter ones) | 89 | 50 (48 of quality 4) | 50 | 0 |
+| Stars, brown dwarfs, young stars, nebulae | 35 | 0 | | 0 |
+| Nearby galaxies | 24 | 6 (3 of quality 4) | 6 | 0 |
 
-Read by redshift, the first sample says where the method works: every one of
-the quasars it answered between z = 0.16 and z = 6.5 is right, and the median
-distance from the published value is 0.2 % of (1 + z), the largest 1.0 %. The
-ones it did not answer are blazars (no lines, and light that changes from day
-to day), quasars with a single clear line, and those too faint for single
-exposures.
+The thresholds were set on the first sample, so it is not a test of them. The
+second sample was read only after they were fixed and nothing was changed
+afterwards: it is the independent check.
+
+In the second sample two estimates stood far from the value SIMBAD lists:
+
+| Object | SIMBAD | From its lines | SDSS quasar catalogue DR16Q |
+| --- | --- | --- | --- |
+| SDSS J152846.73+363751.5 | 4.344 | 2.406 ± 0.014 | 2.413 |
+| SDSS J145544.19+282524.2 | 4.420 | 2.433 ± 0.014 | 2.435 |
+
+The SIMBAD values are redshifts of the automatic SDSS pipeline (data releases
+7 and 9). The SDSS quasar catalogue DR16Q (Lyke et al. 2020) gives 2.413 (the
+redshift of Hewett & Wild 2010) and 2.435 (set by eye): the lines in the SPHEREx spectra
+(Hβ + [O III], Hα and He I for the first; Hα, He I and Paβ for the second) are
+where that redshift puts them. Both are counted as right in the table, and
+the script, which only knows the SIMBAD value, prints them as wrong. They also
+show what the row is for: a published value that does not fit the spectrum
+stands out at once.
+
+Read by redshift, the two samples say where the method works: every quasar it
+answered between z = 0.12 and z = 6.5 is right, the median distance from the
+published value is 0.2 % of (1 + z) and the largest 1.0 %. The ones it did
+not answer are blazars (no lines, and light that changes from day to day),
+quasars with a single clear line, and those too faint for single exposures.
 
 | Object | Published z | From its lines | Quality | Lines found |
 | --- | --- | --- | --- | --- |
-| 3C 273 | 0.1576 | 0.157 ± 0.003 | 4 | He I, Paβ, Paα, Brα |
-| PG 1634+706 | 1.337 | 1.343 ± 0.006 | 4 | Hβ + [O III], Hα, He I, Paβ, Paα |
-| APM 08279+5255 | 3.911 | 3.871 ± 0.040 | 4 | C III], Mg II, Hβ + [O III], Hα |
-| SDSS J0100+2802 | 6.327 | 6.316 ± 0.015 | 3 | Lyα, Hα |
-| UHS J0439+1634 | 6.519 | 6.516 ± 0.028 | 4 | Lyα, Hβ + [O III], Hα |
+| 3C 273 | 0.1576 | 0.157 ± 0.005 | 4 | He I, Paβ, Paα, Brα |
+| PG 1634+706 | 1.337 | 1.343 ± 0.009 | 4 | Hβ + [O III], Hα, He I, Paβ, Paα |
+| APM 08279+5255 | 3.911 | 3.870 ± 0.038 | 4 | C III], Mg II, Hβ + [O III], Hα |
+| SDSS J0100+2802 | 6.327 | 6.316 ± 0.029 | 3 | Lyα, Hα |
+| UHS J0439+1634 | 6.519 | 6.516 ± 0.030 | 4 | Lyα, C IV, Hβ + [O III], Hα |
 
 The thresholds were set while looking at the first sample, so that sample is
 not an independent test of them. The second sample and the stars and galaxies
@@ -276,9 +300,15 @@ were run only after the thresholds were fixed.
   for single exposures: in practice quasars brighter than about K = 15. A
   normal galaxy, whose redshift the mission will get from the shape of its
   full-depth spectrum, gets none.
-- The error is that of the line centres, about 0.2 to 1 % of (1 + z). Broad
-  lines can sit a few thousand km/s from the systemic redshift of a quasar
-  (APM 08279+5255: 3.87 from its broad lines, 3.911 from its molecular gas).
+- The error given is the largest of three: the disagreement of the line
+  centres, what the noise allows, and 0.4 % of (1 + z), twice the median
+  distance from the published values in the first sample. Broad lines can sit
+  a few thousand km/s from the systemic redshift of a quasar (APM 08279+5255:
+  3.87 from its broad lines, 3.911 published).
+- Below z = 0.1 the six Seyfert galaxies that got a redshift all came out low
+  by 0.3 to 0.5 % of (1 + z). That is inside the error given, but it is a
+  systematic we have not traced, and for an object that near it is a tenth of
+  its redshift.
 - A value that passes the checks is still an estimate from quick-look
   photometry, not a published measurement, and the interface never shows it
   without saying so.
@@ -310,5 +340,7 @@ light-travel time is shown, which is how far back in time it is seen.
 - Selsing et al. 2016, A&A 585, A87, and Glikman, Helfand & White 2006,
   ApJ 640, 579 (the two quasar composites of the template), from VizieR
   (Ochsenbein et al. 2000, A&AS 143, 23).
+- Lyke et al. 2020, ApJS 250, 8 (SDSS quasar catalogue DR16Q), and Hewett &
+  Wild 2010, MNRAS 405, 2302 (improved redshifts of SDSS quasars).
 - Davies et al. 2026, arXiv:2603.10135, and Stepney et al. 2026,
   arXiv:2605.06791 (redshifts of quasars from real SPHEREx spectra).

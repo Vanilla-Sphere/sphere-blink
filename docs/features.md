@@ -713,7 +713,7 @@ The rules, the sources and the checks are in
 **A redshift from the lines** (`web/redshift.js`, in the browser):
 
 - Where the spectrum of the view shows emission lines, the card gets the rows
-  "From its lines" (for example "z = 1.343 ± 0.006 · quality 4 of 4 · within
+  "From its lines" (for example "z = 1.343 ± 0.009 · quality 4 of 4 · within
   0.2 % of the published value") and "Lines found" (each line and where it
   stands). Two methods have to agree on at least two lines, Hα among them;
   otherwise nothing is shown.
