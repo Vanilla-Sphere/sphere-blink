@@ -19,14 +19,15 @@ const Ambient = (() => {
   const still = window.matchMedia("(prefers-reduced-motion: reduce)");
   const coarse = window.matchMedia("(pointer: coarse)");
   const D = Math.PI / 180;
-  let screen, map, bgBox, cv, ctx, glow, neb, fxBox, reticle, meteor;
+  let screen, map, bgBox, cv, ctx, glow, neb, nebCv, fxBox, reticle, meteor;
+  let DIM = 0.5;                        // how strongly the nebula shows, 0 to 1
   let W = 0, H = 0, dpr = 1, field = [], geo = "", covered = false, lean = "";
   let st = null;                        // the last state of the map
   let running = false, lastTick = 0;
   let lastRa = null, lastDec = 0, ox = 0, oy = 0;     // how far the deep field has slid, CSS pixels at depth 1
   let ptr = {in: false, down: false, x: 0.5, y: 0.5}, px = 0, py = 0, lastActive = 0;
   let speed = 0;                        // the slow turn of the map, degrees per second
-  let mode = "off", snapped = "", pings = [], meteorTimer = 0;
+  let mode = "off", snapped = "", pings = [], meteorTimer = 0, backdropTimer = 0;
   const TURN = 150000, SLEEP = 300000;
   let lastFrame = 0, beat = 50, seen = 0, late = 0, slow = 0;       // is the screen keeping up with the turning map?
 
@@ -49,6 +50,7 @@ const Ambient = (() => {
     W = r.width; H = r.height; dpr = Math.min(1.5, window.devicePixelRatio || 1);
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     geo = ""; covered = false; sync();
+    clearTimeout(backdropTimer); backdropTimer = setTimeout(backdrop, nebCv.width ? 180 : 0);   // after the first picture; once per resize
   }
   function paint(t) {
     if (!ctx || !W) return;
@@ -60,7 +62,7 @@ const Ambient = (() => {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
     if (hidden) return;
-    const M = 40, FW = W + 2 * M, FH = H + 2 * M, n = Math.min(field.length, Math.round(W * H / 1300)), sec = t / 1000;
+    const M = 40, FW = W + 2 * M, FH = H + 2 * M, n = Math.min(field.length, Math.round(W * H / 1900)), sec = t / 1000;
     for (let i = 0; i < n; i++) {
       const s = field[i];
       let x = (s.u * FW + (ox + px) * s.depth) % FW, y = (s.v * FH + (oy + py) * s.depth) % FH;
@@ -72,6 +74,94 @@ const Ambient = (() => {
       ctx.fillRect(x, y, s.size, s.size);
     }
     ctx.globalAlpha = 1;
+  }
+
+  /* ---------------------------------------------------------------- the Milky Way behind everything */
+  /* A band of nebula from the top right corner to the bottom left one (the corners are what the
+     sky leaves visible), made here from noise: violet and indigo clouds, dark dust lanes cut into
+     them, a warm patch, and fine star dust that is denser inside the band. It is worked out once,
+     small (its long side is 420 points), and painted on a canvas that never changes afterwards;
+     only the canvas as a whole breathes and leans. Kept dim on purpose: it is a backdrop. */
+  let cloud = null, dense = null, CW = 0, CH = 0;
+  function rng(seed) { let a = seed; return () => { a |= 0; a = a + 0x6d2b79f5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function noise(seed) {
+    const rnd = rng(seed), val = new Float32Array(256), perm = new Uint8Array(512);
+    for (let i = 0; i < 256; i++) { val[i] = rnd(); perm[i] = i; }
+    for (let i = 255; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)), t = perm[i]; perm[i] = perm[j]; perm[j] = t; }
+    for (let i = 0; i < 256; i++) perm[256 + i] = perm[i];
+    const at = (x, y) => {
+      const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+      const a = val[perm[(xi & 255) + perm[yi & 255]]], b = val[perm[((xi + 1) & 255) + perm[yi & 255]]];
+      const c = val[perm[(xi & 255) + perm[(yi + 1) & 255]]], d = val[perm[((xi + 1) & 255) + perm[(yi + 1) & 255]]];
+      return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+    };
+    return (x, y, octaves) => { let sum = 0, amp = 0.5, norm = 0; for (let o = 0; o < octaves; o++) { sum += amp * at(x, y); norm += amp; amp *= 0.5; x = x * 2.03 + 17.1; y = y * 2.03 + 9.7; } return sum / norm; };
+  }
+  const step = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  function milkyWay() {
+    const wide = W >= H;
+    CW = wide ? 420 : Math.max(120, Math.round(420 * W / H)); CH = wide ? Math.max(120, Math.round(420 * H / W)) : 420;
+    cloud = document.createElement("canvas"); cloud.width = CW; cloud.height = CH;
+    dense = new Float32Array(CW * CH);
+    const c = cloud.getContext("2d"), img = c.createImageData(CW, CH), px = img.data;
+    const warp = noise(11), puff = noise(23), lane = noise(37), tone = noise(53), haze = noise(71), grain = rng(5);
+    const ax = wide ? CW / CH : 1, ay = wide ? 1 : CH / CW;                       // noise keeps its shape on any screen
+    for (let j = 0, k = 0; j < CH; j++) {
+      for (let i = 0; i < CW; i++, k++) {
+        const u = i / CW, v = j / CH, x = u * ax, y = v * ay;
+        const across = (u + v - 1) / Math.SQRT2 + 0.17 * (warp(x * 1.6, y * 1.6, 3) - 0.5), along = (u - v + 1) / 2;
+        const band = Math.exp(-(across * across) / 0.04);
+        const p = puff(x * 3.1 + 4, y * 3.1, 5), wisp = puff(x * 8.3 + 31, y * 8.3 + 12, 4);
+        // brighter towards the two ends of the band: its middle is behind the sky anyway
+        const ends = 0.7 + 0.65 * (Math.exp(-((along - 0.15) ** 2) / 0.022) + Math.exp(-((along - 0.85) ** 2) / 0.022));
+        const far = step(0.42, 0.8, haze(x * 2.2 + 9, y * 2.2, 4));               // thin haze away from the band
+        let glow = band * ends * (0.18 + 1.2 * step(0.3, 0.76, p)) * (0.5 + 1.0 * wisp) + 0.3 * far * (0.5 + 1.0 * wisp);
+        const ridge = 1 - Math.abs(2 * lane(x * 3.6 + 2, y * 3.6 + 7, 4) - 1);     // thin winding lines
+        const dust = band * step(0.86, 0.975, ridge);
+        glow *= 1 - 0.88 * dust;
+        glow *= 1 - 0.7 * Math.exp(-((u - 0.1) ** 2 / 0.05 + (v - 0.08) ** 2 / 0.03));   // quiet behind the heading
+        glow = 1 - Math.exp(-1.45 * glow);                                         // no flat, burnt-out patches
+        dense[k] = Math.min(1, band * 1.15 + 0.25 * glow) * (1 - 0.8 * dust);
+        const t = step(0.3, 0.72, tone(x * 1.9 + 3, y * 1.9 + 5, 3)) * (0.3 + 0.7 * band), hot = step(0.45, 0.95, glow);
+        const warm = band * (Math.exp(-((along - 0.83) ** 2) / 0.012) + 0.6 * Math.exp(-((along - 0.2) ** 2) / 0.01)) * step(0.35, 0.8, p);
+        // indigo to violet by place, lilac where it is brightest, a little amber in the two warm patches
+        let r = 34 + 78 * t, g = 62 - 4 * t, b = 138 + 26 * t;
+        r += (176 - r) * hot * 0.75; g += (140 - g) * hot * 0.75; b += (214 - b) * hot * 0.75;
+        r += (206 - r) * warm * 0.55; g += (140 - g) * warm * 0.55; b += (104 - b) * warm * 0.55;
+        px[4 * k] = r; px[4 * k + 1] = g; px[4 * k + 2] = b;
+        px[4 * k + 3] = Math.max(0, Math.min(255, 255 * DIM * Math.pow(glow, 1.2) + (grain() - 0.5) * 3));
+      }
+    }
+    c.putImageData(img, 0, 0);
+  }
+  function backdrop() {
+    if (!W || !neb) return;
+    if (!cloud || (W >= H) !== (CW >= CH)) milkyWay();
+    const w = W * 1.12, h = H * 1.12, k = Math.min(1.5, window.devicePixelRatio || 1, Math.sqrt(3.2e6 / (w * h)));
+    nebCv.width = Math.round(w * k); nebCv.height = Math.round(h * k);
+    const c = nebCv.getContext("2d");
+    c.imageSmoothingEnabled = true; c.imageSmoothingQuality = "high";
+    c.drawImage(cloud, 0, 0, nebCv.width, nebCv.height);
+    // star dust: the same grains on every screen, more of them where the band is
+    const rnd = rng(1977), n = Math.round(w * h / 55);
+    c.setTransform(k, 0, 0, k, 0, 0);
+    for (let i = 0; i < n; i++) {
+      const u = rnd(), v = rnd(), keep = rnd(), kind = rnd(), shade = rnd();
+      if (keep > 0.07 + 0.93 * dense[Math.min(CH - 1, Math.floor(v * CH)) * CW + Math.min(CW - 1, Math.floor(u * CW))]) continue;
+      const x = u * w, y = v * h;
+      if (kind > 0.9965) {                 // a few bright ones, half of them amber, each with a small halo
+        const amber = shade < 0.5, halo = c.createRadialGradient(x, y, 0, x, y, 5.5);
+        halo.addColorStop(0, amber ? "rgba(255,196,140,.34)" : "rgba(226,222,255,.30)"); halo.addColorStop(1, "rgba(0,0,0,0)");
+        c.globalAlpha = 1; c.fillStyle = halo; c.fillRect(x - 6, y - 6, 12, 12);
+        c.fillStyle = amber ? "#ffd2a6" : "#f4f1ff"; c.globalAlpha = 0.9; c.fillRect(x - 0.8, y - 0.8, 1.6, 1.6);
+        continue;
+      }
+      const size = kind < 0.62 ? 0.65 : kind < 0.93 ? 0.95 : 1.3;
+      c.globalAlpha = (kind < 0.62 ? 0.24 : kind < 0.93 ? 0.4 : 0.62) * (0.6 + 0.8 * shade);
+      c.fillStyle = shade < 0.5 ? "#e6e1ff" : shade < 0.8 ? "#cfd8ff" : shade < 0.93 ? "#ffffff" : "#ffd9b8";
+      c.fillRect(x, y, size, size);
+    }
+    nebCv.classList.add("on");
   }
 
   /* ---------------------------------------------------------------- following the map */
@@ -206,7 +296,8 @@ const Ambient = (() => {
   function init() {
     screen = document.getElementById("mapscreen"); map = document.getElementById("map"); bgBox = document.getElementById("mapbg"); fxBox = document.getElementById("mapfx");
     if (!screen || !map || !bgBox || !fxBox || typeof SkyMap === "undefined") return;
-    cv = bgBox.querySelector("canvas"); ctx = cv.getContext("2d"); glow = bgBox.querySelector(".skyglow"); neb = bgBox.querySelector(".neb");
+    cv = bgBox.querySelector(":scope > canvas"); ctx = cv.getContext("2d"); glow = bgBox.querySelector(".skyglow"); neb = bgBox.querySelector(".neb");
+    nebCv = document.createElement("canvas"); nebCv.width = 0; neb.appendChild(nebCv);
     reticle = fxBox.querySelector(".reticle"); meteor = fxBox.querySelector(".meteor");
     seed();
     const touch = () => { lastActive = performance.now(); wake(); };
@@ -229,5 +320,6 @@ const Ambient = (() => {
   }
   init();
 
-  return {roll, text, shoot: () => shoot(true), get slow() { return slow; }};
+  return {roll, text, shoot: () => shoot(true), get slow() { return slow; },
+    dim(v) { DIM = v; cloud = null; backdrop(); }};      // for trying another strength of the nebula
 })();
