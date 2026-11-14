@@ -940,7 +940,13 @@ function mapHover(h) {
   const con = h.con ? h.con.la : "";
   $("mapread").innerHTML = `${h.ra.toFixed(2)}° ${h.dec >= 0 ? "+" : "−"}${Math.abs(h.dec).toFixed(2)}°` + (con ? ` · <i>${esc(con)}</i>` : "");
   if (h.pin) mapTag(h.x, h.y, `<b>${esc(h.pin.name)}</b><span>${esc(tr("kind." + h.pin.key))}</span>`);
-  else if (con) mapTag(h.x, h.y, `<span>${esc(con)}</span>`);
+  else if (h.star) {
+    const about = LORE.star[h.star.name];
+    mapTag(h.x, h.y, `<b>${esc(h.star.name)}</b><span>${esc(con ? tr("map.star", {con}) : tr("map.star.none"))}</span>` + (about ? `<span class="more">${esc(about)}</span>` : ""));
+  } else if (con) {
+    const [figure, about] = LORE.con[h.con.id] || [];
+    mapTag(h.x, h.y, `<b>${esc(con)}</b>` + (figure ? `<span>${esc(figure)}</span>` : "") + (about ? `<span class="more">${esc(about)}</span>` : ""));
+  }
   else $("maptag").hidden = true;
 }
 function mapPick(hit) {

@@ -147,6 +147,7 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 .mapzoom .btn:hover{background:var(--color-paper-2)}
 .maptag{position:absolute;z-index:5;pointer-events:none;display:flex;flex-direction:column;padding:5px 9px;border:1px solid var(--color-muted-2);background:var(--color-lift);color:var(--color-ink-2);font-size:12.5px;line-height:1.4;white-space:nowrap}
 .maptag b{font-weight:500;color:var(--color-ink)}
+.maptag .more{margin-top:3px;padding-top:4px;border-top:1px solid var(--color-rule);width:240px;white-space:normal;color:var(--color-muted);text-wrap:pretty}
 
 /* ------------------------------------------------------------------ shell */
 .shell{flex:1;display:grid;grid-template-columns:var(--rail-w) auto minmax(0,1fr);min-height:0}
