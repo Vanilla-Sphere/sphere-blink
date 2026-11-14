@@ -20,13 +20,15 @@ const Ambient = (() => {
   const coarse = window.matchMedia("(pointer: coarse)");
   const D = Math.PI / 180;
   let screen, map, bgBox, cv, ctx, glow, neb, fxBox, reticle, meteor;
-  let W = 0, H = 0, dpr = 1, field = [], geo = "";
+  let W = 0, H = 0, dpr = 1, field = [], geo = "", covered = false, lean = "";
   let st = null;                        // the last state of the map
-  let running = false, lastTick = 0, lastPaint = 0;
+  let running = false, lastTick = 0;
   let lastRa = null, lastDec = 0, ox = 0, oy = 0;     // how far the deep field has slid, CSS pixels at depth 1
-  let ptr = {in: false, down: false, x: 0.5, y: 0.5}, px = 0, py = 0, lastActive = -1e9;
+  let ptr = {in: false, down: false, x: 0.5, y: 0.5}, px = 0, py = 0, lastActive = 0;
   let speed = 0;                        // the slow turn of the map, degrees per second
   let mode = "off", pings = [], meteorTimer = 0;
+  const TURN = 150000, SLEEP = 300000;
+  let lastFrame = 0, beat = 50, seen = 0, late = 0, slow = 0;       // is the screen keeping up with the turning map?
 
   /* ---------------------------------------------------------------- the deep field */
   /* A fixed list of stars in unit coordinates (the same sky after every resize); the canvas
@@ -46,16 +48,18 @@ const Ambient = (() => {
     if (!r.width || !r.height) return;
     W = r.width; H = r.height; dpr = Math.min(1.5, window.devicePixelRatio || 1);
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-    geo = ""; sync();
+    geo = ""; covered = false; sync();
   }
   function paint(t) {
     if (!ctx || !W) return;
-    lastPaint = t;
+    // the sky covers the whole screen once it is zoomed: nothing of the field can be seen, nothing is drawn
+    const g = st && st.rx ? st : null;
+    const hidden = !!g && ((W / 2 + Math.abs(g.cx - W / 2)) / g.rx) ** 2 + ((H / 2 + Math.abs(g.cy - H / 2)) / g.ry) ** 2 < 1;
+    if (hidden && covered) return;
+    covered = hidden;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
-    // the sky covers the whole screen once it is zoomed: nothing of the field can be seen
-    const g = st && st.rx ? st : null;
-    if (g && ((W / 2 + Math.abs(g.cx - W / 2)) / g.rx) ** 2 + ((H / 2 + Math.abs(g.cy - H / 2)) / g.ry) ** 2 < 1) return;
+    if (hidden) return;
     const M = 40, FW = W + 2 * M, FH = H + 2 * M, n = Math.min(field.length, Math.round(W * H / 1300)), sec = t / 1000;
     for (let i = 0; i < n; i++) {
       const s = field[i];
@@ -109,7 +113,7 @@ const Ambient = (() => {
     while (pings.length < pins.length) {
       const el = document.createElement("div"); el.className = "pinping";
       const ring = document.createElement("i"); ring.style.animationDelay = `${(pings.length * 0.83).toFixed(2)}s`;
-      el.appendChild(ring); fxBox.insertBefore(el, reticle); pings.push({el, at: ""});
+      el.appendChild(ring); fxBox.insertBefore(el, reticle); pings.push({el, at: null});
     }
     for (let i = 0; i < pings.length; i++) {
       const pin = pins[i], p = pings[i];
@@ -124,30 +128,43 @@ const Ambient = (() => {
   function wake() { if (!running && active()) { running = true; lastTick = performance.now(); requestAnimationFrame(tick); } }
   function tick(t) {
     st = SkyMap.state();
-    if (!active()) { running = false; speed = 0; return; }
+    if (!active() || t - lastActive > SLEEP) { running = false; speed = 0; return; }
     requestAnimationFrame(tick);
-    if (t - lastPaint < (coarse.matches ? 62 : 30)) return;      // about 30 pictures a second, 15 on a phone
-    const dt = Math.min(120, t - lastTick); lastTick = t;
+    /* Turning the map redraws all of it. A computer that draws without a graphics chip cannot do that
+       smoothly: when frames keep arriving late while the map turns, it turns at a third of the rate,
+       and if that is still too much it stays still. The rest of the page is too light to matter. */
+    const gap = t - lastFrame; lastFrame = t;
+    if (gap > 3 && gap < 250) {
+      beat = Math.min(beat, gap);
+      if (speed && slow < 2) { seen++; if (gap > 1.7 * beat + 2) late++; }
+      if (seen >= 90) { if (late > (slow || coarse.matches ? 0.12 : 0.25) * seen) slow++; seen = late = 0; }
+    }
+    if (t - lastTick < (coarse.matches || slow ? 96 : 30)) return;   // about 30 pictures a second, 10 on a phone
+    const dt = Math.min(160, t - lastTick), idle = t - lastActive; lastTick = t;
 
-    // the map turns on its own once nobody has touched it for a while, and only at the opening zoom
-    const idle = t - lastActive, drift = !st.busy && !st.zoomed && !ptr.down && idle > (ptr.in ? 8000 : coarse.matches ? 4000 : 2500) && !map.matches(":focus-visible");
+    // the map turns on its own once nobody has touched it for a while, and only at the opening zoom;
+    // a page left open goes quiet: the turn stops after two and a half minutes, the deep field after five
+    const drift = !st.busy && !st.zoomed && !ptr.down && idle > (ptr.in ? 8000 : coarse.matches ? 4000 : 2500) && idle < TURN && slow < 2 && !map.matches(":focus-visible");
     if (drift) {
       if (st.hover || st.pin) SkyMap.rest();
       speed += (0.55 - speed) * Math.min(1, dt / 1500);
       SkyMap.turn(speed * dt / 1000);
+    } else if (speed && (idle >= TURN || slow >= 2) && !ptr.down && !st.busy) {   // time is up: it comes to rest
+      speed *= Math.max(0, 1 - dt / 600); if (speed < 0.02) speed = 0; else SkyMap.turn(speed * dt / 1000);
     } else speed = 0;
 
     // the deep field: its own slow slide, and a lean towards the pointer
     ox += dt * 0.0016; oy -= dt * 0.0005;
     const tx = ptr.in ? (0.5 - ptr.x) * 26 : 0, ty = ptr.in ? (0.5 - ptr.y) * 18 : 0, k = Math.min(1, dt / 420);
     px += (tx - px) * k; py += (ty - py) * k;
-    neb.style.transform = `translate3d(${(px * 0.35).toFixed(2)}px,${(py * 0.35).toFixed(2)}px,0)`;
+    const to = `translate3d(${(px * 0.35).toFixed(1)}px,${(py * 0.35).toFixed(1)}px,0)`;
+    if (to !== lean) { lean = to; neb.style.transform = to; }
     paint(t);
   }
 
   /* ---------------------------------------------------------------- meteors */
   function shoot(force) {
-    if (!meteor || !W || (!force && !active())) return;
+    if (!meteor || !W || (!force && (!active() || performance.now() - lastActive > SLEEP))) return;
     const narrow = W < 700, left = Math.random() < 0.5, a = (18 + 26 * Math.random()) * (left ? 1 : -1) + (left ? 0 : 180);
     const d = (narrow ? 170 : 280) + Math.random() * (narrow ? 120 : 260);
     const x = (left ? 0.08 : 0.42) * W + Math.random() * 0.5 * W, y = (0.03 + 0.3 * Math.random()) * H;
@@ -189,7 +206,8 @@ const Ambient = (() => {
     cv = bgBox.querySelector("canvas"); ctx = cv.getContext("2d"); glow = bgBox.querySelector(".skyglow"); neb = bgBox.querySelector(".neb");
     reticle = fxBox.querySelector(".reticle"); meteor = fxBox.querySelector(".meteor");
     seed();
-    const touch = () => { lastActive = performance.now(); };
+    const touch = () => { lastActive = performance.now(); wake(); };
+    lastActive = performance.now() - 10000;                       // the map starts turning as the page opens
     for (const type of ["pointerdown", "wheel", "keydown", "touchstart"]) screen.addEventListener(type, touch, {passive: true});
     screen.addEventListener("pointermove", (ev) => {
       touch();
@@ -208,5 +226,5 @@ const Ambient = (() => {
   }
   init();
 
-  return {roll, text, shoot: () => shoot(true)};
+  return {roll, text, shoot: () => shoot(true), get slow() { return slow; }};
 })();

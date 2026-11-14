@@ -49,6 +49,13 @@ The product opens on a drawn map of the whole sky, the same for both modes.
   panel (Simple) or "Featured targets" panel (Advanced).
 - **No dependencies.** The map is drawn on a canvas by `web/starmap.js` from a
   single compact data file, `web/data/sky.json`, built by `scripts/build_sky.py`.
+- **A sky that moves.** The space around the map is a deep field of faint
+  stars with a violet glow around the rim of the sky; the map turns slowly
+  while nobody uses it; an aiming frame follows the pointer and closes on the
+  picked point, with its coordinates; the featured targets ping; now and then
+  a meteor crosses. All of it is in `web/ambient.js`, stops for people who ask
+  for reduced motion, and never gets in the way of the map (see
+  [Viewer](viewer.md#motion-on-the-map-screen)).
 
 Returning from a view to the map centres the map on the position just viewed
 and marks it.
