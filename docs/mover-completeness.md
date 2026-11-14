@@ -30,10 +30,19 @@ data and counting how many their software finds. The same is done here.
    and 19.8. A fake exists in one pass of the telescope over the field, as a
    real object does: months later it is elsewhere.
 3. **Brightness in every exposure.** Every SPHEREx exposure has another
-   wavelength. A fake has the colours of sunlight (the Sun's magnitudes from
-   0.55 to 4.6 µm of Willmer 2018, ApJS 236, 47), which is what an asteroid
-   without colour of its own reflects. V 18.0 is 0.29 mJy at 1.24 µm and
-   0.045 mJy at 4.6 µm.
+   wavelength, so a fake needs a spectrum. Two kinds are used, in turn:
+   - **an asteroid of the main belt**: the sunlight it reflects (the Sun's
+     magnitudes from 0.55 to 5.2 µm of Willmer 2018, ApJS 236, 47) and the
+     heat it gives off at 2.7 au from the Sun (the standard thermal model of
+     near-Earth asteroids, NEATM, with albedo 0.15, beaming 1.0, emissivity
+     0.9). The heat is 7 % of the reflected light at 3.5 µm, 1.5 times it at
+     4.3 µm and 9 times it at 5.0 µm. These are the fakes of the figures.
+   - **a body without heat of its own**: reflected sunlight only, which is
+     what a distant object looks like. Its numbers are given beside the
+     others.
+
+   V 18.0 is 0.29 mJy at 1.24 µm for both. At 4.6 µm it is 0.20 mJy for the
+   asteroid and 0.045 mJy for the body without heat.
 4. **Shape.** A point source through the telescope is a narrow spot that
    falls on 6.15 arcsec detector pixels; the frames of a field are those
    pixels interpolated onto a common grid. A fake goes the same way: a

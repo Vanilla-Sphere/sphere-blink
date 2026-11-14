@@ -33,18 +33,23 @@ def draw(data: dict, path: Path, level: str = "found") -> None:
 
     # three numbers
     sh = data.get("shuffled") or {}
+    cold = ((data.get("cold") or {}).get("all") or {}).get(level, {}).get("limits") or {}
+    heat = data["fake"].get("spectrum") == "asteroid"
+    second = f"{lim.get('half_mjy', 0):.2f} mJy at 1.2 µm, 5σ in one exposure"
+    if heat and cold.get("half_of_plateau"):
+        second += f";\nV {cold['half_of_plateau']:.1f} for a body without heat of its own"
     tiles = [
         (f"{round(lim.get('plateau', 0) * 100):d} %", "of the bright ones found\n(V brighter than 17.5)"),
-        (f"V {lim.get('half_of_plateau', 0):.1f}", "where half of them are still found\n(about 0.2 mJy at 1 µm, 5σ in one exposure)"),
-        (f"{sh.get('paths', 0)} in {sh.get('searches', 0)}", "false paths in searches with the\nexposure times shuffled"),
+        (f"V {lim.get('half_of_plateau', 0):.1f}", "where half of them are still found\n(" + second + ")"),
+        (f"{sh.get('candidates', 0)} in {sh.get('searches', 0)}", "false candidates in searches with\nthe times of the exposures shuffled"),
     ]
     for k, (big, small) in enumerate(tiles):
-        x = 0.045 + k * 0.215
-        fig.text(x, 0.795, big, fontsize=30, color=INK, weight="bold")
-        fig.text(x, 0.745, small, fontsize=10.5, color=MUTED, linespacing=1.35)
+        x = 0.045 + k * 0.235
+        fig.text(x, 0.80, big, fontsize=30, color=INK, weight="bold")
+        fig.text(x, 0.785, small, fontsize=10.5, color=MUTED, linespacing=1.35, va="top")
 
     # share found by brightness, one line per field
-    ax = fig.add_axes([0.045, 0.10, 0.50, 0.58])
+    ax = fig.add_axes([0.045, 0.10, 0.50, 0.52])
     for name, f in data["fields"].items():
         pts = [c for c in f[level]["curve"] if c["n"] >= 5]
         x = [_mid(c) for c in pts]
@@ -54,8 +59,8 @@ def draw(data: dict, path: Path, level: str = "found") -> None:
     ax.set_xlim(data["v_edges"][0], data["v_edges"][-1])
     ax.set_ylim(0, 100)
     ax.set_yticks([0, 25, 50, 75, 100], ["0", "25", "50", "75", "100 %"])
-    ax.set_xlabel("Visual magnitude V of the fake object (sunlight reflected, like an asteroid); fainter to the right")
-    ax.set_title("Share of the fake objects found", loc="left", color=INK, fontsize=13.5, pad=10)
+    ax.set_xlabel("Visual magnitude V of the fake asteroid; fainter to the right")
+    ax.set_title("Share of the fake objects found", loc="left", color=INK, fontsize=13.5, pad=34)
     ax.grid(axis="y", color=RULE, lw=1)
     ax.set_axisbelow(True)
     for side in ("top", "right", "left"):
@@ -66,15 +71,15 @@ def draw(data: dict, path: Path, level: str = "found") -> None:
         text.set_color(INK2)
     # the real objects the same search found in these fields
     real = [r for r in data.get("real", []) if data["v_edges"][0] <= r["v"] <= data["v_edges"][-1]]
-    ax.plot([r["v"] for r in real], [96.5] * len(real), ls="", marker="|", ms=13, mew=2, color=INK)
+    ax.plot([r["v"] for r in real], [104] * len(real), ls="", marker="|", ms=11, mew=2, color=INK, clip_on=False)
     if real:
-        ax.annotate("real asteroids the search found here (catalogue V)", (max(r["v"] for r in real), 96.5), xytext=(10, -4),
-                    textcoords="offset points", fontsize=10, color=MUTED)
+        ax.annotate("ticks: real asteroids the search found in these fields (catalogue V)", (1.0, 1.0), xycoords="axes fraction",
+                    xytext=(0, 39), textcoords="offset points", fontsize=10, color=MUTED, ha="right", annotation_clip=False)
 
     # share found by brightness and speed, all fields together
     grid = everything[level]["grid"]
     rates, vs = data["rate_edges"], data["v_coarse"]
-    bx = fig.add_axes([0.635, 0.10, 0.335, 0.58])
+    bx = fig.add_axes([0.635, 0.10, 0.335, 0.52])
     cmap = LinearSegmentedColormap.from_list("found", RAMP)
     vals = [[(c["share"] if c["n"] >= 5 else float("nan")) for c in row] for row in grid]
     bx.set_facecolor(SURFACE)

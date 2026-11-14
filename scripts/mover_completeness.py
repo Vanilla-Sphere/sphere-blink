@@ -144,19 +144,28 @@ def run(args) -> None:
 
 
 def shuffle(args) -> None:
-    """The search of the field as it is, with the exposure times shuffled: what chance alone finds."""
+    """The search of the field as it is, with the times shuffled: what chance alone finds. Two ways, as the
+    search itself does it: single exposures change places (any confirmed path counts), and whole visits change
+    places (a path counts when it has the evidence asked of a nameless object)."""
     f = load(args.field, args.dir)
     grid = f["grid"]
     dets, sky, _ = movers.detect(f["cube"], f["frames"], grid.wcs, grid.scale_arcsec)
     pool = movers.drop_recurring(dets)
+    visits = getattr(movers, "CANDIDATE_VISITS", None)
+    taken = {d.key() for t in f.get("baseline") or [] if visits and t.extra.get("visits_seen", 0) >= visits for d in t.detections}
+    rest = [d for d in pool if d.key() not in taken]  # a real object keeps part of its path when visits change places
     path = args.dir / f"{args.field}.shuffle.jsonl"
     done = len(path.read_text().splitlines()) if path.exists() else 0
     with path.open("a") as out:
         for k in range(done, args.trials):
-            n = movers.chance_tracks(pool, f["cube"], f["frames"], grid.wcs, sky, grid.scale_arcsec, trials=1, seed=1000 + k)
-            out.write(json.dumps({"field": args.field, "seed": 1000 + k, "tracks": n}) + "\n")
+            row = {"field": args.field, "seed": 1000 + k, "version": movers.VERSION,
+                   "tracks": movers.chance_tracks(pool, f["cube"], f["frames"], grid.wcs, sky, grid.scale_arcsec, trials=1, seed=1000 + k)}
+            if visits:
+                row["candidates"] = movers.chance_tracks(rest, f["cube"], f["frames"], grid.wcs, sky, grid.scale_arcsec, trials=1,
+                                                         seed=1000 + k, visits=True)
+            out.write(json.dumps(row) + "\n")
             out.flush()
-            print(f"  shuffle {k}: {n:.0f} paths", flush=True)
+            print(f"  shuffle {k}: {row['tracks']:.0f} paths, {row.get('candidates', 0):.0f} candidates", flush=True)
 
 
 def report(args) -> None:

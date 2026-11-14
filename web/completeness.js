@@ -34,15 +34,27 @@ function cpLoad() {
 /* ------------------------------------------------------------------ the sentences */
 function cpWords(d) {
   const a = d.all, lim = a[CP.level].limits || {}, sh = d.shuffled || {};
-  const named = CP.level === "found";
+  const named = CP.level === "found", heat = d.fake.spectrum === "asteroid";
+  const cold = (((d.cold || {}).all || {})[CP.level] || {}).limits || {};
+  const mag = (v) => (v != null ? v.toFixed(1) : "–");
+  const few = d.fields.sparse, many = d.fields.crowded;
+  const top = (f) => ((f || {})[CP.level] || {limits: {}}).limits.plateau;
+  let half = `is where half of them are still found: ${lim.half_mjy != null ? lim.half_mjy.toFixed(2) : "0.2"} mJy at 1.2 µm, five times the noise of one exposure`;
+  if (heat && cold.half_of_plateau != null) half += ` (V ${mag(cold.half_of_plateau)} for a body without heat of its own)`;
+  let note = heat
+    ? `A fake is an asteroid of the main belt: sunlight it reflects, and beyond 3.5 µm the heat it gives off at ${d.fake.asteroid.r_au} au from the Sun. `
+    : "A fake is sunlight reflected by a body without colour of its own. ";
+  note += `It moves at ${d.fake.rate_arcsec_h[0]} to ${d.fake.rate_arcsec_h[1]} arcsec per hour and is drawn as the telescope draws a star. It counts when its place could be seen at ${d.fake.min_times} exposure times or more. The bright ones that were missed crossed the field too fast or too slowly for the visits it got, or passed in front of stars.`;
+  if (top(few) != null && top(many) != null && top(many) < top(few) - 0.1) note += ` Where stars crowd, fewer are found (${cpPct(top(many))} of the bright ones against ${cpPct(top(few))}): much of such a field is stars, and the search does not look on them.`;
+  note += ` The ticks above the chart are real asteroids the search found in these fields, at the magnitude their catalogue predicts. Slower than ${d.fake.rate_arcsec_h[0]} arcsec per hour this search does not look.`;
   return {
     lead: `The search was tested on itself. ${cpNum(a.fakes)} fake asteroids of known brightness, speed and direction were added to the real SPHEREx exposures of three fields, and the same code that runs on this site looked for them.`,
     tiles: [
       [cpPct(lim.plateau), named ? "of the bright ones were found (visual magnitude below 17.5)" : "of the bright ones were found on the stronger evidence asked of an object no catalogue lists"],
-      ["V " + (lim.half_of_plateau != null ? lim.half_of_plateau.toFixed(1) : "–"), "is where half of them are still found: about 0.2 mJy at 1 µm, five times the noise of one exposure"],
-      sh.searches ? [`${sh.paths} of ${sh.searches}`, "searches with the exposure times shuffled gave a path: what chance alone produces"] : null,
+      ["V " + mag(lim.half_of_plateau), half],
+      sh.searches ? [`${sh.candidates || 0} of ${sh.searches}`, "searches with the times of the exposures shuffled gave a candidate: what chance alone produces"] : null,
     ].filter(Boolean),
-    note: `A fake is sunlight reflected by a body without colour of its own, between ${d.fake.rate_arcsec_h[0]} and ${d.fake.rate_arcsec_h[1]} arcsec per hour, drawn as the telescope draws a star. It counts when its place could be seen at ${d.fake.min_times} exposure times or more. The bright ones that were missed crossed the field too fast or too slowly for the visits it got, or passed in front of stars. The ticks at the top are real asteroids the search found in these fields, at the magnitude their catalogue predicts. Slower than ${d.fake.rate_arcsec_h[0]} arcsec per hour the search does not look.`,
+    note,
   };
 }
 

@@ -124,7 +124,7 @@ def summarise(rounds: list[dict], spectrum: str | None = None) -> dict:
 
 def build(args) -> None:
     fields, cold_fields, every = {}, {}, []
-    shuffled = {"searches": 0, "paths": 0}
+    shuffled = {"searches": 0, "paths": 0, "candidates": 0}
     loaded = {name: _rounds(args.dir / f"{name}.{args.search}.jsonl") for name in args.fields}
     kinds = {r.get("spectrum", "sun") for rounds in loaded.values() for t in rounds for r in t["fakes"]}
     main = "asteroid" if "asteroid" in kinds else "sun"  # what the figures are about; bodies without heat come second
@@ -142,6 +142,7 @@ def build(args) -> None:
                          "candidates": int(sum(s.get("candidates", 0) for s in sh))}
         shuffled["searches"] += len(sh)
         shuffled["paths"] += f["shuffled"]["paths"]
+        shuffled["candidates"] += f["shuffled"]["candidates"]
         fields[name] = f
         if main != "sun" and "sun" in kinds:
             c = summarise(rounds, "sun")
@@ -153,7 +154,7 @@ def build(args) -> None:
                  "min_times": MIN_TIMES, "bright_below": BRIGHT, "asteroid": mc.ASTEROID},
         "v_edges": V_EDGES, "v_coarse": V_COARSE, "rate_edges": RATE_EDGES,
         "all": summarise(every, main), "fields": fields, "real": REAL,
-        "shuffled": {**shuffled, "limit_95": round(mc.upper_limit(shuffled["paths"], shuffled["searches"]), 4) if shuffled["searches"] else None},
+        "shuffled": {**shuffled, "limit_95": round(mc.upper_limit(shuffled["candidates"], shuffled["searches"]), 4) if shuffled["searches"] else None},
     }
     if cold_fields:
         c = summarise(every, "sun")

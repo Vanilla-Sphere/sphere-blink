@@ -361,6 +361,22 @@ def summary(fake: Fake, sightings: list[dict]) -> dict:
     return out
 
 
+def seen_by_visit(track: movers.Track) -> list[int]:
+    """At how many exposure times each visit shows the path, visit by visit in time (visits in which it is not
+    seen are left out). The search itself keeps one number of this, ``visits_seen``; the whole list lets a rule
+    on visits be judged afterwards without searching again."""
+    points = [p for p in track.extra.get("points") or [] if p.get("counted")]
+    measured = {round(p["mjd"], 4) for p in points}
+    times = {round(p["mjd"], 4) for p in points if p.get("seen")} | ({round(d.mjd, 4) for d in track.detections} - measured)
+    counts, last = [], None
+    for m in sorted(times):
+        if last is None or (m - last) * 24.0 > movers.VISIT_GAP_H:
+            counts.append(0)
+        counts[-1] += 1
+        last = m
+    return counts
+
+
 def recover(result: dict, fakes: list[Fake], told: list[list[dict]], baseline: list[movers.Track] | None = None) -> dict:
     """Compare what a search returned with the fakes that were put in.
 
@@ -404,7 +420,8 @@ def recover(result: dict, fakes: list[Fake], told: list[list[dict]], baseline: l
             t, sep, dv = best
             row.update(strong=bool(movers.strong(t.extra)) if "times_seen" in t.extra else None, sep_arcsec=round(sep, 2),
                        rate_error=round(t.rate - fake.rate, 3), dv=round(dv, 3), n_times=t.n_times,
-                       times_seen=t.extra.get("times_seen"), times_covered=t.extra.get("times_covered"))
+                       times_seen=t.extra.get("times_seen"), times_covered=t.extra.get("times_covered"),
+                       visits_seen=t.extra.get("visits_seen"), seen_by_visit=seen_by_visit(t))
         else:
             row["strong"] = False
         rows.append(row)
@@ -431,7 +448,8 @@ def recover(result: dict, fakes: list[Fake], told: list[list[dict]], baseline: l
         others.append({"rate": round(t.rate, 2), "pa_deg": round(t.pa_deg, 1), "ra0": round(t.ra0, 5), "dec0": round(t.dec0, 5),
                        "mjd0": round(t.mjd0, 5), "n_times": t.n_times, "n_visits": t.n_visits,
                        "times_seen": t.extra.get("times_seen"), "times_covered": t.extra.get("times_covered"),
-                       "visits_seen": t.extra.get("visits_seen"), "detections": len(t.detections),
+                       "visits_seen": t.extra.get("visits_seen"), "seen_by_visit": seen_by_visit(t),
+                       "detections": len(t.detections),
                        "of_fakes": {str(label): n for label, n in sorted(made.items())},
                        "strong": bool(movers.strong(t.extra)) if "times_seen" in t.extra else None})
     return {"fakes": rows, "baseline_found": known, "others": others, "stats": result.get("stats", {})}
