@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import multiprocessing
 import os
 import sys
@@ -154,13 +155,30 @@ def _measure_featured() -> None:
         log.exception("could not bring the stored measurements up to date")
 
 
-def _target_of(result: dict) -> Target:
+def _target_of(key: str, result: dict) -> Target:
     """The request a stored result answers. Results stored before the request
-    was kept are asked for again by their name."""
+    was kept are rebuilt: coordinates a visitor typed go through ``resolve``
+    again (which refuses what is out of range), a named object is asked for
+    at the position it was measured at, under its stored name."""
     try:
         return Target(**result["query"])
     except (KeyError, TypeError):
-        return resolve(result["name"])
+        pass
+    name = result["name"]
+    parts = name.replace(",", " ").split()
+    try:
+        typed = len(parts) == 2 and all(math.isfinite(float(p)) for p in parts)
+    except ValueError:
+        typed = False
+    if typed:
+        return resolve(name)
+    ra, dec = result["ra"], result["dec"]
+    if key.startswith("pos_"):
+        try:
+            ra, dec = (float(v) for v in key[4:].split("_"))
+        except ValueError:
+            pass
+    return Target(name, ra, dec, ra, dec, source="stored")
 
 
 def _refresh_stored() -> None:
@@ -173,7 +191,7 @@ def _refresh_stored() -> None:
         if key in refcat.TARGETS or not _stale(row):
             continue
         try:
-            target = _target_of(row)
+            target = _target_of(key, row)
         except ResolverUnavailable:
             continue  # the name services are away: the next start tries again
         except ValueError:

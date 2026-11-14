@@ -323,22 +323,25 @@ def test_stored_results_of_an_older_pipeline_are_measured_again_or_dropped(tmp_p
     measurements.save_local("barnard", stored("Barnard's Star", old))  # a challenge target: not this function's business
     measurements.save_local("fresh", stored("fresh", new))
     measurements.save_local("refused", stored("500.0 3.0", old))
-    measurements.save_local("star", stored("Ross 128", old))
+    measurements.save_local("pos_176.9377_+0.7991", stored("Ross 128", old))
     measurements.save_local("empty", stored("12.34560 -33.21000", old))
-    measurements.save_local("later", stored("Wolf 359", old))
+    measurements.save_local("pos_9.0000_+9.0000", stored("9.00000 +9.00000", old))
     measurements.save_local("kept", stored("kept", old, query=Target("kept", 3.0, 4.0, 3.0, 4.0).to_dict()))
 
     def fake_resolve(text):
         if text == "500.0 3.0":
             raise ResolveError("coordinates out of range")
-        if text == "Wolf 359":
-            raise ResolverUnavailable("the name services are not answering")
+        if text == "9.00000 +9.00000":
+            raise ResolverUnavailable("not answering")  # cannot happen for coordinates today; the result must survive it
+        assert text == "12.34560 -33.21000"  # names are not looked up again
         return Target(text, 1.0, 2.0, 1.0, 2.0)
 
     asked = []
 
     def fake_start(target, refresh=False):
         asked.append(target.name)
+        if target.name == "Ross 128":  # asked for where it was measured, under its name
+            assert (target.ra, target.dec, target.source) == (176.9377, 0.7991, "stored")
         key = {"Ross 128": "star_new", "12.34560 -33.21000": "empty", "kept": "kept"}[target.name]
         measurements.save_local(key, stored(target.name, new, track=target.name != "12.34560 -33.21000"))
         return key, {"status": "ready"}
@@ -348,4 +351,4 @@ def test_stored_results_of_an_older_pipeline_are_measured_again_or_dropped(tmp_p
     measure_api._refresh_stored()
     assert sorted(asked) == ["12.34560 -33.21000", "Ross 128", "kept"]
     left = {r["key"]: r["version"] for r in measurements.list_local()}
-    assert left == {"barnard": old, "fresh": new, "star_new": new, "later": old, "kept": new}
+    assert left == {"barnard": old, "fresh": new, "star_new": new, "pos_9.0000_+9.0000": old, "kept": new}
