@@ -977,6 +977,7 @@ function drawPlot(out) {
   const xs = pts.map((p) => lc ? p.mjd : p.wave_um), ys = pts.map((p) => p.flux_ujy / unit);
   const sorted = [...ys].sort((a, b) => a - b);
   let ymin = Math.min(0, sorted[Math.floor(sorted.length * 0.02)]), ymax = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.98))] * 1.25;
+  if (ymax <= 0) ymax = -0.05 * ymin;   // every flux below zero (the sky ring is brighter than the spot): the axis still ends above them
   if (ymax <= ymin) ymax = ymin + 1;
   // over time: one stretch of the axis per group of days, the empty months between them cut out
   const axis = lc ? groupedAxis(xs, ml, W - mr) : null, xmin = 0.7, xmax = 5.1;
@@ -1028,6 +1029,19 @@ function drawPlot(out) {
   ctx.save(); ctx.translate(12, (mt + base) / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(tr(unit === 1e6 ? "plot.y.jy" : "plot.y"), 0, 0); ctx.restore();
   if (lc && S.meta && S.meta.epochs[S.i]) { const x = X(S.meta.epochs[S.i].mjd); hair(x, mt, x, base, T.accent); }
   // dot = aperture flux; diamond = saturated core, flux from the halo; hollow = flagged pixels or above the calibrated range
+  if (lc) {
+    // one line per detector through its points in order of time, inside each group of days: the eye follows a colour
+    ctx.save(); ctx.beginPath(); ctx.rect(ml, mt, W - ml - mr, base - mt); ctx.clip();
+    ctx.lineWidth = 1.25; ctx.lineJoin = "round"; ctx.globalAlpha = 0.6;
+    for (const panel of axis.panels) for (let dn = 1; dn <= 6; dn++) {
+      const run = pts.filter((p) => p.detector === dn && p.mjd >= panel.t0 && p.mjd <= panel.t1).sort((u, v) => u.mjd - v.mjd);
+      if (run.length < 2) continue;
+      ctx.strokeStyle = DET_COLOR[dn]; ctx.beginPath();
+      run.forEach((p, k) => { const x = X(p.mjd), y = Y(p.flux_ujy / unit); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
   let nWings = 0, nExtra = 0, nDirty = 0;
   for (const p of pts) {
     const x = X(lc ? p.mjd : p.wave_um), y = Y(p.flux_ujy / unit);

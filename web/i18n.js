@@ -68,7 +68,7 @@ const STR = {
     "tip.files.irsa": "The SPHEREx pages of the NASA/IPAC archive",
     "plot.pass": "pass {m}", "plot.flagged": "flagged pixels",
     "plot.note.lc": "The flux of every exposure of this position, in order of time: {n} points, coloured by detector. SPHEREx returns to a place about every six months and stays for days to weeks, so the points come in groups of days. The empty months between two groups are cut out of the axis, at the double stroke.",
-    "plot.note.lc.b": "Each exposure sees another wavelength, so the spread inside one group is the spectrum of the object, not a change. To see a change, follow one colour from group to group.",
+    "plot.note.lc.b": "A line joins the points of one detector in order of time. Each exposure sees another wavelength, so the ups and downs inside one group are the spectrum of the object, not a change. To see a change, follow one colour from group to group.",
     "plot.note.lc.c": "The line under the plot makes that comparison: every flux is divided by the object's own spectrum at its wavelength, then the visits are compared. A change counts from 3σ.",
     "ot.varies": "Brightness changed", "ot.varies.b": "{a} brighter in {hi} than in {lo} ({s}σ).", "ot.about": "About ",
     "ot.steady": "No significant change", "ot.steady.b": "Visits from {from} to {to} differ by up to {p}% ({s}σ).",

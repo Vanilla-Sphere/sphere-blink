@@ -305,7 +305,9 @@ spectral data product.
   by a double stroke (`groupedAxis` in `web/overtime.js`; groups are separated
   by gaps of more than 20 days). Since each exposure samples a different
   wavelength, the spread inside a group is the object's spectrum; a change of
-  the object shows as one colour shifting from group to group.
+  the object shows as one colour shifting from group to group. Inside each
+  group a line joins the points of one detector in order of time (Duy's idea),
+  so a colour can be followed; no line crosses the months cut out.
 - **Did it change?** A line under the Over time plot answers in words
   (`brightnessChange` in `web/overtime.js`, the method of the pipeline's
   [light curve](measurement-pipeline.md#6-light-curve) applied to the points of
