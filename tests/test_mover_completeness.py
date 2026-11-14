@@ -221,6 +221,18 @@ def test_the_result_file_of_the_viewer_holds_together():
     # bright fakes are mostly found, the faintest are not: the measurement spans the limit
     curve = d["all"]["found"]["curve"]
     assert curve[0]["share"] > 0.7 and curve[-1]["share"] < 0.05
+    # the second search (shift and stack) on its own fakes: the parts add up to the whole
+    stack = d.get("stack")
+    if stack:
+        whole = stack["all"]
+        assert whole["strong"] <= whole["found"] <= whole["either"] <= whole["fakes"] and whole["bright_found"] <= whole["bright"] <= whole["fakes"]
+        for key in ("fakes", "found", "strong", "bright", "bright_found"):
+            assert sum(f[key] for f in stack["fields"].values()) == whole[key]
+            assert sum(part[key] for part in whole["passes"].values()) == whole[key]
+        for key in ("fakes", "found", "strong"):
+            assert sum(row[key] for row in whole["by_v"]) == whole[key]
+        assert whole["distance"]["holds"] <= whole["distance"]["given"] <= whole["found"]
+        assert "cpStackWords" in (web / "completeness.js").read_text()
 
 
 def test_an_asteroid_glows_where_the_long_bands_look():
@@ -232,3 +244,98 @@ def test_an_asteroid_glows_where_the_long_bands_look():
     # closer to the Sun it is warmer, and a dark body reflects less: both give heat a larger share
     assert mc.heat_share(4.6, r_au=2.2) > mc.heat_share(4.6) > mc.heat_share(4.6, r_au=3.2)
     assert mc.heat_share(4.6, albedo=0.05) > mc.heat_share(4.6)
+
+
+def _far():
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parent.parent / "scripts" / "mover_completeness_far.py"
+    if "mover_completeness_far" not in sys.modules:
+        spec = importlib.util.spec_from_file_location("mover_completeness_far", path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["mover_completeness_far"] = module
+        spec.loader.exec_module(module)
+    return sys.modules["mover_completeness_far"]
+
+
+def test_a_distant_fake_moves_as_earth_makes_it():
+    far = _far()
+    from sphereblink import mover_stack as ms
+
+    mjd0 = 61000.0
+    still = far.FarFake(ra0=167.0, dec0=5.0, mjd0=mjd0, v_east=0.0, v_north=0.0, v_mag=18.0, spectrum="sun", label=0, gamma=1 / 40.0)
+    assert still.at(mjd0) == pytest.approx((167.0, 5.0), abs=1e-9)
+    # with no motion of its own, its path is Earth's, seen from 40 au
+    mjd = mjd0 + np.array([2.0, 6.0, 12.0])
+    e, n = ms.earth_offsets(np.concatenate([[mjd0], mjd]), 167.0, 5.0)
+    east, north = still.offsets(mjd)
+    assert east == pytest.approx((e[1:] - e[0]) / 40.0 * far.RAD) and north == pytest.approx((n[1:] - n[0]) / 40.0 * far.RAD)
+    # Earth moves at 30 km/s at most across the line of sight: 3.1 arcsec per hour from 40 au
+    assert 0.0 < still.rate < 3.2
+    # twice as far, half the path; and the path bends, which a straight line of the same ends does not
+    half = far.FarFake(ra0=167.0, dec0=5.0, mjd0=mjd0, v_east=0.0, v_north=0.0, v_mag=18.0, spectrum="sun", label=1, gamma=1 / 80.0)
+    assert np.hypot(*half.offsets(mjd)) == pytest.approx(np.hypot(east, north) / 2.0)
+    assert abs(np.hypot(east[1], north[1]) - np.hypot(east[2], north[2]) / 2.0) > 0.5
+    # its own motion adds a straight line
+    own = far.FarFake(ra0=167.0, dec0=5.0, mjd0=mjd0, v_east=0.3, v_north=-0.2, v_mag=18.0, spectrum="sun", label=2, gamma=1 / 40.0)
+    assert own.offsets(mjd)[0] - east == pytest.approx(0.3 * (mjd - mjd0) * 24.0)
+    assert own.offsets(mjd)[1] - north == pytest.approx(-0.2 * (mjd - mjd0) * 24.0)
+    # the draw keeps the own motion inside what a closed orbit allows, and the distance inside its range
+    wcs = Grid(ra=167.0, dec=5.0, npix=488, scale_arcsec=6.15).wcs
+    for fake in far.draw([{"mjd": mjd0 + k} for k in range(5)], wcs, 488, 20, np.random.default_rng(3)):
+        assert far.AU[0] <= 1 / fake.gamma <= far.AU[1]
+        assert math.hypot(fake.v_east, fake.v_north) <= far.OWN_MOTION * ms.ESCAPE * fake.gamma**1.5 + 1e-12
+
+
+def test_a_path_that_leaves_its_fake_is_told_from_a_false_one():
+    far = _far()
+    mjd0 = 61000.0
+    fake = far.FarFake(ra0=167.0, dec0=5.0, mjd0=mjd0, v_east=0.1, v_north=0.2, v_mag=18.0, spectrum="sun", label=4, gamma=1 / 50.0)
+    other = far.FarFake(ra0=167.2, dec0=5.1, mjd0=mjd0, v_east=0.0, v_north=0.0, v_mag=18.0, spectrum="sun", label=5, gamma=1 / 90.0)
+    mjd = mjd0 + np.linspace(0.0, 12.0, 12)
+    ra, dec = fake.at(mjd)
+
+    def track(at: float, shift_deg: np.ndarray, dv: float = 0.0) -> movers.Track:
+        r0, d0 = fake.at(at)
+        ve, vn = fake.velocity(at)
+        points = [{"mjd": float(t), "ra": float(r), "dec": float(d + s)} for t, r, d, s in zip(mjd, ra, dec, shift_deg)]
+        return movers.Track(detections=[], mjd0=at, ra0=r0, dec0=d0, v_east=ve + dv, v_north=vn, rms_arcsec=0.5, n_times=12, n_visits=4,
+                            extra={"points": points})
+
+    good = track(mjd0 + 6.0, np.zeros(12))
+    assert far.match(good, fake)[0] and not far.match(good, other)[0]
+    assert far.on_fakes(good, [other, fake]) == {"label": 4, "share": 1.0, "median_arcsec": 0.0, "first_arcsec": 0.0, "last_arcsec": 0.0}
+    # the right place with another motion is not the fake
+    assert not far.match(track(mjd0 + 6.0, np.zeros(12), dv=1.0), fake)[0]
+    # a path that follows the fake for nine of its twelve points and is an arcminute off at the end
+    leaves = track(mjd0 + 6.0, np.where(np.arange(12) < 9, 0.0, 60.0 / 3600.0))
+    on = far.on_fakes(leaves, [other, fake])
+    assert on["label"] == 4 and on["share"] == 0.75 and on["first_arcsec"] == 0.0 and on["last_arcsec"] == pytest.approx(60.0, abs=0.1)
+    assert far.kind_of({"on_fake": on}) == "follows"
+    assert far.kind_of({"on_fake": {**on, "share": 0.4}}) == "crosses"
+    assert far.kind_of({"on_fake": far.on_fakes(track(mjd0, np.full(12, 0.05)), [other, fake])}) == "nothing"
+    assert far.kind_of({}) == "unknown"
+
+
+def test_the_counts_of_the_distant_fakes():
+    far = _far()
+
+    def fake(v, times=20, found=False, strong=False, linker=False, au=50.0, dist=None):
+        row = {"v_mag": v, "times": times, "found": found, "strong": strong, "linker": linker, "au": au}
+        if found:
+            row["track"] = {"distance": dist or {}}
+        return row
+
+    rows = [{"seconds_stack": 100.0, "fakes": [
+        fake(17.0, found=True, strong=True, dist={"distance_au": 48.0, "distance_min_au": 40.0, "distance_max_au": 60.0}),
+        fake(17.2, found=True, strong=True, linker=True, dist={"distance_au": 20.0, "distance_min_au": 15.0, "distance_max_au": 30.0}),
+        fake(19.2, found=True, dist={"distance_au": 90.0, "distance_min_au": 45.0, "distance_max_au": None}),
+        fake(19.3, found=True), fake(20.2), fake(17.1, times=5, found=True, strong=True)],
+        "others": [{"strong": True, "on_fake": {"share": 0.8}}, {"strong": False, "on_fake": {"share": 0.4}}, {"strong": False}]}]
+    t = far.tally(rows)
+    assert (t["fakes"], t["found"], t["strong"], t["linker"]) == (5, 4, 2, 1)  # the fake seen at 5 times does not count
+    assert t["by_v"][0] == {"v": [16.5, 17.5], "fakes": 2, "found": 2, "strong": 2} and t["by_v"][3]["found"] == 2 and t["by_v"][5]["fakes"] == 1
+    assert t["distance"] == {"given": 3, "holds": 2}  # a range without an upper end holds any larger distance
+    assert t["others"] == {"follows": {"paths": 1, "strong": 1}, "crosses": {"paths": 1, "strong": 0}, "unknown": {"paths": 1, "strong": 0}}

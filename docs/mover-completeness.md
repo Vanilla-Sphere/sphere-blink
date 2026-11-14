@@ -10,6 +10,8 @@ often it reports a path where nothing moves (its false alarms).
 - Bench: `scripts/mover_completeness.py` (fetches fields, runs rounds, writes the report).
 - Numbers the viewer shows: `web/data/mover-completeness.json`, drawn by `web/completeness.js`
   at the end of the Discoveries page.
+- The second search (shift and stack) on distant bodies: `scripts/mover_completeness_far.py`;
+  its counts are the key `stack` of the same file.
 - Tests: `tests/test_mover_completeness.py`.
 
 ## Results
@@ -84,6 +86,15 @@ The fields: **Few stars**: RA 167.1, Dec +5.22, Leo, 57° from the plane of the 
   few (86 % of the bright ones, half at V 18.2, range 18.23 to 18.27). Where
   they crowd the heat helps: 59 % of the asteroids against 44 % of the
   bodies without it, because the sky is emptier at 4 to 5 µm.
+  The two kinds of fake of a round are different objects, so the same fakes
+  were also run twice, once with heat and once without (same places, speeds
+  and magnitudes). Where stars are few (16 rounds, V 17.4 to 18.8, 120 fakes
+  that count) the same 64 are found both ways, 53 of them strong both ways:
+  the heat changes nothing there, and the 0.1 magnitude between the two
+  limits of the table is the draw. In the crowded field (24 rounds, V 15.5 to
+  17.5, 178 fakes) 102 are found with heat and 83 without, 87 and 74 strong;
+  no fake is found only without it. A fake with heat is detected at 8.4
+  exposure times there and at 6.5 without (mean).
 - **Nothing false was shown.** In 240 rounds the search returned 44 paths that
   are no fake. All are weak paths made of a few detections of one fake and
   something else; none has the evidence asked of a path without a name, so
@@ -180,6 +191,106 @@ Bright fakes found, by the direction they move in.
 | Together | 240 | 44 | 0 | 96 | 1 | 0 |
 
 Seen in two visits only: 65 of the 983 fakes that count. Upper limit (95 %) on false candidates: 0.0312 per search.
+
+## Shift and stack: distant bodies
+
+The fakes above move at 2 arcsec per hour or more, the range of the search
+that links detections. The second search
+([shift-and-stack.md](shift-and-stack.md)) adds the frames of a pass up along
+a path and looks for what no single exposure shows: bodies beyond Neptune. It
+was measured apart, with fakes that are fair to it.
+
+**The fakes.** A body at 30 to 110 au (even in the logarithm), V 16.5 to 20.5
+with the colour of sunlight. Its path is Earth's own motion seen from that
+distance, which bends within a pass, plus a motion of its own inside what a
+closed orbit allows (0.6 of the speed that leaves the Sun from there). It is
+in every frame of its pass. The paths came out between 0.01 and 3.4 arcsec
+per hour. Eight fakes per round, 24 rounds per field, 576 fakes; 529 of them
+could be seen at 12 exposure times or more and count.
+
+**The search.** As on the site: the linker first, shift and stack after it
+with the linker's tracks kept out (`mover_stack.py` version 1, linker
+version 5). A path is the fake when it lies within 12 arcsec of it (two
+pixels) and moves as it does (within 15 % or 0.25 arcsec per hour), at the
+path's own reference time. Two levels are counted: 5 sigma, which the site
+asks of a body a catalogue knows, and 7.5 sigma, which it asks of a path
+without a name.
+
+| | Few stars | More stars | Crowded | The three together |
+| --- | --- | --- | --- | --- |
+| Fakes that count | 164 | 189 | 176 | 529 |
+| Found | 70 | 123 | 84 | 277 |
+| Found at 7.5 sigma | 63 | 106 | 80 | 249 |
+| Brighter than V 19, found | 59 % (58 of 99) | 85 % (100 of 118) | 72 % (78 of 108) | 73 % (236 of 325) |
+| Found by the linker | 2 | 7 | 6 | 15 |
+| One search of the field | 114 s | 196 s | 106 s | |
+
+| V | Fakes | Found | Of them at 7.5 sigma |
+| --- | --- | --- | --- |
+| 16.5 to 17.5 | 138 | 112 | 112 |
+| 17.5 to 18.5 | 121 | 84 | 82 |
+| 18.5 to 19.0 | 66 | 40 | 35 |
+| 19.0 to 19.5 | 71 | 33 | 19 |
+| 19.5 to 20.0 | 75 | 6 | 1 |
+| 20.0 to 20.5 | 58 | 2 | 0 |
+
+- **Half are found at about V 19, a magnitude deeper than the linker** (V
+  17.8 for its own kind of object, and 15 of these 529). At V 19.0 to 19.5 a third of
+  what is found is below 7.5 sigma, so a body of that brightness is shown
+  only when a catalogue names it.
+- **The pass decides, more than the stars do.** A field is seen in passes of
+  the telescope, months apart, and a body is searched for within one pass.
+
+  | Pass of the fake | Fakes | Found | Brighter than V 19 |
+  | --- | --- | --- | --- |
+  | 300 hours or longer, the ends of the path 40 arcsec or more apart | 472 | 269 | 79 % (229 of 290) |
+  | The same, ends less than 40 arcsec apart | 16 | 3 | 2 of 11 |
+  | Shorter than 300 hours (47 and 206 hours, both where stars are few) | 41 | 5 | 5 of 24 |
+
+  In two days a body at 50 au moves less than the 18 arcsec the search asks
+  for, and none of the 14 fakes of the 47 hour pass was found. This is why
+  the field with few stars comes out lowest: 54 of its 164 fakes fell into
+  its two short passes or stood nearly still. In its longest pass (461 hours,
+  137 exposure times) 37 of the 50 fakes brighter than V 19 were found; in
+  the longest pass of the field with more stars (512 hours) 65 of 71.
+- **By what the frames add up to.** Take the signal of a fake in each
+  exposure, in units of the noise, and add the squares: the root is what a
+  perfect sum along the true path would show. In the long passes: below 10
+  none of 84 is found; 10 to 15, 11 of 51 (3 at 7.5 sigma); 15 to 25, 42 of 69
+  (28); 25 to 50, 58 of 88 (53); above 50, 158 of 180 (all at 7.5 sigma). Half
+  are found where that sum is 15, and half reach 7.5 sigma where it is 25:
+  the search reports about a third of the perfect sum. This measurement does
+  not say where the rest goes. Frames left out because a star spoils them,
+  and a scatter that the leftovers of stars raise, are the likely parts. The
+  22 lost above 50 were not looked at one by one; shift-and-stack.md names
+  the two rules that cost such bodies (next to a bright star, a leftover of
+  a star on the path).
+- **No path came out of nothing.** Without fakes the search returned no
+  track in any of the three fields. With fakes, 16 tracks matched no fake by
+  the rule above, 9 of them at 7.5 sigma. The 15 rounds were run again with
+  every point of every track kept: all 16 are made of the light of a fake.
+  Eight follow one fake for two thirds or more of their points (within 1.5
+  pixels) and leave it at one end of the pass, by 57 to 223 arcsec; eight lie
+  on a fake for 16 to 63 % of their points. In both cases the path fits one
+  group of visits and is carried on wrongly to a visit days later. Counting
+  the first eight as found gives 285 of 529.
+- **What that means for a candidate.** The object is real, but the path
+  drawn for it can be wrong at one end of the pass, and then the distance is
+  wrong too: these tracks give 14 to 22 au for fakes at 30 to 109 au, and 8
+  of their 15 ranges do not hold the true distance. 16 such tracks against
+  277 right ones is one in eighteen. A candidate of this search should be
+  looked at in the frames of every visit before its path or its distance is
+  quoted.
+- **The distance, when the path is right.** 238 of the 277 found fakes got a
+  distance with a range. The range holds the true distance for 227 of them
+  (95 %); 9 of the 11 that miss are too near.
+- **The linker and this search do not overlap much.** The linker found 15 of
+  the fakes, all at 1.2 arcsec per hour or more and V 18.3 or brighter. Ten
+  of them the second search then left alone, as it is told to. Either search
+  found 287 of 529 (246 of the 325 brighter than V 19).
+
+The fakes, the counting and the test of what a stray path is made of are in
+`scripts/mover_completeness_far.py`.
 
 ## Method: injection and recovery
 
@@ -306,8 +417,11 @@ and stack search; that was corrected before it was merged.
 
 ## What the measurement does not cover
 
-- Objects slower than 2 arcsec per hour: the search does not look for them
-  (they are the job of the shift and stack search).
+- Objects slower than 2 arcsec per hour, for the search that links
+  detections: it does not look for them. They are the job of the shift and
+  stack search, measured in [its own section](#shift-and-stack-distant-bodies)
+  for bodies at 30 to 110 au. Between the two, bodies at 5 to 30 au
+  (Centaurs, 1 to 10 arcsec per hour) were not measured.
 - Objects brighter than V 15.5: their cores are flagged in the Level 2 images,
   which a fake does not reproduce. The asteroids found at V 11.8 to 14.0 show
   that the search handles them.
@@ -325,6 +439,10 @@ python scripts/mover_completeness.py prepare sparse                # noise maps 
 python scripts/mover_completeness.py run sparse --trials 80        # 12 fakes per round, 35 to 75 s per round and core
 python scripts/mover_completeness.py shuffle sparse --trials 32    # searches with the times shuffled, by exposure and by visit
 python scripts/mover_completeness.py report sparse medium crowded --plot completeness.png
+
+python scripts/mover_completeness_far.py base sparse               # distant fakes: the two searches without them
+python scripts/mover_completeness_far.py run sparse --trials 24    # 8 fakes per round, 3 to 5 minutes per round and core
+python scripts/mover_completeness_far.py report sparse medium crowded --into web/data/mover-completeness.json
 ```
 
 Files go to `.cache/mover-completeness` (`--dir`). A run can be stopped and
