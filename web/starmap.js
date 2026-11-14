@@ -63,7 +63,7 @@ const SkyMap = (() => {
     for (let i = 0; i < n; i++) {
       const v = vec(d.stars[4 * i] / 1000, d.stars[4 * i + 1] / 1000), bv = d.stars[4 * i + 3] / 10;
       stars.v.set(v, 3 * i); stars.mag[i] = d.stars[4 * i + 2] / 10;
-      stars.tint[i] = bv < 0.0 ? 0 : bv < 0.45 ? 1 : bv < 0.9 ? 2 : bv < 1.3 ? 3 : 4;
+      stars.tint[i] = Math.max(0, Math.min(BVN - 1, Math.round(bv * 10) - BV0));
     }
     const m = d.mw.length / 3;
     mw = {n: m, v: new Float32Array(m * 3), lv: new Uint8Array(m)};
@@ -83,7 +83,60 @@ const SkyMap = (() => {
       muted2: css("--color-muted-2"), rule: css("--color-rule"), rule2: css("--color-rule-2"), accent: css("--color-accent"), accent2: css("--color-accent-2"),
       mono: css("--font-measure"), sans: css("--font-display")};
   }
-  const TINT = ["#bfd4ff", "#e4ecff", "#fbf6ea", "#ffe1b8", "#ffc79a"];  // star colours, blue-white to orange
+  /* Stars that look like stars. Each one has the colour of its measured B-V index (the colour of a
+     black body at that temperature, hot blue-white to cool orange). At the opening zoom a star is
+     nearly the flat dot of a chart; zooming in turns it into what a camera records: a core burnt
+     out to white, a glow in the star's colour that falls off like a telescope's point spread
+     (a Moffat profile) and a faint wide halo, all scaled by the radius its magnitude gives it. The
+     brightest get the four thin spikes of a telescope's mirror supports: a drawing convention,
+     not data. LOOK (0 to 1) sets how strong the halo, the spikes and the colour are. */
+  let LOOK = 1;
+  const BV0 = -4, BVN = 25;             // B-V from -0.4 to 2.0 in steps of 0.1
+  let starCol = [];
+  const sprites = new Map(), small = Array.from({length: BVN}, () => []);
+  function starColours() {
+    const sat = 1 + 0.3 * LOOK, deep = (c) => Math.round(Math.max(0, Math.min(255, 255 - (255 - c) * sat)));
+    starCol = [];
+    for (let j = 0; j < BVN; j++) {
+      const bv = (j + BV0) / 10, t = 46 * (1 / (0.92 * bv + 1.7) + 1 / (0.92 * bv + 0.62));   // Ballesteros (2012), in hundreds of kelvin
+      let r = 255, g, b = 255;
+      if (t <= 66) { g = 99.4708 * Math.log(t) - 161.1196; b = t <= 19 ? 0 : 138.5177 * Math.log(t - 10) - 305.0448; }
+      else { r = 329.6987 * Math.pow(t - 60, -0.1332); g = 288.1222 * Math.pow(t - 60, -0.0755); }
+      starCol.push([deep(r), deep(g), deep(b)]);
+    }
+    sprites.clear();
+  }
+  /* One picture per colour and per step of "how real" (0 = flat dot, 8 = camera; 9 = the wide glow of a
+     bright star). size 0 is a small star (two radii each way, no halo to speak of), 1 and 2 reach four radii. */
+  function sprite(bin, lvl, size) {
+    const key = (bin * 16 + lvl) * 4 + size;
+    let c = sprites.get(key);
+    if (c) return c;
+    const n = [28, 44, 112][size], reach = size ? 4 : 2, h = n / 2, real = lvl / 8, col = starCol[bin];
+    c = document.createElement("canvas"); c.width = c.height = n;
+    const g = c.getContext("2d"), im = g.createImageData(n, n), px = im.data;
+    for (let y = 0, k = 0; y < n; y++) for (let x = 0; x < n; x++, k += 4) {
+      const d = Math.hypot(x + 0.5 - h, y + 0.5 - h) / h * reach;                // distance in star radii
+      if (d >= reach) continue;
+      const fade = (1 - (d / reach) ** 2) ** 2;
+      if (lvl === 9) {
+        px[k] = col[0]; px[k + 1] = col[1]; px[k + 2] = col[2];
+        px[k + 3] = 255 * Math.pow(1 + d * d, -1.5) * fade + Math.random() - 0.5;   // the noise hides the steps of a faint gradient
+        continue;
+      }
+      const disc = Math.min(1, Math.max(0, (1 - d) * h / reach + 0.5));
+      const core = Math.min(1, 1.6 * Math.pow(1 + (d / 1.1) ** 2, -1.8));
+      const halo = 0.13 * LOOK * Math.pow(1 + (d / 2.2) ** 2, -1.5) * fade;
+      const a = (1 - real) * disc + real * Math.min(1, (size ? core : core * Math.min(1, 3 * fade)) + halo);
+      const w = real * Math.min(1, Math.max(0, (core - 0.6) / 0.4));              // the burnt-out core is white
+      px[k] = col[0] + (255 - col[0]) * w; px[k + 1] = col[1] + (255 - col[1]) * w; px[k + 2] = col[2] + (255 - col[2]) * w;
+      px[k + 3] = Math.min(255, 255 * a + Math.random() - 0.5);
+    }
+    g.putImageData(im, 0, 0);
+    sprites.set(key, c);
+    return c;
+  }
+  starColours();
   function resize() {
     if (!cv) return;
     const r = wrap.getBoundingClientRect();
@@ -100,7 +153,7 @@ const SkyMap = (() => {
   function redraw() { if (!dirty) { dirty = true; requestAnimationFrame(draw); } }
   /* which stars are drawn at this zoom, and how large */
   const magLimit = () => Math.min(6.5, (W < 700 ? 4.4 : 4.9) + 1.15 * Math.log2(view.k));
-  const starGrow = () => 1 + 0.22 * Math.log2(view.k);
+  const starGrow = () => { const l = Math.log2(view.k); return 1 + 0.2 * l + 0.035 * l * l; };
   const starRadius = (m, grow) => Math.max(0.6, (5.9 - m) * 0.52) * grow;
   function polyline(pts, close) {
     const a = [0, 0, 0], b = [0, 0, 0];
@@ -158,21 +211,68 @@ const SkyMap = (() => {
       ctx.stroke(); ctx.globalAlpha = 1;
     }
 
-    // stars, brightest first; fainter ones appear as the map is zoomed
+    // stars, brightest first; fainter ones appear as the map is zoomed, and all of them look more real
     const lim = magLimit(), grow = starGrow();
-    for (let tnt = 0; tnt < 5; tnt++) {
-      ctx.fillStyle = TINT[tnt]; ctx.beginPath();
-      for (let i = 0; i < stars.n; i++) {
-        const m = stars.mag[i];
-        if (m > lim) break;
-        if (stars.tint[i] !== tnt) continue;
-        project(stars.v[3 * i], stars.v[3 * i + 1], stars.v[3 * i + 2], p);
-        if (!onScreen(p, 6)) continue;
-        const r = starRadius(m, grow);
-        if (r < 1.1) ctx.rect(p[0] - r * 0.8, p[1] - r * 0.8, r * 1.6, r * 1.6);
-        else { ctx.moveTo(p[0] + r, p[1]); ctx.arc(p[0], p[1], r, 0, 2 * Math.PI); }
+    const real = Math.max(0, Math.min(1, 0.3 + 0.28 * Math.log2(view.k / homeZoom()))), lvl = Math.round(real * 8);
+    for (let i = 0; i < stars.n; i++) {
+      const m = stars.mag[i];
+      if (m > lim) break;
+      const r = starRadius(m, grow), bin = stars.tint[i];
+      project(stars.v[3 * i], stars.v[3 * i + 1], stars.v[3 * i + 2], p);
+      if (!onScreen(p, 6 + 4 * r)) continue;
+      if (r < (lvl < 4 ? 2.4 : 1.3)) { small[bin].push(p[0], p[1], r); continue; }   // most stars: plain dots, drawn together below
+      const glow = LOOK * real * Math.min(1, (3.4 - m) / 3.6);
+      if (glow > 0.1) {
+        const G = r * (4.5 + 6 * glow);
+        ctx.globalAlpha = 0.8 * glow;
+        ctx.drawImage(sprite(bin, 9, G * dpr > 24 ? 2 : 1), p[0] - G, p[1] - G, 2 * G, 2 * G);
+        ctx.globalAlpha = 1;
       }
-      ctx.fill();
+      const spike = LOOK * real * Math.min(1, (2.6 - m) / 2.2);
+      if (spike > 0.14) {
+        const x = p[0], y = p[1], L = r * (3.5 + 5 * spike), wd = Math.max(0.5, r * 0.13), c = starCol[bin], a = 0.62 * spike;
+        const gr = ctx.createRadialGradient(x, y, 0, x, y, L);
+        gr.addColorStop(0, `rgba(255,255,255,${a})`); gr.addColorStop(0.3, `rgba(${c},${a * 0.5})`); gr.addColorStop(1, `rgba(${c},0)`);
+        ctx.fillStyle = gr; ctx.beginPath();
+        ctx.moveTo(x - L, y); ctx.lineTo(x, y - wd); ctx.lineTo(x + L, y); ctx.lineTo(x, y + wd); ctx.closePath();
+        ctx.moveTo(x, y - L); ctx.lineTo(x - wd, y); ctx.lineTo(x, y + L); ctx.lineTo(x + wd, y); ctx.closePath();
+        ctx.fill();
+      }
+      if (r < 2.4) ctx.drawImage(sprite(bin, lvl, 0), p[0] - 2 * r, p[1] - 2 * r, 4 * r, 4 * r);
+      else ctx.drawImage(sprite(bin, lvl, 4 * r * dpr > 24 ? 2 : 1), p[0] - 4 * r, p[1] - 4 * r, 8 * r, 8 * r);
+    }
+    let faint = 0;
+    for (let bin = 0; bin < BVN; bin++) faint += small[bin].length;
+    const each = lvl >= 4 && faint <= 1500;               // few enough (500 stars) to give every one its own soft picture
+    for (let bin = 0; bin < BVN; bin++) {                 // the faint ones, one colour at a time
+      const list = small[bin];
+      if (!list.length) continue;
+      if (each) {                                         // the same soft point as a bright star, only smaller and dimmer
+        const img = sprite(bin, lvl, 0);
+        for (let j = 0; j < list.length; j += 3) {
+          const r = list[j + 2], q = 2 * Math.max(1, r);
+          ctx.globalAlpha = Math.max(0.45, Math.min(1, r / 1.2));
+          ctx.drawImage(img, list[j] - q, list[j + 1] - q, 2 * q, 2 * q);
+        }
+        ctx.globalAlpha = 1; list.length = 0;
+        continue;
+      }
+      ctx.fillStyle = `rgb(${starCol[bin]})`;
+      if (lvl >= 4) {                                     // zoomed in: two faint skirts around each, so it is a soft point of light and not a pixel
+        for (const [k, add, al] of [[2.3, 0.6, 0.07], [1.5, 0.3, 0.2]]) {
+          ctx.globalAlpha = al * real; ctx.beginPath();
+          for (let j = 0; j < list.length; j += 3) { const x = list[j], y = list[j + 1], r = k * list[j + 2] + add; ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, 2 * Math.PI); }
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+      ctx.beginPath();
+      for (let j = 0; j < list.length; j += 3) {
+        const x = list[j], y = list[j + 1], r = list[j + 2];
+        if (r < 1.1 && lvl < 4) ctx.rect(x - r * 0.8, y - r * 0.8, r * 1.6, r * 1.6);
+        else { const q = lvl < 4 ? r : Math.max(0.55, 0.85 * r); ctx.moveTo(x + q, y); ctx.arc(x, y, q, 0, 2 * Math.PI); }
+      }
+      ctx.fill(); list.length = 0;
     }
 
     // names: constellations once there is room, the brightest stars a little later
@@ -192,7 +292,7 @@ const SkyMap = (() => {
       for (const n of names) {
         if (n.mag > (view.k >= 6 ? 3 : 1.6)) continue;
         project(n.v[0], n.v[1], n.v[2], p);
-        if (onScreen(p, 10)) halo(n.name, p[0] + 8, p[1] + 4, C.ink2);
+        if (onScreen(p, 10)) halo(n.name, p[0] + Math.max(8, 1.5 * starRadius(n.mag, grow) + 4), p[1] + 4, C.ink2);
       }
     }
     // axis labels for people who work in coordinates
@@ -373,6 +473,7 @@ const SkyMap = (() => {
     toXY(ra, dec) { setRot(); const p = project(...vec(ra, dec), [0, 0, 0]); return [p[0], p[1]]; },
     turn(dra) { view.ra += dra; clampView(); redraw(); },
     rest() { if (hover || hoverPin) tell(null); },
+    look(v) { LOOK = Math.max(0, Math.min(1, v)); starColours(); redraw(); },   // how strong the halo, spikes and colour of the stars are
     get ready() { return !!sky; },
   };
 })();
