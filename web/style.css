@@ -444,3 +444,65 @@ dd{margin:0;font-family:var(--font-measure);font-variant-numeric:tabular-nums;fo
 
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important}.hintbox{animation:none}.progress.busy #bar{animation:none;left:0;width:100%!important}}
+
+/* ------------------------------------------------------------------ the sky map, alive (ambient.js)
+   Behind the map canvas: a glow at the corners, a glow around the rim of the sky and a canvas of faint
+   stars. Above it: a meteor, a ping on each featured target and the aiming frame. Only transform and
+   opacity are animated. None of these layers takes a pointer event. */
+.mapbg,.mapfx{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.mapbg canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+.neb{position:absolute;inset:-6%;will-change:transform}
+.neb::before,.neb::after{content:"";position:absolute;inset:0;will-change:transform,opacity}
+.neb::before{background:radial-gradient(46% 52% at 92% 6%,oklch(46% 0.17 300 / .34),transparent 72%),radial-gradient(40% 50% at 3% 97%,oklch(40% 0.14 278 / .30),transparent 72%);animation:neb-a 37s ease-in-out infinite alternate}
+.neb::after{background:radial-gradient(34% 42% at 97% 96%,oklch(62% 0.15 45 / .11),transparent 72%),radial-gradient(36% 44% at 4% 2%,oklch(62% 0.10 215 / .10),transparent 72%);animation:neb-b 53s ease-in-out infinite alternate}
+@keyframes neb-a{from{opacity:.62;transform:translate3d(-1.2%,.8%,0) scale(1)}to{opacity:1;transform:translate3d(1.2%,-.8%,0) scale(1.05)}}
+@keyframes neb-b{from{opacity:1;transform:translate3d(1%,1%,0) scale(1.04)}to{opacity:.55;transform:translate3d(-1%,-1%,0) scale(1)}}
+/* a 200 x 100 ellipse that ambient.js moves and scales onto the rim of the sky; only its shadow shows */
+.skyglow{position:absolute;left:0;top:0;width:200px;height:100px;border-radius:50%;box-shadow:0 0 7px 0 oklch(62% 0.19 300 / .50),0 0 22px 2px oklch(50% 0.17 295 / .26);will-change:transform,opacity;animation:skyglow 11s ease-in-out infinite alternate}
+@keyframes skyglow{from{opacity:.6}to{opacity:1}}
+
+/* the blink: one object seen at two dates, the way a moving star gives itself away */
+.blinkmark{position:relative;display:inline-block;width:20px;height:.6em;margin-left:.45em}
+.blinkmark i{position:absolute;width:6px;height:6px;background:var(--color-accent)}
+.blinkmark i:first-child{left:0;bottom:0;animation:blink-a 1.7s steps(1,end) infinite}
+.blinkmark i:last-child{left:13px;bottom:7px;opacity:.2;animation:blink-b 1.7s steps(1,end) infinite}
+@keyframes blink-a{0%{opacity:1}50%{opacity:.2}}
+@keyframes blink-b{0%{opacity:.2}50%{opacity:1}}
+.mapscreen.zoomed .blinkmark i{animation-play-state:paused}
+
+/* a ping on each featured target, one after the other */
+.pinping{position:absolute;left:0;top:0;width:0;height:0}
+/* (the ring is drawn at its largest size and grows into it, so its line is never thicker than a hairline) */
+.pinping i{position:absolute;left:-21px;top:-21px;width:42px;height:42px;border:1px solid var(--color-accent);opacity:0;animation:pinping 4.15s var(--ease-out) infinite}
+@keyframes pinping{0%{opacity:0;transform:scale(.36)}6%{opacity:.9}60%,100%{opacity:0;transform:scale(1)}}
+
+/* the aiming frame: four corners around the pointer; they close on the picked point */
+.reticle{position:absolute;left:0;top:0;width:0;height:0;opacity:0;--r:24px;--c:var(--color-accent-2);transition:opacity 120ms linear}
+.reticle.glide{transition:opacity 120ms linear,transform 150ms var(--ease-out)}
+.reticle[data-mode="aim"]{opacity:1;--r:12px}
+.reticle[data-mode="star"]{opacity:1;--r:9px;--c:var(--color-ink)}
+.reticle[data-mode="pin"]{opacity:1;--r:14px;--c:var(--color-accent)}
+.reticle[data-mode="lock"]{opacity:1;--r:7px;--c:var(--color-accent)}
+.reticle i{position:absolute;left:0;top:0;width:7px;height:7px;border:0 solid var(--c);transition:transform 280ms var(--ease-out),border-color 140ms linear}
+.reticle i:nth-child(1){border-width:1px 0 0 1px;transform:translate(calc(-1 * var(--r)),calc(-1 * var(--r)))}
+.reticle i:nth-child(2){border-width:1px 1px 0 0;transform:translate(calc(var(--r) - 7px),calc(-1 * var(--r)))}
+.reticle i:nth-child(3){border-width:0 1px 1px 0;transform:translate(calc(var(--r) - 7px),calc(var(--r) - 7px))}
+.reticle i:nth-child(4){border-width:0 0 1px 1px;transform:translate(calc(-1 * var(--r)),calc(var(--r) - 7px))}
+.reticle b{position:absolute;left:-32px;top:-32px;width:64px;height:64px;border:1px solid var(--color-accent);opacity:0}
+.reticle[data-mode="lock"] b{animation:lockping 1.25s var(--ease-out) 240ms infinite}
+@keyframes lockping{0%{opacity:1;transform:scale(.22)}80%,100%{opacity:0;transform:scale(1)}}
+
+/* a meteor: a streak whose bright end is at the element's right edge */
+.meteor{position:absolute;left:-150px;top:0;width:150px;height:1.5px;opacity:0;transform-origin:100% 50%;background:linear-gradient(90deg,transparent,oklch(95.5% 0.045 95 / .45) 72%,#fff);will-change:transform,opacity}
+.meteor.go{animation:meteor var(--t,900ms) cubic-bezier(.35,0,.75,1) both}
+@keyframes meteor{
+  0%{opacity:0;transform:translate3d(var(--x),var(--y),0) rotate(var(--a)) translateX(0) scaleX(.12)}
+  14%,62%{opacity:1}
+  100%{opacity:0;transform:translate3d(var(--x),var(--y),0) rotate(var(--a)) translateX(var(--d)) scaleX(1)}
+}
+#mapcoord{color:var(--color-ink)}
+
+@media (prefers-reduced-motion:reduce){
+  .neb::before,.neb::after,.skyglow,.blinkmark i,.pinping i,.reticle b,.meteor{animation:none!important}
+  .pinping,.meteor{display:none}
+}

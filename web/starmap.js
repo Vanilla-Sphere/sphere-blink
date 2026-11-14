@@ -14,8 +14,9 @@ const SkyMap = (() => {
   const view = {ra: 0, dec: 0, k: 1};
   let rot = null;                       // cos/sin of the centre, set once per frame
   let sky = null, stars = null, mw = null, cons = [], names = [], cells = null;
-  let pins = [], mark = null, hover = null, hoverPin = null, hoverCon = null, busyAt = null, labels = false, wasZoomed = null;
+  let pins = [], mark = null, hover = null, hoverPin = null, hoverCon = null, hoverStar = null, busyAt = null, labels = false, wasZoomed = null;
   let dirty = false, shown = false;
+  let fx = null;                        // ambient.js, when it is loaded: it draws the aiming frame and follows every redraw
 
   /* ---------------------------------------------------------------- geometry */
   const vec = (ra, dec) => { const a = ra * D, d = dec * D, c = Math.cos(d); return [c * Math.cos(a), c * Math.sin(a), Math.sin(d)]; };
@@ -58,9 +59,9 @@ const SkyMap = (() => {
   async function loadData() {
     const d = await (await fetch("/static/data/sky.json")).json();
     const n = d.stars.length / 4;
-    stars = {n, v: new Float32Array(n * 3), mag: new Float32Array(n), tint: new Uint8Array(n)};
+    stars = {n, v: new Float32Array(n * 3), mag: new Float32Array(n), tint: new Uint8Array(n), at: d.stars, id: d.ids || [], name: new Map(d.names.map((s) => [s[4], s[3]]))};
     for (let i = 0; i < n; i++) {
-      const v = vec(d.stars[4 * i] / 100, d.stars[4 * i + 1] / 100), bv = d.stars[4 * i + 3] / 10;
+      const v = vec(d.stars[4 * i] / 1000, d.stars[4 * i + 1] / 1000), bv = d.stars[4 * i + 3] / 10;
       stars.v.set(v, 3 * i); stars.mag[i] = d.stars[4 * i + 2] / 10;
       stars.tint[i] = bv < 0.0 ? 0 : bv < 0.45 ? 1 : bv < 0.9 ? 2 : bv < 1.3 ? 3 : 4;
     }
@@ -97,6 +98,10 @@ const SkyMap = (() => {
   /* The smallest zoom shows the whole sky; on a tall screen it starts closer so the sky is not a thin strip. */
   function homeZoom() { return Math.max(1, Math.min(3.2, 0.58 * H / (2 * R2 * s0))); }
   function redraw() { if (!dirty) { dirty = true; requestAnimationFrame(draw); } }
+  /* which stars are drawn at this zoom, and how large */
+  const magLimit = () => Math.min(6.5, (W < 700 ? 4.4 : 4.9) + 1.15 * Math.log2(view.k));
+  const starGrow = () => 1 + 0.22 * Math.log2(view.k);
+  const starRadius = (m, grow) => Math.max(0.6, (5.9 - m) * 0.52) * grow;
   function polyline(pts, close) {
     const a = [0, 0, 0], b = [0, 0, 0];
     let pen = false;
@@ -114,11 +119,11 @@ const SkyMap = (() => {
     setRot();
     const s = s0 * view.k, p = [0, 0, 0], q = [0, 0, 0];
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H);
+    ctx.clearRect(0, 0, W, H);          // outside the sky the canvas is clear: the ambient layer shows through
     // the sky itself: a slightly darker sheet with a hairline edge
     ctx.beginPath(); ctx.ellipse(cx, cy, 2 * R2 * s, R2 * s, 0, 0, 2 * Math.PI);
     ctx.fillStyle = C.well; ctx.fill(); ctx.strokeStyle = C.rule; ctx.lineWidth = 1; ctx.stroke();
-    if (!sky) return;
+    if (!sky) { if (fx) fx.sync(); return; }
     ctx.save();
     ctx.beginPath(); ctx.ellipse(cx, cy, 2 * R2 * s, R2 * s, 0, 0, 2 * Math.PI); ctx.clip();
 
@@ -154,7 +159,7 @@ const SkyMap = (() => {
     }
 
     // stars, brightest first; fainter ones appear as the map is zoomed
-    const lim = Math.min(6.5, (W < 700 ? 4.4 : 4.9) + 1.15 * Math.log2(view.k)), grow = 1 + 0.22 * Math.log2(view.k);
+    const lim = magLimit(), grow = starGrow();
     for (let tnt = 0; tnt < 5; tnt++) {
       ctx.fillStyle = TINT[tnt]; ctx.beginPath();
       for (let i = 0; i < stars.n; i++) {
@@ -163,7 +168,7 @@ const SkyMap = (() => {
         if (stars.tint[i] !== tnt) continue;
         project(stars.v[3 * i], stars.v[3 * i + 1], stars.v[3 * i + 2], p);
         if (!onScreen(p, 6)) continue;
-        const r = Math.max(0.6, (5.9 - m) * 0.52) * grow;
+        const r = starRadius(m, grow);
         if (r < 1.1) ctx.rect(p[0] - r * 0.8, p[1] - r * 0.8, r * 1.6, r * 1.6);
         else { ctx.moveTo(p[0] + r, p[1]); ctx.arc(p[0], p[1], r, 0, 2 * Math.PI); }
       }
@@ -219,7 +224,7 @@ const SkyMap = (() => {
     }
     ctx.textAlign = "left";
     // the point under the cursor, or the one being opened
-    const at = busyAt || (hoverPin ? null : hover);
+    const at = fx ? null : busyAt || (hoverPin ? null : hoverStar || hover);
     if (at) {
       project(...vec(at.ra, at.dec), q);
       const x = Math.round(q[0]) + 0.5, y = Math.round(q[1]) + 0.5, g = 5, L = 9;
@@ -227,6 +232,7 @@ const SkyMap = (() => {
       ctx.moveTo(x - g - L, y); ctx.lineTo(x - g, y); ctx.moveTo(x + g, y); ctx.lineTo(x + g + L, y);
       ctx.moveTo(x, y - g - L); ctx.lineTo(x, y - g); ctx.moveTo(x, y + g); ctx.lineTo(x, y + g + L); ctx.stroke();
     }
+    if (fx) fx.sync();
   }
 
   /* ---------------------------------------------------------------- interaction */
@@ -257,36 +263,53 @@ const SkyMap = (() => {
     for (const pin of pins) { const d = Math.hypot(pin.x - px, pin.y - py); if (d < bd) { bd = d; best = pin; } }
     return best;
   }
-  // a named star within reach of the pointer; the brighter one wins when two are close
-  function starAt(px, py) {
-    let best = null; const p = [0, 0];
-    for (const n of names) {
-      project(n.v[0], n.v[1], n.v[2], p);
-      if (Math.hypot(p[0] - px, p[1] - py) <= 9 && (!best || n.mag < best.mag)) best = n;
+  /* The drawn star the pointer is on or next to: pointing and picking snap to it, so a click on a star
+     opens the star and not a place a few pixels beside it. The reach grows as the map is zoomed (the
+     stars stand further apart) and is wider for a finger. A brighter star wins over a fainter one at
+     about the same distance. */
+  function starAt(px, py, finger) {
+    if (!stars) return null;
+    const lim = magLimit(), grow = starGrow(), p = [0, 0, 0];
+    const reach = Math.max(6, Math.min(16, 6 + 3 * Math.log2(view.k / homeZoom()))) * (finger ? 1.6 : 1);
+    let best = -1, score = Infinity;
+    for (let i = 0; i < stars.n; i++) {
+      const m = stars.mag[i];
+      if (m > lim) break;
+      project(stars.v[3 * i], stars.v[3 * i + 1], stars.v[3 * i + 2], p);
+      const dx = p[0] - px, dy = p[1] - py;
+      if (dx > 24 || dx < -24 || dy > 24 || dy < -24) continue;
+      const r = starRadius(m, grow), d = Math.hypot(dx, dy);
+      const sc = d - (finger ? 2 : 0.8) * r;        // a finger means the bright star nearby more often than the faint one under it
+      if (d - r <= reach && sc < score) { score = sc; best = i; }
     }
-    return best;
+    if (best < 0) return null;
+    project(stars.v[3 * best], stars.v[3 * best + 1], stars.v[3 * best + 2], p);
+    return {i: best, ra: stars.at[4 * best] / 1000, dec: stars.at[4 * best + 1] / 1000, mag: stars.mag[best], name: stars.name.get(best) || "", id: stars.id[best] || "", x: p[0], y: p[1], r: starRadius(stars.mag[best], grow)};
   }
-  function tell(px, py) {
+  /* free: the pointer is taken as it is, without snapping to a star (Alt is held) */
+  function tell(px, py, free) {
     setRot();
     const sk = px === null ? null : unproject(px, py), pin = px === null ? null : pinAt(px, py);
-    hover = sk ? {ra: sk[0], dec: sk[1]} : null; hoverPin = pin;
+    const star = pin || !sk || free ? null : starAt(px, py);
+    hover = star ? {ra: star.ra, dec: star.dec} : sk ? {ra: sk[0], dec: sk[1]} : null; hoverPin = pin; hoverStar = star;
     const con = hover ? constellation(hover.ra, hover.dec) : null;
     hoverCon = pin ? null : con;
-    cv.style.cursor = pin ? "pointer" : sk ? "crosshair" : "grab";
-    if (opt.onHover) opt.onHover(hover ? {ra: hover.ra, dec: hover.dec, x: px, y: py, pin, con, star: pin || !sk ? null : starAt(px, py)} : null);
+    cv.style.cursor = pin || star ? "pointer" : sk ? "crosshair" : "grab";
+    if (opt.onHover) opt.onHover(hover ? {ra: hover.ra, dec: hover.dec, x: px, y: py, pin, con, star} : null);
     redraw();
   }
-  function pick(px, py) {
+  function pick(px, py, free, finger) {
     setRot();
     const pin = pinAt(px, py), sk = unproject(px, py);
     if (!pin && !sk) return;
-    busyAt = pin ? {ra: pin.ra, dec: pin.dec} : {ra: sk[0], dec: sk[1]};
+    const star = pin || free ? null : starAt(px, py, finger);
+    busyAt = pin ? {ra: pin.ra, dec: pin.dec} : star ? {ra: star.ra, dec: star.dec} : {ra: sk[0], dec: sk[1]};
     redraw();
-    if (opt.onPick) opt.onPick(pin ? {pin, x: px, y: py} : {ra: sk[0], dec: sk[1], x: px, y: py});
+    if (opt.onPick) opt.onPick(pin ? {pin, x: px, y: py} : star ? {ra: star.ra, dec: star.dec, star, x: px, y: py} : {ra: sk[0], dec: sk[1], x: px, y: py});
   }
   function wire() {
     const ptr = new Map();
-    let moved = 0, pinch = 0, downAt = 0;
+    let moved = 0, pinch = 0, downAt = 0, at = null;
     const xy = (ev) => { const r = cv.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
     cv.addEventListener("pointerdown", (ev) => {
       cv.setPointerCapture(ev.pointerId); ptr.set(ev.pointerId, xy(ev));
@@ -295,11 +318,11 @@ const SkyMap = (() => {
     });
     cv.addEventListener("pointermove", (ev) => {
       const now = xy(ev), was = ptr.get(ev.pointerId);
-      if (!was) { if (ev.pointerType === "mouse") tell(now[0], now[1]); return; }
+      if (!was) { if (ev.pointerType === "mouse") { at = now; tell(now[0], now[1], ev.altKey); } return; }
       ptr.set(ev.pointerId, now);
       if (ptr.size === 1) {
         moved += Math.hypot(now[0] - was[0], now[1] - was[1]);
-        if (moved > 5) { cv.style.cursor = "grabbing"; if (hover) { hover = null; hoverPin = null; hoverCon = null; if (opt.onHover) opt.onHover(null); } pan(now[0] - was[0], now[1] - was[1]); }
+        if (moved > 5) { cv.style.cursor = "grabbing"; if (hover) { hover = null; hoverPin = null; hoverCon = null; hoverStar = null; if (opt.onHover) opt.onHover(null); } pan(now[0] - was[0], now[1] - was[1]); }
       } else if (ptr.size === 2) {
         const [a, b] = [...ptr.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
         if (pinch) zoomAt(d / pinch, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
@@ -308,13 +331,15 @@ const SkyMap = (() => {
     });
     const up = (ev) => {
       const was = ptr.get(ev.pointerId); ptr.delete(ev.pointerId);
-      if (ev.type === "pointerup" && was && ptr.size === 0 && moved <= 5 && performance.now() - downAt < 700) pick(was[0], was[1]);
+      if (ev.type === "pointerup" && was && ptr.size === 0 && moved <= 5 && performance.now() - downAt < 700) pick(was[0], was[1], ev.altKey, ev.pointerType !== "mouse");
       if (ptr.size < 2) pinch = 0;
-      if (ptr.size === 0 && ev.pointerType === "mouse" && was) tell(was[0], was[1]);
+      if (ptr.size === 0 && ev.pointerType === "mouse" && was) tell(was[0], was[1], ev.altKey);
     };
     cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
-    cv.addEventListener("pointerleave", (ev) => { if (!ptr.size && ev.pointerType === "mouse") tell(null); });
-    cv.addEventListener("wheel", (ev) => { ev.preventDefault(); const p = xy(ev); zoomAt(Math.exp(-ev.deltaY * (ev.ctrlKey ? 0.01 : 0.0016)), p[0], p[1]); tell(p[0], p[1]); }, {passive: false});
+    cv.addEventListener("pointerleave", (ev) => { at = null; if (!ptr.size && ev.pointerType === "mouse") tell(null); });
+    // pressing or letting go of Alt changes what the resting pointer points at
+    for (const type of ["keydown", "keyup"]) window.addEventListener(type, (ev) => { if (ev.key === "Alt" && at && shown && !ptr.size) tell(at[0], at[1], ev.altKey); });
+    cv.addEventListener("wheel", (ev) => { ev.preventDefault(); const p = xy(ev); zoomAt(Math.exp(-ev.deltaY * (ev.ctrlKey ? 0.01 : 0.0016)), p[0], p[1]); tell(p[0], p[1], ev.altKey); }, {passive: false});
     cv.addEventListener("keydown", (ev) => {
       const step = 40;
       if (ev.key === "ArrowLeft") pan(step, 0); else if (ev.key === "ArrowRight") pan(-step, 0);
@@ -342,6 +367,12 @@ const SkyMap = (() => {
     zoom(f) { zoomAt(f, cx, cy); },
     home() { view.k = homeZoom(); view.dec = 0; redraw(); },
     constellation, redraw,
+    /* for ambient.js: what the map shows now, where a sky position is on the canvas, a slow turn, and "nobody is pointing" */
+    attach(o) { fx = o; redraw(); },
+    state() { const s = s0 * view.k; return {W, H, cx, cy, rx: 2 * R2 * s, ry: R2 * s, ra: view.ra, dec: view.dec, zoomed: !!wasZoomed, shown, busy: busyAt, hover: hoverPin ? null : hover, pin: hoverPin, star: hoverPin ? null : hoverStar, pins}; },
+    toXY(ra, dec) { setRot(); const p = project(...vec(ra, dec), [0, 0, 0]); return [p[0], p[1]]; },
+    turn(dra) { view.ra += dra; clampView(); redraw(); },
+    rest() { if (hover || hoverPin) tell(null); },
     get ready() { return !!sky; },
   };
 })();

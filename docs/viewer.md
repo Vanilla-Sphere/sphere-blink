@@ -6,18 +6,19 @@ as static files.
 
 | File | Size | Role |
 | --- | --- | --- |
-| `index.html` | 206 lines | Page structure for both screens and both modes; all fixed text |
-| `style.css` | 418 lines | Design tokens, layout, components, responsive rules |
-| `app.js` | about 1000 lines | State, URL handling, loading, image arithmetic, drawing, plots, routing |
-| `starmap.js` | 327 lines | The sky map (`SkyMap`): projection, drawing, pan and zoom, picking |
+| `index.html` | 225 lines | Page structure for both screens and both modes; all fixed text |
+| `style.css` | 507 lines | Design tokens, layout, components, responsive rules |
+| `app.js` | about 1100 lines | State, URL handling, loading, image arithmetic, drawing, plots, routing |
+| `starmap.js` | 355 lines | The sky map (`SkyMap`): projection, drawing, pan and zoom, picking |
+| `ambient.js` | 230 lines | The motion of the sky map screen (`Ambient`): deep star field, rim glow, slow turn, aiming frame, pings, meteors |
 | `i18n.js` | 107 lines | Text that scripts put on the page (`STR.en`) and the `tr()` formatter |
 | `hints.js` | 74 lines | One-line notes on controls, shown on hover and keyboard focus |
 | `lore.js` | 130 lines | What the sky map says about each of the 88 constellations and 31 famous stars under the pointer (`LORE`) |
 | `data/sky.json` | - | Compact star chart: stars, names, constellations, Milky Way, boundary grid |
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
-Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `starmap.js`, `app.js`.
-Asset URLs carry a version query (`?v=21`) that is raised when a file changes,
+Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `starmap.js`, `ambient.js`, `app.js`.
+Asset URLs carry a version query (`?v=23`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -191,17 +192,33 @@ the fluxes exceeds 1 Jy.
 ## Sky map
 
 `SkyMap` in `starmap.js` exposes `init`, `show`, `redraw`, `zoom`, `home`,
-`lookAt`, `setMark`, `setPins`, `highlight`, `idle` and `constellation`, and
+`lookAt`, `setMark`, `setPins`, `highlight`, `idle` and `constellation` (and
+`attach`, `state`, `toXY`, `turn` and `rest` for `ambient.js`), and
 takes the callbacks `onPick`, `onHover`, `onView` and `onReady`. `onHover` reports
-the sky position, the constellation, a target pin and a named star within 9 px
-of the pointer; `app.js` turns that into the map tag (pin, then star, then
-constellation, with the text from `lore.js`), and the map brightens the figure
-of the constellation under the pointer.
+the sky position, the constellation, a target pin and the star the pointer has
+snapped to; `app.js` turns that into the map tag (pin, then a star with a name
+or a designation, then constellation, with the text from `lore.js`), and the
+map brightens the figure of the constellation under the pointer.
+
+**Snapping to stars.** Pointing and picking snap to the nearest drawn star
+(`starAt`): the aiming frame jumps onto it, the readout shows the star's own
+coordinates and a click opens the star, not a place a few pixels beside it. A
+star is within reach when the pointer is within 6 px of its disc at the opening
+zoom, growing by 3 px for each doubling of the zoom up to 16 px, and 1.6 times
+that for a finger; a finger also prefers the brighter of two close stars.
+Holding Alt points and picks freely, between the stars. A star with a proper
+name (493 of them) is opened by that name, so the view carries the name and the
+position corrected for proper motion; if the name services do not know the name
+or place it more than 0.3 degrees away, the star's catalogue coordinates
+(J2000, to 0.001 degree) are opened instead. Any other star is opened by its
+coordinates.
 
 - **Projection.** Hammer equal-area about a movable centre. Positions are
   rotated as unit vectors so the centre can be any point of the sky.
-- **Data.** `data/sky.json` holds stars as a flat integer array (RA, Dec,
-  magnitude, colour index), star names, constellation lines and label
+- **Data.** `data/sky.json` holds stars as a flat integer array (RA and Dec in
+  thousandths of a degree, magnitude, colour index), one designation per star
+  (Bayer, Flamsteed or variable-star name, when it has one), the proper names
+  of 493 stars with their index in the star list, constellation lines and label
   positions, the Milky Way as a dot grid with five brightness levels, and a
   run-length-encoded 1 degree grid naming the constellation of each cell. It is
   built by `scripts/build_sky.py` from d3-celestial data and Astropy's
@@ -210,7 +227,48 @@ of the constellation under the pointer.
 - **Input.** Pointer events for drag, pinch and click; wheel zoom about the
   pointer so the sky under it stays under it; keyboard pan, zoom and select.
 - **Drawing** is batched with `requestAnimationFrame` and only runs while the
-  map screen is shown.
+  map screen is shown. The canvas is clear outside the ellipse of the sky, so
+  the ambient layer behind it shows through.
+
+### Motion on the map screen
+
+`ambient.js` (`Ambient`) adds the motion. It is decoration: the map works the
+same without it, and none of its layers takes a pointer event. It attaches with
+`SkyMap.attach({sync})`; the map calls `sync()` after every redraw, and
+`SkyMap.state()`, `toXY(ra, dec)`, `turn(degrees)` and `rest()` give it what
+the map shows, where a sky position is on the canvas, a slow turn, and a way
+to clear the pointer state.
+
+| Layer | Element | What it does |
+| --- | --- | --- |
+| Behind the map | `.mapbg .neb` | Soft violet, indigo and warm glows at the corners; CSS opacity and transform |
+| Behind the map | `.mapbg .skyglow` | A glow around the rim of the sky: a 200 x 100 ellipse whose shadow is moved and scaled onto the rim |
+| Behind the map | `.mapbg canvas` | A deep field of faint stars at different depths. They twinkle, slide slowly, lean towards the pointer and slide when the map is turned (parallax). Stars behind the sky are skipped; nothing is drawn once the zoomed sky covers the screen |
+| The map | `SkyMap.turn` | The map turns 0.55 degrees a second while nobody uses it, only at the opening zoom |
+| Above the map | `.mapfx .reticle` | The aiming frame: four corners that follow the pointer, snap around a featured target, close on the picked point and ping while the view is fetched. It replaces the crosshair the map used to draw |
+| Above the map | `.mapfx .pinping` | A ping on each featured target, one after the other |
+| Above the map | `.mapfx .meteor` | A meteor every 20 to 30 seconds, the first a few seconds after the page opens |
+| Heading | `.blinkmark` | Two squares that alternate: one object seen at two dates |
+| Map tag | `#mapcoord` | On a pick, the coordinates of the point; the digits run and settle (`Ambient.roll`) |
+
+Rules it keeps:
+
+- **Light.** Everything that moves on its own is a CSS animation of
+  `transform` and `opacity`, or the deep-field canvas (at most 1.5 device
+  pixels per CSS pixel, about 30 pictures a second, 10 on a touch screen).
+- **The turn pauses** while the pointer moves over the map screen (8 s of
+  stillness resume it, 2.5 s after the pointer has left, 4 s after a touch),
+  during a drag, while a view is opening, when the map is zoomed in, and while
+  the map has keyboard focus.
+- **A page left open goes quiet.** The turn stops 2.5 minutes after the last
+  input and the deep field after 5 minutes. Nothing runs while the tab is
+  hidden or a view is open.
+- **Slow machines.** Turning redraws the whole map. If frames keep arriving
+  late while it turns (a computer drawing without a graphics chip), the turn
+  drops to a third of its rate and then stops for the rest of the visit.
+- **Reduced motion.** With `prefers-reduced-motion: reduce` nothing moves by
+  itself: the star field and the glows are a still picture, there is no turn,
+  ping or meteor, and the aiming frame and the coordinates appear at once.
 
 ## Text and notes
 
