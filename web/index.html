@@ -279,10 +279,15 @@
     </section>
 
     <section class="panel" id="sharecard" hidden>
-      <div class="headtip"><h2>Link or embed this view</h2><div class="tip"><button type="button" class="tipbtn" aria-label="About these links" aria-describedby="tip-share"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-share">The coordinates live in the URL, so any view can be linked or embedded. The same parameters return a PNG, a GIF or the measurements; see API.</div></div></div>
+      <div class="headtip"><h2>Link or embed this view</h2><div class="tip"><button type="button" class="tipbtn" aria-label="About these links" aria-describedby="tip-share"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-share">The coordinates live in the URL, so any view can be linked or embedded. The same parameters return a PNG, a GIF or the measurements. No key and no sign-in: every address runs as it is in a browser tab. “All API endpoints” has every one of them for this view; an address there opens in a new tab.</div></div></div>
       <div class="share"><label for="s-page">Page</label><input id="s-page" class="measure" readonly><button data-copy="s-page" class="btn quiet">Copy</button></div>
       <div class="share"><label for="s-gif">GIF</label><input id="s-gif" class="measure" readonly><button data-copy="s-gif" class="btn quiet">Copy</button></div>
       <div class="share"><label for="s-api">Data</label><input id="s-api" class="measure" readonly><button data-copy="s-api" class="btn quiet">Copy</button></div>
+      <details class="apilist" id="apilist">
+        <summary>All API endpoints (<span id="apicount"></span>)</summary>
+        <div id="apirows" data-hint-side="left"></div>
+        <p class="muted note">Not listed, because they write: <span class="measure">/api/measure</span> and the vote on a moving object. They are in the <a href="/docs" target="_blank" rel="noopener">API documentation</a>.</p>
+      </details>
     </section>
 
     <section class="panel" id="analysishint">
@@ -398,6 +403,7 @@
 <script src="/static/redshift.js?v=58"></script>
 <script src="/static/depth.js?v=58"></script>
 <script src="/static/showcase.js?v=58"></script>
+<script src="/static/apilist.js?v=58"></script>
 <script src="/static/app.js?v=58"></script>
 <p id="netnote" class="netnote" role="status" hidden>Updating the site, back in a moment…</p>
 </body>
