@@ -18,7 +18,7 @@ TEMPLATE = HERE.parent / "web" / "data" / "quasar-template.json"
 pytestmark = pytest.mark.skipif(shutil.which("node") is None, reason="needs Node to run web/redshift.js")
 
 WITH_LINES = ("iras-00040-4325", "qso-b0624-6907", "pg-1634-706", "he-0515-4414", "apm-08279-5255", "qso-j1723-2243",
-              "sdss-j0100-2802", "uhs-j0439-1634")
+              "sdss-j0100-2802", "uhs-j0439-1634", "sdss-j1528-3637")
 BLAZARS = ("oj-287", "ton-599", "3c-279", "pg-1553-113")
 STARS = ("barnards-star", "epsilon-indi-b", "wise-0855", "g191-b2b", "vega", "r-draconis", "rw-aurigae", "elias-16", "elias-29",
          "empty-sky", "sgr-a", "ngc-3379")

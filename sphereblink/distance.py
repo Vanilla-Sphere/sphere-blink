@@ -31,6 +31,7 @@ TIMEOUT = httpx.Timeout(12.0, connect=5.0)
 SLOW_TIMEOUT = httpx.Timeout(25.0, connect=5.0)
 
 NAMED_RADIUS = 5.0  # arcsec around a catalogue position
+SAME_RADIUS = 3.0  # arcsec: a second catalogue's entry this close is the same object
 POINT_RADIUS = 10.0  # arcsec around a point somebody picked: under two SPHEREx pixels
 GAIA_RADIUS = 15.0  # wider, so a star that has moved since 2016 is still found
 PIXEL = 7.5  # arcsec: Gaia stars this close to the point share its SPHEREx pixel
@@ -382,11 +383,13 @@ def _redshift(z, err, nature, quality, source, bibcode) -> dict:
 
 
 # ----------------------------------------------------------------------------- the answer
-def lookup(target: Target, client: httpx.Client | None = None) -> dict:
+def lookup(target: Target, client: httpx.Client | None = None, second: bool = False) -> dict:
     """Identity, distance and redshift of what lies at a target.
 
     ``complete`` is False when a service that could have added something did
-    not answer: the caller then shows what there is and asks again later."""
+    not answer: the caller then shows what there is and asks again later.
+    ``second`` asks NED as well where SIMBAD gave the redshift, and puts what
+    NED lists for the same object beside it: for a redshift that is in doubt."""
     named = target.source != "coordinates"
     # Catalogues list an object where it was at their own epoch: SIMBAD at
     # J2000, Gaia at 2016.0. A target with a known motion is looked up there.
@@ -444,6 +447,13 @@ def lookup(target: Target, client: httpx.Client | None = None) -> dict:
         if obj and obj["z"] is not None and (far or (kind == "other" and obj["z"] >= 0.002)):
             out["redshift"] = _redshift(obj["z"], obj["z_err"], Z_NATURE.get(obj["z_nature"][:1], ""), obj["z_qual"],
                                         "SIMBAD (CDS)", obj["z_bibcode"])
+            if second:
+                ned, ned_error = ask(ned_redshift, at2000[0], at2000[1], SAME_RADIUS)
+                if ned_error:
+                    out["unavailable"].append("NED")
+                if ned:
+                    out["redshift"]["second"] = {"z": ned["z"], "z_err": ned["z_err"], "nature": ned["nature"], "name": ned["name"],
+                                                 "sep_arcsec": ned["sep_arcsec"], "source": "NED (NASA/IPAC)", "bibcode": ned["z_bibcode"]}
         elif not (obj and kind == "star") and not sure:
             # (a quasar is a point of light to Gaia too: without a firm parallax, or SIMBAD's
             # word that it is a star, a Gaia source may well be one)

@@ -40,7 +40,7 @@ Object.assign(STR.en, {
   "d.foot.star": "Published values, not measured from SPHEREx.",
   "d.est": "From its lines", "d.est.lines": "Lines found",
   "d.est.val": "z = {z} ± {e} · quality {q} of 4",
-  "d.est.same": " · within {p} % of the published value", "d.est.far": " · the published value is {z}",
+  "d.est.same": " · within {p} % of the published value", "d.est.far": " · the published value is {z}", "d.est.other": " · {src} lists {z}",
   "d.est.left": " · light set out about {t} ago",
   "d.est.line": "{name} at {w} µm",
   "d.foot.est": "“From its lines” is our own reading of this SPHEREx spectrum: the mean quasar spectrum laid on it at every redshift, and at least two emission lines found on their places (after Colless et al. 2001). An estimate, not a published measurement.",
@@ -126,7 +126,7 @@ async function depthNearest(ra, dec, within) {
 
 /* ------------------------------------------------------------------ the object of a view */
 function clearDepth() {
-  DP.key = ""; DP.info = null; DP.est = null; DP.state = "";
+  DP.key = ""; DP.info = null; DP.est = null; DP.other = undefined; DP.state = "";
   $("depthcard").hidden = true; $("sdepth").hidden = true;
 }
 /* ------------------------------------------------------------------ a redshift from the lines of the spectrum */
@@ -150,12 +150,45 @@ async function depthSpectrum(points) {
   if (id !== S.loadId || !e) return;
   DP.est = e;
   if (DP.state !== "wait") showDepth();
+  rereadAt();
+}
+/* The redshift at which the reading of the spectrum (insight.js) looks for lines. As a rule the published one. But
+   where the estimate from the lines is firm (quality 4) and the published one disagrees with it by more than 2 % in
+   (1 + z), or there is none, the estimate: a catalogue can hold a wrong value, and the reading says which one it used
+   and why. Never for a star, and never against the redshift of a galaxy next door (below 0.01). */
+function readingRedshift() {
+  const d = DP.info || {}, pub = d.redshift || null, src = (z) => String(z.source || "").replace(/ \(.*/, "");
+  const est = DP.est && DP.est.quality === 4 && DP.est.z >= 0.02 && !d.distance && d.kind !== "star" && DP.state !== "wait" ? DP.est : null;
+  if (est && (!pub || (pub.z >= 0.01 && Math.abs(est.z - pub.z) / (1 + pub.z) >= 0.02))) {
+    if (pub && DP.other === undefined) secondOpinion();
+    return {z: est.z, measured: {zErr: est.zErr, quality: est.quality, published: pub ? {z: pub.z, source: src(pub)} : null, other: DP.other || null}};
+  }
+  return pub && pub.z >= 0.01 ? {z: pub.z, zSource: src(pub)} : null;
+}
+/* The lines and the published redshift disagree: what does a second catalogue list for the object? Asked once per
+   object, and only then (NED, through the server). The reading is done again when the answer is in. */
+async function secondOpinion() {
+  const key = DP.key, t = S.t;
+  DP.other = null;
+  if (!t || (DP.info && DP.info.offline)) return;
+  try {
+    const r = await fetch("/api/object?" + depthQuery(t) + "&second=1");
+    const d = r.ok ? await r.json() : null, z2 = d && d.redshift && d.redshift.second;
+    if (key !== DP.key || !z2 || !(z2.z >= 0)) return;
+    DP.other = {z: z2.z, source: String(z2.source || "").replace(/ \(.*/, "")};
+    rereadAt(); showDepth();
+  } catch (_) {}
+}
+/* The estimate arrived after the spectrum was read: read it again where the estimate changes the redshift used. */
+function rereadAt() {
+  const at = readingRedshift();
+  if (at && at.measured && S.spectrum && typeof readSpectrum === "function") { readSpectrum(); drawPlot(); }
 }
 const depthQuery = (t) => (S.target && !S.byCoords ? `target=${encodeURIComponent(S.target)}` : `ra=${t.ra.toFixed(6)}&dec=${t.dec.toFixed(6)}`);
 async function depthTarget(t) {
   const key = `${t.name}|${t.ra.toFixed(5)}|${t.dec.toFixed(5)}`;
   if (key === DP.key) return;
-  DP.key = key; DP.info = null; DP.state = "wait";
+  DP.key = key; DP.info = null; DP.other = undefined; DP.state = "wait";
   $("depthcard").hidden = false; $("depthlist").innerHTML = ""; $("depthfoot").hidden = true;
   $("depthstatus").hidden = false; $("depthstatus").textContent = tr("d.wait"); $("sdepth").hidden = true;
   let d = null, down = false;
@@ -230,7 +263,7 @@ function showDepth() {
   if (est) {
     const far = est.z >= 0.02 && est.z > 3 * est.zErr, off = z ? Math.abs(est.z - z.z) / (1 + z.z) : null;
     row("d.est", tr("d.est.val", {z: dMinus(est.z.toFixed(3)), e: est.zErr.toFixed(3), q: est.quality})
-      + (off === null ? (far ? tr("d.est.left", {t: dYears(cosmoOf(est.z).lookback_gyr)}) : "") : off < 0.02 ? tr("d.est.same", {p: (100 * off).toFixed(1)}) : tr("d.est.far", {z: dZ(z.z)})), "measure");
+      + (off === null ? (far ? tr("d.est.left", {t: dYears(cosmoOf(est.z).lookback_gyr)}) : "") : off < 0.02 ? tr("d.est.same", {p: (100 * off).toFixed(1)}) : tr("d.est.far", {z: dZ(z.z)}) + (DP.other ? tr("d.est.other", {src: DP.other.source, z: dZ(DP.other.z)}) : "")), "measure");
     row("d.est.lines", est.lines.map((l) => tr("d.est.line", {name: l.name, w: l.wave.toFixed(2)})).join(" · "));
   }
   if (d.offline) notes.push(tr("d.offline"));

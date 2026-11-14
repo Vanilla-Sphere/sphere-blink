@@ -246,6 +246,14 @@ et al. (2016) below 0.55 µm and the SDSS and IRTF composite of Glikman et al.
   "Our own reading, not a published value."
 - **Compare spectra**: "from its lines 1.343" next to the published value of
   each object; pressing it moves the spectrum to that redshift.
+- **Preliminary reading**: where an estimate of quality 4 and the published
+  redshift disagree (more than 2 % in 1 + z), or nothing is published, the
+  reading looks for lines at the measured redshift and says so in its first
+  sentence (`readingRedshift()` in `web/depth.js`; feature 9, "Preliminary
+  reading of the spectrum", step 7). The
+  viewer then asks the lookup for a second catalogue (`/api/object` with
+  `second=1`: NED), and both the card ("NED lists 2.413") and the reading
+  say what it lists.
 
 An object that SIMBAD lists as a star, or that has a parallax distance, is
 never given one, whatever its spectrum looks like.
