@@ -203,7 +203,7 @@ const SkyMap = (() => {
       project(...vec(mark.ra, mark.dec), p);
       if (onScreen(p)) { ctx.strokeStyle = C.accent2; ctx.lineWidth = 1; ctx.strokeRect(Math.round(p[0]) - 6.5, Math.round(p[1]) - 6.5, 13, 13); }
     }
-    // the challenge targets: the only orange on the map
+    // the featured targets: the only orange on the map
     ctx.textAlign = "left"; ctx.font = `500 12.5px ${C.sans}`;
     for (const pin of pins) {
       project(...vec(pin.ra, pin.dec), p);

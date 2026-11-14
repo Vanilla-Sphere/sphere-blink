@@ -25,7 +25,7 @@ motion, parallax, magnitude and catalogue identifier.
 
 | Case | Source |
 | --- | --- |
-| Challenge target | Built-in table `refcat.TARGETS`. Gaia DR3 rows (epoch 2016.0) for Barnard's Star, Epsilon Indi B, RW Aurigae and R Draconis. For WISE 0855-0714, which Gaia cannot see: the AllWISE position (mean epoch 2010.5) with motion and parallax from Kirkpatrick et al. 2021 (ApJS 253, 7). |
+| Featured target | Built-in table `refcat.TARGETS`. Gaia DR3 rows (epoch 2016.0) for Barnard's Star, Epsilon Indi B, RW Aurigae and R Draconis. For WISE 0855-0714, which Gaia cannot see: the AllWISE position (mean epoch 2010.5) with motion and parallax from Kirkpatrick et al. 2021 (ApJS 253, 7). |
 | Any other position | The Gaia DR3 star within 4 arcsec of the requested position, evaluated at the date of the SPHEREx data |
 | No Gaia match | The position itself, as an object of unknown motion (`kind: candidate`) |
 
@@ -206,7 +206,7 @@ identification and timing:
 
 *Figure: A measurement job. Source: [`diagrams/measure-job.html`](diagrams/measure-job.html).*
 
-- **Keys.** A challenge target is keyed by its short name; any other position by
+- **Keys.** A featured target is keyed by its short name; any other position by
   `pos_<ra>_<dec>` rounded to four decimals.
 - **Isolation.** The numerical work runs in a dedicated child process so the web
   process keeps answering. A job is abandoned after 600 s.
@@ -218,7 +218,7 @@ identification and timing:
   object again. Measurements loaded by other means under another method name are
   left alone.
 - **Automatic runs.** Forty seconds after start (`SPHEREX_AUTO_MEASURE_DELAY`),
-  the five challenge targets are measured one after another if their stored
+  the five featured targets are measured one after another if their stored
   result is missing, older than seven days, or from an earlier pipeline version.
   `SPHEREX_AUTO_MEASURE=0` disables this.
 - **Versioning.** Raising `measure_api.VERSION` causes every stored result to be
@@ -232,7 +232,7 @@ needs absolute fluxes, unlike the light curve above, which needs only relative o
 **The problem.** Stars brighter than about K = 9 fill the wells of the central
 pixels at wavelengths below about 3.5 um. The pipeline flags those pixels
 `OVERFLOW` or `NONLINEAR`, and an aperture on the core reads 2-5 times low or
-not at all. Two of the five challenge targets were affected: Barnard's Star had
+not at all. Two of the five featured targets were affected: Barnard's Star had
 3 usable points of 358, R Draconis none of 539.
 
 **The method.** A few pixels out, the same star is still there, hundreds of
@@ -275,7 +275,7 @@ extrapolation. R Draconis (50-100 Jy) is in that last regime.
 star's proper-motion position in each frame; for Barnard's Star this is a drift
 of about one native pixel either way over the data.
 
-## Validation on the challenge targets
+## Validation on the featured targets
 
 Results from the deployed service on 14 November 2026 (collections DR1 and QR3,
 pipeline version 2), read from `/api/measured`. Proper motions in mas/yr.
@@ -299,7 +299,7 @@ Reading the table:
   for a Mira variable with a period of about 246 days.
 
 The same pipeline, started from the "Measure this object" button on positions
-that are not challenge targets, produced these results on the same day:
+that are not featured targets, produced these results on the same day:
 
 | Object | Positions in the fit | Fitted proper motion | Gaia DR3 |
 | --- | --- | --- | --- |
@@ -340,6 +340,6 @@ the Earth, recovery of sub-pixel position and flux, immunity to a known
 neighbour, the fallback to wings for a masked core, recovery of a fast mover's
 track with parallax, the bias when parallax is ignored, measurement of a faint
 mover on stacks, the light curve dividing out the spectrum, pass splitting, the
-catalogue astrometry of the challenge targets, storage and serving of results,
+catalogue astrometry of the featured targets, storage and serving of results,
 synchronisation to the database, and the handling of partly and mostly
 saturated stars.

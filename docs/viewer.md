@@ -34,7 +34,7 @@ element so that CSS alone decides what is visible:
 
 | | `data-screen="map"` | `data-screen="view"` |
 | --- | --- | --- |
-| Content | Whole-sky map, challenge targets, zoom buttons | Image stage, transport, and the panels of the current mode |
+| Content | Whole-sky map, featured targets, zoom buttons | Image stage, transport, and the panels of the current mode |
 | Entered by | Opening `/` without a position; "Sky map" button; browser Back | Clicking the map; searching; opening a link with a position |
 
 Elements that belong to one mode carry the class `adv` or `simple`.
@@ -53,7 +53,7 @@ Three columns under a fixed top bar:
 | Region | Content |
 | --- | --- |
 | Top bar | Brand, "Sky map" button, search box, Field menu, "Show sky", Simple/Advanced switch, API and Source links, credits note |
-| Left rail | Challenge targets; Display panel: Bands, One frame per, Image math, Contrast, Overlays |
+| Left rail | Featured targets; Display panel: Bands, One frame per, Image math, Contrast, Overlays |
 | Stage | Target name and coordinates; the image; progress bar; a status strip with date, channels, wavelength range, exposure count and pointer coordinates; transport; timeline |
 | Right column | Spectrum or light curve; "This frame"; "Measured in this field"; "Position of the crosshair" with cross-links; "Link or embed this view" |
 
@@ -171,6 +171,9 @@ Drawn on the image canvas after every frame by `drawOverlays`:
 | Gaia DR3 / CatWISE | Circle or square at the position propagated to the date of the frame; fast, significant movers highlighted with a path and a label |
 | Measured tracks | Every measured position as a dot, the fitted track as a line, a diamond on positions measured in the frame on screen, the object's name |
 | Scale bar and compass | 1, 2 or 5 arcmin bar depending on the field; N up, E left |
+
+In Advanced both catalogues are fetched as soon as a view opens (`loadCatalogs`),
+so ticking an overlay shows it without a wait; Simple fetches none.
 
 Marks and text keep a constant size in CSS pixels on any display density and
 carry a thin dark edge so they remain legible over bright pixels. Canvas colours
