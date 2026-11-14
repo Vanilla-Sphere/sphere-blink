@@ -155,6 +155,14 @@ BOUND_SLACK = 1.3  # a path may need this many times that speed before it is cal
 EPOCH_GAP_D = 30.0  # passes further apart than this are different epochs: a slow object is somewhere else by then
 
 
+def wave_of(frame: dict, detector: int) -> float:
+    """A frame's wavelength at the centre of the field, micron. A frame that
+    does not cover the centre has none (None, or NaN as the pipeline gives
+    it): it is weighted by the middle of its detector's range."""
+    w = frame.get("wave_um")
+    return float(w) if w is not None and np.isfinite(w) else DETECTOR_UM.get(detector, 2.0)
+
+
 def template(wave_um, kind: str = "sun"):
     """Relative brightness (per unit frequency) expected at a wavelength.
 
@@ -420,7 +428,7 @@ def pass_maps(cube, frames: list[dict], sky: StaticSky, groups: list[np.ndarray]
                 dropped += 1
                 continue
             s, ok, noise = out
-            f = float(template(frames[i].get("wave_um") or DETECTOR_UM.get(detector, 2.0), kind))
+            f = float(template(wave_of(frames[i], detector), kind))
             k = f * noise_ref / noise
             a += k * s
             wsum += (k * k) * ok
@@ -824,8 +832,7 @@ def measure(c: Candidate, cube, frames: list[dict], sky: StaticSky, mjd: np.ndar
         with np.errstate(divide="ignore", invalid="ignore"):
             a = np.where(ok, num[py, px] / den[py, px], np.nan)
             s = np.where(ok, noise / np.sqrt(den[py, px]), np.nan)
-        wave = frames[i].get("wave_um")
-        wave = float(wave) if wave is not None and np.isfinite(wave) else DETECTOR_UM.get(detector, 2.0)
+        wave = wave_of(frames[i], detector)
         rows.append((int(i), float(x), float(y), detector, wave))
         a_all.append(a), s_all.append(s)
         sy, sx = cy - y0, cx - x0
@@ -887,8 +894,7 @@ def frame_patches(c: Candidate, cube, frames: list[dict], sky: StaticSky, mjd: n
         den = ndi.correlate(g, KERNEL2, mode="constant")[1:-1, 1:-1]
         with np.errstate(divide="ignore", invalid="ignore"):
             z = np.where(den >= 0.6 * k2, num / np.sqrt(den) / noise, np.nan)
-        wave = frames[i].get("wave_um")
-        wave = float(wave) if wave is not None and np.isfinite(wave) else DETECTOR_UM.get(detector, 2.0)
+        wave = wave_of(frames[i], detector)
         Z.append(z), G.append(float(template(wave, kind)) / noise), T.append(float(mjd[i])), X.append(float(x)), Y.append(float(y))
     if len(Z) < MIN_TIMES:
         return None

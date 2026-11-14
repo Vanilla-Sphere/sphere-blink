@@ -220,3 +220,17 @@ def test_the_range_given_with_a_distance_is_as_wide_as_the_method_is_good_for():
     loose = ms.shown({"gamma": 0.025, "gamma_lo": 0.015, "gamma_hi": 0.035, "from": "centroids"})
     assert loose["distance_min_au"] == 25.0 and loose["distance_max_au"] == 100.0
     assert ms.shown({"gamma": 0.0, "gamma_lo": 0.0, "gamma_hi": 0.01, "from": "frames"})["distance_max_au"] is None
+
+
+def test_frames_without_a_wavelength_do_not_blind_the_search(faint):
+    """The pipeline gives NaN to a frame that does not cover the centre of the
+    field. Such a frame is weighted by its detector; before, one of them
+    emptied the map of its whole visit, and no path could be found."""
+    mover, cube, frames, grid, out = faint
+    assert ms.wave_of({"wave_um": float("nan")}, 2) == 1.36 and ms.wave_of({"wave_um": None}, 5) == 4.1
+    assert ms.wave_of({"wave_um": 1.2}, 2) == 1.2 and ms.wave_of({}, 9) == 2.0
+    holes = [dict(f, wave_um=float("nan")) if k % 3 == 0 else f for k, f in enumerate(frames)]
+    again = ms.search(cube, holes, grid.wcs, grid.scale_arcsec)
+    assert len(strong(again)) == 1
+    assert again["tracks"][0].extra["stack_snr"] == pytest.approx(out["tracks"][0].extra["stack_snr"], rel=0.25)
+    assert all(np.isfinite(p["wave_um"]) for p in again["tracks"][0].extra["points"])
