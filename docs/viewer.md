@@ -18,7 +18,7 @@ as static files.
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
 Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `starmap.js`, `ambient.js`, `app.js`.
-Asset URLs carry a version query (`?v=23`) that is raised when a file changes,
+Asset URLs carry a version query (`?v=24`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -241,7 +241,7 @@ to clear the pointer state.
 
 | Layer | Element | What it does |
 | --- | --- | --- |
-| Behind the map | `.mapbg .neb` | Soft violet, indigo and warm glows at the corners; CSS opacity and transform |
+| Behind the map | `.mapbg .neb canvas` | A muted Milky Way: a diagonal band of violet and indigo cloud with dark dust lanes, fine star dust that follows the band and a few warm stars. `milkyWay()` renders the cloud once from seeded noise into a small buffer (long side 420 px) and `backdrop()` scales it onto a still canvas and adds the dust; it is drawn again only when the window changes size. Its slow breathing is a CSS opacity and transform animation. `Ambient.dim(v)` sets its strength (0 to 1, 0.5 by default) |
 | Behind the map | `.mapbg .skyglow` | A glow around the rim of the sky: a 200 x 100 ellipse whose shadow is moved and scaled onto the rim |
 | Behind the map | `.mapbg canvas` | A deep field of faint stars at different depths. They twinkle, slide slowly, lean towards the pointer and slide when the map is turned (parallax). Stars behind the sky are skipped; nothing is drawn once the zoomed sky covers the screen |
 | The map | `SkyMap.turn` | The map turns 0.55 degrees a second while nobody uses it, only at the opening zoom |
@@ -256,6 +256,7 @@ Rules it keeps:
 - **Light.** Everything that moves on its own is a CSS animation of
   `transform` and `opacity`, or the deep-field canvas (at most 1.5 device
   pixels per CSS pixel, about 30 pictures a second, 10 on a touch screen).
+  The Milky Way is painted once, not every frame.
 - **The turn pauses** while the pointer moves over the map screen (8 s of
   stillness resume it, 2.5 s after the pointer has left, 4 s after a touch),
   during a drag, while a view is opening, when the map is zoomed in, and while
@@ -267,7 +268,7 @@ Rules it keeps:
   late while it turns (a computer drawing without a graphics chip), the turn
   drops to a third of its rate and then stops for the rest of the visit.
 - **Reduced motion.** With `prefers-reduced-motion: reduce` nothing moves by
-  itself: the star field and the glows are a still picture, there is no turn,
+  itself: the star field, the Milky Way and the glows are a still picture, there is no turn,
   ping or meteor, and the aiming frame and the coordinates appear at once.
 
 ## Text and notes
