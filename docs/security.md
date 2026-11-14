@@ -60,7 +60,7 @@ Added to every response by `guard.Guard`:
 
 | Header | Value | Purpose |
 | --- | --- | --- |
-| `Content-Security-Policy` (pages) | `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'` | Only the site's own scripts run; no other site can frame the viewer |
+| `Content-Security-Policy` (pages) | `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://irsa.ipac.caltech.edu; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'` | Only the site's own scripts run; no other site can frame the viewer. The one address beyond the site's own is the NASA/IPAC archive, for pictures only: the tiles of the sky photograph behind the zoomed-in map |
 | `Content-Security-Policy` (data, pictures) | `default-src 'none'` | A response opened directly can run nothing |
 | `X-Content-Type-Options` | `nosniff` | Browsers keep to the declared content type |
 | `X-Frame-Options` (pages) | `SAMEORIGIN` | As `frame-ancestors`, for older browsers |
@@ -120,6 +120,7 @@ endpoint is `GET`; nothing else is accepted.
 | IRSA SIA (exposure search) | Finding the exposures of a position | The stored list of that position is used, whatever its age. A position never opened before cannot be opened until the archive answers |
 | IRSA as a whole | Search and second copy of the files | Everything already on disk still opens, including the 8 arcmin views of the five featured targets, which are fetched at start and never evicted |
 | CDS Sesame | Object names | Second host (Harvard), then SIMBAD TAP on two hosts, then the answer stored on disk (kept 30 days, used at any age when no service answers). Coordinates and the featured targets need no service |
+| IRSA HiPS tiles (2MASS atlas) | The photograph behind the zoomed-in sky map, fetched by the visitor's browser | The drawn map stays as it is; after six failed tiles in a row the archive is left alone for a minute. Nothing else depends on it |
 | ESA Gaia archive, IRSA Gator | Catalogue overlays | Each catalogue has two services; the overlays of the featured targets are stored at start. See [data and sources](data-sources.md#external-services) |
 | Supabase Postgres | Team measurements | The service's own results are also in a local store and are served from there |
 | The server itself (Render) | Everything | One instance: a deploy or a crash interrupts the site. The server now stops at once instead of after 30 s, which leaves the 27 s the host needs to start the new instance (measured 2026-11-14); the viewer retries by itself, and a worker process that dies is replaced. A second server was considered on 2026-11-14 and not taken |

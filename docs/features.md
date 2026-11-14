@@ -43,6 +43,13 @@ The product opens on a drawn map of the whole sky, the same for both modes.
   measured colour index and, when the map is zoomed in, looks like a star in
   a photograph: a bright core, a soft glow and, for the brightest, thin
   spikes.
+- **The real sky behind it.** Zoomed in past about twice the opening view, a
+  photograph of the real sky fades in behind the chart: the 2MASS
+  near-infrared atlas, served by the NASA/IPAC Infrared Science Archive. The
+  Milky Way's dust lanes, the Orion Nebula, clusters and countless faint
+  stars lie exactly under the drawn ones. A line on the map names the survey
+  and says it is a backdrop, not SPHEREx data. If the archive does not
+  answer, the drawn map stays as it is.
 - **Interaction.** Drag to turn, scroll or pinch to zoom, click to open a view
   at that point. Pointing and clicking snap to the nearest star on the map, so
   a click on a star opens that star (by its name when it has one); holding Alt
@@ -54,6 +61,8 @@ The product opens on a drawn map of the whole sky, the same for both modes.
   panel (Simple) or "Featured targets" panel (Advanced).
 - **No dependencies.** The map is drawn on a canvas by `web/starmap.js` from a
   single compact data file, `web/data/sky.json`, built by `scripts/build_sky.py`.
+  The photograph behind it (`web/atlas.js`) is an extra: the map is complete
+  without it.
 - **A sky that moves.** The space around the map is a deep field of faint
   stars over a muted Milky Way (a band of violet cloud with dust lanes, drawn
   in code), with a violet glow around the rim of the sky; the map turns slowly
