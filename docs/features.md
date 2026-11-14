@@ -28,11 +28,16 @@ implements it. Implementation detail is in [imaging engine](imaging-engine.md),
 
 ## 1. Sky map start screen
 
-The product opens on a drawn map of the whole sky, the same for both modes.
+The product opens on a drawn map of the sky, the same for both modes. The
+first view looks at the centre of the Milky Way, close enough that the
+photograph of the real sky shows behind the chart: Sagittarius to the left of
+the dust lanes, Antares and Scorpius to the right. About 64 degrees of sky
+fit across the screen. The whole-sky button (or zooming out) shows the entire
+sky as one oval with the featured targets marked.
 
 ![The sky map start screen](img/sky-map.png)
 
-*The start screen: a drawn map of the whole sky with the featured targets marked.*
+*The start screen: the map opens on the centre of the Milky Way.*
 
 - **Projection.** Hammer equal-area, east to the left as on the sky. Dragging
   turns the sphere; near the centre the scale is uniform, so a zoomed-in map is
@@ -43,7 +48,7 @@ The product opens on a drawn map of the whole sky, the same for both modes.
   measured colour index and, when the map is zoomed in, looks like a star in
   a photograph: a bright core, a soft glow and, for the brightest, thin
   spikes.
-- **The real sky behind it.** Zoomed in past about twice the opening view, a
+- **The real sky behind it.** Zoomed in past about twice the whole-sky view, a
   photograph of the real sky fades in behind the chart: the 2MASS
   near-infrared atlas, served by the NASA/IPAC Infrared Science Archive. The
   Milky Way's dust lanes, the Orion Nebula, clusters and countless faint
