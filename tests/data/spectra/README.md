@@ -1,6 +1,6 @@
 # Spectra for the tests of the preliminary reading
 
-Points of `/api/spectrum` for 14 positions, taken from the production service
+Points of `/api/spectrum` for 17 positions, taken from the production service
 on 2026-11-14 and kept in a compact form (one row per exposure; `columns`
 names the fields). They are measurements on NASA SPHEREx Level 2 spectral
 images (NASA/JPL-Caltech, served by NASA/IPAC IRSA), made as described in

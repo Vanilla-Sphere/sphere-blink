@@ -38,10 +38,14 @@ viewer, code structure, data sources, performance and deployment.
   the object changed between visits.
 - **A first reading of the spectrum.** Under the plot the viewer says what the
   curve shows: where it peaks, how it slopes, which bands and lines stand at
-  their rest wavelengths (water vapour, methane, water and carbon dioxide ice,
-  hydrogen lines, PAH), and which kinds of object give such a curve. It is
-  written by fixed rules in the browser (`web/insight.js`), labelled
-  preliminary, and states its confidence and limits.
+  their reference wavelengths (water vapour, methane, water and carbon dioxide
+  ice, hydrogen and other atomic lines, PAH), and which kinds of object give
+  such a curve. It is written by fixed rules in the browser
+  (`web/insight.js`), labelled preliminary, and states its confidence and
+  limits. The wavelengths come from a cited catalogue (`web/linelist.js`:
+  NIST Atomic Spectra Database, HITRAN2020, the literature on ices and dust),
+  and for a galaxy or quasar with a published redshift the lines are looked
+  for where the redshift puts them.
 - **Bright stars too.** A star brighter than about K = 9 saturates the
   detector core and an aperture on it reads 2-5 times low. Those points are
   measured from the star's halo instead, with a calibration fitted to 81

@@ -1,8 +1,9 @@
 /* Vanilla Sphere - a first reading of a spectrum, by rule.
 
    analyseSpectrum(points) takes the points of /api/spectrum and returns what the curve shows, in
-   sentences, with the numbers behind each one. Nothing here is learned from examples and nothing is
-   looked up: every statement is a fixed test on the measured points, and says what it measured.
+   sentences, with the numbers behind each one. Nothing here is learned from examples: every statement
+   is a fixed test on the measured points, and says what it measured. The wavelengths of the bands and
+   lines it looks for, and where each comes from, are in web/linelist.js.
 
    What is tested, in this order:
    1. Which points can be used. Points measured from the halo of a saturated star ("wings") are compared
@@ -11,8 +12,11 @@
       brought to its level, so that a variable source does not leave steps that look like bands.
    3. Whether there is a source at all (signal against the noise of the exposures).
    4. The shape of the continuum: where it peaks, its slope, the blackbody closest to it.
-   5. Bands and lines at their rest wavelengths: water vapour (1.4, 1.9, 2.7 um), methane (3.3 um),
-      water ice (3.0 um), carbon dioxide (4.27 um), hydrogen and helium lines, the 3.3 um PAH band.
+   5. Bands and lines at the wavelengths of the catalogue (web/linelist.js): water vapour (1.4, 1.9,
+      2.7 um), methane (3.3 um), water ice (3.0 um), carbon dioxide (4.27 um), lines of hydrogen,
+      helium, sulphur and iron, the 3.3 um PAH band. Given a published redshift, the lines are looked
+      for where it puts them (and the lines of the visible and ultraviolet come into range); the
+      bands of stars and ices are then left out.
    The reading then names the kinds of object that give such a curve. It is a description, not a
    classification: a 12 arcsec aperture, 20-25 % errors on bright stars and a resolving power of
    35-130 leave many objects looking alike. The limits that apply are listed with every reading.
@@ -21,7 +25,8 @@
 "use strict";
 
 const Insight = (() => {
-  const VERSION = 1;
+  const VERSION = 2;
+  const CAT = typeof LINE_CATALOG !== "undefined" ? LINE_CATALOG : require("./linelist.js").LINE_CATALOG;
   const W0 = 0.74, W1 = 5.06, NBIN = 28;
   const APERTURE = "12″";          // radius of 2 native pixels
   const HC_K = 14387.8;            // h c / k in um K
@@ -209,16 +214,6 @@ const Insight = (() => {
     const sigma = 1.2533 * s * Math.hypot(1 / Math.sqrt(inn.length), 1 / Math.sqrt(L.length + R.length));
     return {ratio: f / c, snr: (f - c) / sigma, n: inn.length};
   }
-  const LINES = [
-    {key: "pa_alpha", label: "Pa α", name: "hydrogen Paschen α", w: 1.8756, h: true},
-    {key: "br_alpha", label: "Br α", name: "hydrogen Brackett α", w: 4.0523, h: true},
-    {key: "pa_beta", label: "Pa β", name: "hydrogen Paschen β", w: 1.2822, h: true},
-    {key: "br_gamma", label: "Br γ", name: "hydrogen Brackett γ", w: 2.1661, h: true},
-    {key: "he_i", label: "He I", name: "helium", w: 1.0833},
-    {key: "s_iii", label: "[S III]", name: "doubly ionised sulphur", w: 0.9533},
-    {key: "pah", label: "PAH", name: "the PAH band", w: 3.29, half: 0.6},
-  ];
-
   /* ---------------------------------------------------------------- change between dates */
   function epochScatter(P) {
     const obs = [], exp = [];
@@ -246,9 +241,12 @@ const Insight = (() => {
   const flux = (ujy) => (Math.abs(ujy) >= 1e6 ? two(ujy / 1e6) + " Jy" : Math.abs(ujy) >= 1000 ? two(ujy / 1000) + " mJy" : Math.round(ujy) + " µJy");
 
   /* ---------------------------------------------------------------- the reading */
-  function analyse(points) {
+  function analyse(points, opts) {
     const all = prepare(points);
-    const out = {version: VERSION, state: "none", confidence: "low", headline: "", plain: "", findings: [], caveats: [], features: [], metrics: {points: all.length}};
+    // a published redshift, when the caller has one: it moves the lines, it is never measured here
+    const z = opts && fin(opts.z) && opts.z > -0.01 && opts.z < 20 ? opts.z : null, zf = 1 + (z || 0);
+    const far = z !== null && z >= 0.01, zText = far ? `z = ${z.toFixed(3)}` : "", zSrc = (opts && opts.zSource) || "the literature";
+    const out = {version: VERSION, state: "none", confidence: "low", headline: "", plain: "", findings: [], caveats: [], features: [], tested: [], sources: [], redshift: z, metrics: {points: all.length}};
     const find = (key, text) => out.findings.push({key, text});
     if (all.length < 12) {
       out.headline = "Too few points to read a spectrum here.";
@@ -294,14 +292,14 @@ const Insight = (() => {
     if (bb) { M.blackbody_K = bb.T; M.blackbody_range_K = [bb.lo, bb.hi]; M.blackbody_scatter = bb.rms; }
 
     /* 5. bands and lines */
-    const feat = (key, label, w, kind, m, tentative) => out.features.push({key, label, wave_um: w, kind, strength: kind === "emission" ? m.ratio - 1 : m.depth, snr: Math.abs(m.snr), tentative: !!tentative});
+    const srcOf = (e) => CAT.sources[e.source].short;
+    const feat = (e, kind, m, tentative, at, label) => out.features.push({key: e.key, label: label || e.label, wave_um: at || e.at || e.w, rest_um: e.w, species: e.species, transition: e.transition, source: srcOf(e), kind, strength: kind === "emission" ? m.ratio - 1 : m.depth, snr: Math.abs(m.snr), tentative: !!tentative});
     const strong = (m, depth = 0.12, snr = 4) => m && m.depth >= depth && m.snr >= snr;
     const weak = (m) => m && m.depth >= 0.08 && m.snr >= 2.5;
-    const h14 = band(P, 1.40, [1.34, 1.47], [1.23, 1.31], [1.57, 1.70]);
-    const h19 = band(P, 1.90, [1.80, 1.98], [1.60, 1.72], [2.08, 2.26]);
-    const cont3 = [[2.12, 2.28], [3.62, 3.95]];
-    const i27 = band(P, 2.68, [2.55, 2.82], ...cont3), i30 = band(P, 3.05, [2.95, 3.16], ...cont3), i33 = band(P, 3.32, [3.24, 3.42], ...cont3);
-    const co2 = band(P, 4.265, [4.235, 4.295], [4.09, 4.20], [4.335, 4.43]);
+    // the bands of cool atmospheres and of ices are those of a source at rest: not looked for in a redshifted one
+    const BD = CAT.by, bandOf = {};
+    for (const e of CAT.bands) bandOf[e.key] = far ? null : band(P, e.at, e.inb, e.left, e.right);
+    const h14 = bandOf.h2o_1p4, h19 = bandOf.h2o_1p9, i27 = bandOf.h2o_2p7, i30 = bandOf.h2o_ice, i33 = bandOf.ch4, co2 = bandOf.co2;
     M.bands = {h2o_1p4: h14 && h14.depth, h2o_1p9: h19 && h19.depth, at_2p7: i27 && i27.depth, at_3p0: i30 && i30.depth, at_3p3: i33 && i33.depth, co2_4p27: co2 && co2.depth};
 
     // around 3 um three absorbers overlap at this resolution; the deepest place tells them apart
@@ -311,23 +309,44 @@ const Insight = (() => {
     const vapour = [strong(h14) && ["1.4", h14], strong(h19) && ["1.9", h19], vapour27 && ["2.7", i27]].filter(Boolean);
     const vapourWeak = !vapour.length && !ice && [weak(h14) && ["1.4", h14], weak(h19) && ["1.9", h19]].filter(Boolean).length === 2;
     const dryIce = strong(co2, 0.12, 4);
-    if (strong(h14)) feat("h2o_1p4", "H₂O", 1.40, "absorption", h14); else if (vapourWeak) feat("h2o_1p4", "H₂O", 1.40, "absorption", h14, true);
-    if (strong(h19)) feat("h2o_1p9", "H₂O", 1.90, "absorption", h19); else if (vapourWeak) feat("h2o_1p9", "H₂O", 1.90, "absorption", h19, true);
-    if (vapour27) feat("h2o_2p7", "H₂O", 2.68, "absorption", i27);
-    if (ice) feat("h2o_ice", "H₂O ice", 3.05, "absorption", i30);
-    if (methane) feat("ch4", "CH₄", 3.32, "absorption", i33);
-    if (dryIce) feat("co2", ice ? "CO₂ ice" : "CO₂", 4.265, "absorption", co2);
+    if (strong(h14)) feat(BD.h2o_1p4, "absorption", h14); else if (vapourWeak) feat(BD.h2o_1p4, "absorption", h14, true);
+    if (strong(h19)) feat(BD.h2o_1p9, "absorption", h19); else if (vapourWeak) feat(BD.h2o_1p9, "absorption", h19, true);
+    if (vapour27) feat(BD.h2o_2p7, "absorption", i27);
+    if (ice) feat(BD.h2o_ice, "absorption", i30);
+    if (methane) feat(BD.ch4, "absorption", i33);
+    if (dryIce) feat(BD.co2, "absorption", co2, false, 0, ice ? "CO₂ ice" : "CO₂");
 
     // Between deep molecular bands the continuum itself stands up in narrow peaks (near 1.08, 1.27 and 2.1 um),
     // which no test at this resolution can tell from emission lines: with such bands, no line is claimed.
     const molecular = (methane && vapour.length > 0) || vapour.some((v) => v[1].depth > 0.3);
-    const lines = [];
-    for (const L of molecular ? [] : LINES) {
-      const m = line(P, L.w, L.half);
-      if (m && m.ratio >= 1.2 && m.snr >= 4) { lines.push({...L, m}); feat(L.key, L.label, L.w, "emission", m); }
+    // every line of the catalogue that falls in the range, at the wavelength the redshift (if any) puts it
+    const widthAt = (w) => P.reduce((a, p) => (Math.abs(p.w - w) < Math.abs(a.w - w) ? p : a), P[0]).bw;
+    const cand = CAT.lines.map((e) => ({e, obs: e.w * zf})).filter((c) => c.obs > P[0].w && c.obs < P[P.length - 1].w).sort((a, b) => a.obs - b.obs);
+    const lines = [], pass = (c) => c.m && c.m.ratio >= 1.2 && c.m.snr >= 4;
+    for (const c of cand) { c.m = molecular ? null : line(P, c.obs, c.e.half); c.status = molecular ? "skipped" : c.m ? "absent" : "unmeasured"; }
+    // Lines closer than 1.3 channels are one measurement at this resolution: it goes to the strong member of a
+    // series before a weak one, then to the one that stands highest above the noise, and the others are named with it.
+    for (const hit of cand.filter(pass).sort((a, b) => (!!a.e.minor - !!b.e.minor) || b.m.snr - a.m.snr)) {
+      if (hit.mate) continue;
+      const reach = 1.3 * widthAt(hit.obs);
+      const mates = cand.filter((c) => c !== hit && !c.mate && c.status !== "detected" && Math.abs(c.obs - hit.obs) < reach);
+      for (const c of mates) { c.mate = hit.e; if (c.m) c.status = "blended"; }
+      hit.status = "detected";
+      lines.push({...hit.e, w: hit.obs, rest: hit.e.w, m: hit.m, mates: mates.map((c) => c.e), c: hit});
     }
-    const hLines = lines.filter((l) => l.h), pah = lines.find((l) => l.key === "pah");
-    const emission = hLines.length >= 2 || (hLines.length === 1 && (lines.length >= 2 || hLines[0].m.ratio > 1.6));
+    lines.sort((a, b) => a.w - b.w);
+    const where = (l) => (far ? `${l.name} (${um(l.rest)} at rest) at ${um(l.w)}` : `${l.name} at ${um(l.w)}`) + (l.mates.length ? `, not separated from ${list([...new Set(l.mates.map((e) => e.label))])} at this resolution` : "");
+    // The strong member of each series or doublet decides. At rest: two such hydrogen lines, or one with another strong
+    // line beside it or far above the continuum. With a published redshift the places are fixed in advance: two strong
+    // lines, or one far above the continuum.
+    const main = lines.filter((l) => !l.minor), hMain = main.filter((l) => l.h);
+    const emission = far
+      ? main.length >= 2 || (main.length === 1 && main[0].m.ratio > 1.6)
+      : hMain.length >= 2 || (hMain.length === 1 && (main.length >= 2 || hMain[0].m.ratio > 1.6));
+    // a weaker line (Pa δ, Pf γ, the second line of a doublet...) is never seen without the strong ones: alone, it is a bump
+    for (let i = lines.length - 1; i >= 0; i--) if (lines[i].minor && !emission) { lines[i].c.status = "alone"; lines.splice(i, 1); }
+    for (const l of lines) feat(l.c.e, "emission", l.m, false, l.w);
+    const pah = lines.find((l) => l.key === "pah");
 
     // light beyond 4 um on top of a curve that was falling: a second, cooler source of light
     const up = (() => {
@@ -358,10 +377,12 @@ const Insight = (() => {
       find("saturated", `The source is at about ${flux(bright)}, above the range in which the halo of a saturated star was calibrated (0.15 to 40 Jy). The points give its rough brightness, not its colour or temperature.`);
     } else if (emission) {
       kind = "emission";
-      out.headline = "Emission lines of ionised gas stand above the continuum.";
-      out.plain = "Glowing gas: this light carries the sharp colours of hot hydrogen, as in a nebula.";
-      find("lines", cap(`${list(lines.map((l) => `${l.name} at ${um(l.w)} (×${l.m.ratio.toFixed(1)} the continuum, ${sig(l.m.snr)})`))}.`));
-      find("gas", "Hydrogen recombination lines come from gas ionised by a hot source: an H II region, a planetary nebula, a young or active star, or an active galaxy nucleus near enough for the lines to sit at their rest wavelengths.");
+      out.headline = far ? (lines.length > 1 ? `Emission lines stand above the continuum where the published redshift (${zText}) puts them.` : `An emission line stands above the continuum where the published redshift (${zText}) puts ${lines[0].name}.`) : "Emission lines of ionised gas stand above the continuum.";
+      out.plain = far ? "Glowing gas in a distant galaxy: bright lines of hot gas, moved to longer wavelengths on the way here." : "Glowing gas: this light carries the sharp colours of hot hydrogen, as in a nebula.";
+      find("lines", cap(`${list(lines.map((l) => `${where(l)} (×${l.m.ratio.toFixed(1)} the continuum, ${sig(l.m.snr)})`))}.`));
+      find("gas", far
+        ? `At ${zText} such lines come from gas around an active galaxy nucleus (a quasar) or from star-forming gas in a distant galaxy. The redshift is the published one (${zSrc}): this reading uses it, it does not measure it.`
+        : "Hydrogen recombination lines come from gas ionised by a hot source: an H II region, a planetary nebula, a young or active star, or an active galaxy nucleus near enough for the lines to sit at their rest wavelengths.");
       if (pah) find("pah", "The 3.3 µm band of polycyclic aromatic hydrocarbons is in emission too: carbon-rich dust lit by ultraviolet light.");
     } else if (ice || (dryIce && rising)) {
       kind = "ice";
@@ -418,6 +439,12 @@ const Insight = (() => {
       out.plain = "There is a source here, but its light does not match a simple pattern.";
     }
     M.kind = kind;
+    if (far && kind !== "emission" && kind !== "saturated" && kind !== "partial") {
+      // the words above are those of a source at rest; this one is known to be a galaxy or a quasar
+      out.headline = out.headline.replace(/: (the infrared tail of a hot photosphere|the light of a cool photosphere)\.$/, ".");
+      out.plain = lines.length ? "A distant galaxy or quasar: a possible line of glowing gas shows where its redshift puts it." : "A distant galaxy or quasar: no bright line stands out in its light where its redshift would put one.";
+      find("redshift", `The object has a published redshift (${zText}, ${zSrc}): it is a galaxy or a quasar, so of the causes named here only those of a galaxy apply.`);
+    }
     // on the plot a name without a question mark is a claim: a lone line or a lone water band does not get one
     for (const x of out.features) {
       if (x.kind === "emission" && kind !== "emission") x.tentative = true;
@@ -429,11 +456,13 @@ const Insight = (() => {
     if ((kind === "coolstar" || kind === "browndwarf") && pk && !pk.edge) find("peak", `The continuum peaks near ${um(pk.w)}.`);
     if (kind === "ice" && aRed !== null) find("slope", (aBlue !== null && aBlue > 1.5 ? `The flux rises steeply from the blue end (${pow(aBlue)} below 1.7 µm), as starlight reddened by dust does. ` : "") + (aRed > -0.5 ? `Beyond 2.3 µm it keeps rising (${pow(aRed)}): warm dust close to the source adds its own light, as around a young star.` : `Beyond 2.3 µm it falls (${pow(aRed)}), as the photosphere of a star behind the cloud would.`));
     if (kind === "ice" && dryIce && !ice) find("co2", "Only the carbon dioxide band is seen; the 3.0 µm water-ice band that usually comes with it is not measured here.");
-    if (kind !== "emission" && lines.length) find("lines", `Possible emission at ${list(lines.map((l) => `${um(l.w)} (${l.name}, ${sig(l.m.snr)})`))}: one line alone is not a firm detection, and it could be another line moved there by redshift.`);
+    if (kind !== "emission" && lines.length) find("lines", `Possible emission at ${list(lines.map((l) => `${um(l.w)} (${l.name}${far ? ", " + um(l.rest) + " at rest" : ""}, ${sig(l.m.snr)})`))}: ` + (far ? "one weak line alone is not a firm detection." : "one line alone is not a firm detection, and it could be another line moved there by redshift."));
     if (kind !== "ice" && dryIce) find("co2", `An absorption at 4.27 µm takes out ${pct(co2.depth)} of the continuum (${sig(co2.snr)}): carbon dioxide, as gas in a cool atmosphere or as ice on dust along the line of sight.`);
     if (vapour.length === 1 && !cool) find("molecules_one", `A dip at ${vapour[0][0]} µm (${pct(vapour[0][1].depth)} deep, ${sig(vapour[0][1].snr)}) is where water vapour absorbs in cool stars, but the other water bands are not seen: one band alone does not make it water.`);
     if (vapourWeak && kind !== "coolstar" && kind !== "browndwarf") find("molecules_weak", `Shallow dips at 1.4 µm (${pct(h14.depth)}) and 1.9 µm (${pct(h19.depth)}) are where water vapour absorbs in cool stars; they are too weak here to be sure.`);
-    if (!out.features.length && kind !== "other" && kind !== "saturated" && kind !== "partial") find("featureless", "No band or line is detected at the rest wavelengths tested (water vapour, methane, water ice, carbon dioxide, hydrogen, helium, PAH).");
+    if (!out.features.length && kind !== "other" && kind !== "saturated" && kind !== "partial") find("featureless", far
+      ? `No emission line is detected at the ${cand.length} places where the published redshift (${zText}) puts the lines of the catalogue.`
+      : `No band or line is detected at the ${CAT.bands.length + cand.length} reference wavelengths tested (water vapour, methane, water ice, carbon dioxide, hydrogen, helium, sulphur, iron, PAH).`);
 
     /* what the source did between dates */
     M.epoch_scatter = ep ? ep.typical : null;
@@ -444,7 +473,19 @@ const Insight = (() => {
       out.caveats.push(`The source changed between sky passes (one pass is ×${far.toFixed(2)} the best-sampled one). The passes were brought to one level before the bands were read; a change of colour between passes is still in the curve.`);
     } else if (unsteady) out.caveats.push(`Points at the same wavelength taken on different dates differ by ${pct(ep.typical)} (median of ${ep.n} pairs). Either the source varies or it is not measured steadily; small bumps in the curve may be changes in time, not in wavelength.`);
 
+    /* what was looked for, where, and on whose authority */
+    const featOf = (key) => out.features.find((x) => x.key === key);
+    const row = (e, kind, obs, status, m, mate) => out.tested.push({key: e.key, label: e.label, species: e.species, transition: e.transition, kind, rest_um: e.w, wave_um: obs, broad: kind === "band" || !!e.band, source: srcOf(e), status,
+      strength: m ? (kind === "band" ? m.depth : m.ratio - 1) : null, snr: m ? m.snr : null, with: mate ? mate.label : null});
+    if (!far) for (const e of CAT.bands) { const m = bandOf[e.key], f = featOf(e.key); row(e, "band", e.at, !m ? "unmeasured" : f ? (f.tentative ? "possible" : "detected") : "absent", m); }
+    for (const c of cand) { const f = c.status === "detected" && featOf(c.e.key); row(c.e, "line", c.obs, f && f.tentative ? "possible" : c.status, c.m, c.mate); }
+    out.tested.sort((a, b) => a.wave_um - b.wave_um);
+    const used = new Set(out.tested.map((t) => t.source));
+    if (!far) for (const e of CAT.bands) used.add(CAT.sources[e.seen_in].short);
+    out.sources = Object.values(CAT.sources).filter((x) => used.has(x.short)).map((x) => ({short: x.short, cite: x.cite, doi: x.doi}));
+
     /* limits of this reading */
+    if (far) out.caveats.push(`Lines are looked for where the published redshift (${zText}, ${zSrc}) puts them; the bands of cool stars and of ices are not tested for such a source. If the redshift belongs to another object in the aperture, these places are wrong.`);
     if (pick.dropped) out.caveats.push(pick.droppedKind === "wings"
       ? `${pick.dropped} points measured from the halo of a saturated core read ×${pick.ratio.toFixed(1)} the direct points at the same wavelengths and were left out. ` + (pick.ratio >= 3 ? "A halo that bright is not one star: the object is extended (a galaxy or nebula) or the field is crowded." : "The source is near the brightness where the detector starts to saturate.")
       : `${pick.dropped} direct points read ×${(1 / pick.ratio).toFixed(1)} the halo points at the same wavelengths and were left out; near saturation neither kind is secure.`);
@@ -466,7 +507,7 @@ const Insight = (() => {
     return out;
   }
 
-  return {analyse, VERSION};
+  return {analyse, VERSION, catalog: CAT};
 })();
 
 const analyseSpectrum = Insight.analyse;
@@ -491,6 +532,46 @@ function showReading(r) {
   conf.textContent = "confidence: " + r.confidence; conf.dataset.level = r.confidence;
   fill("readlist", r.findings.map((f) => f.text));
   fill("readcaveats", r.caveats);
+  const far = r.redshift !== null && r.redshift !== undefined && r.redshift >= 0.01;
+  const foot = document.getElementById("readfoot");
+  if (foot) foot.textContent = far ? "Automatic, from this curve and the published redshift of the object. Not a classification." : "Automatic, from this curve alone. Not a classification.";
+  showReferences(r, far);
+}
+
+/* What the reading looked for: each band and line, its reference wavelength and where that comes from, and what
+   the curve shows there. */
+function showReferences(r, far) {
+  const box = document.getElementById("readref"), T = r.tested || [];
+  if (!box) return;
+  box.hidden = !T.length;
+  if (!T.length) return;
+  const el = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
+  const sig = (x) => (Math.abs(x) >= 10 ? Math.round(Math.abs(x)) : Math.abs(x).toFixed(1)) + "σ";
+  const size = (t) => (t.kind === "band" ? Math.round(100 * t.strength) + "% deep" : "×" + (1 + t.strength).toFixed(1)) + ", " + sig(t.snr);
+  const result = (t) => t.status === "detected" ? size(t)
+    : t.status === "possible" ? size(t) + ", not firm"
+    : t.status === "alone" ? "a bump (" + size(t) + ") with no strong line beside it"
+    : t.status === "blended" ? "not separated from " + t.with
+    : t.status === "skipped" ? "not tested: deep molecular bands"
+    : t.status === "unmeasured" ? "no usable points" : "not seen";
+  const found = T.filter((t) => t.status === "detected").length, maybe = T.filter((t) => t.status === "possible").length;
+  document.getElementById("readrefsum").textContent = `Reference wavelengths: ${T.length} looked for, ${found} found` + (maybe ? `, ${maybe} possible` : "");
+  document.getElementById("readrefwave").textContent = far ? "At rest, here" : "At rest";
+  document.getElementById("readrefrows").replaceChildren(...T.map((t) => {
+    const tr = el("tr"); tr.dataset.status = t.status;
+    const name = el("td"); const bare = t.label.replace(/[\[\]]/g, ""), what = t.transition.replace(/–/g, "–\u2060");
+    name.append(el("b", t.label), el("small", bare === t.species || t.kind === "band" && t.species.startsWith(bare) ? (t.kind === "band" ? t.species.slice(bare.length).trim() + (t.species.length > bare.length ? ", " : "") + what : what) : `${t.species} ${what}`));
+    const wave = el("td", (t.broad ? t.rest_um.toFixed(2) : t.rest_um.toFixed(4)) + " µm", "num");
+    if (far) wave.append(el("small", t.wave_um.toFixed(3) + " µm"));
+    tr.append(name, wave, el("td", result(t), "res"), el("td", t.source, "src"));
+    return tr;
+  }));
+  document.getElementById("readcite").replaceChildren(...(r.sources || []).map((s) => {
+    const li = el("li", s.cite + " "), a = el("a", "doi:" + s.doi);
+    a.href = "https://doi.org/" + s.doi; a.target = "_blank"; a.rel = "noopener";
+    li.append(a);
+    return li;
+  }));
 }
 
 /* Names of the detected bands and lines along the top of the spectrum plot. X maps wavelength to pixels. */

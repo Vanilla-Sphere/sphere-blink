@@ -11,6 +11,7 @@
 | Predicted positions of known asteroids and comets | IMCCE (SkyBoT); NASA/JPL Solar System Dynamics | Naming the moving objects found by the blind search | SkyBoT cone search; JPL Small-Body Identification API |
 | SIMBAD, NED, VizieR through Sesame | CDS Strasbourg; NASA/IPAC Extragalactic Database | Resolving object names to positions and proper motions | CDS Sesame; SIMBAD TAP |
 | AllWISE position and Kirkpatrick et al. 2021 (ApJS 253, 7) | NASA WISE; published literature | Astrometry of WISE 0855-0714, which is not in Gaia | Constants in `refcat.py` |
+| Reference wavelengths of spectral lines and bands | NIST Atomic Spectra Database 5.12; HITRAN2020; literature on interstellar ices and PAH | Naming bands and lines in the preliminary reading of a spectrum | 32 values kept in `web/linelist.js`, each with its source (read on 2026-11-14); no request at run time |
 | d3-celestial star, constellation and Milky Way data | Olaf Frohn (BSD 3-Clause) | The drawn sky map | Reduced to `web/data/sky.json` at build time |
 | 2MASS colour atlas (J, H, K) in HiPS format | University of Massachusetts and IPAC/Caltech, funded by NASA and NSF; HiPS by CDS | The photograph behind the zoomed-in sky map, a backdrop only | Tiles from IRSA (`irsa.ipac.caltech.edu/data/hips/CDS/2MASS/Color`), fetched once by the server and kept on its disk (`sphereblink/atlas.py`, `/api/atlas/2mass/`): orders 0-6 whole (the sky at 6.4 arcsec a pixel, about 7.2 GB), deeper tiles as they are asked for. The atlas is about 445 GB and marked `unclonable` by its publisher; it is not copied whole. The browser asks IRSA itself for a tile the server cannot give |
 
@@ -182,6 +183,8 @@ object at the propagated position.
 | Redshifts of galaxies and quasars | SIMBAD (CDS) and the NASA/IPAC Extragalactic Database (NED), each value with the bibcode of its paper | Public services |
 | Distances of stars | Gaia DR3 parallaxes; Bailer-Jones et al. 2021, AJ 161, 147 | Gaia archive terms |
 | Cosmology | Planck Collaboration 2020, A&A 641, A6, through `astropy.cosmology.Planck18` | Published literature |
+| Wavelengths of atomic lines in the reading of a spectrum | Kramida, Ralchenko, Reader and NIST ASD Team (2024), NIST Atomic Spectra Database (version 5.12), doi:10.18434/T4W30F | Public (US Government work) |
+| Positions of molecular, ice and dust bands in the reading of a spectrum | HITRAN2020 (Gordon et al. 2022, JQSRT 277, 107949); Cushing, Rayner and Vacca 2005, ApJ 623, 1115; Boogert, Gerakines and Whittet 2015, ARA&A 53, 541; Gibb et al. 2004, ApJS 151, 35; Tielens 2008, ARA&A 46, 289 | Published literature |
 | Known asteroids and comets | SkyBoT, IMCCE, Observatoire de Paris (Berthier et al. 2006); Small-Body Identification API, NASA/JPL Solar System Dynamics | Public services |
 | WISE 0855-0714 astrometry | Kirkpatrick et al. 2021, ApJS 253, 7 | Published literature |
 | Sky map data | d3-celestial by Olaf Frohn | BSD 3-Clause (notice in `web/data/`) |
