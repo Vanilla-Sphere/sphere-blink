@@ -63,6 +63,7 @@ const STR = {
     "map.star": "Bright star in {con}", "map.star.none": "Bright star",
     "map.open": "Opening…", "s.share": "Share",
     "map.in": "Zoom in", "map.out": "Zoom out", "map.reset": "Show the whole sky",
+    "map.full": "Full screen: the map alone", "map.full.exit": "Leave full screen",
     "det.one.t": "Detector {n} only, {range} µm",
 
     /* one-line notes on the controls (hints.js) */

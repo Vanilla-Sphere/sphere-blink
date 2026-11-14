@@ -42,7 +42,7 @@ The product opens on a drawn map of the whole sky, the same for both modes.
   names, and the Milky Way as a dot field.
 - **Interaction.** Drag to turn, scroll or pinch to zoom, click to open a view
   at that point. Keyboard: arrow keys pan, `+` and `-` zoom, Enter opens the
-  centre. Buttons zoom in, zoom out and reset to the whole sky.
+  centre. Buttons zoom in, zoom out, reset to the whole sky and fill the screen with the map alone (full screen; Esc or the same button leaves it).
 - **Readout.** The coordinates under the pointer and the constellation they
   fall in (from IAU boundaries precomputed on a 1 degree grid).
 - **Featured targets** are pinned on the map and listed in a "Start here"
