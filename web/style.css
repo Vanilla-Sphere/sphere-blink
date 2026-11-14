@@ -147,6 +147,13 @@ input[type=range]::-moz-range-thumb{width:9px;height:17px;background:var(--color
 .mapzoom{position:absolute;right:var(--pad);bottom:48px;display:flex;flex-direction:column}
 .mapzoom .btn{margin-top:-1px;background:var(--color-paper)}
 .mapzoom .btn:hover{background:var(--color-paper-2)}
+/* full screen: the map alone covers everything. The rule does the work, so it also holds where the browser has no full screen of its own (iPhone) */
+[data-screen="map"][data-mapfull] .mapscreen{position:fixed;inset:0;z-index:40;background:var(--color-paper)}
+[data-mapfull] .maphead,[data-mapfull] .mapstart{display:none}
+[data-mapfull] .mapzoom{right:max(var(--pad), env(safe-area-inset-right, 0px))}
+#map-full .back,[data-mapfull] #map-full .go{display:none}
+[data-mapfull] #map-full .back{display:block}
+[data-mapfull] #map-full{color:var(--color-accent)}
 .maptag{position:absolute;z-index:5;pointer-events:none;display:flex;flex-direction:column;padding:5px 9px;border:1px solid var(--color-muted-2);background:var(--color-lift);color:var(--color-ink-2);font-size:12.5px;line-height:1.4;white-space:nowrap}
 .maptag b{font-weight:500;color:var(--color-ink)}
 .netnote{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:70;padding:8px 14px;border:1px solid var(--color-muted-2);background:var(--color-lift);color:var(--color-ink);font-size:13px;white-space:nowrap}
@@ -419,6 +426,7 @@ dd{margin:0;font-family:var(--font-measure);font-variant-numeric:tabular-nums;fo
   .mapstart .target .nt{display:block}
   .mapfoot{display:none}
   .mapzoom{bottom:84px}
+  [data-mapfull] .mapzoom{bottom:calc(16px + env(safe-area-inset-bottom, 0px))}
 }
 @media (max-width:479.98px){.brand span{display:none}.brand{padding-right:4px}}
 @media (pointer:coarse){
