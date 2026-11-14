@@ -995,10 +995,10 @@ function drawPlot(out) {
   if (ymax <= 0) ymax = -0.05 * ymin;   // every flux below zero (the sky ring is brighter than the spot): the axis still ends above them
   if (ymax <= ymin) ymax = ymin + 1;
   // over time: one stretch of the axis per group of days, the empty months between them cut out
-  // One group can be enlarged (S.otZoom = its first date): then it alone fills the axis, at the same flux scale.
+  // One group can be enlarged (S.otZoom = a date in its middle): then it alone fills the axis, at the same flux scale.
   const whole = lc ? groupedAxis(xs, ml, W - mr) : null, xmin = 0.7, xmax = 5.1;
   if (S.otFor !== S.spectrum) { S.otFor = S.spectrum; S.otZoom = null; }
-  const zoom = lc ? whole.panels.findIndex((p) => p.t0 === S.otZoom) : -1, zp = zoom >= 0 ? whole.panels[zoom] : null;
+  const zoom = lc ? zoomedGroup(whole.panels) : -1, zp = zoom >= 0 ? whole.panels[zoom] : null;
   const view = zp ? pts.filter((p) => p.mjd >= zp.t0 && p.mjd <= zp.t1) : pts;
   const axis = zp ? groupedAxis(view.map((p) => p.mjd), ml, W - mr, {gap: 1e9}) : whole;
   if (lc && !out) { S.otPanels = whole.panels; showGroups(whole.panels, zoom); }
@@ -1116,22 +1116,25 @@ function showGroups(panels, zoom) {
     : tr("ot.group", {i: zoom + 1, n: panels.length, from: day(p.t0), to: day(p.t1).slice(day(p.t0).slice(0, 4) === day(p.t1).slice(0, 4) ? 5 : 0)});
   $("otall").hidden = zoom < 0;
 }
+/* Which group is enlarged: the one that holds the date kept in S.otZoom, or -1. A date in the middle of the group
+   still finds it when its first or last point leaves or joins the plot (the flagged points can be shown or hidden). */
+function zoomedGroup(panels) { return S.otZoom == null ? -1 : panels.findIndex((p) => S.otZoom >= p.a && S.otZoom <= p.b); }
 /* step = +1 or -1 moves to the next or the previous group (from the whole view: the first or the last); 0 shows all. */
 function stepGroup(step) {
   const panels = S.otPanels || [];
   if (panels.length < 2) return;
-  const now = panels.findIndex((p) => p.t0 === S.otZoom);
+  const now = zoomedGroup(panels);
   const next = step === 0 ? -1 : now < 0 ? (step > 0 ? 0 : panels.length - 1) : (now + step + panels.length) % panels.length;
-  S.otZoom = next < 0 ? null : panels[next].t0; drawPlot();
+  S.otZoom = next < 0 ? null : (panels[next].t0 + panels[next].t1) / 2; drawPlot();
 }
 /* A click on a group of days enlarges it; a click on the enlarged group brings all of them back. */
 function plotClick(ev) {
   const panels = S.otPanels || [];
   if (S.plotmode !== "lc" || panels.length < 2) return;
-  if (S.otZoom != null && panels.some((p) => p.t0 === S.otZoom)) { S.otZoom = null; drawPlot(); return; }
+  if (zoomedGroup(panels) >= 0) { S.otZoom = null; drawPlot(); return; }
   const x = ev.clientX - $("plot").getBoundingClientRect().left;
   const hit = panels.reduce((a, p) => (Math.abs((p.x0 + p.x1) / 2 - x) - (p.x1 - p.x0) / 2 < Math.abs((a.x0 + a.x1) / 2 - x) - (a.x1 - a.x0) / 2 ? p : a));
-  S.otZoom = hit.t0; drawPlot();
+  S.otZoom = (hit.t0 + hit.t1) / 2; drawPlot();
 }
 /* The comparison of the visits, worked out once for each set of points. */
 function changeOf() {

@@ -312,7 +312,7 @@ spectral data product.
   width of the plot, at the same flux scale; a second click brings all groups
   back. The row under the plot (`#otnav`: previous, next, "All groups") steps
   through the groups and names the one on screen with its dates (`showGroups`,
-  `stepGroup`, `plotClick` in `web/app.js`; the enlarged group is `S.otZoom`,
+  `stepGroup`, `plotClick` in `web/app.js`; the enlarged group is the one that holds the date `S.otZoom`,
   forgotten when a new view is loaded). The PNG export saves what is on screen.
 - **Did it change?** A line under the Over time plot answers in words
   (`brightnessChange` in `web/overtime.js`, the method of the pipeline's
