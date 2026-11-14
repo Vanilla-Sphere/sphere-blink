@@ -11,18 +11,19 @@
 <meta property="og:title" content="Vanilla Sphere - watch the infrared sky change">
 <meta property="og:description" content="Pick any spot on the sky map and watch NASA SPHEREx images of it play as a movie.">
 <meta property="og:url" content="https://vanillasphere.com/">
-<meta property="og:image" content="https://vanillasphere.com/static/og.png?v=36">
+<meta property="og:image" content="https://vanillasphere.com/static/og.png?v=37">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Vanilla Sphere - watch the infrared sky change">
 <meta name="twitter:description" content="Pick any spot on the sky map and watch NASA SPHEREx images of it play as a movie.">
-<meta name="twitter:image" content="https://vanillasphere.com/static/og.png?v=36">
-<link rel="icon" href="/static/favicon.svg?v=36" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=36">
+<meta name="twitter:image" content="https://vanillasphere.com/static/og.png?v=37">
+<link rel="icon" href="/static/favicon.svg?v=37" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=37">
 <link rel="preload" href="/static/fonts/HankenGrotesk.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/GeistMono.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/static/style.css?v=36">
+<link rel="stylesheet" href="/static/style.css?v=37">
+<link rel="stylesheet" href="/static/depth.css?v=37">
 </head>
 <body>
 <header class="bar">
@@ -50,7 +51,7 @@
   <nav class="barlinks" aria-label="Project">
     <button type="button" class="linkbtn adv" id="openlog" data-hint="tip.discoveries">Discoveries</button>
     <a href="/docs" class="adv" data-hint="tip.api">API</a>
-    <div class="tip"><button type="button" class="tipbtn" aria-label="Data sources and credits" aria-describedby="tip-credits"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-credits"><p><b>Images</b> NASA SPHEREx Level 2 spectral images (DR1, QR3), NASA/IPAC Infrared Science Archive, read on demand from the AWS Open Data mirror.</p><p><b>Overlays</b> ESA Gaia DR3 and CatWISE2020, through IRSA.</p><p><b>Sky map</b> Star, constellation and Milky Way data from d3-celestial (Olaf Frohn, BSD-3). The photograph behind the zoomed-in map is the 2MASS near-infrared atlas (University of Massachusetts and IPAC/Caltech, funded by NASA and NSF), in HiPS format by CDS, from NASA/IPAC IRSA (our server keeps a copy of the tiles it has shown). It is a backdrop, not SPHEREx data.</p><p><b>Team</b> Vanilla Sphere, 2026 NASA Space Apps Challenge, “Planet X and SPHEREx”.</p></div></div>
+    <div class="tip"><button type="button" class="tipbtn" aria-label="Data sources and credits" aria-describedby="tip-credits"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-credits"><p><b>Images</b> NASA SPHEREx Level 2 spectral images (DR1, QR3), NASA/IPAC Infrared Science Archive, read on demand from the AWS Open Data mirror.</p><p><b>Overlays</b> ESA Gaia DR3 and CatWISE2020, through IRSA.</p><p><b>Sky map</b> Star, constellation and Milky Way data from d3-celestial (Olaf Frohn, BSD-3). The photograph behind the zoomed-in map is the 2MASS near-infrared atlas (University of Massachusetts and IPAC/Caltech, funded by NASA and NSF), in HiPS format by CDS, from NASA/IPAC IRSA (our server keeps a copy of the tiles it has shown). It is a backdrop, not SPHEREx data.</p><p><b>Distances</b> Published values, not measured here: redshifts from SIMBAD (CDS, Strasbourg) and NED (NASA/IPAC), parallaxes from ESA Gaia DR3 with the distances of Bailer-Jones et al. (2021). Light-travel times use the Planck 2018 cosmology.</p><p><b>Team</b> Vanilla Sphere, 2026 NASA Space Apps Challenge, “Planet X and SPHEREx”.</p></div></div>
   </nav>
 </header>
 
@@ -74,6 +75,23 @@
     <button class="btn icon" id="map-out" data-hint="map.out" aria-label="Zoom out"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 7h12v2H2z"/></svg></button>
     <button class="btn icon" id="map-home" data-hint="map.reset" aria-label="Whole sky"><svg viewBox="0 0 16 16" aria-hidden="true"><g fill="none" stroke="currentColor"><ellipse cx="8" cy="8" rx="6.9" ry="4.6" stroke-width="1.5"/><path d="M1.1 8h13.8M8 3.4v9.2" stroke-width="1.1"/></g></svg></button>
     <button class="btn icon" id="map-full" data-hint="map.full" aria-label="Full screen" aria-pressed="false"><svg class="go" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 5V1h4v2H3v2zM11 1h4v4h-2V3h-2zM15 11v4h-4v-2h2v-2zM5 15H1v-4h2v2h2z"/></svg><svg class="back" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 1v4H1V3h2V1zM11 1h2v2h2v2h-4zM15 11v2h-2v2h-2v-4zM1 11h4v4H3v-2H1z"/></svg></button>
+  </div>
+  <div class="zfilter" id="zfilter">
+    <button type="button" class="btn" id="zopen" aria-expanded="false" aria-controls="zpanel" data-hint="z.open.t"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.500 14.500 8 8 14.500 1.500 8z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="1.700"/></svg><span>Redshift</span></button>
+    <div class="zpanel" id="zpanel" hidden>
+      <div class="zhead"><h2>Galaxies and quasars by redshift</h2><button type="button" class="btn icon quiet" id="zclose" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.400 2 4.600 4.600L12.600 2 14 3.400 9.400 8l4.600 4.600L12.600 14 8 9.400 3.400 14 2 12.600 6.600 8 2 3.400z"/></svg></button></div>
+      <p class="zlead">The higher the redshift z, the longer the light has been on its way. Above z = 5 it set out in the first 1.2 billion years of the universe.</p>
+      <div class="seg zmin" id="zmin" role="group" aria-label="Lowest redshift shown">
+        <button type="button" data-v="off" class="on" aria-pressed="true">Off</button><button type="button" data-v="0">All</button><button type="button" data-v="0.1">z &gt; 0.1</button><button type="button" data-v="1">z &gt; 1</button><button type="button" data-v="3">z &gt; 3</button><button type="button" data-v="5">z &gt; 5</button><button type="button" data-v="6">z &gt; 6</button><button type="button" data-v="7">z &gt; 7</button>
+      </div>
+      <p class="zcount measure" id="zcount" role="status"></p>
+      <div class="zkey" id="zkey" hidden>
+        <div class="zramp measure" aria-label="Colour by redshift"></div>
+        <p class="zshapes"><span><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="3.500"/></svg>Galaxy</span><span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1l5 5-5 5-5-5z"/></svg>Quasar</span><span class="muted">Click one to open it</span></p>
+      </div>
+      <p class="muted note">Spectroscopic redshifts as listed by SIMBAD (CDS), each with its paper; none is measured from SPHEREx. Below z = 5 only the 700 brightest objects of each range are drawn; above it, all that are listed. Most of the far ones are too faint for a single SPHEREx exposure.</p>
+      <p class="links"><button type="button" class="linkbtn" id="zcompare">Compare spectra near and far</button></p>
+    </div>
   </div>
   <div id="maptag" class="maptag" hidden></div>
 </main>
@@ -164,6 +182,7 @@
     </div>
     <div class="sbody">
       <p id="sstory" class="story"></p>
+      <p id="sdepth" class="sdepth" hidden></p>
       <p id="ssat" class="snote" hidden>Very bright here: this object overloads the SPHEREx detectors, so its centre can look patchy or oddly coloured. That is the camera, not the sky.</p>
       <div class="sactions" data-hint-side="top">
         <button type="button" class="btn" id="sshare" data-hint="tip.share"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 1l6 6-6 6V9C5 9 3 10.500 1 13c0-5 3-8 8-8z"/></svg><span id="ssharelabel">Share</span></button>
@@ -179,8 +198,16 @@
         <div class="seg" id="plotmode"><button data-v="spec" class="on" data-hint="tip.spectrum">Spectrum</button><button data-v="lc" data-hint="tip.lc">Light curve</button></div></div>
       <canvas id="plot" aria-label="Spectrum plot"></canvas>
       <div id="legend" class="legend measure"></div>
-      <div class="dlrow" id="plotdl" data-hint-side="top"><button type="button" class="btn quiet" id="dl-csv" data-hint="tip.dl.csv"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 1h2v7l3-3 1.500 1.500L8 12 2.500 6.500 4 5l3 3zM2 13h12v2H2z"/></svg><span>CSV</span></button><button type="button" class="btn quiet" id="dl-png" data-hint="tip.dl.png"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 1h2v7l3-3 1.500 1.500L8 12 2.500 6.500 4 5l3 3zM2 13h12v2H2z"/></svg><span>PNG</span></button></div>
+      <div class="dlrow" id="plotdl" data-hint-side="top"><button type="button" class="btn quiet" id="dl-csv" data-hint="tip.dl.csv"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 1h2v7l3-3 1.500 1.500L8 12 2.500 6.500 4 5l3 3zM2 13h12v2H2z"/></svg><span>CSV</span></button><button type="button" class="btn quiet" id="dl-png" data-hint="tip.dl.png"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 1h2v7l3-3 1.500 1.500L8 12 2.500 6.500 4 5l3 3zM2 13h12v2H2z"/></svg><span>PNG</span></button><button type="button" class="btn quiet" id="cmp-open" data-hint="cmp.open.t"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h6v2H3v2H1zM15 1v4h-2V3H9V1zM1 15v-4h2v2h4v2zM15 15H9v-2h4v-2h2z"/></svg><span>Enlarge · compare</span></button></div>
       <p class="muted note" id="specempty" hidden></p>
+    </section>
+
+    <section class="panel" id="depthcard" hidden>
+      <div class="headtip"><h2>Distance and redshift</h2><div class="tip"><button type="button" class="tipbtn" aria-label="Where these values come from" aria-describedby="tip-depth"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3h2v2H7zM7 7h2v6H7z"/></svg></button><div class="tipbody" role="tooltip" id="tip-depth"><p>These values are looked up, not measured from the SPHEREx images. The object at the crosshair is identified in SIMBAD (CDS, Strasbourg).</p><p>A star gets its distance from its parallax: ESA Gaia DR3, with the distance Bailer-Jones et al. (2021) derive from it, or the parallax SIMBAD holds for stars too bright for Gaia.</p><p>A galaxy or a quasar gets its published redshift (SIMBAD, then NED). How long its light travelled and how far it is now follow from the redshift in the Planck 2018 cosmology.</p></div></div></div>
+      <dl id="depthlist"></dl>
+      <p class="muted note" id="depthstatus" role="status"></p>
+      <p class="muted note" id="depthfoot" hidden></p>
+      <p class="links"><button type="button" class="linkbtn" id="depthcompare" data-hint="cmp.open.t">Compare spectra</button></p>
     </section>
 
     <section class="panel" id="epochcard" hidden>
@@ -233,6 +260,7 @@
         <dt>− Median</dt><dd>Remove everything that stays put.</dd>
         <dt>Spectrum</dt><dd>0.75–5.0 µm at the crosshair.</dd>
         <dt>Overlays</dt><dd>Gaia DR3, CatWISE, team tracks.</dd>
+        <dt>Distance</dt><dd>Parallax of a star, redshift of a galaxy.</dd>
         <dt>Link</dt><dd>Every view is a URL, a PNG or a GIF.</dd>
       </dl>
     </section>
@@ -298,15 +326,35 @@
   </div>
 </div>
 
-<script src="/static/i18n.js?v=36"></script>
-<script src="/static/lore.js?v=36"></script>
-<script src="/static/hints.js?v=36"></script>
-<script src="/static/atlas.js?v=36"></script>
-<script src="/static/starmap.js?v=36"></script>
-<script src="/static/ambient.js?v=36"></script>
-<script src="/static/exports.js?v=36"></script>
-<script src="/static/movers.js?v=36"></script>
-<script src="/static/app.js?v=36"></script>
+<div class="sheet" id="compare" hidden>
+  <div class="sheetpage wide" role="dialog" aria-modal="true" aria-labelledby="cmp-h" tabindex="-1">
+    <header><h2 id="cmp-h">Compare spectra</h2>
+      <div class="seg" id="cmpaxis" role="group" aria-label="Wavelength axis"><button type="button" data-v="obs" class="on" aria-pressed="true" data-hint-text="Wavelengths as SPHEREx recorded them">Observed</button><button type="button" data-v="rest" data-hint-text="Each spectrum divided by (1 + z): the wavelengths the light had when it set out">Rest frame</button></div>
+      <div class="seg" id="cmpscale" role="group" aria-label="Flux scale"><button type="button" data-v="norm" class="on" aria-pressed="true" data-hint-text="Each spectrum divided by its own median, so bright and faint objects share the plot">Relative</button><button type="button" data-v="flux" data-hint-text="Flux in millijansky">mJy</button></div>
+      <label class="cmpcheck"><input type="checkbox" id="cmplines" checked><span>Lines</span></label>
+      <button type="button" class="btn icon" id="cmp-close" aria-label="Close" data-hint="tip.close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.400 2 4.600 4.600L12.600 2 14 3.400 9.400 8l4.600 4.600L12.600 14 8 9.400 3.400 14 2 12.600 6.600 8 2 3.400z"/></svg></button></header>
+    <div class="sheetbody">
+      <div class="cmpwell"><canvas id="cmpplot" aria-label="Spectra of the chosen objects"></canvas><p class="muted" id="cmpempty">Add an object below, or take one of the examples.</p></div>
+      <p class="cmpread measure" id="cmpread" role="status"></p>
+      <ul id="cmplist" class="cmplist"></ul>
+      <form id="cmpadd" class="cmpadd" autocomplete="off"><input id="cmpq" type="text" placeholder="Add an object: a name, or RA Dec in degrees" aria-label="Object to add" spellcheck="false"><button type="submit" class="btn">Add</button><span class="cmpex">Examples: <button type="button" class="linkbtn" data-cmp-example="quasars">four quasars, z = 0.16 to 6.3</button> <button type="button" class="linkbtn" data-cmp-example="m82">M 82, a dusty galaxy next door</button></span></form>
+      <p class="muted" id="cmpmsg" role="status"></p>
+      <p class="muted note" id="cmphint"></p>
+      <p class="muted note">Each curve is the median of the SPHEREx exposures in steps of 2% in wavelength (quick-look photometry, see About the data). Redshifts are the published ones; the z field moves a spectrum by hand, to see where its lines fall. A value set by hand is an estimate by eye, not a measurement.</p>
+    </div>
+  </div>
+</div>
+
+<script src="/static/i18n.js?v=37"></script>
+<script src="/static/lore.js?v=37"></script>
+<script src="/static/hints.js?v=37"></script>
+<script src="/static/atlas.js?v=37"></script>
+<script src="/static/starmap.js?v=37"></script>
+<script src="/static/ambient.js?v=37"></script>
+<script src="/static/exports.js?v=37"></script>
+<script src="/static/movers.js?v=37"></script>
+<script src="/static/depth.js?v=37"></script>
+<script src="/static/app.js?v=37"></script>
 <p id="netnote" class="netnote" role="status" hidden>Updating the site, back in a moment…</p>
 </body>
 </html>

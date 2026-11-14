@@ -106,6 +106,7 @@ Errors are JSON of the form `{"detail": "message"}`.
 | [`/api/movie.gif`](#get-apimoviegif) | GIF | The whole time series as an animation |
 | [`/api/spectrum`](#get-apispectrum) | JSON | Spectrum and light curve at the centre |
 | [`/api/catalog`](#get-apicatalog) | JSON | Gaia DR3 or CatWISE2020 sources in the field |
+| [`/api/object`](#get-apiobject) | JSON | What lies at a position and how far it is, from published catalogues |
 | [`/api/tracks`](#get-apitracks) | JSON | Measured objects in the field |
 | [`/api/measure`](#get-apimeasure) | JSON | Measure an object; job status and result |
 | [`/api/measured`](#get-apimeasured) | JSON | Everything measured so far |
@@ -505,6 +506,54 @@ To place a source on a frame taken in Julian year `t`:
 ra(t)  = ra  + pmra  / 3.6e6 * (t - epoch) / cos(dec)
 dec(t) = dec + pmdec / 3.6e6 * (t - epoch)
 ```
+
+### GET /api/object
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `target` | string | | Object name or coordinates |
+| `ra`, `dec` | degrees | | A position, instead of `target` |
+
+What lies at the position and how far it is. The values are published ones:
+nothing is measured from the SPHEREx images. See
+[distance and redshift](distance-redshift.md) for the rules of the lookup.
+
+```json
+{
+  "target": {"name": "3C 273", "ra": 187.277916, "dec": 2.052389, "source": "SIMBAD"},
+  "object": {"name": "3C 273", "otype": "BLL", "type": "BL Lac object (a blazar)",
+             "sep_arcsec": 0.0, "sp_type": "", "morph_type": "E3", "source": "SIMBAD (CDS)"},
+  "kind": "quasar",
+  "distance": null,
+  "redshift": {"z": 0.157568, "z_err": 0.0005, "nature": "spectroscopic", "quality": "C",
+               "source": "SIMBAD (CDS)", "bibcode": "2022ApJS..261....2K",
+               "velocity_km_s": null, "local": false,
+               "cosmology": {"lookback_gyr": 2.0368, "age_then_gyr": 11.7501, "age_now_gyr": 13.787,
+                             "comoving_mpc": 671.84, "comoving_gly": 2.1913, "luminosity_mpc": 777.7,
+                             "cosmology": "Planck 2018 (flat ΛCDM, H0 = 67.66 km/s/Mpc, Ωm = 0.3111)"}},
+  "radial_velocity": null,
+  "measured_distance": null,
+  "notes": [],
+  "unavailable": [],
+  "complete": true
+}
+```
+
+| Field | Description |
+| --- | --- |
+| `kind` | `star`, `galaxy`, `quasar`, `other` or `unknown` (nothing catalogued there) |
+| `object` | The catalogue entry taken as the object, how far it is from the position, and which catalogue named it |
+| `distance` | Stars only: `pc`, `ly`, the range `pc_lo` to `pc_hi`, the parallax and its error in mas, `method`, `source`, `reference`. `uncertain` is true when the parallax is below 5 times its error |
+| `redshift` | Galaxies and quasars: `z`, `z_err`, `nature` (spectroscopic or photometric), the catalogue's `quality` letter, `source`, `bibcode`. `local` is true below z = 0.01, where z is a velocity and not a distance; `cosmology` is what follows from z and names the model, and is null for a blueshift |
+| `radial_velocity` | Stars: km/s with its paper |
+| `measured_distance` | Galaxies with distances by other methods in SIMBAD: median `mpc`, `mpc_min`, `mpc_max`, `count`, `methods`, and the `newest` three with bibcodes |
+| `notes` | Plain sentences about limits of this answer |
+| `unavailable` | Catalogue services that did not answer |
+| `complete` | False when `unavailable` is not empty: the answer is not stored then, and asking again later may add to it |
+
+Status `400` for a missing position, `429` when the caller's allowance of
+catalogue queries is used up, `502` when the lookup itself failed, `503` when
+a name could not be resolved because the name services are down.
 
 ## Measured objects
 

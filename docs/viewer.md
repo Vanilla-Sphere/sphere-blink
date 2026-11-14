@@ -12,6 +12,8 @@ as static files.
 | `starmap.js` | about 570 lines | The sky map (`SkyMap`): projection, drawing, pan and zoom, picking |
 | `ambient.js` | about 330 lines | The motion of the sky map screen (`Ambient`): deep star field, rim glow, slow turn, aiming frame, pings, meteors |
 | `atlas.js` | 220 lines | The photograph of the real sky behind the zoomed-in map (`Atlas`): tiles of the 2MASS atlas, from our server's copy (`/api/atlas/2mass/`) or NASA/IPAC IRSA itself, drawn through the map's projection |
+| `depth.js`, `depth.css` | about 480 and 80 lines | Distance and redshift: the card and the sentence of a view, the redshift layer of the sky map, the "Compare spectra" sheet; its own text (added to `STR.en`) and styles |
+| `data/redshift.json` | 600 KB | 10 037 galaxies and quasars with a spectroscopic redshift (SIMBAD), loaded when the redshift layer is first used |
 | `movers.js` | about 240 lines | Moving objects found by the blind search: the card of a field, the paths on the image, votes, follow, and the "Discoveries" list |
 | `exports.js` | about 230 lines | What a researcher takes away: the plot's points as CSV, the plot as PNG with the credit, the "Source files" panel listing the Level 2 exposures with their IRSA links, its download script, URL list and table, and the "About the data" page |
 | `i18n.js` | 107 lines | Text that scripts put on the page (`STR.en`) and the `tr()` formatter |
@@ -20,8 +22,8 @@ as static files.
 | `data/sky.json` | - | Compact star chart: stars, names, constellations, Milky Way, boundary grid |
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
-Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `exports.js`, `movers.js`, `app.js`.
-Asset URLs carry a version query (`?v=36`) that is raised when a file changes,
+Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `exports.js`, `movers.js`, `depth.js`, `app.js`.
+Asset URLs carry a version query (`?v=37`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -59,12 +61,13 @@ Three columns under a fixed top bar:
 | Top bar | Brand, "Sky map" button, search box, Field menu, "Show sky", Simple/Advanced switch, API link, credits note |
 | Left rail | Featured targets; Display panel: Bands, One frame per, Image math, Contrast, Overlays |
 | Stage | Target name and coordinates; the image; progress bar; a status strip with date, channels, wavelength range, exposure count and pointer coordinates; transport; timeline |
-| Right column | Spectrum or light curve; "This frame"; "Measured in this field"; "Position of the crosshair" with cross-links; "Link or embed this view" |
+| Right column | Spectrum or light curve; "Distance and redshift"; "This frame"; "Measured in this field"; "Position of the crosshair" with cross-links; "Link or embed this view" |
 
 ### Layout in Simple mode
 
 The image with play, slider and date, beside one panel: the object's name and
-kind, a short description, Share and Download GIF, and a link to Advanced. The
+kind, a short description, one sentence on its distance when a catalogue
+gives one, Share and Download GIF, and a link to Advanced. The
 left rail and the analysis column are hidden.
 
 ## State
@@ -196,6 +199,30 @@ things are kept in `localStorage`: `vs.voter`, a random id the browser makes
 up once and sends with its votes, and `vs.follow`, the ids of the objects it
 follows. "Discoveries" is a sheet like "About the data"; its Fast and Slow
 tabs filter the list of `/api/movers` at 20 arcsec per hour.
+
+### Distance and redshift
+
+`depth.js` is loaded before `app.js`, which calls `initDepth()` once,
+`clearDepth()` when a new view starts and `depthTarget(t)` when a view has its
+target. `depthTarget` asks `/api/object` (twice at most); with no answer it
+looks for the object in `data/redshift.json` and, failing that, hides the
+card, so the viewer also works against a server without the endpoint.
+
+The redshift layer uses one hook of the sky map: `SkyMap.layer({groups, dim})`
+draws groups of objects (one colour each; dots, or diamonds for `kind: "q"`)
+over the stars and dims the chart behind by `dim`; `SkyMap.layer(null)` takes
+it away. An object of the layer under the pointer wins over a star and comes
+to `onHover` and `onPick` as `obj`; `app.js` passes it to `depthTag()` and
+`depthOpen()`.
+
+"Compare spectra" is a sheet like "About the data" (`setCompare`). Its state
+is `CMP`: the list of objects (each with its `/api/spectrum` points, published
+and current z, colour), the axis, the scale and the zoom range. `cmpBins`
+turns the points of an object into medians in bins of 1/45 in log wavelength,
+`cmpDraw` draws all objects on a canvas (linear wavelength axis when observed,
+logarithmic at rest), and `cosmoOf(z)` computes light-travel time and distance
+in the browser with the same Planck 2018 parameters as the server (it agrees
+with astropy to 0.01%).
 
 ### Plots
 

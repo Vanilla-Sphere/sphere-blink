@@ -150,7 +150,7 @@ async function load(next, nopush) {
   Object.assign(S, want);
   S.cube = null; S.meta = null; S.saturated = null; S.median = null; S.stack = null; S.spectrum = null; S.files = null; S.catalogs = {}; S.i = 0; S.ref = 0; S.busy = 0;
   S.tracks = null; S.measuring = null; $("trackopt").hidden = true; $("trackcard").hidden = true;
-  S.field = null; S.stage = null; $("tileopt").hidden = !S.levels; clearMovers();
+  S.field = null; S.stage = null; $("tileopt").hidden = !S.levels; clearMovers(); clearDepth();
   for (const c of ["speccard", "epochcard"]) $(c).hidden = true;
   $("analysishint").hidden = true; $("timeline").innerHTML = ""; $("cursor").textContent = "";
   $("empty").hidden = false; $("empty").textContent = tr("load.search");
@@ -876,6 +876,7 @@ function showTarget(t) {
   document.title = `${tidyName(t.name)} - Vanilla Sphere`;
   for (const c of document.querySelectorAll("#featured .target")) { const on = c.dataset.name === t.name; c.classList.toggle("on", on); c.setAttribute("aria-pressed", on); }
   showStory(t);
+  depthTarget(t);   // its distance or redshift, from the catalogues
 }
 /* Simple mode: a name anyone can read and two sentences on what to look for. */
 function showStory(t) {
@@ -1148,6 +1149,7 @@ function mapHover(h) {
   const con = h.con ? h.con.la : "";
   $("mapread").innerHTML = `${h.ra.toFixed(2)}° ${h.dec >= 0 ? "+" : "−"}${Math.abs(h.dec).toFixed(2)}°` + (con ? ` · <i>${esc(con)}</i>` : "");
   if (h.pin) mapTag(h.x, h.y, `<b>${esc(h.pin.name)}</b><span>${esc(tr("kind." + h.pin.key))}</span>`);
+  else if (h.obj) mapTag(h.x, h.y, depthTag(h.obj));   // a galaxy or quasar of the redshift layer
   else if (h.pole) mapTag(h.x, h.y, `<b>${esc(tr("map.pole." + h.pole))}</b><span class="more">${esc(tr("map.pole." + h.pole + ".more"))}</span>`);
   else if (h.star && (h.star.name || h.star.id)) {   // a star with a name or a designation; any other star keeps the note of its constellation
     const about = LORE.star[h.star.name], kind = h.star.mag <= 3 ? "map.star" : "map.star.faint";
@@ -1159,11 +1161,12 @@ function mapHover(h) {
   else $("maptag").hidden = true;
 }
 function mapPick(hit) {
-  const at = hit.pin || hit, star = hit.star || null, called = star ? star.name || star.id : "";
+  const at = hit.pin || hit, star = hit.star || null, called = hit.obj ? hit.obj.name : star ? star.name || star.id : "";
   mapTag(hit.x, hit.y, (called ? `<b>${esc(called)}</b>` : "") + `<b class="measure" id="mapcoord">${Ambient.text(at.ra, at.dec)}</b><span>${esc(tr("map.open"))}</span>`);
   Ambient.roll($("mapcoord"), at.ra, at.dec);
   if (hit.pin) return openFeatured(hit.pin.f);
   const size = S.ui === "simple" ? {levels: 0, fov: 8} : fieldChoice();
+  if (hit.obj) return depthOpen(hit.obj, size);
   // A star with a proper name is opened by that name, so the view carries the name and the star's place today;
   // if the name services do not know it, or mean another object by it, the star's own coordinates are opened.
   if (star && star.name) { $("q").value = star.name; return load({target: star.name, byCoords: false, ra: null, dec: null, or: {ra: hit.ra, dec: hit.dec}, ...size}); }
@@ -1213,6 +1216,7 @@ function init() {
   seg("plotmode", "plotmode", () => drawPlot());
   initExports();
   initMovers();
+  initDepth();
   $("refrow").hidden = S.mode !== "diffref";
   setUi(prefs.ui, true);
   SkyMap.init($("map"), {coords: () => S.ui === "adv", onPick: mapPick, onHover: mapHover, onReady: () => { if (S.t) showStory(S.t); },

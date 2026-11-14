@@ -1,0 +1,80 @@
+/* Vanilla Sphere - distance and redshift: the card of a view, the redshift layer of the sky map,
+   the sheet that compares spectra (depth.js). Colours and type come from style.css. */
+
+/* ------------------------------------------------------------------ the object of a view */
+#depthcard dd.strong{font-size:13.5px;color:var(--color-ink)}
+#depthcard dd a{text-decoration:underline;text-decoration-color:var(--color-muted-2)}
+#depthcard .note{margin-top:8px}
+#depthcard .links{margin-top:10px}
+.sdepth{margin-top:12px;max-width:44ch;font-size:14.5px;line-height:1.5;color:var(--color-ink-2);text-wrap:pretty}
+
+/* ------------------------------------------------------------------ the sky map by redshift */
+.zfilter{position:absolute;right:var(--pad);top:40px;z-index:4;display:flex;flex-direction:column;align-items:flex-end}
+.zfilter .btn{background:var(--color-paper)}
+.zfilter .btn:hover{background:var(--color-paper-2)}
+#zopen svg{width:13px;height:13px}
+#zopen.on{border-color:var(--color-accent);box-shadow:inset 0 -2px 0 var(--color-accent)}
+.zfilter.open #zopen{display:none}
+.zpanel{width:308px;max-width:calc(100vw - 2 * var(--pad));padding:10px 12px 12px;border:1px solid var(--color-rule);background:color-mix(in oklab,var(--color-paper) 94%,transparent)}
+.zhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-4px -6px 4px 0}
+.zhead h2{color:var(--color-ink)}
+.zlead{font-size:12.5px;line-height:1.45;color:var(--color-ink-2);text-wrap:pretty}
+.seg.zmin{display:grid;grid-template-columns:repeat(4,1fr);margin-top:10px}
+.seg.zmin button{margin:0 0 -1px -1px;padding:0 4px;font-family:var(--font-measure);font-size:12px}
+.seg.zmin button:nth-child(4n+1){margin-left:0}
+.zcount{min-height:18px;margin-top:9px;font-size:11.5px;line-height:1.5;color:var(--color-ink-2)}
+.zramp{display:flex;margin-top:6px}
+.zramp span{flex:1;font-size:10.5px;line-height:1.2;color:var(--color-muted)}
+.zramp i{display:block;height:6px;margin-bottom:3px}
+.zshapes{display:flex;flex-wrap:wrap;gap:2px 14px;margin-top:7px;font-size:12px;color:var(--color-ink-2)}
+.zshapes span{display:inline-flex;align-items:center;gap:6px}
+.zshapes svg{width:10px;height:10px;fill:var(--color-accent)}
+.zpanel .note{margin-top:9px;font-size:11.5px;line-height:1.45}
+.zpanel .links{margin-top:9px}
+/* the heading of the map makes way for what the layer shows */
+.mapscreen.zlayer .maptag .more{width:264px}
+@media (max-width:759.98px){
+  .zfilter{top:auto;bottom:256px}
+  .zfilter.open{left:0;right:0;bottom:0;z-index:6;align-items:stretch}
+  .zfilter.open .zpanel{width:auto;max-width:none;border-width:1px 0 0;background:var(--color-paper);padding-bottom:calc(14px + env(safe-area-inset-bottom, 0px))}
+  [data-mapfull] .zfilter:not(.open){bottom:calc(188px + env(safe-area-inset-bottom, 0px))}
+}
+
+/* ------------------------------------------------------------------ compare spectra */
+.sheetpage.wide{width:min(1120px,100%)}
+#compare .sheetpage header{gap:10px;flex-wrap:wrap}
+#compare .sheetpage header h2{margin-right:auto}
+#compare .seg button{height:26px;font-size:12.5px}
+.cmpcheck{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--color-ink-2);cursor:pointer}
+.cmpwell{position:relative;margin-top:14px;border:1px solid var(--color-rule);background:var(--color-paper-3)}
+#cmpplot{display:block;width:100%;height:clamp(260px,48vh,460px);touch-action:pan-y;cursor:crosshair}
+#cmpplot.dragging{cursor:grabbing}
+#cmpplot.none{visibility:hidden}
+#cmpempty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:0 24px;text-align:center}
+.cmpread{min-height:20px;margin-top:6px;font-size:11.5px;color:var(--color-ink-2)}
+.cmplist{list-style:none;margin:8px 0 0;padding:0;border:1px solid var(--color-rule)}
+.cmplist:empty{display:none}
+.cmprow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:5px 6px 5px 0;border-top:1px solid var(--color-rule-2)}
+.cmprow:first-child{border-top:0}
+.cmprow.on{background:var(--color-paper-2);box-shadow:inset 2px 0 0 var(--color-accent)}
+.cmpname{display:flex;align-items:baseline;gap:8px;flex:1 1 230px;min-width:0;padding:5px 0 5px 12px;border:0;background:none;color:var(--color-ink);font:inherit;text-align:left;cursor:pointer}
+.cmpname .sw{flex:none;width:9px;height:9px;margin:0;align-self:center}
+.cmpname b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmpname span{flex:none;font-size:12px}
+.cmpz{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--color-ink-2)}
+.cmpz input{width:84px;height:28px;padding:0 6px;border:1px solid var(--color-rule);background:var(--color-paper);color:var(--color-ink);font:inherit}
+.cmpslide{flex:1 1 180px;min-width:120px;max-width:300px}
+.cmppub{flex:0 1 auto;font-size:12px}
+.cmprow .linkbtn{font-size:12.5px}
+.cmprow .btn.icon{margin-left:auto;border-color:transparent}
+.cmpadd{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:12px}
+.cmpadd input{flex:0 1 320px;min-width:200px;height:32px;padding:0 10px;border:1px solid var(--color-rule);background:var(--color-paper-2);color:var(--color-ink);font:inherit}
+.cmpex{font-size:13px;color:var(--color-muted)}
+.cmpex .linkbtn{margin-left:6px}
+#cmpmsg{min-height:0;margin-top:6px}
+#compare .note{margin-top:10px;max-width:92ch}
+#compare .sheetbody p{max-width:92ch}
+@media (max-width:759.98px){
+  #cmpplot{height:clamp(240px,44vh,360px)}
+  .cmpslide{max-width:none}
+}

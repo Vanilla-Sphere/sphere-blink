@@ -25,6 +25,7 @@ sphere-blink/
 │   ├── mover_store.py      detections, moving objects and votes (local SQLite)
 │   ├── movers_api.py       search jobs and the /api/movers endpoints
 │   ├── known_objects.py    names of known asteroids and comets (SkyBoT, JPL)
+│   ├── distance.py         distance of a star, redshift of a galaxy, from catalogues
 │   └── main.py             FastAPI application: endpoints and static files
 ├── web/                    the viewer (static; see viewer.md)
 ├── sql/                    schema and roles of the measurement database
@@ -65,6 +66,7 @@ of HTML, CSS and JavaScript in the viewer.
 | `movers.py` | 702 | The blind search; no HTTP, no storage | `Detection`, `Track`, `detect`, `link`, `confirm`, `candidates`, `chance_tracks`, `search`, `same_object` |
 | `mover_store.py` | 298 | Stored detections by sky cell, objects, votes; identity of an object found again | `save_field`, `detections_around`, `listing`, `get`, `vote`, `coverage` |
 | `movers_api.py` | 330 | Search jobs in a process of their own, started when a field completes; the four mover endpoints | `router`, `attach`, `start`, `run`, `free_mb` |
+| `distance.py` | 490 | What lies at a position and how far it is: SIMBAD, NED and Gaia lookups with fallbacks, the choice of the object, the Planck 2018 cosmology; no HTTP endpoint of its own | `lookup`, `simbad_cone`, `pick`, `ned_redshift`, `gaia_star`, `parallax_distance`, `cosmology` |
 | `known_objects.py` | 215 | Asks SkyBoT, then JPL, for the known objects of a field and matches tracks to them | `identify`, `match`, `parse_skybot`, `parse_jpl` |
 | `main.py` | 397 | Application object, middleware, parameter handling, all other endpoints, epoch cache, static mount | `app`, `svc`, `fields` |
 
@@ -112,6 +114,7 @@ of HTML, CSS and JavaScript in the viewer.
 | `scripts/calibrate_wings.py` | Measure how halo brightness scales with flux on 2MASS calibrators and print the table for `wings.CALIBRATION` | `collect` then `fit`, with `scripts/wing_calibrators.csv` |
 | `scripts/wing_calibrators.csv` | The 81 isolated 2MASS stars used for the calibration | - |
 | `scripts/build_sky.py` | Build `web/data/sky.json` from d3-celestial data | `python scripts/build_sky.py path/to/d3-celestial/data` |
+| `scripts/build_redshift.py` | Build `web/data/redshift.json`, the galaxies and quasars of the redshift layer, from SIMBAD (about 4 minutes) | `python scripts/build_redshift.py` |
 | `scripts/build_dev_site.sh` | Lay `web/` out as the static dev site (see [environments](environments.md)) | `sh scripts/build_dev_site.sh [output dir]` |
 
 ## Database files
