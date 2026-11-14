@@ -446,16 +446,17 @@ async function loadTracks() {
     // (a fast mover sits far from its catalogue epoch position, so compare with the fitted track where there is one)
     const here = S.t && d.sources.some((s) => { const at = s.track || s; return s.name === S.t.name || Math.hypot((at.ra - S.t.ra) * Math.cos(S.t.dec * Math.PI / 180), at.dec - S.t.dec) * 3600 < 30; });
     $("measurerow").hidden = !!here || !S.t;
-    if (!S.measuring) { $("measure").disabled = false; $("measurestatus").textContent = ""; }
+    if (!S.measuring) { $("measure").disabled = false; $("measurestatus").textContent = ""; $("measurenear").hidden = true; }
     draw(); writeUrl();
   } catch (_) {}
 }
 /* Ask the server to measure the object at the centre of this view: its position in every exposure,
    its motion and its brightness. The job takes 20 to 45 s; the card then shows what it found. */
-async function measureHere() {
+async function measureHere(at) {
   const id = S.loadId, p = paramsOf(S), q = new URLSearchParams({detections: "false"});
-  for (const k of ["target", "ra", "dec"]) if (p.get(k) !== null) q.set(k, p.get(k));
-  S.measuring = id; $("measure").disabled = true;
+  if (at) { q.set("ra", at.ra); q.set("dec", at.dec); }  // a view that is still opening: its position is not in S yet
+  else for (const k of ["target", "ra", "dec"]) if (p.get(k) !== null) q.set(k, p.get(k));
+  S.measuring = id; $("measure").disabled = true; $("measurenear").hidden = true;
   const say = (key, vars) => { if (id === S.loadId) $("measurestatus").textContent = tr(key, vars); };
   say("measure.start");
   try {
@@ -464,7 +465,26 @@ async function measureHere() {
       if (!r.ok) { let msg = r.status; try { msg = (await r.json()).detail || msg; } catch (_) {} throw new Error(msg); }
       const d = await r.json();
       if (id !== S.loadId) return;
-      if (d.status === "ready") { S.measuring = null; say(d.result && d.result.track ? "measure.done" : "measure.nothing"); await loadTracks(); if (id === S.loadId) say(d.result && d.result.track ? "measure.done" : "measure.nothing"); return; }
+      if (d.status === "ready") {
+        S.measuring = null;
+        const res = d.result || {}, near = !res.track && res.stats && res.stats.nearby_source;
+        await loadTracks();
+        if (id !== S.loadId) return;
+        if (res.track) say("measure.done");
+        else if (near && res.target) {
+          // the pipeline measures what is at the crosshair; here the light it found belongs to a source a little way off
+          const e = near.east_arcsec, n = near.north_arcsec;
+          say("measure.near", {d: near.sep_arcsec.toFixed(1), e: Math.abs(e).toFixed(1), ew: e >= 0 ? "E" : "W", n: Math.abs(n).toFixed(1), ns: n >= 0 ? "N" : "S"});
+          const ra = +(((res.target.ra + e / 3600 / Math.cos(res.target.dec * Math.PI / 180)) % 360 + 360) % 360).toFixed(5), dec = +(res.target.dec + n / 3600).toFixed(5);
+          $("measurenear").hidden = false;
+          $("measurenear").onclick = () => {
+            $("q").value = `${ra.toFixed(5)} ${dec >= 0 ? "+" : ""}${dec.toFixed(5)}`;
+            load({ra, dec, byCoords: true, target: null, ...(S.levels ? {levels: 0, fov: 8} : {})});
+            measureHere({ra, dec});
+          };
+        } else say("measure.nothing");
+        return;
+      }
       if (d.status === "error") throw new Error(d.job.error || "error");
       if (d.job.queue) { say("measure.queued", {p: d.job.queue.position, n: d.job.queue.waiting}); n--; }
       else say(d.status === "measuring" && d.job.exposures ? "measure.measuring" : "measure.searching", {n: d.job.exposures, s: Math.round(d.job.elapsed_s || 0)});
@@ -1212,7 +1232,7 @@ function init() {
   $("fps").addEventListener("change", (ev) => { S.fps = +ev.target.value; });
   $("gain").addEventListener("input", (ev) => { S.gain = +ev.target.value; draw(); });
   $("resetgain").addEventListener("click", () => { S.gain = 0; $("gain").value = 0; draw(); });
-  $("measure").addEventListener("click", measureHere);
+  $("measure").addEventListener("click", () => measureHere());
   $("setref").addEventListener("click", () => { S.ref = S.i; S.limits = null; $("reflabel").textContent = fmtLabel(S.meta.epochs[S.ref].label) + " UTC"; draw(); });
   for (const c of ["gaia", "catwise", "cross", "smooth", "tracks", "tiles"]) $("ov-" + c).addEventListener("change", () => { if (S.meta) { loadCatalogs(); draw(); writeUrl(); } });
   $("timeline").addEventListener("pointerdown", (ev) => { $("timeline").setPointerCapture(ev.pointerId); scrubTimeline(ev); });

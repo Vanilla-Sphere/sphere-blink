@@ -20,7 +20,7 @@ implements it. Implementation detail is in [imaging engine](imaging-engine.md),
 | 9 | Spectrum and light curve at the crosshair | Advanced | `main.api_spectrum`, `cutout.aperture_flux`, `wings.py` |
 | 10 | Gaia DR3 and CatWISE2020 overlays | Advanced | `catalogs.py`, `web/app.js` (`drawOverlays`) |
 | 11 | Automatic measurement of position, motion, brightness | Advanced | `measure.py`, `refcat.py`, `measure_api.py` |
-| 12 | "Measure this object" | Advanced | `web/app.js` (`measureHere`), `/api/measure` |
+| 12 | "Measure motion and brightness" | Advanced | `web/app.js` (`measureHere`), `/api/measure` |
 | 13 | Measured tracks overlay | Advanced | `measurements.py`, `/api/tracks` |
 | 14 | Per-frame quality flags and provenance | Advanced | `cutout.py`, `render.Epoch.meta` |
 | 15 | Share links, embeddable GIF and PNG, data API | Simple, Advanced | `main.py`, `web/app.js` (`writeUrl`) |
@@ -118,7 +118,7 @@ overlays, the measured track and the spectrum at the crosshair.*
 | Picture | False colour, one frame per day, 8 arcmin | Any band, grouping, field size or progressive field |
 | Text | Object name, kind, a short description in plain language | Coordinates, epoch metadata, flags |
 | Controls | Play, slider, Share, Download GIF | Bands, grouping, image arithmetic, contrast, overlays, speed, timeline |
-| Analysis | - | Spectrum, light curve, measured tracks, "Measure this object", cross-links |
+| Analysis | - | Spectrum, light curve, measured tracks, "Measure motion and brightness", cross-links |
 | Search placeholder | "Search a star or galaxy by name" | "RA Dec or an object name" |
 
 Switching keeps the target and the frame on screen. Settings chosen in Advanced
@@ -341,7 +341,7 @@ description in [measurement pipeline](measurement-pipeline.md)):
 The five featured targets are measured automatically shortly after the service
 starts and again when the pipeline version changes or a week has passed.
 
-## 12. Measure this object
+## 12. Measure motion and brightness
 
 In Advanced mode the "Measured in this field" card offers a "Measure this
 object" button whenever nothing has been measured at the centre of the view. It
@@ -360,6 +360,12 @@ Proxima Centauri on 2026-11-14) shows:
 - the scatter of the positions around the fit;
 - whether the brightness is steady or varies between sky passes, with the
   amplitude and its significance.
+
+The pipeline measures what is at the crosshair. When it finds no source there
+it says so ("No source at the crosshair, so there is no motion to measure").
+When the light it found belongs to a source more than 3 arcsec away, the card
+names the distance and direction of that source and offers "Measure that
+source", which centres the view on it and measures it.
 
 If the position matches a Gaia star within 4 arcsec, the star's astrometry is
 used for the prediction; otherwise the position itself is measured as an object
