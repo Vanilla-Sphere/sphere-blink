@@ -144,7 +144,7 @@ def test_an_object_keeps_its_id_and_grows_when_a_neighbouring_field_finds_more_o
     both = store.get(ids[0])
     assert both["n_detections"] == 16 and both["fields"] == ["fieldA", "fieldB"] and both["covered"] == 16
     assert both["known"]["name"] == "5 Astraea"  # a name once found is kept
-    assert both["times_covered"] == 16 and both["times_seen"] == 16  # the joined record counts its exposure times too
+    assert both["times_covered"] == 14 and both["times_seen"] == 14  # 16 exposures at 14 different times (hours 6 and 7 are in both fields)
     assert both["rate_arcsec_hr"] == pytest.approx(40.0 * math.cos(math.radians(10.0)), rel=0.02)
     assert store.count() == 1
     assert store.searched("fieldA", 100) and not store.searched("fieldA", 130) and not store.searched("other", 10)
