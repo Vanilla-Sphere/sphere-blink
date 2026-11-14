@@ -128,7 +128,7 @@ const SkyMap = (() => {
       const core = Math.min(1, 1.6 * Math.pow(1 + (d / 1.1) ** 2, -1.8));
       const halo = 0.13 * LOOK * Math.pow(1 + (d / 2.2) ** 2, -1.5) * fade;
       const a = (1 - real) * disc + real * Math.min(1, (size ? core : core * Math.min(1, 3 * fade)) + halo);
-      const w = real * Math.min(1, Math.max(0, (core - 0.6) / 0.4));              // the burnt-out core is white
+      const w = (size ? 1 : 0.4) * real * Math.min(1, Math.max(0, (core - 0.6) / 0.4));   // a bright star's core burns out to white; a small one keeps its colour
       px[k] = col[0] + (255 - col[0]) * w; px[k + 1] = col[1] + (255 - col[1]) * w; px[k + 2] = col[2] + (255 - col[2]) * w;
       px[k + 3] = Math.min(255, 255 * a + Math.random() - 0.5);
     }
