@@ -316,7 +316,8 @@ starts and again when the pipeline version changes or a week has passed.
 In Advanced mode the "Measured in this field" card offers a "Measure this
 object" button whenever nothing has been measured at the centre of the view. It
 starts the pipeline for that position, reports progress ("Measuring N
-exposures"), and after typically 20 to 45 seconds shows:
+exposures"), and after typically 20 to 45 seconds (63 s was observed for
+Proxima Centauri on 2026-11-14) shows:
 
 - the kind of object and the number of positions measured, with the time span;
 - the fitted motion with its error, next to the catalogue motion;

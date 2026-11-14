@@ -308,7 +308,10 @@ that are not challenge targets, produced these results on the same day:
 | Ross 128 | 143 | +685 +/- 251, -1246 +/- 140 | +607.3, -1223.0 |
 | Lalande 21185 | 290 (mostly saturated wings) | -1010 +/- 521, -4428 +/- 311 | -580.1, -4776.6 |
 
-Run time per object was 18 to 45 s for 258 to 539 exposures.
+Run time per object was 18 to 45 s for 258 to 539 exposures. The range is not
+an upper bound: in the product test of the same day Teegarden's Star took 20 s,
+a position with no catalogued object 21 s, and Proxima Centauri 62.6 s, which
+is longer than the "20 to 45 s" quoted on the button.
 
 ## Limits
 

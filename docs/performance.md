@@ -16,7 +16,7 @@ are given where several runs were made.
 | 8 arcmin view, warm | under 1 s | none |
 | 7 x 7 cell field (0.84 degrees), cold | 37-52 s; centre cell on screen after 14-20 s | 580-735 exposures, 5.9-7.2 GB |
 | 7 x 7 cell field, warm | 4.6 s | none |
-| Measurement of one object | 18-45 s | 258-539 stamps of about 0.4 MB |
+| Measurement of one object | 18-45 s typical, 63 s observed | 258-539 stamps of about 0.4 MB |
 
 ## Range reads against whole files
 

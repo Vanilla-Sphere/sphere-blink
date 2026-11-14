@@ -123,15 +123,30 @@ written to it at the next start.
 *Figure: Release process. Source: [`diagrams/release-flow.html`](diagrams/release-flow.html).*
 
 1. Changes are made on a branch and merged to `main` through a pull request.
-2. A push to `main` triggers a deploy. Build and start take about 70 s.
+2. A push to `main` triggers a deploy. Build and start take about 70 s. This
+   applies to every merge, including one that changes only `docs/`, unless the
+   deploy is skipped (see below).
 3. Because the service has an attached disk, the old instance stops before the
-   new one starts: there is a brief interruption on each deploy.
+   new one starts: there is an interruption on each deploy. On 2026-11-14 the
+   site answered HTTP 502 for at least 35 s during a deploy.
 4. Jobs in memory are lost on a deploy. Cached frames remain on disk, so open
    views resume from the cache when requested again. A measurement in progress
    is abandoned and can be requested again.
 5. Forty seconds after start, the service pushes any locally stored results the
    database lacks and re-measures challenge targets whose results are missing,
    older than seven days, or from an earlier pipeline version.
+
+### Merging without a deploy
+
+A change that does not affect the running service, such as an edit to `docs/`,
+does not need a deploy. Render skips the automatic deploy when the commit
+message contains `[skip render]` (its documentation also lists `[render skip]`,
+`[skip deploy]` and `[skip cd]`). Put the phrase in the commit message and in
+the title of the merge commit. The skipped deploy is listed on the service's
+Events page, and the next ordinary merge deploys as usual.
+
+Do not use the phrase on a change to code, `web/`, `requirements.txt` or
+`render.yaml`: the service would keep running the previous build.
 
 ### Post-deploy checks
 
