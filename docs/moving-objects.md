@@ -392,6 +392,15 @@ minor planet" when the name comes from JPL, which gives no class, and "known
 body" for a class the viewer does not know. Before this every named object
 that was not a comet was called "known asteroid".
 
+The sentence under a stacked object says why the first search did not have
+it. Pluto is at 85 sigma in a single exposure and was missed only because it
+moves 0.22 arcsec per hour, where the first search links from 2 on; the card
+first said "Too faint for a single exposure" above a list of exposures at
+S/N 126 to 195. Now: fainter than 5 sigma in the median exposure, "Too faint
+for a single exposure"; brighter and slower than 2 arcsec per hour, "Too slow
+for the first search"; brighter and faster, only that it was found by adding
+exposures.
+
 ## Growing with the map
 
 The search is tied to what visitors open. When a progressive field has all its

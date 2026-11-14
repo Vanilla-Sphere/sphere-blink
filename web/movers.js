@@ -46,6 +46,9 @@ function moverKindKey(k) {
   return c ? (MOVER_CLASSES.find(([re]) => re.test(c)) || [0, "mover.body"])[1] : "mover.minor";
 }
 const moverKind = (m) => tr(moverKindKey(m.known));
+/* Why the first search did not have an object the second one found: it is too faint in one exposure (the first search
+   takes 5 sigma and more), or bright but slower than the 2 arcsec per hour the first search links. Else no reason is given. */
+const moverStackKey = (m) => m.median_snr < 5 ? "mover.stack" : m.median_snr >= 5 && m.rate_arcsec_hr < 2 ? "mover.stack.slow" : "mover.stack.plain";
 const moverLine = (m) => tr("mover.line", {v: m.rate_arcsec_hr < 20 ? m.rate_arcsec_hr.toFixed(1) : Math.round(m.rate_arcsec_hr), pa: Math.round(m.pa_deg), n: m.times_seen || m.n_times, d: moverDate(m.mjd0)});
 /* Where an object is at a time: constant speed (arcsec per hour) along a straight line, or, for a path
    followed over days, a speed that changes steadily (a_east, a_north: arcsec per hour squared). */
@@ -134,7 +137,7 @@ function moverRow(m, follow, open, inLog) {
   const facts = document.createElement("p");
   const far = m.stack_distance && m.stack_distance.distance_au;
   facts.textContent = (m.method === "stack"
-    ? tr("mover.stack", {f: m.stack_frames, s: (+m.stack_snr).toFixed(1), id: m.id}) + (far ? " " + tr("mover.stack.far", {d: Math.round(far), lo: Math.round(m.stack_distance.distance_min_au), hi: Math.round(m.stack_distance.distance_max_au)}) : "")
+    ? tr(moverStackKey(m), {f: m.stack_frames, s: (+m.stack_snr).toFixed(1), id: m.id}) + (far ? " " + tr("mover.stack.far", {d: Math.round(far), lo: Math.round(m.stack_distance.distance_min_au), hi: Math.round(m.stack_distance.distance_max_au)}) : "")
     : tr("mover.facts", {seen: m.times_seen, of: m.times_covered, id: m.id})) + (m.known && m.known.name ? " " + tr("mover.match", {by: m.known.by, sep: m.known.sep_arcsec}) : m.known && m.known.checked ? " " + tr("mover.cand") : "");
   const row = document.createElement("div"); row.className = "moveracts";
   for (const [value, key] of [["real", "mover.real"], ["false", "mover.false"]]) {

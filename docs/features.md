@@ -769,8 +769,9 @@ up along every possible path (`mover_stack.py`,
 [shift-and-stack](shift-and-stack.md)). It takes one to three minutes more
 and adds what it finds to the same list and the same log; the card says that
 it is still looking. Such an object's row tells how many exposures were added
-up, at how many sigma they show it, and how far from the Sun the bend of its
-path puts it.
+up, at how many sigma they show it, why the first search did not have it
+(too faint in a single exposure, or bright but slower than 2 arcsec per
+hour), and how far from the Sun the bend of its path puts it.
 
 In the viewer (Advanced, `web/movers.js`):
 
