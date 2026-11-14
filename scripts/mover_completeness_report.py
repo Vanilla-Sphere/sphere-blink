@@ -53,15 +53,19 @@ def _curve(rows: list[dict], key: str, edges: list[float], level: str, rate=(RAT
 
 
 def _limits(rows: list[dict], level: str) -> dict:
+    """Where the share found falls to one half (``half``), from a curve fitted to the single fakes, and the
+    share of the bright ones that is found (``bright``, counted, not fitted). The plateau of the fit is kept
+    for the record: where stars crowd the share falls slowly with brightness and has no plateau to speak of."""
+    use = [r for r in rows if r["times"] >= MIN_TIMES]
+    bright = [r for r in use if r["v_mag"] < BRIGHT]
+    out = {"bright": round(sum(bool(r[level]) for r in bright) / len(bright), 3) if bright else None, "bright_n": len(bright)}
     fit = mc.half_point(rows, "v_mag", level, 0.5, MIN_TIMES)
     if not fit:
-        return {}
-    top = fit["plateau"]
-    out = {"plateau": round(top, 3), "half": fit["at"], "width": fit["width"], "n": fit["n"]}
-    # where the curve has fallen to half of its plateau, and to nine tenths of it
-    out["half_of_plateau"] = round(fit["mid"], 2)
-    out["nine_tenths_of_plateau"] = round(fit["mid"] - fit["width"] * math.log(9.0), 2)
-    out["half_mjy"] = round(float(mc.flux_mjy(fit["mid"], 1.24, "sun")), 3)  # that magnitude as flux at 1.24 micron
+        return out
+    out.update(plateau=round(fit["plateau"], 3), half=round(fit["at"], 2) if fit["at"] is not None else None,
+               width=fit["width"], n=fit["n"], half_of_plateau=round(fit["mid"], 2))
+    if fit["at"] is not None:
+        out["half_mjy"] = round(float(mc.flux_mjy(fit["at"], 1.24, "sun")), 3)  # that magnitude as flux at 1.24 micron
     return out
 
 

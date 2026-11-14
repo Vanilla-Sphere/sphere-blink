@@ -515,7 +515,7 @@ def half_point(rows: list[dict], key: str = "v_mag", level: str = "found", share
 
     def nll(p):
         top, mid, width = 1 / (1 + math.exp(-p[0])), p[1], math.exp(p[2])
-        c = np.clip(top / (1 + np.exp(-sign * (x - mid) / width)), 1e-9, 1 - 1e-9)
+        c = np.clip(top / (1 + np.exp(np.clip(-sign * (x - mid) / width, -60.0, 60.0))), 1e-9, 1 - 1e-9)
         return -float(np.sum(y * np.log(c) + (1 - y) * np.log(1 - c)))
 
     best = None

@@ -35,23 +35,26 @@ function cpLoad() {
 function cpWords(d) {
   const a = d.all, lim = a[CP.level].limits || {}, sh = d.shuffled || {};
   const named = CP.level === "found", heat = d.fake.spectrum === "asteroid";
-  const cold = (((d.cold || {}).all || {})[CP.level] || {}).limits || {};
   const mag = (v) => (v != null ? v.toFixed(1) : "–");
-  const few = d.fields.sparse, many = d.fields.crowded;
-  const top = (f) => ((f || {})[CP.level] || {limits: {}}).limits.plateau;
-  let half = `is where half of them are still found: ${lim.half_mjy != null ? lim.half_mjy.toFixed(2) : "0.2"} mJy at 1.2 µm, five times the noise of one exposure`;
-  if (heat && cold.half_of_plateau != null) half += ` (V ${mag(cold.half_of_plateau)} for a body without heat of its own)`;
+  const of = (name, from) => ((((from || d).fields[name] || {})[CP.level] || {}).limits || {});
+  const few = of("sparse"), more = of("medium"), many = of("crowded");
+  const cold = d.cold ? of("sparse", d.cold) : {};
+  let bright = named ? "of the bright ones were found (visual magnitude below 17.5)" : "of the bright ones were found on the stronger evidence asked of an object no catalogue lists";
+  if (few.bright != null && many.bright != null) bright += `: ${cpPct(few.bright)} where stars are few, ${cpPct(many.bright)} where they crowd`;
+  let half = `is where half are still found in a field with few stars (${few.half_mjy != null ? few.half_mjy.toFixed(2) : "0.3"} mJy at 1.2 µm)`;
+  if (more.half != null && many.half != null) half += `; V ${mag(more.half)} with more stars, V ${mag(many.half)} where they crowd`;
   let note = heat
     ? `A fake is an asteroid of the main belt: sunlight it reflects, and beyond 3.5 µm the heat it gives off at ${d.fake.asteroid.r_au} au from the Sun. `
     : "A fake is sunlight reflected by a body without colour of its own. ";
   note += `It moves at ${d.fake.rate_arcsec_h[0]} to ${d.fake.rate_arcsec_h[1]} arcsec per hour and is drawn as the telescope draws a star. It counts when its place could be seen at ${d.fake.min_times} exposure times or more. The bright ones that were missed crossed the field too fast or too slowly for the visits it got, or passed in front of stars.`;
-  if (top(few) != null && top(many) != null && top(many) < top(few) - 0.1) note += ` Where stars crowd, fewer are found (${cpPct(top(many))} of the bright ones against ${cpPct(top(few))}): much of such a field is stars, and the search does not look on them.`;
+  if (few.bright != null && many.bright != null && many.bright < few.bright - 0.1) note += " Where stars crowd, fewer are found: much of such a field is stars, and the search does not look on them.";
+  if (heat && cold.half != null) note += ` A body without heat of its own, far from the Sun, gives nearly the same: half are found at V ${mag(cold.half)} where stars are few.`;
   note += ` The ticks above the chart are real asteroids the search found in these fields, at the magnitude their catalogue predicts. Slower than ${d.fake.rate_arcsec_h[0]} arcsec per hour this search does not look.`;
   return {
     lead: `The search was tested on itself. ${cpNum(a.fakes)} fake asteroids of known brightness, speed and direction were added to the real SPHEREx exposures of three fields, and the same code that runs on this site looked for them.`,
     tiles: [
-      [cpPct(lim.plateau), named ? "of the bright ones were found (visual magnitude below 17.5)" : "of the bright ones were found on the stronger evidence asked of an object no catalogue lists"],
-      ["V " + mag(lim.half_of_plateau), half],
+      [cpPct(lim.bright), bright],
+      ["V " + mag(few.half != null ? few.half : lim.half), half],
       sh.searches ? [`${sh.candidates || 0} of ${sh.searches}`, "searches with the times of the exposures shuffled gave a candidate: what chance alone produces"] : null,
     ].filter(Boolean),
     note,

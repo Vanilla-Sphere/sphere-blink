@@ -33,14 +33,19 @@ def draw(data: dict, path: Path, level: str = "found") -> None:
 
     # three numbers
     sh = data.get("shuffled") or {}
-    cold = ((data.get("cold") or {}).get("all") or {}).get(level, {}).get("limits") or {}
-    heat = data["fake"].get("spectrum") == "asteroid"
-    second = f"{lim.get('half_mjy', 0):.2f} mJy at 1.2 µm, 5σ in one exposure"
-    if heat and cold.get("half_of_plateau"):
-        second += f";\nV {cold['half_of_plateau']:.1f} for a body without heat of its own"
+    def of(name: str, source: dict | None = None) -> dict:
+        return (((source or data).get("fields") or {}).get(name) or {}).get(level, {}).get("limits") or {}
+
+    few, more, many = of("sparse"), of("medium"), of("crowded")
+    first = "of the bright ones found\n(V brighter than 17.5)"
+    if few.get("bright") is not None and many.get("bright") is not None:
+        first += f":\n{round(few['bright'] * 100)} % where stars are few, {round(many['bright'] * 100)} % where they crowd"
+    second = f"where half are still found in a field with\nfew stars ({few.get('half_mjy') or 0:.2f} mJy at 1.2 µm)"
+    if more.get("half") and many.get("half"):
+        second += f";\nV {more['half']:.1f} with more stars, V {many['half']:.1f} where they crowd"
     tiles = [
-        (f"{round(lim.get('plateau', 0) * 100):d} %", "of the bright ones found\n(V brighter than 17.5)"),
-        (f"V {lim.get('half_of_plateau', 0):.1f}", "where half of them are still found\n(" + second + ")"),
+        (f"{round((lim.get('bright') or 0) * 100):d} %", first),
+        (f"V {few.get('half') or lim.get('half') or 0:.1f}", second),
         (f"{sh.get('candidates', 0)} in {sh.get('searches', 0)}", "false candidates in searches with\nthe times of the exposures shuffled"),
     ]
     for k, (big, small) in enumerate(tiles):
