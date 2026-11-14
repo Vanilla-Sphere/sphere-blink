@@ -81,6 +81,7 @@ function writeUrl(push) {
   if ($("ov-gaia").checked) p.set("gaia", "1");
   if ($("ov-catwise").checked) p.set("catwise", "1");
   if (S.tracks && !$("ov-tracks").checked) p.set("tracks", "0");
+  if (MV.sel) p.set("mover", MV.sel);
   p.set("ui", S.ui);
   S.url = "?" + p.toString();
   if (S.screen === "view" || push) history[push ? "pushState" : "replaceState"](null, "", S.url);
@@ -149,7 +150,7 @@ async function load(next, nopush) {
   Object.assign(S, want);
   S.cube = null; S.meta = null; S.saturated = null; S.median = null; S.stack = null; S.spectrum = null; S.files = null; S.catalogs = {}; S.i = 0; S.ref = 0; S.busy = 0;
   S.tracks = null; S.measuring = null; $("trackopt").hidden = true; $("trackcard").hidden = true;
-  S.field = null; S.stage = null; $("tileopt").hidden = !S.levels;
+  S.field = null; S.stage = null; $("tileopt").hidden = !S.levels; clearMovers();
   for (const c of ["speccard", "epochcard"]) $(c).hidden = true;
   $("analysishint").hidden = true; $("timeline").innerHTML = ""; $("cursor").textContent = "";
   $("empty").hidden = false; $("empty").textContent = tr("load.search");
@@ -232,6 +233,7 @@ async function loadField(id, f) {
   }
   setTimeout(() => { if (id === S.loadId && !S.busy) $("progress").hidden = true; }, 4000);
   loadTracks();
+  loadMovers();  // the server searches a finished field for moving objects
 }
 
 async function fetchCube(id, keepIndex, seq) {
@@ -797,6 +799,7 @@ function drawOverlays(ctx, cv) {
       text(s.name, x + 11 * u, y + 16 * u, M);
     }
   }
+  drawMovers(ctx, cv, u, line, text);
   // scale bar + compass
   const arcmin = S.grid.fov_arcmin / S.zoom, bar = arcmin >= 20 ? 5 : arcmin >= 10 ? 2 : arcmin >= 4 ? 1 : arcmin >= 2 ? 0.5 : arcmin >= 0.7 ? 1 / 6 : 1 / 12, len = W * bar / arcmin;
   const bx = 14 * u, by = W - 16 * u, t = 4 * u;
@@ -1266,6 +1269,7 @@ function init() {
   seg("mode", "mode", () => { $("refrow").hidden = S.mode !== "diffref"; S.limits = null; if (S.mode === "stack") stop(); draw(); writeUrl(); });
   seg("plotmode", "plotmode", () => drawPlot());
   initExports();
+  initMovers();
   $("refrow").hidden = S.mode !== "diffref";
   setUi(prefs.ui, true);
   SkyMap.init($("map"), {coords: () => S.ui === "adv", onPick: mapPick, onHover: mapHover, onReady: () => { if (S.t) showStory(S.t); },
