@@ -113,14 +113,14 @@ of HTML, CSS and JavaScript in the viewer.
 
 ## Tests
 
-48 unit tests in three files, run with `pytest`. They use synthetic data and
+81 unit tests in four files, run with `pytest`. They use synthetic data and
 stubbed HTTP clients, need no network, and finish in about three seconds.
 
 | File | Tests | Covers |
 | --- | --- | --- |
-| `tests/test_guard.py` | 17 | Caller identity; token buckets; security headers and CORS; refusal of non-positions; the measurement name rule; job and queue caps; scheduler order; disk cache eviction and pinning; name cache; second source for files; stale exposure lists |
-| `tests/test_offline.py` | 22 | Coordinate parsing; proper-motion propagation of the featured targets; grid geometry; FITS header scanning; aperture photometry; sky plane; epoch grouping; median difference; cube round trip; PNG and GIF rendering; colour borrowing and white balance; disk and memory eviction; cell grid and stages; exactness of the coarse-lattice pixel mapping; binning; half-precision storage; SIA CSV parsing; wing photometry |
-| `tests/test_measure.py` | 14 | Parallax factors; PSF fit accuracy; neighbour handling; wing fallback; track recovery with parallax; stacks for faint movers; light curve; storage and database synchronisation; saturated stars |
+| `tests/test_guard.py` | 22 | Caller identity; token buckets; security headers and CORS; refusal of non-positions; the measurement name rule; job and queue caps; the pipeline queue (views worked on at a time, positions, callers taking turns, the first exposures of a waiting view, the memory budget for wide fields, two measurements at a time); disk cache eviction and pinning; name cache; second source for files; stale exposure lists |
+| `tests/test_offline.py` | 29 | Coordinate parsing; proper-motion propagation of the featured targets; grid geometry; FITS header scanning; aperture photometry; sky plane; epoch grouping; median difference; cube round trip; PNG and GIF rendering; colour borrowing and white balance; disk and memory eviction; cell grid and stages; exactness of the coarse-lattice pixel mapping; binning; half-precision storage; SIA CSV parsing; wing photometry |
+| `tests/test_measure.py` | 18 | Parallax factors; PSF fit accuracy; neighbour handling; wing fallback; track recovery with parallax; stacks for faint movers; light curve; storage and database synchronisation; saturated stars |
 | `tests/test_resolve_names.py` | 12 | Name resolution paths: Sesame, mirrors, redirects, SIMBAD fallback, spellings, "not found" against "unavailable", no network for built-in targets |
 
 ```bash

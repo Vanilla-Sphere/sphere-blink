@@ -13,6 +13,7 @@ import time
 import uuid
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
+from typing import Callable
 
 import httpx
 import numpy as np
@@ -201,25 +202,31 @@ class Store:
 class Scheduler:
     """Shares the fetch processes between the views being gathered.
 
-    Every view hands in its exposures as chunks. Only a few chunks are in
-    the worker processes at a time; whenever one comes back, the next is
-    chosen:
+    Every view hands in its exposures as chunks. A limited number of views
+    is worked on at a time: ``config.ACTIVE_VIEWS`` of them, holding together
+    no more than ``config.ACTIVE_MB`` of frames (which is what keeps several
+    wide mosaics from filling the memory). The others wait in a queue, and
+    :meth:`place` tells each one its position:
 
-    * a view that has not been served yet goes first, so everybody sees
-      first frames within seconds however long the queue is;
-    * then the view with the least left to do (a small view passes a wide
-      mosaic that is still loading, and of equal views the one that started
-      first finishes first, which gives the shortest average wait);
-    * every fourth chunk goes to the view that has waited longest, so a
-      mosaic keeps moving while small views keep arriving;
-    * the views of one caller beyond ``config.FAIR_JOBS`` wait behind
-      everyone else's.
+    * the queue is first come, first served, with the callers taking turns
+      (the first view of every caller comes before anybody's second one), so
+      one caller with many views cannot keep the others waiting;
+    * a view too heavy for the memory that is left waits for a heavy one to
+      finish, and lighter views behind it go ahead meanwhile;
+    * a view in the queue still gets its first few exposures (one small
+      chunk) unless ``config.QUEUE_PREVIEW`` is off, so there is a picture
+      on screen while it waits;
+    * among the views being worked on, the one with the least left to do
+      goes first and every fourth chunk goes to the one that started first.
+
+    Only a few chunks are in the worker processes at a time; whenever one
+    comes back, the next is chosen.
     """
 
     def __init__(self, pool_of, slots: int):
         self._pool_of, self._slots = pool_of, slots
         self._lock = threading.Lock()
-        self._views: dict[str, dict] = {}  # job id -> {client, started, pending, sent, out}
+        self._views: dict[str, dict] = {}  # job id -> {client, started, pending, sent, out, active, mb}
         self._flying = 0
         self._picks = 0
         self._wake = threading.Event()
@@ -240,9 +247,12 @@ class Scheduler:
     def run(self, job_id: str, client: str, grid: Grid, chunks: list[list[worker.Item]]):
         """Cut the chunks of one view; yields (results, stats) as each comes back."""
         out: "queue.Queue" = queue.Queue()
+        # what its frames will take in memory while they are gathered (float32, every exposure a frame)
+        mb = sum(len(c) for c in chunks) * getattr(grid, "npix", 0) ** 2 * 4 / 1e6
         with self._lock:
             self._views[job_id] = {"client": client, "started": time.time(), "grid": grid, "pending": list(reversed(chunks)),
-                                   "sent": 0, "out": out}
+                                   "sent": 0, "out": out, "active": False, "mb": mb}
+            self._admit()
             if self._thread is None:
                 self._thread = threading.Thread(target=self._loop, daemon=True, name="fetch-scheduler")
                 self._thread.start()
@@ -256,23 +266,55 @@ class Scheduler:
         finally:
             with self._lock:
                 self._views.pop(job_id, None)
+                self._admit()
+            self._wake.set()  # the next view in the queue has its turn
+
+    def _queue(self) -> list[dict]:
+        """The waiting views in the order they will be taken (lock held)."""
+        turn: dict[str, int] = {}  # how many views of this caller are ahead of the next one
+        for v in self._views.values():
+            if v["active"]:
+                turn[v["client"]] = turn.get(v["client"], 0) + 1
+        ranked = []
+        for v in sorted((v for v in self._views.values() if not v["active"]), key=lambda v: v["started"]):
+            ranked.append((turn.get(v["client"], 0), v["started"], v))
+            turn[v["client"]] = turn.get(v["client"], 0) + 1
+        return [v for _, _, v in sorted(ranked, key=lambda r: r[:2])]
+
+    def _admit(self) -> None:
+        """Give the free places to the first views of the queue that fit (lock held)."""
+        limit = config.ACTIVE_VIEWS if config.ACTIVE_VIEWS > 0 else len(self._views)
+        active = [v for v in self._views.values() if v["active"]]
+        n, mb = len(active), sum(v["mb"] for v in active)
+        for v in self._queue():
+            if n >= limit:
+                break
+            if n and config.ACTIVE_MB > 0 and mb + v["mb"] > config.ACTIVE_MB:
+                continue  # too heavy for the memory that is left: it waits, lighter ones behind it may go
+            v["active"] = True
+            n, mb = n + 1, mb + v["mb"]
+
+    def place(self, job_id: str) -> tuple[int, int]:
+        """(position in the queue, views waiting); position 0: being worked on."""
+        with self._lock:
+            v = self._views.get(job_id)
+            if v is None or v["active"]:
+                return 0, 0
+            waiting = self._queue()
+            return next(i for i, w in enumerate(waiting, 1) if w is v), len(waiting)
 
     def _next(self) -> "dict | None":
-        waiting = [v for v in self._views.values() if v["pending"]]
-        if not waiting:
+        active = [v for v in self._views.values() if v["active"] and v["pending"]]
+        ahead = self._queue() if config.QUEUE_PREVIEW else []
+        fresh = [v for v in active + ahead if v["sent"] == 0 and v["pending"]]
+        if not active and not fresh:
             return None
-        by_client: dict[str, list[dict]] = {}
-        for v in sorted(self._views.values(), key=lambda v: v["started"]):
-            by_client.setdefault(v["client"], []).append(v)
-        extra = {id(v) for vs in by_client.values() for v in vs[config.FAIR_JOBS:]} if config.FAIR_JOBS > 0 else set()
-        fair = [v for v in waiting if id(v) not in extra] or waiting
-        fresh = [v for v in waiting if v["sent"] == 0]  # the first few exposures cost little: no view waits for them
         self._picks += 1
-        if fresh:
+        if fresh:  # the first few exposures cost little: no view waits for them
             return min(fresh, key=lambda v: v["started"])
         if self._picks % 4 == 0:
-            return min(fair, key=lambda v: v["started"])
-        return min(fair, key=lambda v: (len(v["pending"]), v["started"]))
+            return min(active, key=lambda v: v["started"])
+        return min(active, key=lambda v: (len(v["pending"]), v["started"]))
 
     def _pump(self) -> None:
         while True:
@@ -319,12 +361,16 @@ class Job:
     resuming: bool = True  # still looking up what the disk cache already has
     client: str = ""  # who asked first (for sharing the fetch processes fairly)
     frames: list[Frame] = field(default_factory=list)  # grows while fetching
+    place: "Callable[[], tuple[int, int]] | None" = None  # while its exposures are cut: where it is in the queue
 
     def public(self) -> dict:
         end = self.finished or time.time()
+        position, waiting = self.place() if self.place and self.status == "fetching" else (0, 0)
         return {
             "id": self.id,
-            "status": self.status,
+            # "queued" with a position: the pipeline is busy with other views and this one waits its turn
+            "status": "queued" if position else self.status,
+            "queue": {"position": position, "waiting": waiting} if position else None,
             "total": self.total,
             "done": self.done,
             "failed": self.failed,
@@ -570,12 +616,16 @@ class Service:
         if len(chunks) > 1:  # a small first chunk: first frames on screen sooner
             head = max(1, min(4, len(chunks[0]) // 2))
             chunks = [chunks[0][:head], chunks[0][head:]] + chunks[1:]
-        for results, stats in self._sched.run(job.id, job.client, grid, chunks):
-            for k, v in stats.items():
-                job.stats[k] = job.stats.get(k, 0) + v
-            t0 = time.time()
-            self._collect(job, grid, results)
-            job.stats["store_s"] = job.stats.get("store_s", 0) + time.time() - t0
+        job.place = lambda: self._sched.place(job.id)
+        try:
+            for results, stats in self._sched.run(job.id, job.client, grid, chunks):
+                for k, v in stats.items():
+                    job.stats[k] = job.stats.get(k, 0) + v
+                t0 = time.time()
+                self._collect(job, grid, results)
+                job.stats["store_s"] = job.stats.get("store_s", 0) + time.time() - t0
+        finally:
+            job.place = None
 
     async def _fetch_in_loop(self, job: Job, grid: Grid, items: list[worker.Item]) -> None:
         """One core: everything in this process, frames arrive one by one."""

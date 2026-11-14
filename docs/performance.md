@@ -139,15 +139,16 @@ real rate is 85-220 MB/s. The start command now pins one worker, and
 | Largest progressive level | 3 | `tiles.MAX_LEVELS` |
 | Exposures per view | 1200, thinned evenly in time beyond that | `SPHEREX_MAX_FRAMES` |
 | Concurrent exposure reads | 64, shared by the worker processes | `SPHEREX_FETCH_WORKERS` |
-| Views being gathered at once | 24 per caller, 96 in total | `SPHEREX_MAX_JOBS_PER_CLIENT`, `SPHEREX_MAX_JOBS` |
+| Views gathered or waiting | 24 per caller, 96 in total | `SPHEREX_MAX_JOBS_PER_CLIENT`, `SPHEREX_MAX_JOBS` |
+| Views worked on at once | 4 in production (one per worker process), holding at most 2400 MB of frames together; further views queue | `SPHEREX_ACTIVE_VIEWS`, `SPHEREX_ACTIVE_MB` |
 | Request threads | 160 | `SPHEREX_REQUEST_THREADS` |
 | Worker processes | 4 | `SPHEREX_FETCH_PROCS` |
 | Pixels per cube response | 40 million | `main.CUBE_BUDGET` |
 | Frames held in memory | 2 GB in production (default 600 MB) | `SPHEREX_RAM_BUDGET_MB` |
 | Epoch cache | 500 MB | `main.EPOCH_CACHE_BYTES` |
 | Disk cache | 16 GB of the 20 GB disk in production (default 4 GB) | `SPHEREX_DISK_BUDGET_GB` |
-| Concurrent measurements | 1 process; further jobs queue | `measure_api._executor` |
-| Measurement time limit | 600 s | `measure_api.JOB_TIMEOUT_S` |
+| Concurrent measurements | 2 processes; further jobs queue, 12 waiting or running at most | `SPHEREX_MEASURE_PROCS`, `SPHEREX_MAX_MEASURE_QUEUE` |
+| Measurement time limit | 600 s from the moment the job starts measuring | `measure_api.JOB_TIMEOUT_S` |
 
 Planning numbers:
 
@@ -165,9 +166,9 @@ Planning numbers:
 
 ## Several visitors at once
 
-Measured on a 4-core machine on 2026-11-14 (not in production): eight visitors
-open eight different cold 8 arcmin views (249-341 exposures each) at the same
-moment.
+Measured on a 4-core machine on 2026-11-14 (not in production), before the
+pipeline queue of the next section: eight visitors open eight different cold
+8 arcmin views (249-341 exposures each) at the same moment.
 
 | | First frames on screen (slowest visitor) | All frames, mean | All frames, slowest |
 | --- | --- | --- | --- |
@@ -185,11 +186,81 @@ view, before the view was reported ready); cubes are compressed outside the
 event loop; the cube of a finished view may be kept by the browser for ten
 minutes; resolved names survive a restart.
 
+## How many jobs at once
+
+The pipeline works on a limited number of jobs and queues the rest (see
+[architecture](architecture.md#concurrency-model)). The limits are settings,
+and their production values were chosen from the measurements below, made on
+2026-11-14 on a 4-core machine with the production settings (4 worker
+processes, 64 concurrent reads, 2000 MB of frames kept in memory). The
+production machine has 4 CPUs and 8 GB; memory there had reached 6.1 GB earlier
+the same day, before any of these limits existed.
+
+**Ten visitors, ten different cold 8 arcmin views (2869 exposures) at the same moment:**
+
+| Views worked on at once | First picture (slowest visitor) | All frames, mean | All frames, slowest | Peak memory | CPUs in use |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 4.6 s | 26.7 s | 45.5 s | 1.06 GB | 2.7 |
+| 2 | 6.1 s | 27.4 s | 42.9 s | 1.07 GB | 2.8 |
+| 3 | 6.6 s | 26.5 s | 44.0 s | 1.09 GB | 2.9 |
+| 4, frames up to 2400 MB (chosen) | 5.1 s | 26.8 s | 48.0 s | 1.08 GB | 2.6 |
+| No limit | 5.6 s | 25.5 s | 42.6 s | 1.08 GB | 3.0 |
+| 2, waiting views get nothing before their turn | 35.4 s | 25.4 s | 43.4 s | 1.05 GB | 2.9 |
+
+For small views the number hardly matters. The machine delivers about 67
+exposures per second whatever the limit, because the four worker processes
+and their 64 reads from the bucket are the bottleneck, and memory does not
+move. What matters is the first chunk of four exposures that a waiting view
+gets at once: without it the last visitor looks at an empty screen for 35 s.
+
+**The heavy mix: four 7 x 7 fields, six 8 arcmin views and four measurements at the same moment:**
+
+| Views worked on at once | Peak memory (web process + child processes) | Slowest small view: first picture, all frames | Slowest field | Slowest measurement |
+| --- | --- | --- | --- | --- |
+| 2 | 4.89 GB (2.95 + 2.15) | 10.7 s, 63.9 s | 190.5 s | 73.4 s |
+| 4, frames up to 2400 MB (chosen) | 4.88 GB (2.71 + 2.22) | 9.1 s, 46.0 s | 177.5 s | 69.6 s |
+| No limit | 5.02 GB (2.90 + 2.24) | 9.2 s, 39.1 s | 185.5 s | 69.6 s |
+
+Everything finished in every run, at about 60% of the production machine's
+memory. A limit of two makes small views wait behind two wide fields (64 s
+instead of 39-46 s) and buys nothing in memory for this mix.
+
+**Six measurements asked for at the same moment:**
+
+| Measuring processes | All six done | Mean wait of a visitor | Mean run time of one job | Peak memory |
+| --- | --- | --- | --- | --- |
+| 1 (before) | 101 s | 62.9 s | 15.8 s | 0.78 GB |
+| 2 (chosen) | 74 s | 49.3 s | 21.8 s | 1.03 GB |
+| 3 | 78 s | 52.2 s | 30.4 s | 1.25 GB |
+| 4 | 77 s | 53.6 s | 36.4 s | 1.52 GB |
+
+Two processes finish the queue 27% sooner than one. Three or four finish it
+no sooner, because the measurements share 16 connections to the bucket and
+each one only runs slower, at about 0.25 GB per process.
+
+**The values chosen for 4 CPUs and 8 GB:**
+
+- `SPHEREX_MEASURE_PROCS=2`: the most that still adds throughput.
+- `SPHEREX_ACTIVE_VIEWS=4`: one view per worker process. More would not add
+  throughput either; fewer makes small views wait behind wide fields.
+- `SPHEREX_ACTIVE_MB=2400`: the memory the views being gathered may fill with
+  frames. An 8 arcmin view holds about 9 MB, a 7 x 7 field 0.5-0.7 GB and at
+  most 1.17 GB (1200 exposures of 493 x 493 pixels), so this is two fields of
+  the largest size, or three typical ones. The worst case is then 0.4 GB
+  (idle) + 2.0 GB (frames of finished views) + 2.4 GB (views being gathered)
+  + 2.2 GB (worker and measuring processes, as measured) = 7.0 GB of the
+  8 GB. A third field of the largest size would take the machine to its
+  limit, and a server killed for memory interrupts every visitor, which a
+  queue does not.
+
+The queue itself is bounded (24 views per caller, 96 in all, 12
+measurements): beyond that a request is refused with `Retry-After`.
+
 ## Bottlenecks that remain
 
 | Bottleneck | Share | Possible improvement |
 | --- | --- | --- |
 | Archive search (IRSA SIA) | About 8 s of a cold seed cell; about 2 s per point query | Cache exposure footprints locally and search them geometrically |
 | Reading and resampling a 7 x 7 field | Most of the 37-52 s after the search: 5.9-7.2 GB and several hundred 493-pixel frames on 4 cores | More cores; batch resampling |
-| Single measurement process | Jobs queue behind one another | A second process when demand requires it |
+| Reads from the bucket | 64 at a time for views, 16 for measurements; both pipelines wait on them for more than half of their time | A machine closer to the bucket, or more connections if the archive allows them |
 | Cube size for long exposure-by-exposure series | Tens of megabytes for wide fields | Streaming or per-epoch requests |

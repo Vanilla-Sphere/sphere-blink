@@ -9,7 +9,7 @@ as of 2026-11-14; the audit that led to these measures is summarised at the end.
 
 | Asset | Threat | Protection |
 | --- | --- | --- |
-| Availability of the one server | A script floods the API, opens thousands of cold views, or holds every request thread | [Request limits](#request-limits), fair scheduling, bounded queues |
+| Availability of the one server | A script floods the API, opens thousands of cold views, or holds every request thread | [Request limits](#request-limits), a pipeline queue in which callers take turns, bounded queues |
 | The team measurement database | Unauthenticated writes, overwriting a stored result | The API writes only what its own pipeline measured, under a name the caller cannot choose; database roles and row level security |
 | The disk cache | Being filled with junk so that useful views are evicted | Least-recently-used eviction; featured views pinned; job caps |
 | Visitors' browsers | Script injection through names or data, framing by another site | Text is inserted as text; [response headers](#response-headers) |
@@ -45,9 +45,12 @@ already stored or a measurement already made costs nothing. A refusal carries
 `Retry-After`, and the viewer waits that long and asks again.
 
 Limits alone would still let one caller with 24 cold views delay everyone, so
-the worker processes are shared by a scheduler (see
-[architecture](architecture.md#concurrency-model)): each caller's views beyond
-four wait behind all others.
+the pipeline works on a limited number of views at a time (four, holding at
+most 2400 MB of frames between them, in production) and the others wait in
+a queue in which the callers take turns (see
+[architecture](architecture.md#concurrency-model)): the first view of every
+caller comes before anybody's second one. Measurements wait in a queue of
+their own, first come, first served.
 
 The static page, its scripts and `/api/health` are not limited.
 

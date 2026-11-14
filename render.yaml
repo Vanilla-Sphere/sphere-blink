@@ -51,6 +51,19 @@ services:
       # still holds two 7 x 7 fields at once.
       - key: SPHEREX_RAM_BUDGET_MB
         value: "2000"
+      # What the pipeline works on at a time; the rest waits in a queue and
+      # is told its position. Sized to this plan (4 CPU, 8 GB) by
+      # measurement: docs/performance.md, "How many jobs at once". Views: one
+      # per fetch process, and together no more frames in memory than
+      # ACTIVE_MB (two 7 x 7 fields of the largest size). Measurements: two
+      # (three or four measure no more per minute). Measure again before
+      # raising them or changing the plan.
+      - key: SPHEREX_ACTIVE_VIEWS
+        value: "4"
+      - key: SPHEREX_ACTIVE_MB
+        value: "2400"
+      - key: SPHEREX_MEASURE_PROCS
+        value: "2"
       # glibc otherwise keeps one heap per thread and hands little back
       - key: MALLOC_ARENA_MAX
         value: "2"

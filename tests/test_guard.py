@@ -178,33 +178,160 @@ def test_one_caller_cannot_fill_the_server_with_views(tmp_path, monkeypatch):
     svc.start(grids[6], client="203.0.113.9")
 
 
-# ----------------------------------------------------------------------------- fair sharing
-def test_scheduler_serves_new_views_first_then_the_shortest_and_keeps_the_oldest_moving(monkeypatch):
+# ----------------------------------------------------------------------------- the pipeline queue
+def _views(s, *rows, mb=0.0):
+    for name, client, started, pending, sent, active in rows:
+        s._views[name] = {"name": name, "client": client, "started": started, "pending": list(range(pending)), "sent": sent,
+                          "active": active, "mb": mb}
+
+
+def test_scheduler_works_on_two_views_and_the_others_wait_their_turn(monkeypatch):
     from sphereblink.service import Scheduler
 
-    monkeypatch.setattr(config, "FAIR_JOBS", 2)
+    monkeypatch.setattr(config, "ACTIVE_VIEWS", 2)
+    monkeypatch.setattr(config, "QUEUE_PREVIEW", False)
     s = Scheduler(lambda: None, 4)
+    _views(s, ("v1", "a", 1.0, 20, 0, False), ("v2", "b", 2.0, 20, 0, False), ("v3", "c", 3.0, 20, 0, False),
+           ("v4", "d", 4.0, 20, 0, False))
+    s._admit()
+    assert [n for n, v in s._views.items() if v["active"]] == ["v1", "v2"]
+    assert s.place("v1") == (0, 0) and s.place("v3") == (1, 2) and s.place("v4") == (2, 2)
+    for _ in range(12):  # whatever is picked, it is one of the two: the limit is hard
+        v = s._next()
+        assert v["name"] in ("v1", "v2")
+        v["pending"].pop()
+        v["sent"] += 1
+    del s._views["v1"]  # a view is done: the first of the queue has its turn
+    s._admit()
+    assert s._views["v3"]["active"] and s.place("v4") == (1, 1) and s.place("gone") == (0, 0)
+    monkeypatch.setattr(config, "ACTIVE_VIEWS", 0)  # no limit
+    s._admit()
+    assert all(v["active"] for v in s._views.values())
 
-    def view(name, client, started, pending, sent):
-        s._views[name] = {"name": name, "client": client, "started": started, "pending": list(range(pending)), "sent": sent}
 
-    view("mosaic", "a", 1.0, 60, 30)  # a wide field, half way
-    view("small", "b", 2.0, 10, 5)
-    view("new", "c", 3.0, 20, 0)
+def test_a_waiting_view_gets_its_first_exposures_and_no_more(monkeypatch):
+    from sphereblink.service import Scheduler
+
+    monkeypatch.setattr(config, "ACTIVE_VIEWS", 2)
+    monkeypatch.setattr(config, "QUEUE_PREVIEW", True)
+    s = Scheduler(lambda: None, 4)
+    _views(s, ("mosaic", "a", 1.0, 60, 30, True), ("small", "b", 2.0, 10, 5, True), ("waits", "c", 3.0, 20, 0, False))
     s._picks = 0
-    assert s._next()["name"] == "new"  # not served yet: first frames first
-    s._views["new"]["sent"] = 1
-    assert s._next()["name"] == "small"  # then the least left to do
+    assert s._next()["name"] == "waits"  # not served yet: a first picture, even from the queue
+    s._views["waits"]["sent"] = 1
+    assert s._next()["name"] == "small"  # then only the two being worked on: the least left to do
     assert s._next()["name"] == "small"
-    assert s._next()["name"] == "mosaic"  # every fourth chunk: the one that waited longest
-    # a caller with many views: only its first two compete with the others
-    for k in range(4):
-        view(f"flood{k}", "z", 0.1 * k, 3, 1)
-    picked = {s._next()["name"] for _ in range(3) if s._picks % 4 != 3}
-    assert picked <= {"flood0", "flood1"}  # the shortest among the fair ones
-    del s._views["flood0"], s._views["flood1"]
-    s._picks = 0
-    assert s._next()["name"] == "flood2"  # the next two moved up into the caller's fair share
+    assert s._next()["name"] == "mosaic"  # every fourth chunk: the one that started first
+    assert all(s._next()["name"] != "waits" for _ in range(8))
+    assert s.place("waits") == (1, 1)
+
+
+def test_callers_take_turns_in_the_queue(monkeypatch):
+    from sphereblink.service import Scheduler
+
+    monkeypatch.setattr(config, "ACTIVE_VIEWS", 2)
+    s = Scheduler(lambda: None, 4)
+    _views(s, ("z1", "z", 1.0, 5, 1, True), ("z2", "z", 1.1, 5, 1, True), ("z3", "z", 1.2, 5, 0, False),
+           ("z4", "z", 1.3, 5, 0, False), ("late", "y", 9.0, 5, 0, False))
+    # one caller opened four views; somebody else's first view goes before that caller's third
+    assert [v["name"] for v in s._queue()] == ["late", "z3", "z4"]
+    assert s.place("late") == (1, 3) and s.place("z3") == (2, 3)
+    del s._views["z1"]
+    s._admit()
+    assert s._views["late"]["active"] and not s._views["z3"]["active"]
+
+
+def test_wide_mosaics_wait_for_memory_and_small_views_pass_them(monkeypatch):
+    from sphereblink.service import Scheduler
+
+    monkeypatch.setattr(config, "ACTIVE_VIEWS", 4)
+    monkeypatch.setattr(config, "ACTIVE_MB", 2400.0)
+    s = Scheduler(lambda: None, 4)
+    _views(s, ("wide1", "a", 1.0, 40, 0, False), ("wide2", "b", 2.0, 40, 0, False), ("wide3", "c", 3.0, 40, 0, False), mb=1100.0)
+    _views(s, ("small1", "d", 4.0, 20, 0, False), ("small2", "e", 5.0, 20, 0, False), ("small3", "f", 6.0, 20, 0, False), mb=9.0)
+    s._admit()
+    active = [n for n, v in s._views.items() if v["active"]]
+    assert active == ["wide1", "wide2", "small1", "small2"]  # two mosaics fill the memory; four views, one per process
+    assert s.place("wide3") == (1, 2) and s.place("small3") == (2, 2)
+    del s._views["small1"]
+    s._admit()
+    assert s._views["small3"]["active"] and not s._views["wide3"]["active"]  # the third mosaic still does not fit
+    del s._views["wide1"]
+    s._admit()
+    assert s._views["wide3"]["active"]
+    # one view is always worked on, however heavy
+    s2 = Scheduler(lambda: None, 4)
+    _views(s2, ("huge", "a", 1.0, 40, 0, False), mb=5000.0)
+    s2._admit()
+    assert s2._views["huge"]["active"]
+
+
+def test_a_view_in_the_queue_says_so(monkeypatch):
+    from sphereblink.service import Job
+
+    job = Job(id="j", status="fetching", total=300, done=4)
+    job.place = lambda: (3, 8)
+    out = job.public()
+    assert out["status"] == "queued" and out["queue"] == {"position": 3, "waiting": 8} and out["done"] == 4
+    job.place = lambda: (0, 0)
+    out = job.public()
+    assert out["status"] == "fetching" and out["queue"] is None
+
+
+def test_two_measurements_at_a_time_and_the_third_knows_its_place(monkeypatch):
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    from sphereblink import measure_api, measurements
+
+    release, running = threading.Event(), []
+
+    def fake_run(target, exposures, wave_maps, concurrency):
+        running.append((target.name, concurrency))
+        release.wait(10)
+        return {"stats": {}, "track": None}
+
+    class Svc:
+        def exposures(self, ra, dec):
+            return [exposure(0)]
+
+        def wave_map(self, e):
+            return None
+
+    pool = ThreadPoolExecutor(2)
+    monkeypatch.setattr(config, "MEASURE_PROCS", 2)
+    monkeypatch.setattr(measure_api, "_svc", Svc())
+    monkeypatch.setattr(measure_api, "_executor", lambda: pool)
+    monkeypatch.setattr(measure_api, "run", fake_run)
+    monkeypatch.setattr(measure_api, "_jobs", {})
+    monkeypatch.setattr(measure_api, "_waiting", [])
+    monkeypatch.setattr(measure_api, "_measuring", 0)
+    monkeypatch.setattr(measurements, "load_local", lambda key: None)
+    monkeypatch.setattr(measurements, "save_local", lambda key, result: None)
+    monkeypatch.setattr(measurements, "save_db", lambda result: False)
+    try:
+        jobs = []
+        for k in range(4):
+            jobs.append(measure_api.start(resolve.at(10.0 + k, 5.0)))
+            for _ in range(200):  # in the order they came: wait until this one runs or waits
+                if len(running) > k or measure_api.place(jobs[-1][0])[0]:
+                    break
+                time.sleep(0.01)
+        assert [j["status"] for _, j in jobs] == ["measuring", "measuring", "queued", "queued"]
+        assert len(running) == 2 and running[0][1] == 8  # 16 connections to the bucket, shared by the two
+        assert measure_api._public(jobs[2][1])["queue"] == {"position": 1, "waiting": 2}
+        assert measure_api._public(jobs[3][1])["queue"] == {"position": 2, "waiting": 2}
+        assert measure_api._public(jobs[0][1])["queue"] is None
+        release.set()
+        for _ in range(500):
+            if all(j["status"] == "ready" for _, j in jobs):
+                break
+            time.sleep(0.01)
+        assert [j["status"] for _, j in jobs] == ["ready"] * 4 and len(running) == 4
+        assert measure_api._measuring == 0 and measure_api._waiting == []
+    finally:
+        release.set()
+        pool.shutdown()
 
 
 def test_scheduler_hands_every_chunk_back_and_survives_a_broken_pool():

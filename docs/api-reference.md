@@ -68,6 +68,7 @@ The job object:
 | Field | Description |
 | --- | --- |
 | `status` | `queued`, `searching`, `fetching`, `ready` or `error` |
+| `queue` | `null`, or `{"position": 3, "waiting": 8}` while the pipeline is busy with other views and this one waits its turn (`status` is then `queued`). Position 1 is next. A waiting view already holds its first few exposures, so `frames` may be above zero |
 | `total` | Exposures found for the view |
 | `done` | Exposures processed (from cache or archive) |
 | `failed` | Exposures that could not be read after three attempts |
@@ -577,6 +578,10 @@ is returned at once.
 
 The example above shows the shape of a response while the job runs. `status`
 is `queued`, `searching`, `measuring`, `ready` or `error` (with `job.error`).
+A fixed number of objects is measured at a time (`SPHEREX_MEASURE_PROCS`).
+While others are ahead, `status` is `queued` and `job.queue` is
+`{"position": 2, "waiting": 3}` (position 1 is next); otherwise `job.queue`
+is `null`. Keep asking: the time in the queue does not count against the job.
 When ready, `result` is present:
 
 ```json
