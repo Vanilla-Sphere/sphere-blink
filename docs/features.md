@@ -101,9 +101,10 @@ features on the first screen):
 The strip steps aside while the visitor drags or zooms the map and comes back
 as soon as they stop, whatever the zoom (MiLy, 2026-11-14); a press that does
 not move is a choice of a place and leaves it alone. It is hidden in full
-screen. On a
-phone it is a row of its own above the start list, scrolled sideways, with the
-titles only. The code is `web/showcase.js`.
+screen. The six cards are one row from 1240 px of window width, two rows of
+three from 900 px and three rows of two from 760 px, so that no card is cut.
+On a phone the strip is a row of its own above the start list, scrolled
+sideways, with the titles only. The code is `web/showcase.js`.
 
 ## 2. Search by coordinates or object name
 
