@@ -90,7 +90,7 @@ Accuracy is part of performance for this product. The figures are derived in
 | Halo flux of saturated stars against 2MASS, 0.15-20 Jy | median ratio 0.90-1.06, scatter 11-25 % | same |
 | Single-exposure position | 0.2-0.5 arcsec | Residuals of the track fits (RMS 0.26-0.95 arcsec including saturated stars) |
 | Agreement of the Level 2 WCS with Gaia | about 0.05 arcsec | Pointing check on reference stars |
-| Proper motion of fast movers | recovered within the stated errors of 50-1000 mas/yr | Five challenge targets and four further nearby stars |
+| Proper motion of fast movers | recovered within the stated errors of 50-1000 mas/yr | Five featured targets and four further nearby stars |
 | Relative brightness between sky passes | 2 % (PSF fluxes), 12 % (ring fluxes) | Non-variable stars |
 | Coarse-lattice pixel mapping | error below 1/1000 pixel | Unit test |
 

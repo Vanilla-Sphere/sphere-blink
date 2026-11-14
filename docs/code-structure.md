@@ -46,12 +46,12 @@ of HTML, CSS and JavaScript in the viewer.
 | `service.py` | 408 | SQLite store; job lifecycle; exposure search with locks and stale fallback; process pool; memory and disk budgets | `Store`, `Job`, `Service` |
 | `tiles.py` | 202 | Cell arithmetic and identifiers; block and stage geometry; field lifecycle | `cell_of`, `tile_id`, `block`, `stage_grid`, `Field`, `Fields` |
 | `render.py` | 393 | Grouping into epochs; colour composition with provenance; shared limits; asinh rendering; binning; cube, PNG and GIF encoding | `Epoch`, `build_epochs`, `build_color_epochs`, `difference`, `shared_limits`, `encode_cube` |
-| `resolve.py` | 277 | Parse coordinates; challenge targets and aliases; Sesame and SIMBAD lookups with mirrors; proper-motion propagation | `Target`, `resolve`, `FEATURED`, `NameNotFound`, `ResolverUnavailable` |
+| `resolve.py` | 277 | Parse coordinates; featured targets and aliases; Sesame and SIMBAD lookups with mirrors; proper-motion propagation | `Target`, `resolve`, `FEATURED`, `NameNotFound`, `ResolverUnavailable` |
 | `catalogs.py` | 78 | ADQL cone queries for the overlays; unit and epoch normalisation; motion significance | `query` |
 | `wings.py` | 134 | Ring levels around a saturated star; calibration table; flux with systematic error | `ring_levels`, `measure`, `CALIBRATION` |
 | `measure.py` | 1070 | The measurement algorithms; no HTTP endpoints, no database | `Body`, `Stamp`, `Detection`, `fit_psf`, `fit_wings`, `measure_stack`, `fit_track`, `light_curve`, `measure_all`, `fetch_stamps` |
-| `refcat.py` | 117 | Catalogue astrometry of the challenge targets; Gaia cone query with fallback; matching a request to a catalogue object | `TARGETS`, `gaia_cone`, `body_for` |
-| `measure_api.py` | 204 | Measurement job runner, automatic measurement of the challenge targets, the two measurement endpoints | `router`, `start`, `run`, `VERSION` |
+| `refcat.py` | 117 | Catalogue astrometry of the featured targets; Gaia cone query with fallback; matching a request to a catalogue object | `TARGETS`, `gaia_cone`, `body_for` |
+| `measure_api.py` | 204 | Measurement job runner, automatic measurement of the featured targets, the two measurement endpoints | `router`, `start`, `run`, `VERSION` |
 | `measurements.py` | 280 | Local result store; Postgres reader and writer; merged cone search | `save_local`, `save_db`, `sync_db`, `near` |
 | `main.py` | 397 | Application object, middleware, parameter handling, all other endpoints, epoch cache, static mount | `app`, `svc`, `fields` |
 
@@ -95,7 +95,7 @@ of HTML, CSS and JavaScript in the viewer.
 
 | Script | Purpose | Usage |
 | --- | --- | --- |
-| `scripts/prewarm.py` | Fill the cache of a running server for the challenge targets and optional coordinate lists | `python scripts/prewarm.py https://server [--fov 4,8,15] [coords.txt]` |
+| `scripts/prewarm.py` | Fill the cache of a running server for the featured targets and optional coordinate lists | `python scripts/prewarm.py https://server [--fov 4,8,15] [coords.txt]` |
 | `scripts/calibrate_wings.py` | Measure how halo brightness scales with flux on 2MASS calibrators and print the table for `wings.CALIBRATION` | `collect` then `fit`, with `scripts/wing_calibrators.csv` |
 | `scripts/wing_calibrators.csv` | The 81 isolated 2MASS stars used for the calibration | - |
 | `scripts/build_sky.py` | Build `web/data/sky.json` from d3-celestial data | `python scripts/build_sky.py path/to/d3-celestial/data` |
@@ -116,7 +116,7 @@ stubbed HTTP clients, need no network, and finish in about three seconds.
 
 | File | Tests | Covers |
 | --- | --- | --- |
-| `tests/test_offline.py` | 22 | Coordinate parsing; proper-motion propagation of the challenge targets; grid geometry; FITS header scanning; aperture photometry; sky plane; epoch grouping; median difference; cube round trip; PNG and GIF rendering; colour borrowing and white balance; disk and memory eviction; cell grid and stages; exactness of the coarse-lattice pixel mapping; binning; half-precision storage; SIA CSV parsing; wing photometry |
+| `tests/test_offline.py` | 22 | Coordinate parsing; proper-motion propagation of the featured targets; grid geometry; FITS header scanning; aperture photometry; sky plane; epoch grouping; median difference; cube round trip; PNG and GIF rendering; colour borrowing and white balance; disk and memory eviction; cell grid and stages; exactness of the coarse-lattice pixel mapping; binning; half-precision storage; SIA CSV parsing; wing photometry |
 | `tests/test_measure.py` | 14 | Parallax factors; PSF fit accuracy; neighbour handling; wing fallback; track recovery with parallax; stacks for faint movers; light curve; storage and database synchronisation; saturated stars |
 | `tests/test_resolve_names.py` | 12 | Name resolution paths: Sesame, mirrors, redirects, SIMBAD fallback, spellings, "not found" against "unavailable", no network for built-in targets |
 

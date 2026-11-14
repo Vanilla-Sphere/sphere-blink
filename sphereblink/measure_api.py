@@ -6,7 +6,7 @@
 
 A job finds the exposures, then measures in a separate process (so the web
 server keeps answering), stores the result on disk and, when the database
-role allows it, in the team database. The five challenge targets are measured
+role allows it, in the team database. The five featured targets are measured
 by themselves shortly after the server starts, and again when the pipeline
 changes or new exposures may have arrived.
 """
@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 router = APIRouter()
 
 VERSION = 2  # raise to have every stored result measured again
-MAX_AGE_S = 7 * 24 * 3600  # challenge targets are measured again after a week (new exposures)
+MAX_AGE_S = 7 * 24 * 3600  # featured targets are measured again after a week (new exposures)
 JOB_TIMEOUT_S = 600
 MID_MJD = 61000.0  # a date inside the SPHEREx data, for cone searches
 
@@ -44,7 +44,7 @@ _pool: ProcessPoolExecutor | None = None
 
 def attach(svc) -> None:
     """Give the router the service of ``main`` and start the self-measurement
-    of the challenge targets (not under pytest, not with SPHEREX_AUTO_MEASURE=0)."""
+    of the featured targets (not under pytest, not with SPHEREX_AUTO_MEASURE=0)."""
     global _svc
     _svc = svc
     if os.environ.get("SPHEREX_AUTO_MEASURE", "1") != "0" and "pytest" not in sys.modules:
@@ -132,7 +132,7 @@ def _stale(result: dict | None) -> bool:
 
 
 def _measure_featured() -> None:
-    """Keep the challenge targets measured, one after another."""
+    """Keep the featured targets measured, one after another."""
     time.sleep(float(os.environ.get("SPHEREX_AUTO_MEASURE_DELAY", "40")))
     try:
         measurements.sync_db()  # results measured while there was no database

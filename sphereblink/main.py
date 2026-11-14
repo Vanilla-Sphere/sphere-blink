@@ -45,6 +45,57 @@ app.include_router(measure_api.router)
 @app.on_event("startup")
 def _warm_up() -> None:
     threading.Thread(target=svc.warm_up, daemon=True).start()
+    if config.WARM_CATALOGS:
+        threading.Thread(target=_warm_catalogs, daemon=True).start()
+
+
+def _catalog(cat: str, grid: Grid, cached_only: bool = False) -> list[dict] | None:
+    """Overlay catalogue of a view, from the store or from the catalogue services."""
+    key = f"{cat}_v3_{grid.key()}"
+    sources = svc.store.get_catalog(key)
+    if sources is None and not cached_only:
+        sources = catalogs.query(cat, grid.ra, grid.dec, grid.fov_arcmin / 60.0 * 0.75)
+        svc.store.put_catalog(key, sources)
+    return sources
+
+
+FIELD_FOVS = (8.0, 4.0, 15.0, 30.0)  # the field sizes the viewer offers, the default first
+FIELD_LEVELS = (1, 3)  # and its two progressive fields
+
+
+def featured_grids() -> list[Grid]:
+    """Every view of a featured target the viewer can ask an overlay for: the
+    plain fields centred on the target and the stages of the progressive
+    fields, built the way a request for them is."""
+    grids = []
+    for fov in FIELD_FOVS:
+        for key in FEATURED:
+            t = resolve(key)
+            grids.append(Grid.from_fov(t.ra, t.dec, fov))
+    for key in FEATURED:
+        t = resolve(key)
+        ra_c, dec_c = tiles.center(*tiles.cell_of(t.ra, t.dec))
+        for level in sorted({lv for n in FIELD_LEVELS for lv in tiles.stage_levels(n)}):
+            g = tiles.stage_grid(ra_c, dec_c, level)
+            grids.append(Grid.from_fov(g.ra, g.dec, round((2 * level + 1) * tiles.STEP * 60.0, 3)))
+    return grids
+
+
+def _warm_catalogs(rounds: int = 40, pause: float = 90.0) -> None:
+    """Fill the overlay catalogues of the featured targets after a start, so
+    switching an overlay on never waits for a catalogue service. What is
+    already stored is skipped; what a service refused is tried again later."""
+    for _ in range(rounds):
+        missing = 0
+        for grid in featured_grids():
+            for cat in ("gaia", "catwise"):
+                try:
+                    _catalog(cat, grid)
+                except Exception:
+                    missing += 1
+        if not missing:
+            return
+        time.sleep(pause)
 
 
 # --------------------------------------------------------------------------- helpers
@@ -381,16 +432,12 @@ def api_catalog(
 ):
     """Brightest Gaia DR3 or CatWISE2020 sources in the field (with proper motions)."""
     t, grid = _view(target, ra, dec, fov)
-    key = f"{cat}_v3_{grid.key()}"
-    sources = svc.store.get_catalog(key)
-    if sources is None:
-        try:
-            sources = catalogs.query(cat, grid.ra, grid.dec, grid.fov_arcmin / 60.0 * 0.75)
-        except ValueError as exc:
-            raise HTTPException(400, str(exc)) from exc
-        except Exception as exc:
-            raise HTTPException(502, f"catalogue service error: {type(exc).__name__}") from exc
-        svc.store.put_catalog(key, sources)
+    try:
+        sources = _catalog(cat, grid)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(502, f"catalogue service error: {type(exc).__name__}") from exc
     return {"cat": cat, "sources": sources}
 
 

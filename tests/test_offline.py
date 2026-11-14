@@ -420,3 +420,64 @@ def test_static_files_say_how_long_they_may_be_kept(tmp_path, monkeypatch):
     assert c.get("/favicon.ico").headers["content-type"] == "image/png"
     assert c.get("/api/resolve", params={"q": "500 3"}).status_code == 400
     assert c.get("/api/view", params={"ra": 400, "dec": 100}).status_code == 400
+
+
+def test_ipac_table_is_read_by_its_column_edges():
+    from sphereblink import catalogs
+
+    text = "\n".join([
+        "\\fixlen = T",
+        "\\ ra (deg)",
+        "|                source_name|           ra|          dec|  w2mpro|         ab_flags|",
+        "|                       char|       double|       double|  double|             char|",
+        "         J085509.47-071502.9   133.7894629    -7.2508305   13.756                00 ",
+        "         J085511.23-071522.6   133.7968029    -7.2562793     null                H0 ",
+    ])
+    rows = catalogs.parse_ipac_table(text)
+    assert [r["source_name"] for r in rows] == ["J085509.47-071502.9", "J085511.23-071522.6"]
+    assert rows[0]["ra"] == "133.7894629" and rows[0]["w2mpro"] == "13.756" and rows[0]["ab_flags"] == "00"
+    assert rows[1]["w2mpro"] == "" and rows[1]["ab_flags"] == "H0"
+    with pytest.raises(ValueError):
+        catalogs.parse_ipac_table("<html>busy</html>")
+
+
+def test_catalogue_falls_back_to_the_second_service(monkeypatch):
+    from sphereblink import catalogs
+
+    asked = []
+
+    def down(*a):
+        asked.append("first")
+        raise TimeoutError("no answer")
+
+    def up(*a):
+        asked.append("second")
+        return [{"id": "1", "ra": "10.0", "dec": "-5.0", "pmra": "3.0", "pmdec": "4.0", "epmra": "0.1", "epmdec": "0.1",
+                 "mag": "12.5", "parallax": "2.0"}]
+
+    monkeypatch.setitem(catalogs.SOURCES, "gaia", (down, up))
+    out = catalogs.query("gaia", 10.0, -5.0, 0.1)
+    assert asked == ["first", "second"]
+    assert out == [{"id": "1", "ra": 10.0, "dec": -5.0, "pmra": 3.0, "pmdec": 4.0, "pm_snr": 50.0, "mag": 12.5,
+                    "parallax": 2.0, "epoch": 2016.0}]
+    monkeypatch.setitem(catalogs.SOURCES, "gaia", (down, down))
+    with pytest.raises(TimeoutError):
+        catalogs.query("gaia", 10.0, -5.0, 0.1)
+
+
+def test_warm_up_covers_the_views_the_viewer_asks_for():
+    from sphereblink import main
+
+    keys = {g.key() for g in main.featured_grids()}
+    assert len(keys) == len(resolve.FEATURED) * 7  # four plain fields and three progressive stages each
+    for name in resolve.FEATURED:
+        # a plain field, asked for by name
+        _, grid = main._view(name, None, None, 15.0)
+        assert grid.key() in keys
+        # a progressive stage, asked for by the position and size /api/tiles reports
+        t = resolve.resolve(name)
+        ra_c, dec_c = tiles.center(*tiles.cell_of(t.ra, t.dec))
+        for level in (0, 1, 3):
+            g = tiles.stage_grid(ra_c, dec_c, level)
+            _, grid = main._view(None, g.ra, g.dec, round((2 * level + 1) * tiles.STEP * 60.0, 3))
+            assert grid.key() in keys

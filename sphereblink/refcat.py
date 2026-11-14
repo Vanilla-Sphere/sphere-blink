@@ -40,7 +40,7 @@ TARGETS: dict[str, dict] = {
 
 
 def featured_key(name: str) -> str | None:
-    """Key of a challenge target by its display name."""
+    """Key of a featured target by its display name."""
     for key, f in FEATURED.items():
         if f["name"].lower() == name.strip().lower():
             return key if key in TARGETS else None
@@ -96,7 +96,7 @@ def gaia_cone(ra: float, dec: float, radius_deg: float, gmax: float = 19.5, top:
 def body_for(target: Target, field: list[Body] | None = None, mjd: float = 61000.0) -> tuple[Body, str]:
     """The catalogue object to measure for what the user asked for, and its kind.
 
-    A challenge target comes from the table above. Anything else is matched
+    A featured target comes from the table above. Anything else is matched
     to the Gaia star within 4 arcsec of the requested position (on the date
     of the SPHEREx data); with no match the position itself is measured, as
     an object without known motion.
