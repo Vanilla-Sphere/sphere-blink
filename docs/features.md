@@ -350,8 +350,23 @@ spectral data product.
   so far", or "Too faint to compare" (median signal to noise below 3). When
   the object changed, the Over time tab carries a small mark, whichever plot is
   open. On 2026-11-14: R Draconis about x1.9 between 2025-06 and 2026-06
-  (3.8 sigma); Barnard's Star, Vega and Epsilon Indi B steady within 4-7 %;
-  RW Aurigae 23 % (1.2 sigma, not significant).
+  (3.8 sigma); Barnard's Star, Vega and Epsilon Indi B steady within 4-9 %.
+- **Did part of it change?** An object can change colour: brighter at one end
+  of the spectrum, fainter at the other, so that all bands together nearly
+  cancel. When the total is steady, the same comparison is made inside each
+  detector band (`bandChanges` in `web/overtime.js`), and a band counts from
+  4 sigma, not 3, because six bands are six chances of a false alarm. The
+  line then reads "Brightness changed in part of the spectrum", names the
+  bands that faded and those that brightened, each group with its clearest
+  band, and ends with what all bands together show. RW Aurigae, a young star
+  whose dust moves: D5 and D6 (3.8 to 5.0 µm) up to x2.0 brighter in 2025-09
+  than in 2026-09 (9.0 sigma), D1 and D2 (0.74 to 1.6 µm) up to x1.6 brighter
+  in 2026-09 (5.7 sigma), all bands together 16 % (1.9 sigma). Checked on
+  2026-11-14 on 23 objects read from the live service: of 17 not known to
+  vary (nearby stars, a white dwarf, planet hosts, a galaxy, two quasars, two
+  brown dwarfs) none has a band above 2.3 sigma; AA Tauri, a star known for
+  its dips, is found in D1 alone (x2.8, 11.6 sigma). The PNG export breaks
+  the line over as many rows as it needs.
 - **Quality marks.** A point is flagged when a pixel of its aperture was left
   out of the sum (`PARTIAL`) or carries a defect flag such as `HOT` or
   `PERSIST`. The flags a bright source sets on its own core (`OVERFLOW`,
