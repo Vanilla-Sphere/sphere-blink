@@ -162,6 +162,14 @@ The browser plays the epochs in time order.
 - **Orientation aids.** North up, east left, with a compass, a scale bar, and a
   crosshair on the target. Double-clicking the image recentres the view on that
   point.
+- **Zoom.** The image can be magnified up to 16 times: the mouse wheel or a
+  trackpad pinch zooms about the pointer, the `+` and `-` buttons at the lower
+  right (and the same keys) about the middle, and dragging moves the magnified
+  image. Zooming out stops at the whole view (1.0): the image is never shown
+  smaller than that. A readout shows the factor and returns to the whole view
+  on a press (key `0`). Overlays, the scale bar and the pointer's coordinates
+  follow the zoom; a new position starts whole, a progressive field that grows
+  keeps what is on screen.
 - **No data.** Pixels without data are drawn in a distinct warm dark tone, never
   as black sky.
 

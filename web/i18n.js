@@ -77,6 +77,7 @@ const STR = {
     "map.star": "Bright star in {con}", "map.star.none": "Bright star",
     "map.star.faint": "Star in {con}", "map.star.faint.none": "Star",
     "map.open": "Opening…", "s.share": "Share",
+    "zoom.in": "Zoom in (scroll, or +)", "zoom.out": "Zoom out, as far as the whole image (−)", "zoom.reset": "Show the whole image (0)",
     "map.in": "Zoom in", "map.out": "Zoom out", "map.reset": "Show the whole sky",
     "map.full": "Full screen: the map alone", "map.full.exit": "Leave full screen",
     "det.one.t": "Detector {n} only, {range} µm",
