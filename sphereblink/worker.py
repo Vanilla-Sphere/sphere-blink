@@ -14,6 +14,7 @@ import time
 import httpx
 import numpy as np
 
+from . import memory
 from .cutout import NET, Frame, Grid, cut_async
 from .sia import Exposure
 
@@ -29,6 +30,7 @@ def init(connections: int) -> None:
     _loop = asyncio.new_event_loop()
     limits = httpx.Limits(max_connections=connections * 2, max_keepalive_connections=connections * 2)
     _client = httpx.AsyncClient(timeout=httpx.Timeout(60, connect=8), limits=limits)
+    memory.keep_trimmed()  # what a wide field took is given back when it is cut, not kept for the next one
 
 
 def ready(pause: float = 0.0) -> bool:
