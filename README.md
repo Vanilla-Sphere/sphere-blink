@@ -33,7 +33,7 @@ with a spectrum, measured motion and a blind search for things that move.
 [![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab?style=flat-square&logo=python&logoColor=white)](requirements.txt)
 [![Stars](https://img.shields.io/github/stars/Vanilla-Sphere/sphere-blink?style=flat-square&logo=github&label=stars&color=e9b452)](https://github.com/Vanilla-Sphere/sphere-blink/stargazers)
 [![Forks](https://img.shields.io/github/forks/Vanilla-Sphere/sphere-blink?style=flat-square&logo=github&label=forks&color=b58afb)](https://github.com/Vanilla-Sphere/sphere-blink/forks)
-[![Film on YouTube](https://img.shields.io/badge/film-83%20s-ff0033?style=flat-square&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=Nhfgcw2geB4)
+[![Film on YouTube](https://img.shields.io/badge/film-ff0033?style=flat-square&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=Nhfgcw2geB4)
 <br>
 [![NASA Space Apps 2026](https://img.shields.io/badge/NASA%20Space%20Apps%202026-Planet%20X%20and%20SPHEREx-0b3d91?style=flat-square&logo=nasa&logoColor=white)](https://www.spaceappschallenge.org/)
 [![Last commit](https://img.shields.io/github/last-commit/Vanilla-Sphere/sphere-blink/main?style=flat-square&label=last%20commit&color=b58afb)](https://github.com/Vanilla-Sphere/sphere-blink/commits/main)
