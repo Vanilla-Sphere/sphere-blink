@@ -30,7 +30,7 @@ const ApiList = (() => {
     ["Service"],
     ["/api/measured", "Measured", "Everything the measurement pipeline has measured so far (JSON)."],
     ["/api/featured", "Featured", "The featured targets (JSON)."],
-    ["/api/atlas/2mass/…", "Sky tile", "The 2MASS photograph behind the sky map: the tile that holds this position (JPEG)."],
+    ["/api/atlas/2mass/…", "Sky tile", "The 2MASS photograph behind the sky map: the tile that holds this position (WebP; the same address ending in .jpg is the JPEG of the archive)."],
     ["/api/atlas", "Atlas", "What the server keeps of the sky photograph (JSON)."],
     ["/api/settings", "Limits", "The limits in force: how many views and measurements the server works on at a time, and how much one caller may ask for (JSON)."],
     ["/api/health", "Health", "Whether the service is up (JSON)."],

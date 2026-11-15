@@ -165,6 +165,23 @@ Planning numbers:
   about 2 ms; one that has to be fetched from the archive took 0.7 s in a
   test. Filling orders 0-2 (252 tiles) took 9 s with four connections; in
   production the server fetched about 25 tiles a second.
+- **Sky photograph on the wire.** The viewer downloads a tile as WebP
+  (quality 80), made from the JPEG on first use and kept beside it. Measured
+  on 2026-11-15 on 70 tiles of orders 2 to 8 from ten parts of the sky
+  (the galactic centre, Orion, the Large Magellanic Cloud, the north
+  galactic pole and others): 34 % of the JPEG's bytes together, from 10 %
+  for a tile of sparse sky to 53 % for one of the galactic centre, 24 % for
+  the tile in the middle; making one takes 30 ms
+  of one processor, and two at most are made at a time. After the page's
+  cleaning the two pictures differ by a peak signal-to-noise ratio of 46 dB
+  in the middle and 31 dB in the densest star field; side by side on a
+  screen no difference showed. In a browser, nothing cached: the start
+  screen's 22 tiles are 0.63 MB instead of 2.22 MB (the whole first visit
+  0.99 MB instead of 2.58 MB); that screen and two zooms into the galactic
+  centre, 62 tiles, 6.3 MB instead of 13.3 MB (63 tiles). On disk the copies add about a third
+  to the tiles that have been looked at; they are counted in
+  `SPHEREX_ATLAS_BUDGET_GB` (in production orders 0-6 are 7.7 GB of the 12;
+  with a copy of every one of them, at the 34 % of the test tiles, 10.4 GB).
 - **Measured for a visitor.** In a browser in Vietnam on 2026-11-14, 24 tiles
   of order 2 asked six at a time, nothing cached: 1.4 to 1.8 s from our
   server, 3.3 to 4.2 s from the archive itself.

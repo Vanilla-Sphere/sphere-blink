@@ -32,7 +32,7 @@ as static files.
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
 Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `completeness.js`, `linelist.js`, `insight.js`, `redshift.js`, `depth.js`, `showcase.js`, `app.js`.
-Asset URLs carry a version query (`?v=70`) that is raised when a file changes,
+Asset URLs carry a version query (`?v=72`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -369,8 +369,10 @@ coordinates.
   - The tiles come from our own server (`/api/atlas/2mass/`, same layout),
     which fetches a tile from the archive once and keeps it, and holds the
     whole sky at orders 0-6 from the start
-    ([API](api-reference.md#get-apiatlas2mass)). A tile the server cannot
-    give is asked of the archive itself; after three such failures in a row
+    ([API](api-reference.md#get-apiatlas2mass)). The page asks it for
+    `Npix{n}.webp`: the same tile in about a third of the bytes of the JPEG,
+    with no difference to see once the tile has been cleaned (below). A tile
+    the server cannot give is asked of the archive itself, as the JPEG; after three such failures in a row
     the archive is asked first for a minute.
   - Each redraw the map asks `Atlas.draw()` for the view. It picks the order
     whose tiles are 300 to 600 px wide on screen, finds the diamonds under a
