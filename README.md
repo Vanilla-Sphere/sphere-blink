@@ -1,37 +1,49 @@
+<!--
+  The pictures of this page are named by the commit that holds them
+  (raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/<commit>/...) and not by a relative path. A relative
+  path is fetched through github.com/.../raw/..., which answered "503" for some of the pictures when a page asked
+  for many at once. To change a picture: commit it, then replace the commit id everywhere in this file.
+  The banner, the numbers and the buttons are drawn by scripts/build_readme_art.py.
+-->
+
+<a id="top"></a>
+
 <div align="center">
 
-<a href="https://vanillasphere.com">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="web/logo.svg">
-    <img src="web/logo-light.svg" alt="Vanilla Sphere" width="420">
-  </picture>
-</a>
+<a href="https://vanillasphere.com"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/banner.svg" alt="Vanilla Sphere" width="100%"></a>
 
 ### Watch any patch of the infrared sky change over time
 
 Every NASA SPHEREx image of any position, played as a movie in seconds,<br>
 with a spectrum, measured motion and a blind search for things that move.
 
+<a href="https://vanillasphere.com"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-live.svg" alt="Open the live site" height="44"></a>
+<a href="#what-it-found"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-found.svg" alt="See what it found" height="44"></a>
+<a href="https://vanillasphere.com/docs"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-api.svg" alt="API explorer" height="44"></a>
+<a href="docs/README.md"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-docs.svg" alt="Documentation" height="44"></a>
+<a href="docs/science/README.md"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-science.svg" alt="Science and algorithms" height="44"></a>
+
 [![Live site](https://img.shields.io/badge/live-vanillasphere.com-b58afb?style=flat-square)](https://vanillasphere.com)
 [![checks](https://img.shields.io/github/actions/workflow/status/Vanilla-Sphere/sphere-blink/checks.yml?branch=main&label=tests&style=flat-square)](https://github.com/Vanilla-Sphere/sphere-blink/actions/workflows/checks.yml)
 [![UI tests](https://img.shields.io/github/actions/workflow/status/Vanilla-Sphere/sphere-blink/ui-tests.yml?branch=main&label=ui%20tests&style=flat-square)](https://github.com/Vanilla-Sphere/sphere-blink/actions/workflows/ui-tests.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-e9b452?style=flat-square)](LICENSE)
-[![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab?style=flat-square)](requirements.txt)
-[![NASA Space Apps 2026](https://img.shields.io/badge/NASA%20Space%20Apps%202026-Planet%20X%20and%20SPHEREx-0b3d91?style=flat-square)](https://www.spaceappschallenge.org/)
-
-**[Open the live site](https://vanillasphere.com)** ·
-[Documentation](docs/README.md) ·
-[Science and algorithms](docs/science/README.md) ·
-[API explorer](https://vanillasphere.com/docs)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab?style=flat-square&logo=python&logoColor=white)](requirements.txt)
+[![NASA Space Apps 2026](https://img.shields.io/badge/NASA%20Space%20Apps%202026-Planet%20X%20and%20SPHEREx-0b3d91?style=flat-square&logo=nasa&logoColor=white)](https://www.spaceappschallenge.org/)
+<br>
+[![Stars](https://img.shields.io/github/stars/Vanilla-Sphere/sphere-blink?style=flat-square&logo=github&label=stars&color=e9b452)](https://github.com/Vanilla-Sphere/sphere-blink/stargazers)
+[![Forks](https://img.shields.io/github/forks/Vanilla-Sphere/sphere-blink?style=flat-square&logo=github&label=forks&color=b58afb)](https://github.com/Vanilla-Sphere/sphere-blink/forks)
+[![Last commit](https://img.shields.io/github/last-commit/Vanilla-Sphere/sphere-blink/main?style=flat-square&label=last%20commit&color=b58afb)](https://github.com/Vanilla-Sphere/sphere-blink/commits/main)
+[![Open source](https://img.shields.io/badge/open%20source-since%20the%20first%20commit-e9b452?style=flat-square)](#license)
+[![No AI inside](https://img.shields.io/badge/in%20the%20product-no%20AI%2C%20only%20arithmetic-b58afb?style=flat-square)](#use-of-ai-tools)
 
 <a href="https://vanillasphere.com">
-  <img src="docs/readme/sky-map.webp" alt="The start screen: a map of the whole sky; click anywhere to open that patch in SPHEREx data" width="100%">
+  <img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/sky-map.webp" alt="The start screen: a map of the whole sky; click anywhere to open that patch in SPHEREx data" width="100%">
 </a>
 
 </div>
 
 NASA's SPHEREx mission images the whole sky again and again in 102 infrared
-colours between 0.75 and 5.0 um. Vanilla Sphere turns that archive into
+colours between 0.75 and 5.0 µm. Vanilla Sphere turns that archive into
 something anyone can explore: click a point of the sky map, or type
 coordinates or a name, and the browser plays every SPHEREx image of that
 patch in time order. Nothing is downloaded in advance. Built by team Vanilla
@@ -42,6 +54,14 @@ the viewer, the tests and the design documentation are in this repository,
 with their full history since the first commit of the hackathon
 (2026-11-14). The UI test suite is in
 [sphere-blink-ui-tests](https://github.com/Vanilla-Sphere/sphere-blink-ui-tests).
+
+> [!TIP]
+> Nothing to install and no account: open [vanillasphere.com](https://vanillasphere.com) and click anywhere on the sky.
+> Space plays and pauses the movie, the arrow keys step through its frames.
+
+<div align="center">
+  <a href="#what-it-found"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/numbers.svg" alt="102 colours from 0.75 to 5.0 µm. 3I/ATLAS found by a blind search at 99 arcsec per hour. Pluto at 279 sigma by shift-and-stack. About 10 s to a new view, under 1 s the next time. 0 tracks by chance in shuffled searches." width="100%"></a>
+</div>
 
 ## Contents
 
@@ -73,39 +93,54 @@ was checked against an independent source.
 | **1.3-1.9 MB instead of 65 MB** | A SPHEREx file is about 65 MB. The server reads only the bytes of the cutout with HTTP range requests, so a new 8 arcmin view of about 350 exposures is on screen in about 10 s, and in under 1 s the next time. | A cut from the full download: the pixels are identical. [Performance](docs/performance.md) |
 
 <div align="center">
-  <img src="docs/readme/3i-atlas-poster.webp" alt="It caught 3I/ATLAS: one real SPHEREx exposure with the comet in the crosshair" width="100%">
+  <img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/3i-atlas-poster.webp" alt="It caught 3I/ATLAS: one real SPHEREx exposure with the comet in the crosshair" width="100%">
 </div>
 
 ## A tour
 
+Every picture here is a real view, and each button opens one on the live site.
+
+<div align="center">
+
+<a href="https://vanillasphere.com/?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/go-3i-atlas.svg" alt="3I/ATLAS, interstellar comet" height="38"></a>
+<a href="https://vanillasphere.com/?ra=304.14&amp;dec=-23.58&amp;levels=3&amp;mover=VS-60951-4LN9&amp;ui=adv"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/go-pluto.svg" alt="Pluto, found by stacking" height="38"></a>
+<a href="https://vanillasphere.com/?ra=200.70&amp;dec=21.06&amp;levels=3&amp;mover=VS-61191-X387&amp;ui=adv"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/go-makemake.svg" alt="Makemake, dwarf planet" height="38"></a>
+<a href="https://vanillasphere.com/?target=barnard"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/go-barnard.svg" alt="Barnard's Star, fastest star in the sky" height="38"></a>
+<a href="https://vanillasphere.com/?target=eps-indi-b&amp;ui=adv"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/go-eps-indi-b.svg" alt="Epsilon Indi B, brown dwarf spectrum" height="38"></a>
+<a href="https://vanillasphere.com/?target=r-dra&amp;plot=lc&amp;ui=adv"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/go-r-dra.svg" alt="R Draconis, a star that faded" height="38"></a>
+<a href="https://vanillasphere.com/?ra=232.1947&amp;dec=36.631&amp;ui=adv"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/go-quasar.svg" alt="SDSS J1528+3637, quasar redshift" height="38"></a>
+<a href="https://vanillasphere.com/?target=wise-0855&amp;ui=adv"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/go-wise-0855.svg" alt="WISE 0855, coldest brown dwarf" height="38"></a>
+
+</div>
+
 <table>
 <tr>
 <td width="50%" valign="top">
-<a href="docs/readme/3i-atlas-field.webp"><img src="docs/readme/3i-atlas-field.webp" alt="A 7 x 7 cell field with the track of 3I/ATLAS"></a>
+<a href="https://vanillasphere.com/?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/3i-atlas-field.webp" alt="A 7 x 7 cell field with the track of 3I/ATLAS"></a>
 <b>A field of 49 cells, and what moves in it.</b> The view grows ring by ring to 0.84 degrees. A blind search links what moved between exposures; the line is the track of comet 3I/ATLAS.
 </td>
 <td width="50%" valign="top">
-<a href="docs/readme/3i-atlas-exposures.webp"><img src="docs/readme/3i-atlas-exposures.webp" alt="3I/ATLAS in fifteen single exposures"></a>
+<a href="https://vanillasphere.com/?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/3i-atlas-exposures.webp" alt="3I/ATLAS in fifteen single exposures"></a>
 <b>The evidence, exposure by exposure.</b> Each pair is centred where JPL predicts the comet: the exposure as taken, and the same with the static sky subtracted.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<a href="docs/readme/pluto-stack.webp"><img src="docs/readme/pluto-stack.webp" alt="Pluto found by shift-and-stack"></a>
+<a href="https://vanillasphere.com/?ra=304.14&amp;dec=-23.58&amp;levels=3&amp;mover=VS-60951-4LN9&amp;ui=adv"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/pluto-stack.webp" alt="Pluto found by shift-and-stack"></a>
 <b>Pluto, found by adding exposures.</b> At 0.2 arcsec per hour it does not move enough for the first search. The stack of 43 exposures along its path shows it at 279 sigma.
 </td>
 <td width="50%" valign="top">
-<a href="docs/readme/spectrum-reading.webp"><img src="docs/readme/spectrum-reading.webp" alt="The spectrum of Epsilon Indi B with its preliminary reading"></a>
+<a href="https://vanillasphere.com/?target=eps-indi-b&amp;ui=adv"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/spectrum-reading.webp" alt="The spectrum of Epsilon Indi B with its preliminary reading"></a>
 <b>A spectrum, and a first reading of it.</b> Every exposure sees the target at another wavelength. For the brown dwarf Epsilon Indi B the viewer names the water and methane bands by fixed, cited rules.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<a href="docs/readme/over-time.webp"><img src="docs/readme/over-time.webp" alt="R Draconis over time"></a>
+<a href="https://vanillasphere.com/?target=r-dra&amp;plot=lc&amp;ui=adv"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/over-time.webp" alt="R Draconis over time"></a>
 <b>Brightness over time.</b> The Mira variable R Draconis faded by a factor of two between June 2025 and June 2026, band by band.
 </td>
 <td width="50%" valign="top">
-<a href="docs/readme/redshift.webp"><img src="docs/readme/redshift.webp" alt="The redshift of a quasar measured from its lines"></a>
+<a href="https://vanillasphere.com/?ra=232.1947&amp;dec=36.631&amp;ui=adv"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/redshift.webp" alt="The redshift of a quasar measured from its lines"></a>
 <b>Redshift from the lines.</b> For a quasar the viewer measures the redshift from its emission lines, gives the distance and look-back time, and says when a catalogue disagrees.
 </td>
 </tr>
@@ -114,7 +149,7 @@ was checked against an independent source.
 <table>
 <tr>
 <td width="38%" valign="top">
-<a href="docs/readme/discoveries.webp"><img src="docs/readme/discoveries.webp" alt="The Discoveries log"></a>
+<a href="https://vanillasphere.com"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/discoveries.webp" alt="The Discoveries log"></a>
 </td>
 <td valign="top">
 
@@ -151,7 +186,7 @@ pass the same tests.
 - **Moving objects, found blind.** A linker for what moves between exposures
   and a shift-and-stack search for what is too faint and slow for it; names
   from the catalogues of known bodies; a public log.
-- **Spectrum on the fly**, 0.75-5.0 um, with a preliminary reading written by
+- **Spectrum on the fly**, 0.75-5.0 µm, with a preliminary reading written by
   fixed rules in the browser (`web/insight.js`) from a cited line catalogue
   (`web/linelist.js`): where the curve peaks, which bands and lines stand at
   their reference wavelengths, which kinds of object give such a curve, and
@@ -185,7 +220,7 @@ Barnard's Star, the fastest-moving star in the sky, creeps north by about
 10 arcsec per year.
 
 <div align="center">
-  <img src="docs/readme/barnard-blink.gif" alt="Barnard's Star in six SPHEREx visits, as returned by /api/movie.gif" width="420">
+  <img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/barnard-blink.gif" alt="Barnard's Star in six SPHEREx visits, as returned by /api/movie.gif" width="420">
 </div>
 
 ```
@@ -208,8 +243,8 @@ CORS is open for `GET`, so a page anywhere can use the pictures and the data.
 
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/img/diagrams/imaging-pipeline-dark.png">
-    <img src="docs/img/diagrams/imaging-pipeline.png" alt="The imaging pipeline: request, grid, exposure search, range reads, clean and resample, frame cache, epochs, colour and encode" width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/img/diagrams/imaging-pipeline-dark.png">
+    <img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/img/diagrams/imaging-pipeline.png" alt="The imaging pipeline: request, grid, exposure search, range reads, clean and resample, frame cache, epochs, colour and encode" width="100%">
   </picture>
 </div>
 
@@ -227,6 +262,21 @@ The viewer is plain HTML, CSS and JavaScript with no build step and no
 framework. The server is one FastAPI process with its own worker processes.
 The architecture, with fifteen diagrams, is in
 [docs/architecture.md](docs/architecture.md).
+
+<div align="center">
+
+[![Python 3.12](https://img.shields.io/badge/Python%203.12-17121f?style=for-the-badge&logo=python&logoColor=b58afb)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-17121f?style=for-the-badge&logo=fastapi&logoColor=e9b452)](https://fastapi.tiangolo.com/)
+[![NumPy](https://img.shields.io/badge/NumPy-17121f?style=for-the-badge&logo=numpy&logoColor=b58afb)](https://numpy.org/)
+[![SciPy](https://img.shields.io/badge/SciPy-17121f?style=for-the-badge&logo=scipy&logoColor=e9b452)](https://scipy.org/)
+[![Astropy](https://img.shields.io/badge/Astropy-17121f?style=for-the-badge)](https://www.astropy.org/)
+[![SQLite](https://img.shields.io/badge/SQLite-17121f?style=for-the-badge&logo=sqlite&logoColor=b58afb)](https://sqlite.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17121f?style=for-the-badge&logo=postgresql&logoColor=e9b452)](https://www.postgresql.org/)
+[![JavaScript, no framework](https://img.shields.io/badge/JavaScript%2C%20no%20framework-17121f?style=for-the-badge&logo=javascript&logoColor=b58afb)](docs/viewer.md)
+[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-17121f?style=for-the-badge&logo=githubactions&logoColor=e9b452)](https://github.com/Vanilla-Sphere/sphere-blink/actions)
+[![Render](https://img.shields.io/badge/Render-17121f?style=for-the-badge&logo=render&logoColor=b58afb)](docs/deployment.md)
+
+</div>
 
 <details>
 <summary><b>Modules</b></summary>
@@ -296,7 +346,7 @@ measured 2026-11-14):
 | --- | --- | --- | --- | --- |
 | Barnard's Star | 86 on detectors 5-6 (254 more from saturated wings, not used) | -992 ± 472, +10327 ± 249 | -801.6, +10362.4 (Gaia DR3) | position 0.1 arcsec from the Gaia prediction |
 | Epsilon Indi B | 431 | +3945 ± 48, -2513 ± 49 | +3982.0, -2466.8 (Gaia DR3) | 0.6 arcsec from the Gaia prediction (unresolved pair Ba+Bb); brightness constant to 2 % |
-| WISE 0855-0714 | 6, of which 5 are stacks of 14-25 exposures | -8766 ± 992, +1536 ± 992 | -8123.7, +673.2 (Kirkpatrick et al. 2021) | invisible in single exposures, found at 4-5 um in the stacks |
+| WISE 0855-0714 | 6, of which 5 are stacks of 14-25 exposures | -8766 ± 992, +1536 ± 992 | -8123.7, +673.2 (Kirkpatrick et al. 2021) | invisible in single exposures, found at 4-5 µm in the stacks |
 | RW Aurigae | 271 | +316 ± 288, +49 ± 84 | +4.9, -24.6 (Gaia DR3) | no change beyond the 12 % ring accuracy (0.99, 1.14, 1.00 in three passes); most exposures are saturated |
 | R Draconis | 515, all from saturated wings | +154 ± 334, +241 ± 426 | -20.6, +6.1 (Gaia DR3) | faded by a factor 2.0 from Jun 2025 to Jun 2026 (Mira variable) |
 
@@ -437,3 +487,18 @@ Not covered by the AGPL; each keeps its own terms, listed in
   use them (section 7(e)), other than to say where the code comes from.
 - The NASA SPHEREx images and the catalogue data the service shows. They are
   not part of this repository; their credits are under "Data and credits".
+
+<br>
+
+<div align="center">
+
+<a href="https://vanillasphere.com"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/web/logo-mark.svg" alt="" width="56"></a>
+
+**Vanilla Sphere** · 2026 NASA Space Apps Challenge, Hà Nội
+
+<a href="https://vanillasphere.com"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-live.svg" alt="Open the live site" height="44"></a>
+<a href="#what-it-found"><img src="https://raw.githubusercontent.com/Vanilla-Sphere/sphere-blink/f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-found.svg" alt="See what it found" height="44"></a>
+
+<sub><a href="#top">Back to the top</a></sub>
+
+</div>
