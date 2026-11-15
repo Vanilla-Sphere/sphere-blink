@@ -7,6 +7,12 @@ NASA SPHEREx image of that patch as a short movie, so moving and variable
 objects stand out. Built by the team of the same name for the 2026 NASA Space
 Apps Challenge, "Planet X and SPHEREx". Live at <https://vanillasphere.com>.
 
+The whole product is open source under the [AGPL-3.0](#license): the engine,
+the viewer, the tests and the design documentation are in this repository,
+with their full history since the first commit of the hackathon
+(2026-11-14). The UI test suite is in
+[sphere-blink-ui-tests](https://github.com/Vanilla-Sphere/sphere-blink-ui-tests).
+
 ## Documentation
 
 The product design documentation is in [`docs/`](docs/README.md): overview,
@@ -201,6 +207,19 @@ measurements loaded by hand under another method name are left alone.
   zoomed-in map is the 2MASS near-infrared atlas (University of Massachusetts and IPAC/Caltech, funded by
   NASA and NSF), in HiPS format by CDS, served by the NASA/IPAC Infrared Science Archive. It is a backdrop,
   not SPHEREx data.
+
+## Contributing
+
+Problems and ideas are welcome as
+[issues](https://github.com/Vanilla-Sphere/sphere-blink/issues). For a change,
+branch from `develop` as `feat/...`, `fix/...` or `chore/...` and open a pull
+request into `develop`; `main` is production and only takes `develop`
+([docs/environments.md](docs/environments.md)). Run the tests first:
+
+```bash
+pip install -r requirements.txt pytest pyyaml
+SPHEREX_AUTO_MEASURE=0 python -m pytest -q
+```
 
 ## Use of AI tools
 
