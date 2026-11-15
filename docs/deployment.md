@@ -100,6 +100,7 @@ noted.
 | `SPHEREX_MOVER_MIN_FREE_MB` | `1800` | default | Memory that must be free in the container before a field is searched |
 | `SPHEREX_FETCH_PROCS` | `min(4, CPU count)` | `4` | Imaging worker processes |
 | `SPHEREX_RAM_BUDGET_MB` | `600` | `2000` | Frames kept in memory |
+| `SPHEREX_TRIM_S` | `15` | default | Every process gives the memory it has freed back to the system at this interval while it works (seconds); `0` switches it off. See [performance](performance.md#memory-after-a-busy-hour) |
 | `SPHEREX_DISK_BUDGET_GB` | `4` | `16` | Size of the frame cache on disk |
 | `SPHEREX_ATLAS_BUDGET_GB` | `1` | `12` | Tiles of the sky photograph kept on disk, in all; above it the deep tiles least recently asked for are deleted |
 | `SPHEREX_ATLAS_KEEP_ORDER` | `3` | `6` | Tiles of this HiPS order and below are never deleted (orders 0-5 are 1.65 GB, 0-6 about 7.2 GB; one more is 29 GB more) |
@@ -333,8 +334,8 @@ SPHEREX_AUTO_MEASURE=0 pytest -q
 | Job statistics | `job.stats` in `/api/view`, `/api/cube`, `/api/tiles` | Seconds by phase, megabytes read, request count, failed exposures |
 | Measurement state | `/api/measured` | Pipeline version, database connection, running jobs, stored results |
 | Application log | Platform log stream | Warnings for failed name lookups, database write failures, failed measurements |
-| Memory really held | `memory` in `/api/health` | `used_mb` against `limit_mb`: what cannot be given back. The platform's graph also counts file cache (`file_cache_mb`), so read this before concluding that memory is short; `oom_kills` above 0 means it was |
-| Resource use | Platform metrics | CPU, memory (file cache included), disk |
+| Memory really held | `memory` in `/api/health` | `used_mb` against `limit_mb`: what cannot be given back. The platform's graph is `working_set_mb`, which also counts the file cache in recent use, so read this before concluding that memory is short; `oom_kills` above 0 means it was. `processes` says which process holds it, `handed_back` that freed memory is being returned |
+| Resource use | Platform metrics | CPU, memory (the file cache in recent use included), disk |
 
 ## Runbook
 

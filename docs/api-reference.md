@@ -144,8 +144,9 @@ memory limit:
 
 ```json
 {"limit_mb": 8589.9, "used_mb": 4210.5, "file_cache_mb": 3105.2, "free_mb": 4379.4,
- "working_set_mb": 6950.1, "anon_mb": 3800.4, "shmem_mb": 310.0, "peak_mb": 7900.3, "oom_kills": 0,
- "processes": [{"role": "web", "own_mb": 2100.3, "shared_mb": 290.1}, {"role": "worker", "own_mb": 410.0, "shared_mb": 120.5}]}
+ "working_set_mb": 6950.1, "anon_mb": 3800.4, "shmem_mb": 0.0, "peak_mb": 7900.3, "oom_kills": 0,
+ "processes": [{"role": "web", "own_mb": 2100.3, "shared_mb": 0.0}, {"role": "worker", "own_mb": 110.0, "shared_mb": 0.0}],
+ "handed_back": {"times": 41, "released_mb": 3120.4, "slowest_s": 0.012}}
 ```
 
 (Example values.) `used_mb` is what cannot be given back and is what can end
@@ -157,8 +158,10 @@ stand near the limit while `free_mb` is large. `oom_kills` counts the processes
 killed for lack of memory since the container started. `processes` lists the
 web process and the processes it started, largest first: `own_mb` is the
 memory a process holds for itself, `shared_mb` the shared memory it has mapped
-(frames travel between processes in shared memory, so several may count the
-same megabytes).
+(which several processes may count; the service uses none of its own, so it is
+normally 0). `handed_back` says what the web process has given back to the
+system since it started (`times`, `released_mb`) and the longest that took
+(`slowest_s`): see [performance](performance.md#memory-after-a-busy-hour).
 
 ### GET /api/settings
 

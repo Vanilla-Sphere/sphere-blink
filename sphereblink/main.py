@@ -74,6 +74,9 @@ async def _warm_up() -> None:
     settings.on_change(svc.settings_changed)
     if "pytest" not in sys.modules:
         settings.start(_closing)
+        # What the web process frees (views forgotten, a field handed on) goes
+        # back to the system instead of staying in its heap (memory.py).
+        memory.keep_trimmed(stop=_closing)
 
     def warm() -> None:
         svc.warm_up()

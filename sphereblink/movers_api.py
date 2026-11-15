@@ -76,7 +76,8 @@ def _executor() -> ProcessPoolExecutor:
     global _pool
     with _lock:
         if _pool is None:
-            _pool = ProcessPoolExecutor(max_workers=1, mp_context=multiprocessing.get_context("spawn"))
+            _pool = ProcessPoolExecutor(max_workers=1, mp_context=multiprocessing.get_context("spawn"),
+                                        initializer=memory.keep_trimmed)
         return _pool
 
 

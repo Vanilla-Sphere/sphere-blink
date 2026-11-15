@@ -399,3 +399,63 @@ def test_health_answers_with_or_without_a_memory_limit():
     assert data["commit"] is None or re.fullmatch(r"[0-9a-f]{7,40}", data["commit"])  # the source of what runs
     m = memory.usage()
     assert m is None or (m["free_mb"] <= m["limit_mb"] and m["processes"][0]["own_mb"] > 0)
+
+
+def test_freed_memory_goes_back_to_the_system():
+    """A process that has freed a lot hands the pages back when asked, and
+    the thread that asks does so only after the process has worked."""
+    import ctypes.util
+    import threading
+    import time
+
+    import numpy as np
+    import pytest
+
+    from sphereblink import memory
+
+    if not (ctypes.util.find_library("c") or "").startswith("libc.so") or memory.own_mb() == 0:
+        pytest.skip("no glibc or no /proc here: trim does nothing, by design")
+    small, big = [], []
+    for _ in range(3000):  # 300 MB of frames from the heap (under the size the C library maps apart), small things that stay between them
+        big.append(np.ones(25000, "f4"))
+        small.append(bytearray(2000))
+    held = memory.own_mb()
+    del big
+    kept = memory.own_mb()
+    assert kept > held - 100, (held, kept)  # freed, and still held: the holes are inside the heap
+    assert memory.trim() is True
+    after = memory.own_mb()
+    assert after < kept - 200, (held, kept, after)
+    assert memory.trimmed["times"] >= 1 and memory.trimmed["released_mb"] > 200
+    assert len(small) == 3000
+
+    calls = []
+    stop = threading.Event()
+    real, memory._trimmer = memory.trim, None
+    memory.trim = lambda: calls.append(time.process_time()) or True
+    try:
+        memory.keep_trimmed(every=0.05, stop=stop)
+        memory.keep_trimmed(every=0.05, stop=stop)  # asked twice: still one thread
+        time.sleep(0.4)
+        assert calls == []  # it has not worked: nothing new to give back
+        t0 = time.process_time()
+        while time.process_time() - t0 < memory.TRIM_AFTER_CPU_S * 2:
+            sum(range(20000))
+        time.sleep(0.4)
+        n = len(calls)
+        assert n >= 2  # while it worked, and once more after: what the last job freed came after the last look
+        time.sleep(0.3)
+        assert len(calls) == n  # idle again: left alone
+        assert sum(1 for t in threading.enumerate() if t.name == "memory-trim") == 1
+    finally:
+        stop.set()
+        memory._trimmer.join(2)
+        memory.trim, memory._trimmer = real, None
+
+
+def test_trim_can_be_switched_off():
+    from sphereblink import memory
+
+    memory._trimmer = None
+    memory.keep_trimmed(every=0)
+    assert memory._trimmer is None

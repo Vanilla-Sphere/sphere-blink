@@ -29,7 +29,7 @@ from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException, Query
 
-from . import config, guard, measure, measurements, refcat, settings
+from . import config, guard, measure, measurements, memory, refcat, settings
 from . import resolve as resolver
 from .resolve import FEATURED, ResolverUnavailable, Target, resolve
 
@@ -69,7 +69,7 @@ def _executor() -> ProcessPoolExecutor:
             # process only when a job finds none free, and _take_turn lets no
             # more jobs in than the setting says now.
             _pool = ProcessPoolExecutor(max_workers=int(settings.SETTINGS["measure_procs"].hi),
-                                        mp_context=multiprocessing.get_context("spawn"))
+                                        mp_context=multiprocessing.get_context("spawn"), initializer=memory.keep_trimmed)
         return _pool
 
 
