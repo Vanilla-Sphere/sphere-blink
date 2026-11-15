@@ -2,7 +2,8 @@
 # against the merged commit (docs/environments.md):
 #
 #   develop, main -> the service of that commit, started inside this job
-#                    (scripts/start_local_site.sh, https://localhost:8000)
+#                    (scripts/start_local_site.sh) and reached, inside this
+#                    job only, under the name of the live site
 #
 # The tests do not go through the deployed sites: a run opens hundreds of
 # pages and downloads about a third of a gigabyte of pictures, and every
@@ -10,6 +11,12 @@
 # passes /api/ on to production). The server in the job reads the same
 # archive and has no measurement database. After a merge to main a second,
 # small job checks that production serves the merged commit.
+#
+# The tests are written for the address of the live site: they compare the
+# links of the page with https://vanillasphere.com and leave out the cases
+# that start heavy jobs there. So the runner's /etc/hosts sends that name to
+# 127.0.0.1, where the server of this job listens on port 443 with a
+# certificate made for the run. Nothing of such a run reaches Render.
 #
 # The tests and the way they are run live in that repository (its
 # action.yml); this workflow only starts the site and calls it. The result is
@@ -61,7 +68,8 @@ jobs:
     timeout-minutes: 60
     env:
       WHERE: ${{ github.event_name == 'push' && 'local' || inputs.site }}
-      SITE: ${{ github.event_name != 'push' && inputs.site == 'production' && 'https://vanillasphere.com' || github.event_name != 'push' && inputs.site == 'dev' && 'https://dev.vanillasphere.com' || 'https://localhost:8000' }}
+      # "local" has the address of production too: see the hosts step below
+      SITE: ${{ github.event_name != 'push' && inputs.site == 'dev' && 'https://dev.vanillasphere.com' || 'https://vanillasphere.com' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -92,16 +100,44 @@ jobs:
           key: ui-tests-site-cache-v1-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: ui-tests-site-cache-v1-
 
+      # From here on vanillasphere.com is this machine, for every program of
+      # the job. Ports from 443 up may be opened without being root.
+      - name: The name of the live site points at this job
+        if: env.WHERE == 'local'
+        run: |
+          echo "127.0.0.1 vanillasphere.com" | sudo tee -a /etc/hosts >/dev/null
+          sudo sysctl -q -w net.ipv4.ip_unprivileged_port_start=443
+          test "$(getent hosts vanillasphere.com | awk '{print $1}')" = 127.0.0.1
+
       - name: Start the site in this job
         if: env.WHERE == 'local'
         env:
           SPHEREX_CACHE_DIR: ${{ runner.temp }}/sphereblink-cache
           SPHEREX_DISK_BUDGET_GB: "2"
-          SITE_HTTPS: "1"   # as the deployed sites: the page builds its links from its own address
+          SITE_HTTPS: "1"
+          SITE_NAME: vanillasphere.com
+          PORT: "443"
           SITE_CERTS: ${{ runner.temp }}/local-site-certs
           SITE_LOG: ${{ runner.temp }}/local-site.log
           SITE_PID: ${{ runner.temp }}/local-site.pid
-        run: sh scripts/start_local_site.sh
+        run: |
+          sh scripts/start_local_site.sh
+          # The tests also fetch with Node, which has its own list of
+          # certificate authorities.
+          echo "NODE_EXTRA_CA_CERTS=$SITE_CERTS/ca.pem" >> "$GITHUB_ENV"
+          # The name has to lead to the server above, not to Render: only
+          # the certificate of this run is accepted here, and the server
+          # must be the process just started.
+          here=$(curl -fsS -m 20 --cacert "$SITE_CERTS/ca.pem" "$SITE/api/health")
+          if ! echo "$here" | grep -Eq "\"instance\" *: *\"$(cat "$SITE_PID")-"; then
+            echo "::error title=Not the site of this job::$SITE does not lead to the server started in this job."
+            exit 1
+          fi
+          {
+            echo "**$SITE in this run is the server started inside the job** from commit \`$(git rev-parse --short=12 HEAD)\`"
+            echo "(the name points at 127.0.0.1 here). Nothing was asked of the deployed site."
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: UI tests
         uses: Vanilla-Sphere/sphere-blink-ui-tests@main
@@ -118,9 +154,9 @@ jobs:
           SITE_PID: ${{ runner.temp }}/local-site.pid
         run: |
           sh scripts/start_local_site.sh stop
-          echo "Warnings and errors of the server (requests left out):"
-          grep -v '^INFO: .* HTTP/1.1" [23]' "$SITE_LOG" | tail -150 || true
           du -sh "${{ runner.temp }}/sphereblink-cache" || true
+          echo "Warnings and errors of the server (requests that went well left out; how often, the line):"
+          grep -v '^INFO: .* HTTP/1.1" [23]' "$SITE_LOG" | cut -c1-240 | sort | uniq -c | sort -rn | head -30 || true
 
       - name: Keep the frames and tiles for the next run
         if: always() && env.WHERE == 'local'

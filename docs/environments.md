@@ -102,19 +102,26 @@ against the dev site was paid for twice, because dev passes `/api/` on to
 production. The job therefore starts the service itself.
 
 1. **Start the site** (`scripts/start_local_site.sh`). One server process
-   of the merged commit at `https://localhost:8000`, with the settings of
-   `sphereblink/config.py` and no measurement database. It is served over
-   https, as the deployed sites are, with a certificate made for that run
-   which the browser of the tests is told to trust. The run goes on when
-   it answers and the featured targets are on disk, as they are on the live
-   service. What the server fetches from the archive is kept between runs
-   (a cache of the workflow), so later runs start in seconds.
+   of the merged commit, with the settings of `sphereblink/config.py` and
+   no measurement database. Inside the job, and only there, it is reached
+   as `https://vanillasphere.com`: the tests are written for the address of
+   the live site (they compare the links of the page with it, and leave out
+   the cases that start heavy jobs there), so the runner's `/etc/hosts`
+   sends that name to `127.0.0.1`, where the server listens on port 443
+   with a certificate made for that run, which the browser and Node of the
+   tests are told to trust. The step fails if the name does not lead to
+   the server it started. The run goes on when the server answers and the
+   featured targets are on disk, as they are on the live service. What the
+   server fetches from the archive is kept between runs (a cache of the
+   workflow), so later runs start in seconds.
 2. **Run the tests** with the action of the other repository
    (`uses: Vanilla-Sphere/sphere-blink-ui-tests@main`). Which tests there
    are, and how they are run, is decided there: a new or changed test needs
    no change here. The run page shows the counts and the failed tests, and
-   keeps the HTML report with the traces as an artifact for 14 days. The end
-   of the job prints the warnings and errors of the server.
+   keeps the HTML report with the traces as an artifact for 14 days. Its
+   summary names `https://vanillasphere.com` as the site under test; a line
+   above it says that this was the server of the job. The end of the job
+   prints the warnings and errors of the server.
 
 Unlike the dev site, this tests the engine of the merged commit as well as
 its viewer: a change to `sphereblink/` is tested when it reaches `develop`,

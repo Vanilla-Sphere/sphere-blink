@@ -7,6 +7,7 @@
 #   sh scripts/start_local_site.sh          # http://127.0.0.1:8000
 #   PORT=8010 sh scripts/start_local_site.sh
 #   SITE_HTTPS=1 sh scripts/start_local_site.sh   # https://localhost:8000
+#   SITE_HTTPS=1 SITE_NAME=vanillasphere.com PORT=443 sh scripts/start_local_site.sh
 #   sh scripts/start_local_site.sh stop     # stop the one started here
 #
 # 1. Start one server process (the service is always one process, see
@@ -21,7 +22,7 @@
 #    themselves). A cache directory kept from an earlier run
 #    (SPHEREX_CACHE_DIR) makes this a matter of seconds.
 #
-# With SITE_HTTPS=1 the site is served as https://localhost:PORT, as the
+# With SITE_HTTPS=1 the site is served as https://SITE_NAME:PORT, as the
 # deployed sites are (the page builds its links from its own address, and
 # browsers treat http and https pages differently). A certificate authority
 # is made for this run only, in SITE_CERTS (default local-site-certs), and
@@ -29,20 +30,32 @@
 # (~/.pki/nssdb, needs certutil of libnss3-tools); its key never leaves the
 # machine and it is good for two days.
 #
+# SITE_NAME (default localhost) is the name the site is reached under, and
+# the name in its certificate. The UI tests are written for the address of
+# the live site: they compare the links of the page with it and leave out
+# the cases that start heavy jobs there. So the job of the workflow gives its
+# own server that name (SITE_NAME=vanillasphere.com PORT=443, and a line in
+# its /etc/hosts that sends the name to 127.0.0.1). The line in /etc/hosts
+# and the right to listen on port 443 are the caller's to arrange; this
+# script itself always talks to 127.0.0.1, whatever the name resolves to.
+#
 # The server has no measurement database here (no DATABASE_URL) and keeps
 # the settings of sphereblink/config.py.
 set -eu
 cd "$(dirname "$0")/.."
 port="${PORT:-8000}"
 certs="${SITE_CERTS:-local-site-certs}"
-if [ "${SITE_HTTPS:-0}" = 1 ]; then site="https://localhost:$port"; else site="http://127.0.0.1:$port"; fi
+name="${SITE_NAME:-localhost}"
+if [ "${SITE_HTTPS:-0}" != 1 ]; then site="http://127.0.0.1:$port"
+elif [ "$port" = 443 ]; then site="https://$name"
+else site="https://$name:$port"; fi
 log="${SITE_LOG:-local-site.log}"
 pid_file="${SITE_PID:-local-site.pid}"
 start_limit="${START_LIMIT_S:-120}"
 warm_limit="${WARM_LIMIT_S:-600}"
 
 get() {
-  if [ "${SITE_HTTPS:-0}" = 1 ]; then curl -fsS -m 20 --cacert "$certs/ca.pem" "$1" 2>/dev/null
+  if [ "${SITE_HTTPS:-0}" = 1 ]; then curl -fsS -m 20 --cacert "$certs/ca.pem" --resolve "$name:$port:127.0.0.1" "$1" 2>/dev/null
   else curl -fsS -m 20 "$1" 2>/dev/null; fi
 }
 now() { date +%s; }
@@ -67,9 +80,9 @@ if [ "${SITE_HTTPS:-0}" = 1 ]; then
   openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=sphere-blink local test authority" \
     -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign" \
     -keyout "$certs/ca-key.pem" -out "$certs/ca.pem" 2>/dev/null
-  openssl req -newkey rsa:2048 -nodes -subj "/CN=localhost" \
+  openssl req -newkey rsa:2048 -nodes -subj "/CN=$name" \
     -keyout "$certs/key.pem" -out "$certs/site.csr" 2>/dev/null
-  printf 'subjectAltName=DNS:localhost,IP:127.0.0.1\nbasicConstraints=CA:FALSE\nextendedKeyUsage=serverAuth\n' > "$certs/site.ext"
+  printf 'subjectAltName=DNS:%s,DNS:localhost,IP:127.0.0.1\nbasicConstraints=CA:FALSE\nextendedKeyUsage=serverAuth\n' "$name" > "$certs/site.ext"
   openssl x509 -req -in "$certs/site.csr" -CA "$certs/ca.pem" -CAkey "$certs/ca-key.pem" -CAcreateserial \
     -days 2 -extfile "$certs/site.ext" -out "$certs/cert.pem" 2>/dev/null
   rm -f "$certs/ca-key.pem" "$certs/site.csr" "$certs/site.ext"   # nothing more is signed with it
@@ -79,7 +92,7 @@ if [ "${SITE_HTTPS:-0}" = 1 ]; then
   certutil -d "$db" -D -n sphere-blink-local-test 2>/dev/null || true
   certutil -d "$db" -A -t "C,," -n sphere-blink-local-test -i "$certs/ca.pem"
   tls="--ssl-keyfile $certs/key.pem --ssl-certfile $certs/cert.pem"
-  echo "Made a certificate for https://localhost and added its authority to the ones Chromium trusts."
+  echo "Made a certificate for $site and added its authority to the ones Chromium trusts."
 fi
 # shellcheck disable=SC2086  # $tls is two options or nothing
 nohup python -m uvicorn sphereblink.main:app --host 127.0.0.1 --port "$port" --workers 1 \
