@@ -66,8 +66,9 @@ The dev site redeploys only when `web/`, the build script or
    seconds later. The [UI tests](#ui-tests-after-every-merge) run against
    the merged commit.
 4. **Look at the dev site**, and at the `ui-tests` check on the merge commit.
-5. **Promote.** Open a pull request from `develop` to `main` and merge it
-   with a merge commit, not a squash: `main` and `develop` then keep one
+5. **Promote.** Open a pull request from `develop` to `main`, have it
+   approved ([what GitHub enforces](#what-github-enforces-on-main)) and merge
+   it with a merge commit, not a squash: `main` and `develop` then keep one
    history and the next promotion contains only what is new. Production
    deploys by itself ([release process](deployment.md#release-process)).
 6. **Check production**: the check `production serves the commit` on the
@@ -77,6 +78,25 @@ The dev site redeploys only when `web/`, the build script or
 `main` takes nothing but `develop`: a pull request to `main` from any other
 branch fails the `branch` check. An urgent repair takes the same path, which
 costs little since the dev site deploys in seconds.
+
+### What GitHub enforces on `main`
+
+The repository ruleset "Protect main" (Settings, Rules, Rulesets) holds
+`main` to this flow:
+
+- the branch cannot be deleted or force-pushed;
+- a change reaches it only through a pull request, merged with a merge
+  commit (squash and rebase are refused);
+- the checks `tests` and `branch` must have passed on the pull request. The
+  UI tests are not required: they run after the merge;
+- the pull request needs one approving review from somebody with write
+  access to the repository, and GitHub does not count the author's own. An
+  approval is dismissed when new commits are pushed after it.
+
+One account, the repository owner's, is on the bypass list, for pull
+requests only: its owner may merge a pull request that has no approval yet,
+and still cannot push to `main` directly. `develop` has no ruleset: there
+the checks only show red.
 
 `[skip render]` in the commit message and in the merge title still skips the
 production deploy for a change that cannot affect the running service
