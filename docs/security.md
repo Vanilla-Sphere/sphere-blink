@@ -70,7 +70,7 @@ Added to every response by `guard.Guard`:
 
 | Header | Value | Purpose |
 | --- | --- | --- |
-| `Content-Security-Policy` (pages) | `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://irsa.ipac.caltech.edu; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'` | Only the site's own scripts run; no other site can frame the viewer. The one address beyond the site's own is the NASA/IPAC archive, for pictures only: the tiles of the sky photograph behind the zoomed-in map |
+| `Content-Security-Policy` (pages) | `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://irsa.ipac.caltech.edu; font-src 'self'; connect-src 'self'; frame-src https://www.youtube-nocookie.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'` | Only the site's own scripts run; no other site can frame the viewer. Two addresses lie beyond the site's own: the NASA/IPAC archive, for pictures only (the tiles of the sky photograph behind the zoomed-in map), and `www.youtube-nocookie.com`, as a frame only: the player of the team's video on the first page, which the page loads when the visitor presses play and not before |
 | `Content-Security-Policy` (data, pictures) | `default-src 'none'` | A response opened directly can run nothing |
 | `X-Content-Type-Options` | `nosniff` | Browsers keep to the declared content type |
 | `X-Frame-Options` (pages) | `SAMEORIGIN` | As `frame-ancestors`, for older browsers |

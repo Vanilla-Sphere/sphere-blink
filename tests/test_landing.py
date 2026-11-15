@@ -68,10 +68,27 @@ def test_the_first_page_loads_nothing_from_another_site_and_has_no_inline_script
         assert (WEB / address[len("/static/"):].split("?")[0]).is_file(), address
     for name in ("landing.css", "landing.js"):
         text = (WEB / name).read_text()
-        assert not re.search(r"https?://(?!www\.w3\.org)", text), name
+        elsewhere = set(re.findall(r"https?://[^\s\"')]+", text))
+        assert elsewhere <= ({"https://www.youtube-nocookie.com/embed/"} if name == "landing.js" else set()), elsewhere
         for address in re.findall(r"url\(([^)]+)\)", text):
             assert (WEB / address.strip("\"'")[len("/static/"):]).is_file(), address
     assert "fetch(" not in (WEB / "landing.js").read_text()  # a visitor who only reads the page costs the engine nothing
+
+
+def test_the_video_asks_nothing_of_youtube_before_play_and_the_policy_allows_only_its_player():
+    """The picture of the player is a file of this site and a plain link to the
+    video. The script puts the player in its place on a press, from the one
+    address the policy of the pages allows as a frame."""
+    from sphereblink import guard
+
+    poster = re.search(r'<a class="poster"[^>]*>', PAGE).group(0)
+    video = re.search(r'data-video="([\w-]{11})"', poster).group(1)
+    assert f'href="https://www.youtube.com/watch?v={video}"' in poster
+    assert "<iframe" not in PAGE
+    script = (WEB / "landing.js").read_text()
+    assert '"https://www.youtube-nocookie.com/embed/" + poster.dataset.video' in script
+    frames = [d.strip() for d in guard.CSP.split(";") if d.strip().startswith("frame-src")]
+    assert frames == ["frame-src https://www.youtube-nocookie.com"]
 
 
 def test_the_links_of_the_first_page_lead_somewhere():
@@ -87,7 +104,8 @@ def test_the_links_of_the_first_page_lead_somewhere():
             keys = [pair.split("=")[0] for pair in href.partition("?")[2].split("&") if pair]
             assert set(keys) <= set(main.VIEW_KEYS), href
         else:
-            assert href == "/" or href.startswith(("/docs", "/api/", "https://github.com/Vanilla-Sphere/sphere-blink")), href
+            assert href == "/" or href.startswith(("/docs", "/api/", "https://github.com/Vanilla-Sphere/sphere-blink",
+                                                   "https://www.youtube.com/watch?v=Nhfgcw2geB4", "https://www.youtube.com/@VanillaSphere")), href
     assert views >= 12 and PAGE.count('href="/sky"') >= 3  # the way into the viewer, top, first screen and end
 
 

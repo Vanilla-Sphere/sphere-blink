@@ -172,6 +172,26 @@ if ("IntersectionObserver" in window) {
   }
 })();
 
+/* ------------------------------------------------------------------ the video
+   The picture of the player is ours; YouTube is asked for nothing until play is pressed. Then the player
+   takes the place of the picture, from the address of YouTube that sets no cookie before the video runs
+   (the one frame guard.CSP allows). If that fails the link under it still opens the video on YouTube. */
+(() => {
+  const poster = $("poster");
+  if (!poster) return;
+  poster.addEventListener("click", (ev) => {
+    if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button) return;   // "open in a new tab" stays a link
+    ev.preventDefault();
+    const frame = document.createElement("iframe");
+    frame.src = "https://www.youtube-nocookie.com/embed/" + poster.dataset.video + "?autoplay=1&rel=0";
+    frame.title = "Vanilla Sphere, a tool for SPHEREx data exploration (video)";
+    frame.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+    frame.allowFullscreen = true;
+    frame.referrerPolicy = "strict-origin-when-cross-origin";
+    poster.replaceWith(frame);
+  });
+})();
+
 /* ------------------------------------------------------------------ the running names */
 (() => {
   const row = $("tickrow");

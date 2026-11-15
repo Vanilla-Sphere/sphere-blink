@@ -23,8 +23,8 @@
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=72">
 <link rel="preload" href="/static/fonts/HankenGrotesk.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/GeistMono.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/static/landing.css?v=1">
-<script src="/static/landing.js?v=1" defer></script>
+<link rel="stylesheet" href="/static/landing.css?v=2">
+<script src="/static/landing.js?v=2" defer></script>
 </head>
 <body>
 <a class="skip" href="#found">Skip to what it found</a>
@@ -36,6 +36,7 @@
     <span>Vanilla Sphere</span>
   </a>
   <nav class="navlinks" aria-label="Sections">
+    <a href="#film">Video</a>
     <a href="#found">What it found</a>
     <a href="#tour">Tour</a>
     <a href="#how">How it works</a>
@@ -58,6 +59,7 @@
       <div class="cta rise">
         <a class="btn primary big" href="/sky">Open the sky map <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
         <a class="btn ghost big" href="#found">See what it found</a>
+        <a class="btn ghost big" href="#film"><svg class="tri" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.500 13 8l-9 5.500z"/></svg>Watch the video</a>
       </div>
       <a class="award rise" href="#team">
         <svg viewBox="0 0 32 40" aria-hidden="true"><circle cx="16" cy="14" r="11" fill="none" stroke="currentColor" stroke-width="1.500"/><path d="M9 23 6 38l10-5 10 5-3-15" fill="none" stroke="currentColor" stroke-width="1.500"/><text x="16" y="19" text-anchor="middle">2</text></svg>
@@ -116,6 +118,31 @@
     <div class="num reveal"><b><span>0</span></b><span>tracks by chance</span><small>in searches on shuffled times</small></div>
   </div>
   <div class="bands" id="bands" aria-hidden="true"></div>
+</section>
+
+<!-- ================================================================== the video -->
+<section class="film" id="film">
+  <div class="wrap filmgrid">
+    <header class="sechead reveal">
+      <p class="kicker"><span>Video</span> On YouTube</p>
+      <h2>See it move. <em>Then try it yourself.</em></h2>
+      <p>The team's video on YouTube: Vanilla Sphere, a tool for SPHEREx data exploration.</p>
+      <div class="cta">
+        <a class="btn ghost" href="https://www.youtube.com/@VanillaSphere" target="_blank" rel="noopener">Our YouTube channel <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+      </div>
+    </header>
+    <!-- Nothing is asked of YouTube until the visitor presses play: the picture is ours, and landing.js puts
+         the player in its place. Without the script the link opens the video on YouTube. -->
+    <div class="player reveal" id="player">
+      <a class="poster" id="poster" href="https://www.youtube.com/watch?v=Nhfgcw2geB4" target="_blank" rel="noopener" data-video="Nhfgcw2geB4" aria-label="Play the video: Vanilla Sphere, a tool for SPHEREx data exploration">
+        <img src="/static/landing/last-sky.webp" width="1080" height="820" loading="lazy" alt="">
+        <span class="playbtn"><svg class="tri" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.500 13 8l-9 5.500z"/></svg></span>
+        <span class="postertitle mono"><b>VANILLA SPHERE</b> A TOOL FOR SPHEREx DATA EXPLORATION</span>
+        <span class="postersite mono">YouTube</span>
+      </a>
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    </div>
+  </div>
 </section>
 
 <!-- ================================================================== what it found -->
@@ -370,6 +397,7 @@
       <p class="label mono">2026 NASA Space Apps Challenge <b>·</b> Hanoi</p>
       <h2>Second prize.</h2>
       <p>Built by team Vanilla Sphere in the two days of the hackathon, for the challenge “Planet X and SPHEREx”.</p>
+      <a class="more" href="https://www.youtube.com/watch?v=Nhfgcw2geB4" target="_blank" rel="noopener">Watch the team's video <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
     </div>
     <div class="credits reveal">
       <p class="label mono">Data and credits</p>
@@ -408,6 +436,7 @@
       <a href="/sky">Sky map</a>
       <a href="/docs">API</a>
       <a href="https://github.com/Vanilla-Sphere/sphere-blink" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://www.youtube.com/@VanillaSphere" target="_blank" rel="noopener">YouTube</a>
       <a href="https://github.com/Vanilla-Sphere/sphere-blink/tree/main/docs" target="_blank" rel="noopener">Docs</a>
       <a href="https://github.com/Vanilla-Sphere/sphere-blink/blob/main/LICENSE" target="_blank" rel="noopener">AGPL-3.0</a>
     </nav>

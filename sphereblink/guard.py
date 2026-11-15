@@ -174,10 +174,14 @@ _open_lock = threading.Lock()
 # a tile this server cannot give is asked of the NASA/IPAC Infrared Science
 # Archive itself, as an image. Inline style attributes are used for colour
 # swatches; there is no inline script.
+# One frame is allowed: the player of the team's video on the first page, from
+# the address of YouTube that sets no cookie before the video is played. The
+# page puts it there only when the visitor presses play (web/landing.js).
 CSP = (
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data: blob: https://irsa.ipac.caltech.edu; "
-    "font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+    "font-src 'self'; connect-src 'self'; frame-src https://www.youtube-nocookie.com; "
+    "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
 )
 # The interactive API pages (/docs, /redoc) are FastAPI's: they load Swagger UI
 # or ReDoc from jsDelivr and start it from an inline script.

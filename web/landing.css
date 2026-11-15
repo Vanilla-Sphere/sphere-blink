@@ -167,6 +167,26 @@ a.more:hover,.card.link:hover .more{color:var(--violet-hi)}
 .check b{color:var(--gold);font-weight:600}
 .check .mono{font-size:.92em;color:var(--ink)}
 
+/* ------------------------------------------------------------------ the video */
+.film{padding-block:clamp(72px,9vw,136px);border-bottom:1px solid var(--rule)}
+.filmgrid{display:grid;grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr);gap:clamp(28px,5vw,80px);align-items:center}
+.player{position:relative;aspect-ratio:16/9;background:var(--paper-3);border:1px solid var(--rule);box-shadow:0 50px 160px -50px color-mix(in oklab,var(--violet) 65%,transparent),0 0 0 1px color-mix(in oklab,var(--violet) 16%,transparent)}
+.player iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.poster{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden}
+.poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.8;transition:transform 1.6s var(--out),opacity .4s}
+.poster::after{content:"";position:absolute;inset:0;background:radial-gradient(60% 70% at 50% 50%,transparent,color-mix(in oklab,var(--paper) 78%,transparent)),linear-gradient(180deg,transparent 55%,var(--paper-3))}
+.poster:hover img{transform:scale(1.05);opacity:1}
+.playbtn{position:relative;z-index:1;width:clamp(64px,7vw,96px);aspect-ratio:1;display:grid;place-items:center;background:var(--violet);box-shadow:0 0 0 10px color-mix(in oklab,var(--violet) 22%,transparent),0 20px 80px -10px var(--violet);transition:transform .3s var(--out),background .2s,box-shadow .3s}
+.poster:hover .playbtn{transform:scale(1.08);background:var(--violet-hi);box-shadow:0 0 0 16px color-mix(in oklab,var(--violet) 18%,transparent),0 20px 90px -6px var(--violet)}
+.tri{width:16px;height:16px;flex:none;fill:currentColor}
+.playbtn .tri{width:34%;height:34%;fill:var(--violet-ink);margin-left:6%}
+.postertitle,.postersite{position:absolute;z-index:1;bottom:14px;font-size:11.5px;letter-spacing:.06em;color:var(--ink-2)}
+.postertitle{left:16px;right:96px}
+.postertitle b{font-weight:500;color:var(--ink);margin-right:10px}
+.postersite{right:16px;color:var(--muted)}
+.plate .more{margin-top:20px;color:var(--gold)}
+.plate a.more:hover{color:var(--ink)}
+
 /* ------------------------------------------------------------------ what it found */
 .feature{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(28px,5vw,80px);align-items:center;margin-top:clamp(48px,6vw,88px)}
 .feature+.feature{margin-top:clamp(72px,9vw,136px)}
@@ -342,7 +362,7 @@ input[type=range]::-moz-range-thumb{width:11px;height:21px;background:var(--gold
   .num{border-left:0;border-top:1px solid var(--rule);padding-inline:0 16px}
   .num:nth-child(-n+2){border-top:0}
   .num:nth-child(5){grid-column:1/-1}
-  .feature,.feature.flip,.apigrid,.teamgrid{grid-template-columns:minmax(0,1fr)}
+  .feature,.feature.flip,.apigrid,.teamgrid,.filmgrid{grid-template-columns:minmax(0,1fr)}
   .feature.flip .shot{order:0}
   .cards{grid-template-columns:minmax(0,1fr)}
   .card{margin-left:0;margin-top:-1px}
@@ -366,6 +386,8 @@ input[type=range]::-moz-range-thumb{width:11px;height:21px;background:var(--gold
   .facts{gap:0 22px}
   .finderbar output{display:none}
   .term li>span{display:none}
+  .postertitle{font-size:10px;right:16px}
+  .postersite{display:none}
   .bytelabels{flex-direction:column;gap:2px}
 }
 
