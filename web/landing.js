@@ -102,6 +102,17 @@ if ("IntersectionObserver" in window) {
   }, {passive: true});
 })();
 
+/* ------------------------------------------------------------------ the address to write to
+   The page carries the address in two halves and without its sign, so that a harvester reading the
+   markup finds nothing to collect; here they are joined into the link a reader expects. */
+(() => {
+  const a = $("mail");
+  if (!a) return;
+  const address = a.dataset.name + String.fromCharCode(64) + a.dataset.host;
+  a.href = "mailto:" + address;
+  a.querySelector("b").textContent = address;
+})();
+
 /* ------------------------------------------------------------------ the blink of the first screen
    Six real frames of Barnard's Star, one per visit (/api/frame.png?target=barnard&fov=8&group=visit&i=0..5),
    shown one after the other the way the viewer plays them. */

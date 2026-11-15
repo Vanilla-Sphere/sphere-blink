@@ -316,7 +316,19 @@ input[type=range]::-moz-range-thumb{width:11px;height:21px;background:var(--gold
 .term li>span{font-size:11.5px;color:var(--muted-2)}
 
 /* ------------------------------------------------------------------ team and credits */
-.teamtop{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(28px,5vw,80px);align-items:start}
+.teamtop{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);grid-template-areas:"head people" "contact people";grid-template-rows:auto 1fr;column-gap:clamp(28px,5vw,80px);row-gap:clamp(28px,3.4vw,48px);align-items:start}
+.teamtop .sechead{grid-area:head}
+.teamtop .people{grid-area:people}
+.contact{grid-area:contact;max-width:30em}
+.contact>p:not(.label){margin-top:12px;font-size:15.5px;line-height:1.55;color:var(--muted);text-wrap:pretty}
+.contact ul{margin-top:18px;border-top:1px solid var(--rule)}
+.contact a{display:grid;grid-template-columns:5.2em minmax(0,1fr) auto;align-items:baseline;gap:0 10px;padding:13px 0;border-bottom:1px solid var(--rule);color:var(--ink);transition:color .2s,border-color .2s}
+.contact a span{font-size:11.5px;letter-spacing:.06em;color:var(--violet)}
+.contact a b{font-size:16px;font-weight:500;letter-spacing:-.01em;overflow-wrap:anywhere}
+.contact a i{font-style:normal;color:var(--muted)}
+.contact a .arr{align-self:center;color:var(--muted);transition:transform .25s var(--out),color .2s}
+.contact a:hover{color:var(--violet-hi);border-bottom-color:var(--violet)}
+.contact a:hover .arr{color:var(--violet-hi);transform:translateX(3px)}
 .people{border-top:1px solid var(--rule)}
 .people li{display:grid;grid-template-columns:2.8em minmax(0,1fr) auto;grid-template-areas:"n name role" ". org org";align-items:baseline;padding:20px 0 21px;border-bottom:1px solid var(--rule);transition:background .3s}
 .people li:hover{background:linear-gradient(90deg,transparent,color-mix(in oklab,var(--violet) 7%,transparent))}
@@ -327,11 +339,11 @@ input[type=range]::-moz-range-thumb{width:11px;height:21px;background:var(--gold
 .team .teamgrid{margin-top:clamp(48px,7vw,104px)}
 .teamgrid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(28px,5vw,80px);align-items:start}
 .plate{padding:clamp(24px,3.4vw,48px);border:1px solid color-mix(in oklab,var(--gold) 40%,transparent);background:radial-gradient(120% 90% at 0% 0%,color-mix(in oklab,var(--gold) 12%,transparent),transparent 60%);color:var(--gold)}
-.plate svg{width:64px;height:80px}
+.plate svg:not(.arr){width:64px;height:80px}
 .plate text{font-size:24px}
 .plate .label{margin-top:26px;color:var(--gold)}
 .plate h2{margin-top:12px;background:linear-gradient(100deg,var(--gold),var(--ink) 130%);-webkit-background-clip:text;background-clip:text;color:transparent}
-.plate>p:last-child{margin-top:16px;font-size:16.5px;color:var(--ink-2);max-width:26em}
+.plate>p:not(.label){margin-top:16px;font-size:16.5px;color:var(--ink-2);max-width:26em}
 .credits ul{margin-top:14px;border-bottom:1px solid var(--rule)}
 .credits li{padding:14px 0;border-top:1px solid var(--rule);font-size:15px;color:var(--muted);text-wrap:pretty}
 .credits li b{display:inline-block;min-width:6.2em;font-weight:600;color:var(--ink)}
@@ -384,6 +396,8 @@ input[type=range]::-moz-range-thumb{width:11px;height:21px;background:var(--gold
   .num:nth-child(-n+2){border-top:0}
   .num:nth-child(5){grid-column:1/-1}
   .feature,.feature.flip,.apigrid,.teamgrid,.teamtop,.filmgrid{grid-template-columns:minmax(0,1fr)}
+  .teamtop{grid-template-areas:"head" "people" "contact";grid-template-rows:auto}
+  .contact{max-width:none}
   /* the words and the picture share the column: the veil is even, the galaxy sits low */
   .pagesky picture img{object-position:60% 100%}
   .glow{background:linear-gradient(180deg,color-mix(in oklab,var(--paper) 66%,transparent) 0%,color-mix(in oklab,var(--paper) 52%,transparent) 40%,color-mix(in oklab,var(--paper) 14%,transparent) 76%,color-mix(in oklab,var(--paper) 60%,transparent) 100%)}

@@ -560,7 +560,7 @@ cannot break the other.
 | Shift-and-stack | A drawing with simulated noise, labelled as such: a source too faint for one exposure, added along its path |
 | Tour | Six screenshots of the live site; on a wide screen they share one frame that stays in place while the text scrolls |
 | How it works, API, open source | Text, with links to `/docs`, the repository and its documentation |
-| The team, credits | The five members of the team, one to a line: name, what each one did, and in small letters where each one works or studies. Then the second prize, and where the data and the pictures come from |
+| The team, credits | The five members of the team, one to a line: name, what each one did, and in small letters where each one works or studies. Beside it "Get in touch": how to write to the team's lead (email, GitHub). The email address is in the page in two halves without its sign, and `landing.js` joins them into the link, so that a harvester reading the markup collects nothing. Then the second prize, and where the data and the pictures come from |
 | Last screen | The call to open the sky map, with the veil drawn back from the sky |
 
 Rules it keeps:
@@ -580,7 +580,7 @@ Rules it keeps:
   written without their marks, as in the team's English material ("Hanoi",
   "Kim Duc Minh").
 - It has its own version number on its two assets (`landing.css?v=N`,
-  `landing.js?v=N`, now 5): raise it when either changes.
+  `landing.js?v=N`, now 6): raise it when either changes.
 - `tests/test_landing.py` holds it to these rules and keeps the list of view
   parameters of `main.py`, `landing.js` and the viewer the same.
 
