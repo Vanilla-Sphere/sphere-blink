@@ -153,7 +153,7 @@ async function load(next, nopush) {
   Object.assign(S, want);
   S.cube = null; S.meta = null; S.saturated = null; S.median = null; S.stack = null; S.spectrum = null; S.insight = null; showReading(null); S.files = null; S.catalogs = {}; S.i = 0; S.ref = 0; S.busy = 0;
   S.tracks = null; S.measuring = null; $("trackopt").hidden = true; $("trackcard").hidden = true;
-  S.field = null; S.stage = null; $("tileopt").hidden = !S.levels; clearMovers(); clearDepth();
+  S.field = null; S.stage = null; S.stopped = null; $("tileopt").hidden = !S.levels; clearMovers(); clearDepth();
   for (const c of ["speccard", "epochcard"]) $(c).hidden = true;
   $("analysishint").hidden = true; $("timeline").innerHTML = ""; $("cursor").textContent = "";
   $("empty").hidden = false; $("empty").textContent = tr("load.search");
@@ -230,8 +230,8 @@ async function loadField(id, f) {
   for (;;) {
     S.field = f;
     const done = f.stages.filter((s) => s.status === "ready").pop(), next = f.stages.find((s) => s.status !== "ready");
-    const bad = f.stages.find((s) => s.status === "error");
-    if (bad) return fail(new Error(bad.job ? bad.job.error : "the archive could not be read"), id);
+    const bad = f.stages.find((s) => s.status === "error"), why = bad && (bad.job && bad.job.error || "the archive could not be read");
+    if (bad && !done) return fail(new Error(why), id);   // nothing to show: the whole frame says so
     try {
       if (done && done.level !== shown) { S.stage = done; if (!(await fetchCube(id, shown >= 0))) return; shown = done.level; S.catalogs = {}; loadCatalogs(); writeUrl(); }
       else if (!done) {  // the first cell is shown once while its exposures arrive, and again when it is complete
@@ -243,6 +243,11 @@ async function loadField(id, f) {
     } catch (e) { return fail(e, id); }
     if (id !== S.loadId) return;
     const cells = (s) => tr(s.tiles > 1 ? "field.cells" : "field.cell", {n: s.tiles}), j = next && next.job;
+    if (bad) {   // a wider stage failed: what has been read stays on screen, the line under it says the rest
+      S.stopped = {cells: cells(done), why};
+      showStopped(); loadTracks();
+      return;
+    }
     if (!next) { setProgress(1, tr("field.done", {cells: cells(done), n: done.job.frames, s: f.elapsed_s})); break; }
     setProgress(j && j.total ? j.done / j.total : 0,
       (done ? tr("field.shown", {cells: cells(done)}) : "") + (j && j.queue ? queueText(j) : j && j.total ? tr("field.read", {done: j.done, total: j.total, cells: cells(next)}) : tr("field.search", {cells: cells(next)})));
@@ -299,12 +304,13 @@ async function reloadCube() {
   if (!S.meta) return;
   const id = S.loadId, seq = S.busy = (S.busy || 0) + 1;
   writeUrl();
-  $("progress").hidden = false; $("progress").classList.add("busy"); $("ptext").textContent = tr("load.frames");
+  $("progress").hidden = false; $("progress").classList.remove("stopped"); $("progress").classList.add("busy"); $("ptext").textContent = tr("load.frames");
   $("sky").parentElement.classList.add("busy");
   try { await fetchCube(id, true, seq); } catch (e) { if (seq === S.busy) fail(e, id); }
   if (id !== S.loadId || seq !== S.busy) return;
   S.busy = 0;
   $("progress").classList.remove("busy"); $("progress").hidden = true; $("sky").parentElement.classList.remove("busy");
+  if (S.stopped) showStopped();
 }
 
 /* The reading of the spectrum (insight.js). When the catalogues gave the object a redshift, the lines are looked
@@ -565,7 +571,18 @@ function fail(e, id) {
   again.onclick = () => load();
   el.appendChild(again);
 }
-function setProgress(f, text) { $("bar").style.width = Math.round(100 * f) + "%"; $("ptext").textContent = text; }
+/* A wider stage of a field failed while a narrower one is on screen (S.stopped). The picture stays;
+   the line under it says what is shown and why the rest is missing, and offers to try again. */
+function showStopped() {
+  const p = $("progress"), again = document.createElement("button");
+  setProgress(0, tr("field.stopped", {cells: S.stopped.cells, msg: S.stopped.why}));
+  p.classList.remove("busy"); p.classList.add("stopped"); p.hidden = false;
+  again.type = "button"; again.className = "btn quiet again"; again.textContent = tr("load.again");
+  again.dataset.hint = "tip.again";
+  again.onclick = () => load();
+  $("ptext").appendChild(again);
+}
+function setProgress(f, text) { $("progress").classList.remove("stopped"); $("bar").style.width = Math.round(100 * f) + "%"; $("ptext").textContent = text; }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ------------------------------------------------------------------ image math */
