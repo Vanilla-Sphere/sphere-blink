@@ -2,7 +2,7 @@
 # against the merged commit (docs/environments.md):
 #
 #   develop, main -> the service of that commit, started inside this job
-#                    (scripts/start_local_site.sh, http://127.0.0.1:8000)
+#                    (scripts/start_local_site.sh, https://localhost:8000)
 #
 # The tests do not go through the deployed sites: a run opens hundreds of
 # pages and downloads about a third of a gigabyte of pictures, and every
@@ -61,7 +61,7 @@ jobs:
     timeout-minutes: 60
     env:
       WHERE: ${{ github.event_name == 'push' && 'local' || inputs.site }}
-      SITE: ${{ github.event_name != 'push' && inputs.site == 'production' && 'https://vanillasphere.com' || github.event_name != 'push' && inputs.site == 'dev' && 'https://dev.vanillasphere.com' || 'http://127.0.0.1:8000' }}
+      SITE: ${{ github.event_name != 'push' && inputs.site == 'production' && 'https://vanillasphere.com' || github.event_name != 'push' && inputs.site == 'dev' && 'https://dev.vanillasphere.com' || 'https://localhost:8000' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -74,7 +74,11 @@ jobs:
 
       - name: Packages of the service
         if: env.WHERE == 'local'
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          # certutil: the browser of the tests has to trust the certificate
+          # of the site started below
+          command -v certutil >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q libnss3-tools; }
 
       # What the server fetched from the archive in earlier runs (frames of
       # the views the tests open, tiles of the sky photograph, names), so a
@@ -93,6 +97,8 @@ jobs:
         env:
           SPHEREX_CACHE_DIR: ${{ runner.temp }}/sphereblink-cache
           SPHEREX_DISK_BUDGET_GB: "2"
+          SITE_HTTPS: "1"   # as the deployed sites: the page builds its links from its own address
+          SITE_CERTS: ${{ runner.temp }}/local-site-certs
           SITE_LOG: ${{ runner.temp }}/local-site.log
           SITE_PID: ${{ runner.temp }}/local-site.pid
         run: sh scripts/start_local_site.sh

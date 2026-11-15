@@ -102,8 +102,10 @@ against the dev site was paid for twice, because dev passes `/api/` on to
 production. The job therefore starts the service itself.
 
 1. **Start the site** (`scripts/start_local_site.sh`). One server process
-   of the merged commit at `http://127.0.0.1:8000`, with the settings of
-   `sphereblink/config.py` and no measurement database. The run goes on when
+   of the merged commit at `https://localhost:8000`, with the settings of
+   `sphereblink/config.py` and no measurement database. It is served over
+   https, as the deployed sites are, with a certificate made for that run
+   which the browser of the tests is told to trust. The run goes on when
    it answers and the featured targets are on disk, as they are on the live
    service. What the server fetches from the archive is kept between runs
    (a cache of the workflow), so later runs start in seconds.

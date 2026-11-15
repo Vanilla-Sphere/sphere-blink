@@ -6,6 +6,7 @@
 #
 #   sh scripts/start_local_site.sh          # http://127.0.0.1:8000
 #   PORT=8010 sh scripts/start_local_site.sh
+#   SITE_HTTPS=1 sh scripts/start_local_site.sh   # https://localhost:8000
 #   sh scripts/start_local_site.sh stop     # stop the one started here
 #
 # 1. Start one server process (the service is always one process, see
@@ -20,18 +21,30 @@
 #    themselves). A cache directory kept from an earlier run
 #    (SPHEREX_CACHE_DIR) makes this a matter of seconds.
 #
+# With SITE_HTTPS=1 the site is served as https://localhost:PORT, as the
+# deployed sites are (the page builds its links from its own address, and
+# browsers treat http and https pages differently). A certificate authority
+# is made for this run only, in SITE_CERTS (default local-site-certs), and
+# added to the certificates Chromium trusts for this user
+# (~/.pki/nssdb, needs certutil of libnss3-tools); its key never leaves the
+# machine and it is good for two days.
+#
 # The server has no measurement database here (no DATABASE_URL) and keeps
 # the settings of sphereblink/config.py.
 set -eu
 cd "$(dirname "$0")/.."
 port="${PORT:-8000}"
-site="http://127.0.0.1:$port"
+certs="${SITE_CERTS:-local-site-certs}"
+if [ "${SITE_HTTPS:-0}" = 1 ]; then site="https://localhost:$port"; else site="http://127.0.0.1:$port"; fi
 log="${SITE_LOG:-local-site.log}"
 pid_file="${SITE_PID:-local-site.pid}"
 start_limit="${START_LIMIT_S:-120}"
 warm_limit="${WARM_LIMIT_S:-600}"
 
-get() { curl -fsS -m 20 "$1" 2>/dev/null; }
+get() {
+  if [ "${SITE_HTTPS:-0}" = 1 ]; then curl -fsS -m 20 --cacert "$certs/ca.pem" "$1" 2>/dev/null
+  else curl -fsS -m 20 "$1" 2>/dev/null; fi
+}
 now() { date +%s; }
 
 if [ "${1:-}" = stop ]; then
@@ -48,8 +61,29 @@ if [ "${1:-}" = stop ]; then
 fi
 
 # ------------------------------------------------------------ 1. start
+tls=""
+if [ "${SITE_HTTPS:-0}" = 1 ]; then
+  mkdir -p "$certs"
+  openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=sphere-blink local test authority" \
+    -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign" \
+    -keyout "$certs/ca-key.pem" -out "$certs/ca.pem" 2>/dev/null
+  openssl req -newkey rsa:2048 -nodes -subj "/CN=localhost" \
+    -keyout "$certs/key.pem" -out "$certs/site.csr" 2>/dev/null
+  printf 'subjectAltName=DNS:localhost,IP:127.0.0.1\nbasicConstraints=CA:FALSE\nextendedKeyUsage=serverAuth\n' > "$certs/site.ext"
+  openssl x509 -req -in "$certs/site.csr" -CA "$certs/ca.pem" -CAkey "$certs/ca-key.pem" -CAcreateserial \
+    -days 2 -extfile "$certs/site.ext" -out "$certs/cert.pem" 2>/dev/null
+  rm -f "$certs/ca-key.pem" "$certs/site.csr" "$certs/site.ext"   # nothing more is signed with it
+  db="sql:$HOME/.pki/nssdb"
+  mkdir -p "$HOME/.pki/nssdb"
+  certutil -d "$db" -L >/dev/null 2>&1 || certutil -d "$db" -N --empty-password
+  certutil -d "$db" -D -n sphere-blink-local-test 2>/dev/null || true
+  certutil -d "$db" -A -t "C,," -n sphere-blink-local-test -i "$certs/ca.pem"
+  tls="--ssl-keyfile $certs/key.pem --ssl-certfile $certs/cert.pem"
+  echo "Made a certificate for https://localhost and added its authority to the ones Chromium trusts."
+fi
+# shellcheck disable=SC2086  # $tls is two options or nothing
 nohup python -m uvicorn sphereblink.main:app --host 127.0.0.1 --port "$port" --workers 1 \
-  --timeout-graceful-shutdown 3 > "$log" 2>&1 &
+  --timeout-graceful-shutdown 3 $tls > "$log" 2>&1 &
 echo $! > "$pid_file"
 echo "Started the service of $(git rev-parse --short=12 HEAD 2>/dev/null || echo this checkout) at $site (process $(cat "$pid_file"), log $log)"
 
