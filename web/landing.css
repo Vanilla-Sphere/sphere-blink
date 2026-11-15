@@ -11,6 +11,7 @@
 @font-face{font-family:"Geist Mono";src:url(/static/fonts/GeistMono.woff2) format("woff2");font-weight:400 500;font-style:normal;font-display:swap}
 
 :root{
+  --veil:72%;
   --paper:oklch(9% 0.012 290); --paper-2:oklch(12.5% 0.014 290); --paper-3:oklch(6.5% 0.010 290); --lift:oklch(16% 0.017 290);
   --ink:oklch(94% 0.010 80); --ink-2:oklch(84% 0.011 80); --muted:oklch(68% 0.012 80); --muted-2:oklch(50% 0.010 80);
   --rule:oklch(25% 0.016 290); --rule-2:oklch(16% 0.013 290);
@@ -66,11 +67,15 @@ a:hover>.arr,.card.link:hover .arr{transform:translateX(4px)}
 
 /* ------------------------------------------------------------------ hero */
 .hero{position:relative;min-height:100vh;min-height:100svh;display:flex;flex-direction:column;overflow:hidden;border-bottom:1px solid var(--rule)}
-/* The sky behind the first screen is a photograph: the Milky Way cut from the SPHEREx all-sky map
-   (scripts/landing_sky.py). The veil over it keeps the left half, where the words are, at the contrast
-   of the rest of the page and lets the galaxy show on the right and along the bottom. */
-.heroimg{position:absolute;inset:0;overflow:hidden}
-.heroimg img{width:100%;height:100%;object-fit:cover;object-position:70% 62%;transform:translate3d(calc(var(--px,0) * -16px),calc(var(--py,0) * -10px),0) scale(1.06);transition:transform 1.2s var(--out);animation:skyin 1.6s var(--out) both}
+/* The sky behind the page is a photograph, and it stays where it is while the page moves over it: the
+   Milky Way, then Rho Ophiuchi from the tour on, then Orion from "Open source" on (landing.js changes
+   them), all cut from the SPHEREx all-sky map (scripts/landing_sky.py). Each part of the page lays a
+   veil of the page colour over it (--veil); the first and the last screen let it through. */
+.pagesky{position:fixed;inset:0 0 auto;height:100vh;height:100lvh;z-index:-1;overflow:hidden;pointer-events:none;animation:skyin 1.6s var(--out) both}
+.pagesky img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:70% 62%;opacity:0;transform:translate3d(calc(var(--px,0) * -16px),calc(var(--py,0) * -10px),0) scale(1.06);transition:transform 1.2s var(--out),opacity 1.8s ease}
+.pagesky img.on{opacity:1}
+.pagesky .rho{object-position:58% 45%}
+.pagesky .orion{object-position:30% 55%}
 @keyframes skyin{from{opacity:0}to{opacity:1}}
 .glow{position:absolute;inset:0;pointer-events:none;background:
   linear-gradient(90deg,color-mix(in oklab,var(--paper) 70%,transparent) 0%,color-mix(in oklab,var(--paper) 52%,transparent) 34%,color-mix(in oklab,var(--paper) 12%,transparent) 64%,transparent 100%),
@@ -155,7 +160,9 @@ h1{margin-top:22px;font-size:clamp(46px,min(7.3vw,12.5vh),132px);line-height:.93
 /* ------------------------------------------------------------------ sections */
 section{position:relative}
 .found,.tour,.how,.api,.open,.team{padding-block:clamp(84px,11vw,168px)}
-.tour,.api,.team{background:linear-gradient(180deg,var(--paper-3),var(--paper) 60%);border-block:1px solid var(--rule)}
+.numbers,.film,.found,.how,.open,.foot{background:color-mix(in oklab,var(--paper) var(--veil),transparent)}
+.tour,.api,.team{background:linear-gradient(180deg,color-mix(in oklab,var(--paper-3) calc(var(--veil) + 6%),transparent),color-mix(in oklab,var(--paper) var(--veil),transparent) 60%);border-block:1px solid var(--rule)}
+.last{background:linear-gradient(180deg,color-mix(in oklab,var(--paper) var(--veil),transparent),color-mix(in oklab,var(--paper) 12%,transparent) 30%,color-mix(in oklab,var(--paper) 12%,transparent) 72%,color-mix(in oklab,var(--paper) var(--veil),transparent))}
 .sechead{max-width:900px}
 .kicker{display:flex;align-items:center;gap:12px;font:500 12.5px/1 var(--measure);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
 .kicker span{color:var(--violet)}
@@ -333,7 +340,6 @@ input[type=range]::-moz-range-thumb{width:11px;height:21px;background:var(--gold
 
 /* ------------------------------------------------------------------ last call */
 .last{padding-block:clamp(110px,16vw,230px);text-align:center;overflow:hidden}
-.lastbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:30% 55%;opacity:.9;-webkit-mask-image:linear-gradient(180deg,transparent,#000 22%,#000 74%,transparent);mask-image:linear-gradient(180deg,transparent,#000 22%,#000 74%,transparent)}
 .last .wrap{position:relative}
 .last h2{margin:0;font-size:clamp(44px,7.6vw,118px);letter-spacing:-.05em;line-height:.95;text-shadow:0 0 60px var(--paper)}
 .last p{margin-top:22px;font-size:clamp(17px,1.5vw,21px);color:var(--ink-2);text-shadow:0 0 20px var(--paper),0 0 40px var(--paper)}
@@ -379,7 +385,7 @@ input[type=range]::-moz-range-thumb{width:11px;height:21px;background:var(--gold
   .num:nth-child(5){grid-column:1/-1}
   .feature,.feature.flip,.apigrid,.teamgrid,.teamtop,.filmgrid{grid-template-columns:minmax(0,1fr)}
   /* the words and the picture share the column: the veil is even, the galaxy sits low */
-  .heroimg img{object-position:60% 100%}
+  .pagesky picture img{object-position:60% 100%}
   .glow{background:linear-gradient(180deg,color-mix(in oklab,var(--paper) 66%,transparent) 0%,color-mix(in oklab,var(--paper) 52%,transparent) 40%,color-mix(in oklab,var(--paper) 14%,transparent) 76%,color-mix(in oklab,var(--paper) 60%,transparent) 100%)}
   .skycredit{align-self:flex-start;max-width:34em}
   .feature.flip .shot{order:0}

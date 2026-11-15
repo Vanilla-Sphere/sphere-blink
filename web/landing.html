@@ -23,11 +23,19 @@
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=72">
 <link rel="preload" href="/static/fonts/HankenGrotesk.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/GeistMono.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/static/landing.css?v=4">
-<script src="/static/landing.js?v=4" defer></script>
+<link rel="stylesheet" href="/static/landing.css?v=5">
+<script src="/static/landing.js?v=5" defer></script>
 </head>
 <body>
 <a class="skip" href="#found">Skip to what it found</a>
+<div class="pagesky" id="pagesky" aria-hidden="true">
+  <picture>
+    <source media="(max-width: 700px)" srcset="/static/landing/sky-milky-way-m.webp" width="800" height="1440">
+    <img class="on" src="/static/landing/sky-milky-way.webp" width="2000" height="1125" alt="" fetchpriority="high" decoding="async">
+  </picture>
+  <img class="rho" data-src="/static/landing/sky-rho-oph.webp" data-from="tour" width="1600" height="900" alt="" decoding="async">
+  <img class="orion" data-src="/static/landing/sky-orion.webp" data-from="open" width="1600" height="900" alt="" decoding="async">
+</div>
 <div class="progress" aria-hidden="true"><i id="progress"></i></div>
 
 <header class="nav" id="nav">
@@ -50,10 +58,6 @@
 <main>
 <!-- ================================================================== hero -->
 <section class="hero" id="top">
-  <picture class="heroimg" aria-hidden="true">
-    <source media="(max-width: 700px)" srcset="/static/landing/sky-milky-way-m.webp" width="800" height="1440">
-    <img id="heroimg" src="/static/landing/sky-milky-way.webp" width="2000" height="1125" alt="" fetchpriority="high" decoding="async">
-  </picture>
   <div class="glow" aria-hidden="true"></div>
   <div class="wrap herogrid">
     <div class="herotext">
@@ -95,7 +99,7 @@
       </figcaption>
     </figure>
   </div>
-  <p class="skycredit mono">Behind this screen: the Milky Way as SPHEREx sees it, at 1.25, 2.19 and 3.29 µm <b>·</b> NASA/JPL-Caltech/IPAC</p>
+  <p class="skycredit mono">Behind this page: the Milky Way as SPHEREx sees it, at 1.25, 2.19 and 3.29 µm <b>·</b> NASA/JPL-Caltech/IPAC</p>
 
   <!-- what the blind search has reported so far: all of them known bodies -->
   <div class="ticker" aria-label="Moving objects the blind search has found, each a known body">
@@ -140,7 +144,7 @@
          the player in its place. Without the script the link opens the video on YouTube. -->
     <div class="player reveal" id="player">
       <a class="poster" id="poster" href="https://www.youtube.com/watch?v=Nhfgcw2geB4" target="_blank" rel="noopener" data-video="Nhfgcw2geB4" aria-label="Play the video: Vanilla Sphere, a tool for SPHEREx data exploration">
-        <img src="/static/landing/sky-rho-oph.webp" width="1120" height="630" loading="lazy" alt="">
+        <img src="/static/landing/sky-rho-oph.webp" width="1600" height="900" loading="lazy" alt="">
         <span class="playbtn"><svg class="tri" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.500 13 8l-9 5.500z"/></svg></span>
         <span class="postertitle mono"><b>VANILLA SPHERE</b> A TOOL FOR SPHEREx DATA EXPLORATION</span>
         <span class="postersite mono">YouTube</span>
@@ -403,8 +407,8 @@
       <p>Team Vanilla Sphere, at the Hanoi local event of the 2026 NASA Space Apps Challenge.</p>
     </header>
     <ol class="people reveal">
-      <li><span class="mono">01</span><b>Kim Duc Minh</b><i>Lead, architecture</i></li>
-      <li><span class="mono">02</span><b>Van Thanh Duy</b><i>Data pipeline, testing</i></li>
+      <li><span class="mono">01</span><b>Kim Duc Minh</b><i>Lead, architecture</i><small>VinSmart Future</small></li>
+      <li><span class="mono">02</span><b>Van Thanh Duy</b><i>Data pipeline, testing</i><small>Military Commercial Joint Stock Bank (MB)</small></li>
       <li><span class="mono">03</span><b>Doan Duy Thanh</b><i>Data analysis</i><small>University of Science and Technology of Hanoi (USTH)</small></li>
       <li><span class="mono">04</span><b>Nguyen Ha Trang</b><i>Science</i><small>Hanoi University of Science and Technology (HUST)</small></li>
       <li><span class="mono">05</span><b>Pham Minh Tuan</b><i>Science</i></li>
@@ -434,7 +438,6 @@
 
 <!-- ================================================================== last call -->
 <section class="last">
-  <img class="lastbg" src="/static/landing/sky-orion.webp" width="1600" height="750" loading="lazy" alt="" aria-hidden="true">
   <div class="wrap">
     <h2 class="reveal">Pick a spot in the sky<span class="blinkmark" aria-hidden="true"><i></i><i></i></span></h2>
     <p class="reveal">The whole infrared sky, 102 colours deep, a click away.</p>

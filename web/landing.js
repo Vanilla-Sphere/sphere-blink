@@ -59,19 +59,45 @@ if ("IntersectionObserver" in window) {
   for (const el of document.querySelectorAll(".reveal")) seen.observe(el);
 } else for (const el of document.querySelectorAll(".reveal")) el.classList.add("in");
 
-/* ------------------------------------------------------------------ the sky behind the first screen
-   A photograph: the Milky Way cut from the SPHEREx all-sky map. Nothing is drawn onto it. It gives way
-   a little to the pointer (the two variables are read by landing.css). */
+/* ------------------------------------------------------------------ the sky behind the page
+   Photographs cut from the SPHEREx all-sky map; nothing is drawn onto them. The sky stays in place
+   behind the page and changes with the part being read: the Milky Way first, then each picture that
+   names a section (data-from) once that section is two fifths up the window. A picture is fetched when
+   its section is about two windows away. It gives way a little to the pointer (the two variables are
+   read by landing.css). */
 (() => {
-  const img = $("heroimg");
-  if (!img || still) return;
-  let wait = 0;
+  const sky = $("pagesky");
+  if (!sky) return;
+  const layers = [...sky.querySelectorAll("img")];
+  const starts = layers.map((img) => $(img.dataset.from || ""));
+  let shown = 0, wait = 0;
+  const pick = () => {
+    wait = 0;
+    let want = 0;
+    starts.forEach((el, i) => {
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      if (top < innerHeight * 2.5 && !layers[i].getAttribute("src")) layers[i].src = layers[i].dataset.src;
+      if (top < innerHeight * 0.6) want = i;
+    });
+    if (want === shown || !layers[want].complete || !layers[want].naturalWidth) return;
+    layers[shown].classList.remove("on");
+    layers[want].classList.add("on");
+    shown = want;
+  };
+  const ask = () => { if (!wait) wait = requestAnimationFrame(pick); };
+  for (const img of layers) img.addEventListener("load", ask);
+  addEventListener("scroll", ask, {passive: true});
+  addEventListener("resize", ask, {passive: true});
+  pick();
+  if (still) return;
+  let moving = 0;
   addEventListener("pointermove", (ev) => {
-    if (ev.pointerType !== "mouse" || wait) return;
-    wait = requestAnimationFrame(() => {
-      wait = 0;
-      img.style.setProperty("--px", (ev.clientX / innerWidth - 0.5).toFixed(3));
-      img.style.setProperty("--py", (ev.clientY / innerHeight - 0.5).toFixed(3));
+    if (ev.pointerType !== "mouse" || moving) return;
+    moving = requestAnimationFrame(() => {
+      moving = 0;
+      sky.style.setProperty("--px", (ev.clientX / innerWidth - 0.5).toFixed(3));
+      sky.style.setProperty("--py", (ev.clientY / innerHeight - 0.5).toFixed(3));
     });
   }, {passive: true});
 })();
