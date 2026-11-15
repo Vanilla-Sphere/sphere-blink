@@ -60,79 +60,20 @@ if ("IntersectionObserver" in window) {
 } else for (const el of document.querySelectorAll(".reveal")) el.classList.add("in");
 
 /* ------------------------------------------------------------------ the sky behind the first screen
-   A drawn star field (not data) that turns a little with the pointer, and now and then what the product
-   looks for: a point that is somewhere else in each exposure, marked detection by detection, then linked. */
+   A photograph: the Milky Way cut from the SPHEREx all-sky map. Nothing is drawn onto it. It gives way
+   a little to the pointer (the two variables are read by landing.css). */
 (() => {
-  const cv = $("sky"), cx = cv.getContext("2d"), rnd = seeded(20261114);
-  let w = 0, h = 0, dpr = 1, stars = [], on = true, raf = 0, px = 0, py = 0, tx = 0, ty = 0, mover = null, nextMover = 2.5;
-  const TINT = ["255,246,232", "255,246,232", "255,246,232", "214,224,255", "255,214,170", "231,205,255"];
-  function size() {
-    dpr = Math.min(2, devicePixelRatio || 1);
-    w = cv.clientWidth; h = cv.clientHeight;
-    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
-    const n = Math.min(760, Math.round(w * h / 2300));
-    stars = [];
-    for (let i = 0; i < n; i++) {
-      const m = Math.pow(rnd(), 3.2);   // most stars are faint
-      stars.push({x: rnd(), y: rnd(), r: 0.35 + m * 1.7, a: 0.25 + m * 0.75, z: 0.25 + rnd() * 0.75, ph: rnd() * 6.283, sp: 0.4 + rnd() * 1.6, c: TINT[Math.floor(rnd() * TINT.length)]});
-    }
-    if (still) frame(0);
-  }
-  function newMover(t) {
-    const n = 7, step = Math.max(26, Math.min(54, w / 26)), ang = (-12 - rnd() * 50) * Math.PI / 180, dir = rnd() < 0.5 ? 1 : -1;
-    const x0 = w * (0.2 + rnd() * 0.6) - dir * Math.cos(ang) * step * n / 2, y0 = h * (0.3 + rnd() * 0.45) - Math.sin(ang) * step * n / 2;
-    mover = {t0: t, pts: Array.from({length: n}, (_, i) => [x0 + dir * Math.cos(ang) * step * i, y0 + Math.sin(ang) * step * i])};
-  }
-  function drawMover(t) {
-    const age = t - mover.t0, n = mover.pts.length, per = 0.6, linkAt = n * per + 0.3, end = linkAt + 4.2;
-    if (age > end) { mover = null; nextMover = t + 3 + rnd() * 3; return; }
-    const fade = Math.min(1, (end - age) / 1.2), shown = Math.min(n, Math.floor(age / per) + 1);
-    cx.lineWidth = 1;
-    for (let i = 0; i < shown; i++) {
-      const [x, y] = mover.pts[i], fresh = Math.max(0, 1 - (age - i * per) / per);
-      cx.strokeStyle = `rgba(181,138,251,${0.75 * fade})`;
-      cx.strokeRect(Math.round(x) - 5.5, Math.round(y) - 5.5, 11, 11);
-      cx.fillStyle = `rgba(255,246,232,${(0.35 + 0.65 * fresh) * fade})`;
-      cx.beginPath(); cx.arc(x, y, 1.3 + fresh * 1.2, 0, 6.283); cx.fill();
-    }
-    if (age > linkAt) {
-      const k = Math.min(1, (age - linkAt) / 0.9), a = mover.pts[0], b = mover.pts[n - 1];
-      const ex = a[0] + (b[0] - a[0]) * k, ey = a[1] + (b[1] - a[1]) * k;
-      cx.strokeStyle = `rgba(233,180,82,${0.85 * fade})`;
-      cx.beginPath(); cx.moveTo(a[0], a[1]); cx.lineTo(ex, ey); cx.stroke();
-      if (k === 1) {
-        cx.fillStyle = `rgba(233,180,82,${0.9 * fade})`;
-        cx.font = '500 11px "Geist Mono", ui-monospace, monospace';
-        cx.textAlign = b[0] > a[0] ? "left" : "right";
-        cx.fillText(`linked: ${n} detections`, b[0] + (b[0] > a[0] ? 12 : -12), b[1] - 10);
-      }
-    }
-  }
-  function frame(ms) {
-    const t = ms / 1000;
-    px += (tx - px) * 0.05; py += (ty - py) * 0.05;
-    cx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    cx.clearRect(0, 0, w, h);
-    for (const s of stars) {
-      const x = ((s.x * w + px * s.z * 26 - t * s.z * 1.6) % w + w) % w, y = ((s.y * h + py * s.z * 26) % h + h) % h;
-      const a = s.a * (still ? 0.85 : 0.72 + 0.28 * Math.sin(t * s.sp + s.ph));
-      cx.fillStyle = `rgba(${s.c},${a})`;
-      cx.beginPath(); cx.arc(x, y, s.r, 0, 6.283); cx.fill();
-      if (s.r > 1.5) { cx.fillStyle = `rgba(${s.c},${a * 0.12})`; cx.beginPath(); cx.arc(x, y, s.r * 3.4, 0, 6.283); cx.fill(); }
-    }
-    if (!still) {
-      if (!mover && t > nextMover) newMover(t);
-      if (mover) drawMover(t);
-      if (on) raf = requestAnimationFrame(frame);
-    }
-  }
-  addEventListener("resize", size);
-  addEventListener("pointermove", (ev) => { if (ev.pointerType === "mouse") { tx = ev.clientX / innerWidth - 0.5; ty = ev.clientY / innerHeight - 0.5; } }, {passive: true});
-  size();
-  if (!still) {
-    watch(cv, (vis) => { on = vis && !document.hidden; cancelAnimationFrame(raf); if (on) raf = requestAnimationFrame(frame); });
-    document.addEventListener("visibilitychange", () => { on = !document.hidden; cancelAnimationFrame(raf); if (on) raf = requestAnimationFrame(frame); });
-  }
+  const img = $("heroimg");
+  if (!img || still) return;
+  let wait = 0;
+  addEventListener("pointermove", (ev) => {
+    if (ev.pointerType !== "mouse" || wait) return;
+    wait = requestAnimationFrame(() => {
+      wait = 0;
+      img.style.setProperty("--px", (ev.clientX / innerWidth - 0.5).toFixed(3));
+      img.style.setProperty("--py", (ev.clientY / innerHeight - 0.5).toFixed(3));
+    });
+  }, {passive: true});
 })();
 
 /* ------------------------------------------------------------------ the blink of the first screen
