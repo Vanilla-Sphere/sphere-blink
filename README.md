@@ -11,20 +11,20 @@
 
 <div align="center">
 
-<a href="https://vanillasphere.com"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/banner.svg" alt="Vanilla Sphere" width="100%"></a>
+<a href="https://vanillasphere.com"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/banner.svg" alt="Vanilla Sphere" width="100%"></a>
 
 ### Watch any patch of the infrared sky change over time
 
 Every NASA SPHEREx image of any position, played as a movie in seconds,<br>
 with a spectrum, measured motion and a blind search for things that move.
 
-<img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/award.svg" alt="Second prize at the Hà Nội local event of the 2026 NASA Space Apps Challenge, challenge Planet X and SPHEREx" height="72">
+<img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/award.svg" alt="Second prize at the Hà Nội local event of the 2026 NASA Space Apps Challenge, challenge Planet X and SPHEREx" height="72">
 
-<a href="https://vanillasphere.com"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/btn-live.svg" alt="Open the live site" height="38"></a>
-<a href="#what-it-found"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/btn-found.svg" alt="See what it found" height="38"></a>
-<a href="https://vanillasphere.com/docs"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/btn-api.svg" alt="API explorer" height="38"></a>
-<a href="docs/README.md"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/btn-docs.svg" alt="Documentation" height="38"></a>
-<a href="docs/science/README.md"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/btn-science.svg" alt="Science and algorithms" height="38"></a>
+<a href="https://vanillasphere.com"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/btn-live.svg" alt="Open the live site" height="38"></a>
+<a href="#what-it-found"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/btn-found.svg" alt="See what it found" height="38"></a>
+<a href="https://vanillasphere.com/docs"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/btn-api.svg" alt="API explorer" height="38"></a>
+<a href="docs/README.md"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/btn-docs.svg" alt="Documentation" height="38"></a>
+<a href="docs/science/README.md"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/btn-science.svg" alt="Science and algorithms" height="38"></a>
 
 [![Live site](https://img.shields.io/badge/live-vanillasphere.com-b58afb?style=flat-square)](https://vanillasphere.com)
 [![checks](https://img.shields.io/github/actions/workflow/status/Vanilla-Sphere/sphere-blink/checks.yml?branch=main&label=tests&style=flat-square)](https://github.com/Vanilla-Sphere/sphere-blink/actions/workflows/checks.yml)
@@ -33,13 +33,14 @@ with a spectrum, measured motion and a blind search for things that move.
 [![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab?style=flat-square&logo=python&logoColor=white)](requirements.txt)
 [![Stars](https://img.shields.io/github/stars/Vanilla-Sphere/sphere-blink?style=flat-square&logo=github&label=stars&color=e9b452)](https://github.com/Vanilla-Sphere/sphere-blink/stargazers)
 [![Forks](https://img.shields.io/github/forks/Vanilla-Sphere/sphere-blink?style=flat-square&logo=github&label=forks&color=b58afb)](https://github.com/Vanilla-Sphere/sphere-blink/forks)
+[![Film on YouTube](https://img.shields.io/badge/film-83%20s-ff0033?style=flat-square&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=Nhfgcw2geB4)
 <br>
 [![NASA Space Apps 2026](https://img.shields.io/badge/NASA%20Space%20Apps%202026-Planet%20X%20and%20SPHEREx-0b3d91?style=flat-square&logo=nasa&logoColor=white)](https://www.spaceappschallenge.org/)
 [![Last commit](https://img.shields.io/github/last-commit/Vanilla-Sphere/sphere-blink/main?style=flat-square&label=last%20commit&color=b58afb)](https://github.com/Vanilla-Sphere/sphere-blink/commits/main)
 [![No AI inside](https://img.shields.io/badge/in%20the%20product-no%20AI%2C%20only%20arithmetic-b58afb?style=flat-square)](#use-of-ai-tools)
 
 <a href="https://vanillasphere.com">
-  <img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/sky-map.webp" alt="The start screen: a map of the whole sky; click anywhere to open that patch in SPHEREx data" width="100%">
+  <img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/sky-map.webp" alt="The start screen: a map of the whole sky; click anywhere to open that patch in SPHEREx data" width="100%">
 </a>
 
 </div>
@@ -63,7 +64,7 @@ with their full history since the first commit of the hackathon
 > Space plays and pauses the movie, the arrow keys step through its frames.
 
 <div align="center">
-  <a href="#what-it-found"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/numbers.svg" alt="102 colours from 0.75 to 5.0 µm. 3I/ATLAS found by a blind search at 99 arcsec per hour. Pluto at 279 sigma by shift-and-stack. About 10 s to a new view, under 1 s the next time. 0 tracks by chance in shuffled searches." width="100%"></a>
+  <a href="#what-it-found"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/numbers.svg" alt="102 colours from 0.75 to 5.0 µm. 3I/ATLAS found by a blind search at 99 arcsec per hour. Pluto at 279 sigma by shift-and-stack. About 10 s to a new view, under 1 s the next time. 0 tracks by chance in shuffled searches." width="100%"></a>
 </div>
 
 ## Contents
@@ -96,7 +97,11 @@ was checked against an independent source.
 | **1.3-1.9 MB instead of 65 MB** | A SPHEREx file is about 65 MB. The server reads only the bytes of the cutout with HTTP range requests, so a new 8 arcmin view of about 350 exposures is on screen in about 10 s, and in under 1 s the next time. | A cut from the full download: the pixels are identical. [Performance](docs/performance.md) |
 
 <div align="center">
-  <img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/3i-atlas-poster.webp" alt="It caught 3I/ATLAS: one real SPHEREx exposure with the comet in the crosshair" width="100%">
+  <a href="https://www.youtube.com/watch?v=Nhfgcw2geB4"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/film-poster.webp" alt="Watch the film on YouTube. This frame: it caught 3I/ATLAS, one real SPHEREx exposure with the comet in the crosshair" width="100%"></a>
+  <br><br>
+  <a href="https://www.youtube.com/watch?v=Nhfgcw2geB4"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/btn-film.svg" alt="Watch the film" height="44"></a>
+  <br>
+  <sub>The whole product in 83 seconds, on <a href="https://www.youtube.com/@VanillaSphere">our YouTube channel</a>.</sub>
 </div>
 
 ## A tour
@@ -105,45 +110,45 @@ Every picture here is a real view, and each button opens one on the live site.
 
 <div align="center">
 
-<a href="https://vanillasphere.com/?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/go-3i-atlas.svg" alt="3I/ATLAS, interstellar comet" height="38"></a>
-<a href="https://vanillasphere.com/?ra=304.14&amp;dec=-23.58&amp;levels=3&amp;mover=VS-60951-4LN9&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/go-pluto.svg" alt="Pluto, found by stacking" height="38"></a>
-<a href="https://vanillasphere.com/?ra=200.70&amp;dec=21.06&amp;levels=3&amp;mover=VS-61191-X387&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/go-makemake.svg" alt="Makemake, dwarf planet" height="38"></a>
-<a href="https://vanillasphere.com/?target=barnard"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/go-barnard.svg" alt="Barnard's Star, fastest star in the sky" height="38"></a>
-<a href="https://vanillasphere.com/?target=eps-indi-b&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/go-eps-indi-b.svg" alt="Epsilon Indi B, brown dwarf spectrum" height="38"></a>
-<a href="https://vanillasphere.com/?target=r-dra&amp;plot=lc&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/go-r-dra.svg" alt="R Draconis, a star that faded" height="38"></a>
-<a href="https://vanillasphere.com/?ra=232.1947&amp;dec=36.631&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/go-quasar.svg" alt="SDSS J1528+3637, quasar redshift" height="38"></a>
-<a href="https://vanillasphere.com/?target=wise-0855&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/go-wise-0855.svg" alt="WISE 0855, coldest brown dwarf" height="38"></a>
+<a href="https://vanillasphere.com/?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-3i-atlas.svg" alt="3I/ATLAS, interstellar comet" height="38"></a>
+<a href="https://vanillasphere.com/?ra=304.14&amp;dec=-23.58&amp;levels=3&amp;mover=VS-60951-4LN9&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-pluto.svg" alt="Pluto, found by stacking" height="38"></a>
+<a href="https://vanillasphere.com/?ra=200.70&amp;dec=21.06&amp;levels=3&amp;mover=VS-61191-X387&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-makemake.svg" alt="Makemake, dwarf planet" height="38"></a>
+<a href="https://vanillasphere.com/?target=barnard"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-barnard.svg" alt="Barnard's Star, fastest star in the sky" height="38"></a>
+<a href="https://vanillasphere.com/?target=eps-indi-b&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-eps-indi-b.svg" alt="Epsilon Indi B, brown dwarf spectrum" height="38"></a>
+<a href="https://vanillasphere.com/?target=r-dra&amp;plot=lc&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-r-dra.svg" alt="R Draconis, a star that faded" height="38"></a>
+<a href="https://vanillasphere.com/?ra=232.1947&amp;dec=36.631&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-quasar.svg" alt="SDSS J1528+3637, quasar redshift" height="38"></a>
+<a href="https://vanillasphere.com/?target=wise-0855&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-wise-0855.svg" alt="WISE 0855, coldest brown dwarf" height="38"></a>
 
 </div>
 
 <table>
 <tr>
 <td width="50%" valign="top">
-<a href="https://vanillasphere.com/?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/3i-atlas-field.webp" alt="A 7 x 7 cell field with the track of 3I/ATLAS"></a>
+<a href="https://vanillasphere.com/?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/3i-atlas-field.webp" alt="A 7 x 7 cell field with the track of 3I/ATLAS"></a>
 <b>A field of 49 cells, and what moves in it.</b> The view grows ring by ring to 0.84 degrees. A blind search links what moved between exposures; the line is the track of comet 3I/ATLAS.
 </td>
 <td width="50%" valign="top">
-<a href="https://vanillasphere.com/?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/3i-atlas-exposures.webp" alt="3I/ATLAS in fifteen single exposures"></a>
+<a href="https://vanillasphere.com/?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/3i-atlas-exposures.webp" alt="3I/ATLAS in fifteen single exposures"></a>
 <b>The evidence, exposure by exposure.</b> Each pair is centred where JPL predicts the comet: the exposure as taken, and the same with the static sky subtracted.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<a href="https://vanillasphere.com/?ra=304.14&amp;dec=-23.58&amp;levels=3&amp;mover=VS-60951-4LN9&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/pluto-stack.webp" alt="Pluto found by shift-and-stack"></a>
+<a href="https://vanillasphere.com/?ra=304.14&amp;dec=-23.58&amp;levels=3&amp;mover=VS-60951-4LN9&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/pluto-stack.webp" alt="Pluto found by shift-and-stack"></a>
 <b>Pluto, found by adding exposures.</b> At 0.2 arcsec per hour it does not move enough for the first search. The stack of 43 exposures along its path shows it at 279 sigma.
 </td>
 <td width="50%" valign="top">
-<a href="https://vanillasphere.com/?target=eps-indi-b&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/spectrum-reading.webp" alt="The spectrum of Epsilon Indi B with its preliminary reading"></a>
+<a href="https://vanillasphere.com/?target=eps-indi-b&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/spectrum-reading.webp" alt="The spectrum of Epsilon Indi B with its preliminary reading"></a>
 <b>A spectrum, and a first reading of it.</b> Every exposure sees the target at another wavelength. For the brown dwarf Epsilon Indi B the viewer names the water and methane bands by fixed, cited rules.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<a href="https://vanillasphere.com/?target=r-dra&amp;plot=lc&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/over-time.webp" alt="R Draconis over time"></a>
+<a href="https://vanillasphere.com/?target=r-dra&amp;plot=lc&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/over-time.webp" alt="R Draconis over time"></a>
 <b>Brightness over time.</b> The Mira variable R Draconis faded by a factor of two between June 2025 and June 2026, band by band.
 </td>
 <td width="50%" valign="top">
-<a href="https://vanillasphere.com/?ra=232.1947&amp;dec=36.631&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/redshift.webp" alt="The redshift of a quasar measured from its lines"></a>
+<a href="https://vanillasphere.com/?ra=232.1947&amp;dec=36.631&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/redshift.webp" alt="The redshift of a quasar measured from its lines"></a>
 <b>Redshift from the lines.</b> For a quasar the viewer measures the redshift from its emission lines, gives the distance and look-back time, and says when a catalogue disagrees.
 </td>
 </tr>
@@ -152,7 +157,7 @@ Every picture here is a real view, and each button opens one on the live site.
 <table>
 <tr>
 <td width="38%" valign="top">
-<a href="https://vanillasphere.com"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/discoveries.webp" alt="The Discoveries log"></a>
+<a href="https://vanillasphere.com"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/discoveries.webp" alt="The Discoveries log"></a>
 </td>
 <td valign="top">
 
@@ -223,7 +228,7 @@ Barnard's Star, the fastest-moving star in the sky, creeps north by about
 10 arcsec per year.
 
 <div align="center">
-  <img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/barnard-blink.gif" alt="Barnard's Star in six SPHEREx visits, as returned by /api/movie.gif" width="420">
+  <img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/barnard-blink.gif" alt="Barnard's Star in six SPHEREx visits, as returned by /api/movie.gif" width="420">
 </div>
 
 ```
@@ -246,8 +251,8 @@ CORS is open for `GET`, so a page anywhere can use the pictures and the data.
 
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/img/diagrams/imaging-pipeline-dark.png">
-    <img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/img/diagrams/imaging-pipeline.png" alt="The imaging pipeline: request, grid, exposure search, range reads, clean and resample, frame cache, epochs, colour and encode" width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/img/diagrams/imaging-pipeline-dark.png">
+    <img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/img/diagrams/imaging-pipeline.png" alt="The imaging pipeline: request, grid, exposure search, range reads, clean and resample, frame cache, epochs, colour and encode" width="100%">
   </picture>
 </div>
 
@@ -495,12 +500,13 @@ Not covered by the AGPL; each keeps its own terms, listed in
 
 <div align="center">
 
-<a href="https://vanillasphere.com"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/web/logo-mark.svg" alt="" width="56"></a>
+<a href="https://vanillasphere.com"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/web/logo-mark.svg" alt="" width="56"></a>
 
 **Vanilla Sphere** · second prize, 2026 NASA Space Apps Challenge, Hà Nội
 
-<a href="https://vanillasphere.com"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/btn-live.svg" alt="Open the live site" height="44"></a>
-<a href="#what-it-found"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@91a93dbd6061497126c979779e99ad3408fc3357/docs/readme/btn-found.svg" alt="See what it found" height="44"></a>
+<a href="https://vanillasphere.com"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/btn-live.svg" alt="Open the live site" height="44"></a>
+<a href="#what-it-found"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/btn-found.svg" alt="See what it found" height="44"></a>
+<a href="https://www.youtube.com/watch?v=Nhfgcw2geB4"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/btn-film.svg" alt="Watch the film" height="44"></a>
 
 <sub><a href="#top">Back to the top</a></sub>
 
