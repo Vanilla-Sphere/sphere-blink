@@ -156,7 +156,7 @@ jobs:
           sh scripts/start_local_site.sh stop
           du -sh "${{ runner.temp }}/sphereblink-cache" || true
           echo "Warnings and errors of the server (requests that went well left out; how often, the line):"
-          grep -v '^INFO: .* HTTP/1.1" [23]' "$SITE_LOG" | cut -c1-240 | sort | uniq -c | sort -rn | head -30 || true
+          grep -v '^INFO: .* HTTP/1.1" [23]' "$SITE_LOG" | sed -E 's/^(INFO: +)[0-9.]+:[0-9]+ - /\1/' | cut -c1-240 | sort | uniq -c | sort -rn | head -30 || true
 
       - name: Keep the frames and tiles for the next run
         if: always() && env.WHERE == 'local'
