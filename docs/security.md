@@ -70,7 +70,7 @@ Added to every response by `guard.Guard`:
 
 | Header | Value | Purpose |
 | --- | --- | --- |
-| `Content-Security-Policy` (pages) | `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://irsa.ipac.caltech.edu; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'` | Only the site's own scripts run; no other site can frame the viewer. The one address beyond the site's own is the NASA/IPAC archive, for pictures only: the tiles of the sky photograph behind the zoomed-in map |
+| `Content-Security-Policy` (pages) | `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://irsa.ipac.caltech.edu; font-src 'self'; connect-src 'self'; frame-src https://www.youtube-nocookie.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'` | Only the site's own scripts run; no other site can frame the viewer. Two addresses lie beyond the site's own: the NASA/IPAC archive, for pictures only (the tiles of the sky photograph behind the zoomed-in map), and `www.youtube-nocookie.com`, as a frame only: the player of the team's video on the first page, which the page loads when the visitor presses play and not before |
 | `Content-Security-Policy` (data, pictures) | `default-src 'none'` | A response opened directly can run nothing |
 | `X-Content-Type-Options` | `nosniff` | Browsers keep to the declared content type |
 | `X-Frame-Options` (pages) | `SAMEORIGIN` | As `frame-ancestors`, for older browsers |
@@ -85,7 +85,7 @@ A page shown inside a frame of another site can be covered with a decoy, so
 that a visitor who clicks the decoy clicks the page (clickjacking). No page
 of this site may be framed by another site:
 
-- every answer that is a page (`/`, `/static/index.html`, `/docs`, `/redoc`)
+- every answer that is a page (`/`, `/sky`, `/static/index.html`, `/docs`, `/redoc`)
   carries `frame-ancestors 'self'` in its policy and `X-Frame-Options:
   SAMEORIGIN`. Current browsers obey the first, older ones the second;
 - pictures and data carry neither. A GIF, PNG or JSON answer of `/api/` is
@@ -98,7 +98,7 @@ of this site may be framed by another site:
   data it would take the page's policy, and `frame-ancestors` with it, away;
 - the dev site is static, so `render.dev.yaml` sets the same: `X-Frame-Options`
   on every path, the page's policy on `/` and `/index.html` (a static site
-  answers both with the page).
+  answers both with the page) and on `/sky` and `/sky.html`, the viewer.
 
 The viewer has no frame of its own, so `'self'` is not used today; it is
 there so that a page of the site may show another one if that is ever wanted.

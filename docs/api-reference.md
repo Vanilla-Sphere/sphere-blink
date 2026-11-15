@@ -984,9 +984,9 @@ makes up once and keeps. One vote per id and object; another vote replaces it,
 Open the viewer on a target:
 
 ```
-https://vanillasphere.com/?target=Barnard's Star&fov=8
-https://vanillasphere.com/?ra=133.76010&dec=-7.24227&fov=8&det=5,6&group=visit
-https://vanillasphere.com/?ra=206.005&dec=-10.763&levels=3
+https://vanillasphere.com/sky?target=Barnard's Star&fov=8
+https://vanillasphere.com/sky?ra=133.76010&dec=-7.24227&fov=8&det=5,6&group=visit
+https://vanillasphere.com/sky?ra=206.005&dec=-10.763&levels=3
 ```
 
 Embed a movie or a frame:

@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vanilla Sphere - watch the infrared sky change</title>
+<meta name="description" content="Every NASA SPHEREx image of any spot in the sky, played as a movie in seconds, with its spectrum, its measured motion and a blind search for whatever moves. Open source. Second prize, 2026 NASA Space Apps Challenge, Hanoi.">
+<meta name="theme-color" content="#0a0910">
+<link rel="canonical" href="https://vanillasphere.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Vanilla Sphere">
+<meta property="og:title" content="Vanilla Sphere - watch the infrared sky change">
+<meta property="og:description" content="Every NASA SPHEREx image of any spot in the sky, played as a movie in seconds. It caught the interstellar comet 3I/ATLAS without being told where to look.">
+<meta property="og:url" content="https://vanillasphere.com/">
+<meta property="og:image" content="https://vanillasphere.com/static/landing/og.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Vanilla Sphere - watch the infrared sky change">
+<meta name="twitter:description" content="Every NASA SPHEREx image of any spot in the sky, played as a movie in seconds.">
+<meta name="twitter:image" content="https://vanillasphere.com/static/landing/og.png?v=1">
+<link rel="icon" href="/static/favicon.svg?v=72" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=72">
+<link rel="preload" href="/static/fonts/HankenGrotesk.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/GeistMono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/static/landing.css?v=2">
+<script src="/static/landing.js?v=2" defer></script>
+</head>
+<body>
+<a class="skip" href="#found">Skip to what it found</a>
+<div class="progress" aria-hidden="true"><i id="progress"></i></div>
+
+<header class="nav" id="nav">
+  <a class="brand" href="/" aria-label="Vanilla Sphere">
+    <svg viewBox="0 0 64 64" width="26" height="26" aria-hidden="true"><path d="M11.5 21 32 60l20.500-39" fill="none" stroke="var(--gold)" stroke-width="4" stroke-miterlimit="10"/><circle cx="32" cy="19" r="13" fill="var(--violet)"/></svg>
+    <span>Vanilla Sphere</span>
+  </a>
+  <nav class="navlinks" aria-label="Sections">
+    <a href="#film">Video</a>
+    <a href="#found">What it found</a>
+    <a href="#tour">Tour</a>
+    <a href="#how">How it works</a>
+    <a href="#api">API</a>
+    <a href="#open">Open source</a>
+  </nav>
+  <a class="btn primary small" href="/sky">Open the sky map <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+</header>
+
+<main>
+<!-- ================================================================== hero -->
+<section class="hero" id="top">
+  <canvas class="sky" id="sky" aria-hidden="true"></canvas>
+  <div class="glow" aria-hidden="true"></div>
+  <div class="wrap herogrid">
+    <div class="herotext">
+      <p class="eyebrow rise"><i class="dot"></i>NASA SPHEREx <b>·</b> 102 infrared colours <b>·</b> 0.75–5.0 µm</p>
+      <h1 class="rise">Watch the infrared sky <span class="change">change<span class="blinkmark" aria-hidden="true"><i></i><i></i></span></span></h1>
+      <p class="lede rise">Every NASA SPHEREx image of any spot in the sky, played as a movie in seconds. With its spectrum, its measured motion, and a blind search for whatever moves.</p>
+      <div class="cta rise">
+        <a class="btn primary big" href="/sky">Open the sky map <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+        <a class="btn ghost big" href="#found">See what it found</a>
+        <a class="btn ghost big" href="#film"><svg class="tri" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.500 13 8l-9 5.500z"/></svg>Watch the video</a>
+      </div>
+      <a class="award rise" href="#team">
+        <svg viewBox="0 0 32 40" aria-hidden="true"><circle cx="16" cy="14" r="11" fill="none" stroke="currentColor" stroke-width="1.500"/><path d="M9 23 6 38l10-5 10 5-3-15" fill="none" stroke="currentColor" stroke-width="1.500"/><text x="16" y="19" text-anchor="middle">2</text></svg>
+        <span><b>Second prize</b> 2026 NASA Space Apps Challenge <i>·</i> Hanoi</span>
+      </a>
+    </div>
+
+    <!-- the product in small: one star, six visits, blinked -->
+    <figure class="finder rise" id="finder">
+      <div class="lens" id="lens">
+        <img src="/static/landing/barnard-0.webp" width="640" height="640" alt="Barnard's Star in SPHEREx images of six visits between August 2025 and September 2026. The field stars stay in place; Barnard's Star creeps north." class="on">
+        <img src="/static/landing/barnard-1.webp" width="640" height="640" alt="" loading="lazy">
+        <img src="/static/landing/barnard-2.webp" width="640" height="640" alt="" loading="lazy">
+        <img src="/static/landing/barnard-3.webp" width="640" height="640" alt="" loading="lazy">
+        <img src="/static/landing/barnard-4.webp" width="640" height="640" alt="" loading="lazy">
+        <img src="/static/landing/barnard-5.webp" width="640" height="640" alt="" loading="lazy">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      </div>
+      <div class="finderbar">
+        <button type="button" class="play" id="finderplay" aria-label="Pause the blink" aria-pressed="true"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="ipause" d="M4 3h3v10H4zM9 3h3v10H9z"/><path class="iplay" d="M4 2.500 13 8l-9 5.500z"/></svg></button>
+        <div class="visits" id="visits" role="group" aria-label="Visit">
+          <button type="button" class="on" aria-label="Visit 1"></button><button type="button" aria-label="Visit 2"></button><button type="button" aria-label="Visit 3"></button><button type="button" aria-label="Visit 4"></button><button type="button" aria-label="Visit 5"></button><button type="button" aria-label="Visit 6"></button>
+        </div>
+        <output class="mono" id="finderout">visit 1 / 6</output>
+      </div>
+      <figcaption>
+        <b>Real data, not a rendering.</b> Barnard's Star in six SPHEREx visits. The field stars stay put; the fastest-moving star in the sky creeps north. Measured here: <span class="mono">10.33 ± 0.25″</span> per year. Gaia: <span class="mono">10.36″</span>.
+        <a href="/sky?target=barnard">Open this view <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+      </figcaption>
+    </figure>
+  </div>
+
+  <!-- what the blind search has reported so far: all of them known bodies -->
+  <div class="ticker" aria-label="Moving objects the blind search has found, each a known body">
+    <div class="tickrow" id="tickrow">
+      <span><b>3I/ATLAS</b> interstellar comet <em>99″/h</em></span>
+      <span><b>134340 Pluto</b> dwarf planet <em>0.2″/h</em></span>
+      <span><b>136472 Makemake</b> dwarf planet <em>1.5″/h</em></span>
+      <span><b>90482 Orcus</b> trans-Neptunian <em>1.1″/h</em></span>
+      <span><b>5 Astraea</b> asteroid <em>16.4″/h</em></span>
+      <span><b>8895 Nha</b> asteroid <em>41″/h</em></span>
+      <span><b>3896 Pordenone</b> asteroid <em>35″/h</em></span>
+      <span><b>3829 Gunma</b> asteroid <em>32″/h</em></span>
+      <span><b>8838 1989 UW2</b> asteroid <em>29″/h</em></span>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== numbers -->
+<section class="numbers" aria-label="In numbers">
+  <div class="wrap numgrid">
+    <div class="num reveal"><b><span data-count="102">102</span></b><span>colours</span><small>0.75 to 5.0 µm, the whole sky</small></div>
+    <div class="num reveal gold"><b><span data-count="99">99</span><i>″/h</i></b><span>3I/ATLAS, found blind</span><small>half a pixel from NASA/JPL's path</small></div>
+    <div class="num reveal"><b><span data-count="279">279</span></b><span>sigma on Pluto</span><small>by shift-and-stack</small></div>
+    <div class="num reveal gold"><b><i class="pre">~</i><span data-count="10">10</span><i> s</i></b><span>to a new view</span><small>under 1 s the next time</small></div>
+    <div class="num reveal"><b><span>0</span></b><span>tracks by chance</span><small>in searches on shuffled times</small></div>
+  </div>
+  <div class="bands" id="bands" aria-hidden="true"></div>
+</section>
+
+<!-- ================================================================== the video -->
+<section class="film" id="film">
+  <div class="wrap filmgrid">
+    <header class="sechead reveal">
+      <p class="kicker"><span>Video</span> On YouTube</p>
+      <h2>See it move. <em>Then try it yourself.</em></h2>
+      <p>The whole product in 83 seconds. The team's film on YouTube: Vanilla Sphere, a tool for SPHEREx data exploration.</p>
+      <div class="cta">
+        <a class="btn ghost" href="https://www.youtube.com/@VanillaSphere" target="_blank" rel="noopener">Our YouTube channel <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+      </div>
+    </header>
+    <!-- Nothing is asked of YouTube until the visitor presses play: the picture is ours, and landing.js puts
+         the player in its place. Without the script the link opens the video on YouTube. -->
+    <div class="player reveal" id="player">
+      <a class="poster" id="poster" href="https://www.youtube.com/watch?v=Nhfgcw2geB4" target="_blank" rel="noopener" data-video="Nhfgcw2geB4" aria-label="Play the video: Vanilla Sphere, a tool for SPHEREx data exploration">
+        <img src="/static/landing/last-sky.webp" width="1080" height="820" loading="lazy" alt="">
+        <span class="playbtn"><svg class="tri" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.500 13 8l-9 5.500z"/></svg></span>
+        <span class="postertitle mono"><b>VANILLA SPHERE</b> A TOOL FOR SPHEREx DATA EXPLORATION</span>
+        <span class="postersite mono">YouTube</span>
+      </a>
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== what it found -->
+<section class="found" id="found">
+  <div class="wrap">
+    <header class="sechead reveal">
+      <p class="kicker"><span>01</span> What it found</p>
+      <h2>Nobody told it <em>where to look.</em></h2>
+      <p>Every result here comes out of the public SPHEREx images by documented, deterministic arithmetic. Each one was checked against an independent source.</p>
+    </header>
+
+    <article class="feature reveal">
+      <div class="shot">
+        <a class="lens frame" href="/sky?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv" aria-label="Open the field of 3I/ATLAS on the live site">
+          <img src="/static/landing/found-3i.webp" width="614" height="614" loading="lazy" alt="A SPHEREx field of 49 cells with the tracks of moving objects; the long violet arrow is comet 3I/ATLAS.">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <span class="tag mono">FIELD 248.34 −16.98 <b>·</b> 0.84° <b>·</b> 713 EXPOSURES</span>
+        </a>
+      </div>
+      <div class="story">
+        <p class="label mono">An interstellar comet</p>
+        <h3>It caught 3I/ATLAS.</h3>
+        <p>The blind search picks up the comet crossing a field at <span class="mono">99″</span> per hour, in fifteen exposures of 7–8 August 2025. It links what moved between exposures; nothing tells it which objects are known.</p>
+        <dl class="facts mono">
+          <div><dt>Rate</dt><dd>99″/h</dd></div>
+          <div><dt>Direction</dt><dd>PA 277°</dd></div>
+          <div><dt>Seen</dt><dd>15 exposures</dd></div>
+        </dl>
+        <p class="check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.500 8.500 6.500 12.500 13.500 4"/></svg><span><b>Checked against</b> the positions NASA/JPL predicts. The track stays <span class="mono">3.3–3.6″</span> away: half of one SPHEREx pixel.</span></p>
+        <a class="more" href="/sky?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv">Open this live view <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+      </div>
+      <figure class="strip">
+        <div class="stripscroll" tabindex="0" aria-label="3I/ATLAS in fifteen single exposures; scroll sideways">
+          <img src="/static/landing/3i-atlas-exposures.webp" width="1600" height="616" loading="lazy" alt="3I/ATLAS in fifteen single SPHEREx exposures of detector D3, each beside the same exposure with the static sky subtracted. The comet sits in the brackets every time.">
+        </div>
+        <figcaption>The evidence, exposure by exposure. Each pair is centred where JPL predicts the comet: the exposure as taken, and the same with the static sky subtracted.</figcaption>
+      </figure>
+    </article>
+
+    <article class="feature flip reveal">
+      <div class="shot">
+        <div class="stack" id="stack">
+          <div class="stackpanes">
+            <figure><canvas id="stack-one" width="72" height="72"></canvas><figcaption class="mono">ONE EXPOSURE</figcaption></figure>
+            <figure><canvas id="stack-sum" width="72" height="72"></canvas><figcaption class="mono"><span id="stack-n">1</span> ADDED ALONG THE PATH</figcaption></figure>
+          </div>
+          <label class="stackctl"><span class="mono">exposures</span><input type="range" id="stack-range" min="1" max="64" value="1" aria-label="Exposures added"><output class="mono" id="stack-snr">S/N 1.1</output></label>
+          <p class="note">Illustration with simulated noise: a body too faint for any single exposure appears once the exposures are shifted along its path and added. Signal-to-noise grows with the square root of their number.</p>
+        </div>
+      </div>
+      <div class="story">
+        <p class="label mono">Shift-and-stack</p>
+        <h3>Pluto, Makemake, Orcus: found by adding.</h3>
+        <p>Too slow for the first search, and all but Pluto too faint for one exposure. Adding the exposures along thousands of trial paths brings out six distant bodies.</p>
+        <ul class="sigmas mono" aria-label="Significance in the stack, in sigma">
+          <li class="head"><span>found by the stack</span><b>sigma</b></li>
+          <li style="--w:100%"><span>Pluto</span><b>279</b></li>
+          <li style="--w:46%"><span>Makemake</span><b>17</b></li>
+          <li style="--w:36%"><span>Haumea</span><b>9.6</b></li>
+          <li style="--w:34%"><span>Chiron</span><b>8.5</b></li>
+          <li style="--w:32%"><span>Orcus</span><b>7.4</b></li>
+          <li style="--w:28%"><span>Eris</span><b>5.6</b></li>
+        </ul>
+        <p class="check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.500 8.500 6.500 12.500 13.500 4"/></svg><span><b>Checked against</b> NASA's ephemerides. Every one is placed to better than a pixel, Pluto to <span class="mono">0.2″</span>.</span></p>
+        <a class="more" href="/sky?ra=304.14&amp;dec=-23.58&amp;levels=3&amp;mover=VS-60951-4LN9&amp;ui=adv">Open Pluto's field <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+      </div>
+    </article>
+
+    <div class="cards">
+      <article class="card reveal">
+        <p class="label mono">A wrong catalogue redshift</p>
+        <h3><s>z = 4.344</s> <span class="arrow" aria-hidden="true"><svg class="arr" viewBox="0 0 16 16"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></span> <em>2.41</em></h3>
+        <p>SIMBAD lists quasar SDSS J1528+3637 at 4.344. The emission lines of its SPHEREx spectrum stand where 2.41 puts them, and the viewer says so.</p>
+        <p class="check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.500 8.500 6.500 12.500 13.500 4"/></svg><span><b>Checked against</b> the SDSS quasar catalogue DR16Q and NED: <span class="mono">2.413</span>.</span></p>
+        <a class="more" href="/sky?ra=232.1947&amp;dec=36.631&amp;ui=adv">Open the quasar <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+      </article>
+      <article class="card reveal">
+        <p class="label mono">No false alarms</p>
+        <h3>14 tracks. <em>All known bodies.</em></h3>
+        <p>Three fields along the path of 3I/ATLAS gave fourteen tracks. Every one is a known comet or asteroid, named from the catalogues afterwards.</p>
+        <p class="check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.500 8.500 6.500 12.500 13.500 4"/></svg><span><b>Checked against</b> the same searches on shuffled exposure times: <span class="mono">0</span> tracks by chance.</span></p>
+        <a class="more" href="https://github.com/Vanilla-Sphere/sphere-blink/blob/main/docs/mover-completeness.md" target="_blank" rel="noopener">How much the search finds <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+      </article>
+      <article class="card reveal">
+        <p class="label mono">Motion, measured</p>
+        <h3>10.33″ <em>per year.</em></h3>
+        <p>For any object the service measures a position on the native detector pixels of every exposure, then fits its motion. Barnard's Star: 86 positions, thirteen months.</p>
+        <p class="check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.500 8.500 6.500 12.500 13.500 4"/></svg><span><b>Checked against</b> Gaia DR3: <span class="mono">10.36″</span> per year, and a position <span class="mono">0.1″</span> from its prediction.</span></p>
+        <a class="more" href="/sky?target=barnard">Open Barnard's Star <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== tour -->
+<section class="tour" id="tour">
+  <div class="wrap">
+    <header class="sechead reveal">
+      <p class="kicker"><span>02</span> A tour</p>
+      <h2>Six things to do <em>with the whole sky.</em></h2>
+      <p>Every picture is a real view of the live site. Nothing to install, no account.</p>
+    </header>
+    <div class="tourgrid" id="tourgrid">
+      <ol class="steps" id="steps">
+        <li class="step on" data-shot="0">
+          <p class="label mono">01 <b>·</b> Pick a spot</p>
+          <h3>Start from a map of the whole sky.</h3>
+          <p>Drag it, zoom into the 2MASS infrared photograph, click anywhere. Or type coordinates or a name. Simple mode for a first look, Advanced for the full instrument.</p>
+          <img src="/static/landing/sky-map.webp" width="1600" height="900" loading="lazy" alt="The start screen: a map of the whole sky with the Milky Way and the constellations.">
+          <a class="more" href="/sky">Open the sky map <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+        </li>
+        <li class="step" data-shot="1">
+          <p class="label mono">02 <b>·</b> Blink the sky</p>
+          <h3>Play every image of that patch in time order.</h3>
+          <p>Frames per day, per six-month sky pass or per exposure, in any of the six detector bands. Subtract the median and the static stars vanish; what is left moved or changed.</p>
+          <img src="/static/landing/3i-atlas-field.webp" width="1600" height="900" loading="lazy" alt="The viewer on a field of 49 cells, with the movie controls, the timeline of observation dates and the tracks of moving objects.">
+          <a class="more" href="/sky?target=barnard">Blink Barnard's Star <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+        </li>
+        <li class="step" data-shot="2">
+          <p class="label mono">03 <b>·</b> Read a spectrum</p>
+          <h3>102 colours of one object, read for you.</h3>
+          <p>Every exposure sees the target at another wavelength. For the brown dwarf Epsilon Indi B the viewer names the water and methane bands by fixed, cited rules, and says how sure it is.</p>
+          <img src="/static/landing/spectrum-reading.webp" width="1600" height="900" loading="lazy" alt="The spectrum of the brown dwarf Epsilon Indi B from 0.75 to 5 micrometres, with a preliminary reading that names its water and methane bands.">
+          <a class="more" href="/sky?target=eps-indi-b&amp;ui=adv">Read Epsilon Indi B <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+        </li>
+        <li class="step" data-shot="3">
+          <p class="label mono">04 <b>·</b> Watch it change</p>
+          <h3>Brightness at every visit, band by band.</h3>
+          <p>The Mira variable R Draconis faded by a factor of two between June 2025 and June 2026. One line says whether an object changed, and in which bands.</p>
+          <img src="/static/landing/over-time.webp" width="1600" height="900" loading="lazy" alt="R Draconis over time: its flux at every visit, coloured by band, with the verdict that the brightness changed.">
+          <a class="more" href="/sky?target=r-dra&amp;plot=lc&amp;ui=adv">Watch R Draconis <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+        </li>
+        <li class="step" data-shot="4">
+          <p class="label mono">05 <b>·</b> See how far</p>
+          <h3>Distance, redshift and look-back time.</h3>
+          <p>Published distances of stars and redshifts of galaxies, and a redshift measured from the lines of the SPHEREx spectrum itself. When a catalogue disagrees, it says so.</p>
+          <img src="/static/landing/redshift.webp" width="1600" height="900" loading="lazy" alt="A quasar with its redshift measured from the emission lines of its spectrum, its distance and the time its light set out.">
+          <a class="more" href="/sky?ra=232.1947&amp;dec=36.631&amp;ui=adv">Open a quasar <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+        </li>
+        <li class="step" data-shot="5">
+          <p class="label mono">06 <b>·</b> Follow the discoveries</p>
+          <h3>A public log of everything that moved.</h3>
+          <p>Every moving object found as people open wide fields is kept, named from the catalogues of known bodies, and can be voted real or false. So far, all of them are known: the result a search that works should give.</p>
+          <img class="tall" src="/static/landing/discoveries.webp" width="910" height="930" loading="lazy" alt="The Discoveries log: a list of moving objects with their rates, directions and dates, each named as a known comet, asteroid or trans-Neptunian object.">
+          <a class="more" href="/sky?ui=adv">Open the log in Advanced mode <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+        </li>
+      </ol>
+      <div class="stage" id="stage" aria-hidden="true">
+        <div class="screen">
+          <div class="chrome"><i></i><i></i><i></i><span class="mono" id="stageurl">vanillasphere.com/sky</span></div>
+          <div class="shots" id="shots"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== how it works -->
+<section class="how" id="how">
+  <div class="wrap">
+    <header class="sechead reveal">
+      <p class="kicker"><span>03</span> How it works</p>
+      <h2>It reads under 3 % of each file. <em>Nothing is downloaded in advance.</em></h2>
+      <p>A SPHEREx file is about 65 MB. The server asks the archive only for the bytes of your cutout, so a new 8 arcmin view of about 350 exposures is on screen in about ten seconds.</p>
+    </header>
+
+    <div class="bytes reveal" role="img" aria-label="Of a 65 megabyte file, 1.3 to 1.9 megabytes are read.">
+      <div class="bytebar"><i></i></div>
+      <div class="bytelabels mono"><span><b>1.3–1.9 MB</b> read per exposure</span><span>65 MB the file</span></div>
+    </div>
+
+    <ol class="pipe reveal">
+      <li><span class="mono">01</span><h3>You pick a spot</h3><p>A click on the map, coordinates or a name.</p></li>
+      <li><span class="mono">02</span><h3>Find the exposures</h3><p>The archive lists every SPHEREx image that covers it.</p></li>
+      <li><span class="mono">03</span><h3>Read only the bytes</h3><p>Four range requests per file from the public AWS mirror.</p></li>
+      <li><span class="mono">04</span><h3>Clean and align</h3><p>Mask bad pixels, subtract the sky, resample north-up.</p></li>
+      <li><span class="mono">05</span><h3>Keep it</h3><p>Cached on disk: under one second the next time.</p></li>
+      <li><span class="mono">06</span><h3>Play it</h3><p>Epochs, colour and the movie, drawn in your browser.</p></li>
+    </ol>
+
+    <div class="pillars">
+      <div class="pillar reveal"><h3>No AI inside</h3><p>No machine-learning model runs in the product. Every image is NASA SPHEREx data processed by documented arithmetic, and every reading cites its rule.</p></div>
+      <div class="pillar reveal"><h3>The same pixels</h3><p>A cutout read by range requests is identical, pixel for pixel, to one cut from the full download. The speed costs nothing in accuracy.</p></div>
+      <div class="pillar reveal"><h3>No framework</h3><p>The viewer is plain HTML, CSS and JavaScript with no build step. The server is one FastAPI process with its own workers.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== api -->
+<section class="api" id="api">
+  <div class="wrap apigrid">
+    <header class="sechead reveal">
+      <p class="kicker"><span>04</span> API</p>
+      <h2>One URL, <em>one picture.</em></h2>
+      <p>Every view is an address, and every picture and measurement has an endpoint. Link it, embed it or fetch it from your own code. Reading is open to any page: no key, no account.</p>
+      <div class="cta">
+        <a class="btn primary" href="/docs">API explorer <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+        <a class="btn ghost" href="https://github.com/Vanilla-Sphere/sphere-blink/blob/main/docs/api-reference.md" target="_blank" rel="noopener">API reference</a>
+      </div>
+    </header>
+    <div class="term reveal" role="group" aria-label="Example addresses">
+      <div class="chrome"><i></i><i></i><i></i><span class="mono">GET https://vanillasphere.com</span></div>
+      <ul class="mono">
+        <li><a href="/sky?target=barnard&amp;fov=8"><b>/sky</b>?target=<i>barnard</i>&amp;fov=<i>8</i></a><span>a view</span></li>
+        <li><a href="/api/movie.gif?target=barnard&amp;fov=8&amp;group=visit"><b>/api/movie.gif</b>?target=<i>barnard</i>&amp;fov=<i>8</i>&amp;group=<i>visit</i></a><span>its movie</span></li>
+        <li><a href="/api/frame.png?target=barnard&amp;fov=8&amp;i=-1"><b>/api/frame.png</b>?target=<i>barnard</i>&amp;fov=<i>8</i>&amp;i=<i>-1</i></a><span>one frame</span></li>
+        <li><a href="/api/spectrum?target=R%20Dra&amp;wait=60"><b>/api/spectrum</b>?target=<i>R Dra</i>&amp;wait=<i>60</i></a><span>102 colours</span></li>
+        <li><a href="/sky?ra=206.005&amp;dec=-10.763&amp;levels=3"><b>/sky</b>?ra=<i>206.005</i>&amp;dec=<i>-10.763</i>&amp;levels=<i>3</i></a><span>7 × 7 cells</span></li>
+        <li><a href="/api/movers"><b>/api/movers</b></a><span>all that moved</span></li>
+        <li><a href="/api/measured"><b>/api/measured</b></a><span>all measured</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== open source -->
+<section class="open" id="open">
+  <div class="wrap">
+    <header class="sechead reveal">
+      <p class="kicker"><span>05</span> Open source</p>
+      <h2>All of it is public. <em>Read it, run it, check it.</em></h2>
+      <p>The engine, the viewer, the tests and the design documentation, with their full history since the first commit of the hackathon. Licensed AGPL-3.0.</p>
+    </header>
+    <div class="cards three">
+      <a class="card link reveal" href="https://github.com/Vanilla-Sphere/sphere-blink" target="_blank" rel="noopener">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.160 19.490c.500.090.680-.220.680-.480v-1.700c-2.780.600-3.370-1.340-3.370-1.340-.450-1.160-1.110-1.470-1.110-1.470-.910-.620.070-.610.070-.610 1 .070 1.530 1.030 1.530 1.030.890 1.530 2.340 1.090 2.910.830.090-.650.350-1.090.630-1.340-2.220-.250-4.550-1.110-4.550-4.940 0-1.090.390-1.980 1.030-2.680-.100-.250-.450-1.270.100-2.650 0 0 .840-.270 2.750 1.020a9.560 9.560 0 0 1 5 0c1.910-1.290 2.750-1.020 2.750-1.020.550 1.380.200 2.400.100 2.650.640.700 1.030 1.590 1.030 2.680 0 3.840-2.340 4.680-4.570 4.930.360.310.680.920.680 1.850v2.740c0 .270.180.580.690.480A10 10 0 0 0 12 2z"/></svg>
+        <h3>Source code</h3>
+        <p>Vanilla-Sphere/sphere-blink on GitHub. Python and plain JavaScript, with tests that run on every change.</p>
+        <span class="more">github.com/Vanilla-Sphere <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></span>
+      </a>
+      <a class="card link reveal" href="https://github.com/Vanilla-Sphere/sphere-blink/blob/main/docs/science/README.md" target="_blank" rel="noopener">
+        <svg class="ico line" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19 8 9l4 6 3.500-11L21 19"/></svg>
+        <h3>Science and algorithms</h3>
+        <p>How the blind search links detections, how the stack is scored, how a redshift is read off the lines, and where each method stops.</p>
+        <span class="more">Read the methods <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></span>
+      </a>
+      <a class="card link reveal" href="https://github.com/Vanilla-Sphere/sphere-blink/tree/main/docs" target="_blank" rel="noopener">
+        <svg class="ico line" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h10l4 4v14H5zM15 3v4h4M8.500 12h7M8.500 16h7"/></svg>
+        <h3>Design documentation</h3>
+        <p>Architecture with diagrams, the imaging engine, the measurement pipeline, performance, security and every endpoint.</p>
+        <span class="more">Browse the docs <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== team and credits -->
+<section class="team" id="team">
+  <div class="wrap teamgrid">
+    <div class="plate reveal">
+      <svg viewBox="0 0 64 80" aria-hidden="true"><circle cx="32" cy="27" r="22" fill="none" stroke="currentColor" stroke-width="1.500"/><circle cx="32" cy="27" r="17" fill="none" stroke="currentColor" stroke-width=".750" stroke-dasharray="1.500 3"/><path d="M18 45 12 76l20-10 20 10-6-31" fill="none" stroke="currentColor" stroke-width="1.500"/><text x="32" y="36" text-anchor="middle">2</text></svg>
+      <p class="label mono">2026 NASA Space Apps Challenge <b>·</b> Hanoi</p>
+      <h2>Second prize.</h2>
+      <p>Built by team Vanilla Sphere in the two days of the hackathon, for the challenge “Planet X and SPHEREx”.</p>
+      <a class="more" href="https://www.youtube.com/watch?v=Nhfgcw2geB4" target="_blank" rel="noopener">Watch the team's video <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+    </div>
+    <div class="credits reveal">
+      <p class="label mono">Data and credits</p>
+      <ul>
+        <li><b>Images</b> NASA SPHEREx Level 2 spectral images (DR1, QR3), from the NASA/IPAC Infrared Science Archive and its AWS Open Data mirror.</li>
+        <li><b>Catalogues</b> ESA Gaia DR3, CatWISE2020, SIMBAD (CDS), NED, IMCCE SkyBoT and NASA/JPL ephemerides.</li>
+        <li><b>Sky map</b> d3-celestial by Olaf Frohn; the 2MASS near-infrared atlas (UMass and IPAC/Caltech, funded by NASA and NSF) behind the zoomed-in map.</li>
+        <li><b>Built with</b> an AI assistant, Claude (Anthropic), under the team's direction and review. No AI runs inside the product. <a href="https://github.com/Vanilla-Sphere/sphere-blink#use-of-ai-tools" target="_blank" rel="noopener">The full disclosure</a></li>
+      </ul>
+      <p class="fine">Vanilla Sphere is an independent project built on public NASA data. It is not affiliated with or endorsed by NASA.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== last call -->
+<section class="last">
+  <img class="lastbg" src="/static/landing/last-sky.webp" width="1080" height="820" loading="lazy" alt="" aria-hidden="true">
+  <div class="wrap">
+    <h2 class="reveal">Pick a spot in the sky<span class="blinkmark" aria-hidden="true"><i></i><i></i></span></h2>
+    <p class="reveal">The whole infrared sky, 102 colours deep, a click away.</p>
+    <div class="cta reveal">
+      <a class="btn primary big" href="/sky">Open the sky map <svg class="arr" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.500 4l4 4-4 4"/></svg></a>
+      <a class="btn ghost big" href="https://github.com/Vanilla-Sphere/sphere-blink" target="_blank" rel="noopener">Star it on GitHub</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap footgrid">
+    <a class="brand" href="/" aria-label="Vanilla Sphere">
+      <svg viewBox="0 0 64 64" width="22" height="22" aria-hidden="true"><path d="M11.5 21 32 60l20.500-39" fill="none" stroke="var(--gold)" stroke-width="4" stroke-miterlimit="10"/><circle cx="32" cy="19" r="13" fill="var(--violet)"/></svg>
+      <span>Vanilla Sphere</span>
+    </a>
+    <nav aria-label="Links">
+      <a href="/sky">Sky map</a>
+      <a href="/docs">API</a>
+      <a href="https://github.com/Vanilla-Sphere/sphere-blink" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://www.youtube.com/@VanillaSphere" target="_blank" rel="noopener">YouTube</a>
+      <a href="https://github.com/Vanilla-Sphere/sphere-blink/tree/main/docs" target="_blank" rel="noopener">Docs</a>
+      <a href="https://github.com/Vanilla-Sphere/sphere-blink/blob/main/LICENSE" target="_blank" rel="noopener">AGPL-3.0</a>
+    </nav>
+    <p class="mono">© 2026 Vanilla Sphere <b>·</b> SPHEREx data: NASA/JPL-Caltech/IPAC</p>
+  </div>
+</footer>
+</body>
+</html>
