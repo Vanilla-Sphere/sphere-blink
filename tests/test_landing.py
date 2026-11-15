@@ -105,17 +105,69 @@ def test_the_links_of_the_first_page_lead_somewhere():
             assert set(keys) <= set(main.VIEW_KEYS), href
         else:
             assert href == "/" or href.startswith(("/docs", "/api/", "https://github.com/Vanilla-Sphere/sphere-blink",
-                                                   "https://www.youtube.com/watch?v=Nhfgcw2geB4", "https://www.youtube.com/@VanillaSphere")), href
+                                                   "https://www.youtube.com/watch?v=Nhfgcw2geB4", "https://www.youtube.com/@VanillaSphere",
+                                                   "https://github.com/solomonerous")), href   # the last: "Get in touch"
     assert views >= 12 and PAGE.count('href="/sky"') >= 3  # the way into the viewer, top, first screen and end
 
 
 def test_the_typefaces_can_write_the_first_page():
-    """Hanken Grotesk and Geist Mono have no sigma, no arrows and not every
-    Vietnamese letter; a letter from another typeface in the middle of a line
-    shows. The page writes "sigma" and "Hanoi" and draws its arrows."""
+    """Hanken Grotesk and Geist Mono have no sigma, no arrows and no Vietnamese
+    letters; a letter from another typeface in the middle of a line shows. The
+    page writes "sigma", draws its arrows, and writes the names of the team
+    without their marks, as the team's English material does."""
     text = re.sub(r"<[^>]+>", " ", PAGE)
-    for letter in "σ→←↗↓★ộ":
+    for letter in "σ→←↗↓★":
         assert letter not in text, letter
+    vietnamese = lambda ch: 0x0102 <= ord(ch) <= 0x0103 or 0x0110 <= ord(ch) <= 0x0111 or 0x01A0 <= ord(ch) <= 0x01B0 or 0x1EA0 <= ord(ch) <= 0x1EF9
+    assert not [ch for ch in text if vietnamese(ch)]
+
+
+def test_the_team_is_named_with_what_each_one_did():
+    """Five members, each with a name and a role; where one works or studies is
+    a third, smaller line that a member may not have."""
+    people = re.search(r'<ol class="people[^>]*>(.*?)</ol>', PAGE, re.S).group(1)
+    rows = re.findall(r"<li>(.*?)</li>", people, re.S)
+    assert len(rows) == 5
+    names = [re.search(r"<b>([^<]+)</b>", row).group(1) for row in rows]
+    assert len(set(names)) == 5 and all(name.isascii() for name in names)
+    assert all(re.search(r"<i>[^<]+</i>", row) for row in rows)
+    assert all(len(re.findall(r"<small>[^<]+</small>", row)) <= 1 for row in rows)
+
+
+def test_the_page_says_how_to_reach_the_team():
+    """A reader can write to the team's lead. The email address is not in the
+    page as an address (a harvester reading the markup collects nothing):
+    it comes in two halves, which landing.js joins into the link."""
+    block = re.search(r'<aside class="contact[^>]*id="contact"[^>]*>(.*?)</aside>', PAGE, re.S).group(1)
+    mail = re.search(r'<a id="mail" href="#contact" data-name="([\w.+-]+)" data-host="([\w.-]+)"', block)
+    assert mail and "mailto:" not in PAGE and f"{mail.group(1)}@" not in PAGE
+    js = (WEB / "landing.js").read_text()
+    assert '$("mail")' in js and '"mailto:"' in js
+    assert 'href="https://github.com/' in block and 'href="#contact"' in PAGE.split("<footer")[1]
+
+
+def test_the_sky_of_the_first_page_is_a_photograph():
+    """Behind the page is the sky as SPHEREx sees it, not a drawing: files of
+    ours, credited on the page. It is one layer fixed behind everything, so
+    it is there for the whole page and not only for the first screen."""
+    for name, size in (("sky-milky-way", 400_000), ("sky-milky-way-m", 150_000), ("sky-orion", 250_000), ("sky-rho-oph", 300_000)):
+        assert f"/static/landing/{name}.webp" in PAGE, name
+        assert 20_000 < (WEB / "landing" / f"{name}.webp").stat().st_size < size, name
+    assert "<canvas class=\"sky\"" not in PAGE and "NASA/JPL-Caltech/IPAC" in PAGE
+    assert "1.25, 2.19 and 3.29" in PAGE  # the three colours, as scripts/landing_sky.py takes them
+    assert "FRAMES = (62, 46, 22)" in (WEB.parent / "scripts" / "landing_sky.py").read_text()
+    sky = re.search(r'<div class="pagesky" id="pagesky"[^>]*>(.*?)</div>', PAGE, re.S)
+    assert sky and sky.start() < PAGE.index("<main>")
+    css = (WEB / "landing.css").read_text()
+    assert re.search(r"\.pagesky\{position:fixed;[^}]*z-index:-1", css)
+    # one sky is in the page as it comes; the others wait for their part of the page, which must exist
+    assert len(re.findall(r"<img[^>]* src=", sky.group(1))) == 1
+    later = re.findall(r'<img[^>]* data-src="/static/landing/([\w.-]+)" data-from="(\w+)"', sky.group(1))
+    assert len(later) == 2
+    for name, part in later:
+        assert (WEB / "landing" / name).is_file() and f'id="{part}"' in PAGE, (name, part)
+    # every part of the page between the first and the last screen lays the same veil over the sky
+    assert re.search(r"--veil:\d+%", css) and css.count("var(--veil)") >= 4
 
 
 def test_the_viewer_knows_its_new_address():

@@ -7,9 +7,11 @@
    from another site (guard.CSP). */
 
 @font-face{font-family:"Hanken Grotesk";src:url(/static/fonts/HankenGrotesk.woff2) format("woff2");font-weight:400 600;font-style:normal;font-display:swap}
+/* the Vietnamese letters of the same face, fetched only by a page that writes them (the names of the team) */
 @font-face{font-family:"Geist Mono";src:url(/static/fonts/GeistMono.woff2) format("woff2");font-weight:400 500;font-style:normal;font-display:swap}
 
 :root{
+  --veil:72%;
   --paper:oklch(9% 0.012 290); --paper-2:oklch(12.5% 0.014 290); --paper-3:oklch(6.5% 0.010 290); --lift:oklch(16% 0.017 290);
   --ink:oklch(94% 0.010 80); --ink-2:oklch(84% 0.011 80); --muted:oklch(68% 0.012 80); --muted-2:oklch(50% 0.010 80);
   --rule:oklch(25% 0.016 290); --rule-2:oklch(16% 0.013 290);
@@ -65,12 +67,21 @@ a:hover>.arr,.card.link:hover .arr{transform:translateX(4px)}
 
 /* ------------------------------------------------------------------ hero */
 .hero{position:relative;min-height:100vh;min-height:100svh;display:flex;flex-direction:column;overflow:hidden;border-bottom:1px solid var(--rule)}
-.sky{position:absolute;inset:0;width:100%;height:100%}
+/* The sky behind the page is a photograph, and it stays where it is while the page moves over it: the
+   Milky Way, then Rho Ophiuchi from the tour on, then Orion from "Open source" on (landing.js changes
+   them), all cut from the SPHEREx all-sky map (scripts/landing_sky.py). Each part of the page lays a
+   veil of the page colour over it (--veil); the first and the last screen let it through. */
+.pagesky{position:fixed;inset:0 0 auto;height:100vh;height:100lvh;z-index:-1;overflow:hidden;pointer-events:none;animation:skyin 1.6s var(--out) both}
+.pagesky img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:70% 62%;opacity:0;transform:translate3d(calc(var(--px,0) * -16px),calc(var(--py,0) * -10px),0) scale(1.06);transition:transform 1.2s var(--out),opacity 1.8s ease}
+.pagesky img.on{opacity:1}
+.pagesky .rho{object-position:58% 45%}
+.pagesky .orion{object-position:30% 55%}
+@keyframes skyin{from{opacity:0}to{opacity:1}}
 .glow{position:absolute;inset:0;pointer-events:none;background:
-  radial-gradient(52% 58% at 78% 42%,color-mix(in oklab,var(--violet) 26%,transparent),transparent 70%),
-  radial-gradient(34% 40% at 96% 86%,color-mix(in oklab,var(--pink) 16%,transparent),transparent 70%),
-  radial-gradient(40% 46% at 4% 96%,color-mix(in oklab,var(--gold) 9%,transparent),transparent 70%),
-  linear-gradient(180deg,transparent 60%,var(--paper))}
+  linear-gradient(90deg,color-mix(in oklab,var(--paper) 70%,transparent) 0%,color-mix(in oklab,var(--paper) 52%,transparent) 34%,color-mix(in oklab,var(--paper) 12%,transparent) 64%,transparent 100%),
+  linear-gradient(180deg,color-mix(in oklab,var(--paper) 62%,transparent) 0%,transparent 20%,transparent 80%,color-mix(in oklab,var(--paper) 70%,transparent) 100%)}
+.skycredit{position:relative;align-self:flex-end;margin:0 var(--gutter) 10px;font-size:10.5px;letter-spacing:.02em;color:color-mix(in oklab,var(--ink) 62%,transparent);text-shadow:0 0 8px var(--paper),0 0 2px var(--paper)}
+.skycredit b{font-weight:400;opacity:.6;margin-inline:.3em}
 .herogrid{position:relative;flex:1;display:grid;grid-template-columns:minmax(0,1.18fr) minmax(0,.82fr);gap:clamp(32px,5vw,80px);align-items:center;padding-block:calc(var(--nav-h) + clamp(28px,6vh,72px)) clamp(36px,6vh,72px)}
 .eyebrow{display:flex;flex-wrap:wrap;align-items:center;gap:0 10px;font:500 12.5px/1.6 var(--measure);color:var(--muted)}
 .eyebrow b{color:var(--muted-2);font-weight:400}
@@ -106,7 +117,7 @@ h1{margin-top:22px;font-size:clamp(46px,min(7.3vw,12.5vh),132px);line-height:.93
 .finder .lens img.on{opacity:1}
 .finder:hover .corner.tl{transform:translate(-5px,-5px)}.finder:hover .corner.tr{transform:translate(5px,-5px)}
 .finder:hover .corner.bl{transform:translate(-5px,5px)}.finder:hover .corner.br{transform:translate(5px,5px)}
-.finderbar{display:flex;align-items:center;gap:12px;margin-top:12px}
+.finderbar{padding:6px 12px 6px 0;background:color-mix(in oklab,var(--paper) 72%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);display:flex;align-items:center;gap:12px;margin-top:12px}
 .play{width:36px;height:36px;flex:none;display:grid;place-items:center;border:1px solid var(--rule);background:var(--paper-2);transition:border-color .2s,background .2s}
 .play:hover{border-color:var(--violet);background:var(--lift)}
 .play svg{width:14px;height:14px;fill:var(--ink)}
@@ -118,7 +129,7 @@ h1{margin-top:22px;font-size:clamp(46px,min(7.3vw,12.5vh),132px);line-height:.93
 .visits button:hover::after{background:var(--muted-2)}
 .visits button.on::after{background:var(--violet);height:7px;margin-top:-3.5px;box-shadow:0 0 14px var(--violet)}
 .finderbar output{font-size:12px;color:var(--muted);white-space:nowrap}
-.finder figcaption{margin-top:12px;font-size:13.5px;line-height:1.5;color:var(--muted);text-wrap:pretty}
+.finder figcaption{margin-top:10px;padding:12px 14px;border:1px solid var(--rule);background:color-mix(in oklab,var(--paper) 72%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);font-size:13.5px;line-height:1.5;color:var(--ink-2);text-wrap:pretty}
 .finder figcaption b{color:var(--ink);font-weight:600}
 .finder figcaption .mono{color:var(--ink-2);font-size:12.5px}
 .finder figcaption a{display:inline-flex;align-items:center;gap:6px;margin-left:4px;color:var(--violet);font-weight:600;white-space:nowrap}
@@ -149,7 +160,9 @@ h1{margin-top:22px;font-size:clamp(46px,min(7.3vw,12.5vh),132px);line-height:.93
 /* ------------------------------------------------------------------ sections */
 section{position:relative}
 .found,.tour,.how,.api,.open,.team{padding-block:clamp(84px,11vw,168px)}
-.tour,.api,.team{background:linear-gradient(180deg,var(--paper-3),var(--paper) 60%);border-block:1px solid var(--rule)}
+.numbers,.film,.found,.how,.open,.foot{background:color-mix(in oklab,var(--paper) var(--veil),transparent)}
+.tour,.api,.team{background:linear-gradient(180deg,color-mix(in oklab,var(--paper-3) calc(var(--veil) + 6%),transparent),color-mix(in oklab,var(--paper) var(--veil),transparent) 60%);border-block:1px solid var(--rule)}
+.last{background:linear-gradient(180deg,color-mix(in oklab,var(--paper) var(--veil),transparent),color-mix(in oklab,var(--paper) 12%,transparent) 30%,color-mix(in oklab,var(--paper) 12%,transparent) 72%,color-mix(in oklab,var(--paper) var(--veil),transparent))}
 .sechead{max-width:900px}
 .kicker{display:flex;align-items:center;gap:12px;font:500 12.5px/1 var(--measure);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
 .kicker span{color:var(--violet)}
@@ -173,7 +186,7 @@ a.more:hover,.card.link:hover .more{color:var(--violet-hi)}
 .player{position:relative;aspect-ratio:16/9;background:var(--paper-3);border:1px solid var(--rule);box-shadow:0 50px 160px -50px color-mix(in oklab,var(--violet) 65%,transparent),0 0 0 1px color-mix(in oklab,var(--violet) 16%,transparent)}
 .player iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .poster{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden}
-.poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.8;transition:transform 1.6s var(--out),opacity .4s}
+.poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:1;filter:brightness(1.3) saturate(1.1);transition:transform 1.6s var(--out),opacity .4s}
 .poster::after{content:"";position:absolute;inset:0;background:radial-gradient(60% 70% at 50% 50%,transparent,color-mix(in oklab,var(--paper) 78%,transparent)),linear-gradient(180deg,transparent 55%,var(--paper-3))}
 .poster:hover img{transform:scale(1.05);opacity:1}
 .playbtn{position:relative;z-index:1;width:clamp(64px,7vw,96px);aspect-ratio:1;display:grid;place-items:center;background:var(--violet);box-shadow:0 0 0 10px color-mix(in oklab,var(--violet) 22%,transparent),0 20px 80px -10px var(--violet);transition:transform .3s var(--out),background .2s,box-shadow .3s}
@@ -303,13 +316,34 @@ input[type=range]::-moz-range-thumb{width:11px;height:21px;background:var(--gold
 .term li>span{font-size:11.5px;color:var(--muted-2)}
 
 /* ------------------------------------------------------------------ team and credits */
+.teamtop{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);grid-template-areas:"head people" "contact people";grid-template-rows:auto 1fr;column-gap:clamp(28px,5vw,80px);row-gap:clamp(28px,3.4vw,48px);align-items:start}
+.teamtop .sechead{grid-area:head}
+.teamtop .people{grid-area:people}
+.contact{grid-area:contact;max-width:30em}
+.contact>p:not(.label){margin-top:12px;font-size:15.5px;line-height:1.55;color:var(--muted);text-wrap:pretty}
+.contact ul{margin-top:18px;border-top:1px solid var(--rule)}
+.contact a{display:grid;grid-template-columns:5.2em minmax(0,1fr) auto;align-items:baseline;gap:0 10px;padding:13px 0;border-bottom:1px solid var(--rule);color:var(--ink);transition:color .2s,border-color .2s}
+.contact a span{font-size:11.5px;letter-spacing:.06em;color:var(--violet)}
+.contact a b{font-size:16px;font-weight:500;letter-spacing:-.01em;overflow-wrap:anywhere}
+.contact a i{font-style:normal;color:var(--muted)}
+.contact a .arr{align-self:center;color:var(--muted);transition:transform .25s var(--out),color .2s}
+.contact a:hover{color:var(--violet-hi);border-bottom-color:var(--violet)}
+.contact a:hover .arr{color:var(--violet-hi);transform:translateX(3px)}
+.people{border-top:1px solid var(--rule)}
+.people li{display:grid;grid-template-columns:2.8em minmax(0,1fr) auto;grid-template-areas:"n name role" ". org org";align-items:baseline;padding:20px 0 21px;border-bottom:1px solid var(--rule);transition:background .3s}
+.people li:hover{background:linear-gradient(90deg,transparent,color-mix(in oklab,var(--violet) 7%,transparent))}
+.people span{grid-area:n;font-size:12px;color:var(--violet)}
+.people b{grid-area:name;font-size:clamp(21px,2vw,29px);line-height:1.15;letter-spacing:-.028em;font-weight:500;color:var(--ink)}
+.people i{grid-area:role;padding-left:18px;font-style:normal;font-size:15px;color:var(--ink-2);text-align:right}
+.people small{grid-area:org;margin-top:5px;font-size:13px;line-height:1.4;color:var(--muted)}
+.team .teamgrid{margin-top:clamp(48px,7vw,104px)}
 .teamgrid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(28px,5vw,80px);align-items:start}
 .plate{padding:clamp(24px,3.4vw,48px);border:1px solid color-mix(in oklab,var(--gold) 40%,transparent);background:radial-gradient(120% 90% at 0% 0%,color-mix(in oklab,var(--gold) 12%,transparent),transparent 60%);color:var(--gold)}
-.plate svg{width:64px;height:80px}
+.plate svg:not(.arr){width:64px;height:80px}
 .plate text{font-size:24px}
 .plate .label{margin-top:26px;color:var(--gold)}
 .plate h2{margin-top:12px;background:linear-gradient(100deg,var(--gold),var(--ink) 130%);-webkit-background-clip:text;background-clip:text;color:transparent}
-.plate>p:last-child{margin-top:16px;font-size:16.5px;color:var(--ink-2);max-width:26em}
+.plate>p:not(.label){margin-top:16px;font-size:16.5px;color:var(--ink-2);max-width:26em}
 .credits ul{margin-top:14px;border-bottom:1px solid var(--rule)}
 .credits li{padding:14px 0;border-top:1px solid var(--rule);font-size:15px;color:var(--muted);text-wrap:pretty}
 .credits li b{display:inline-block;min-width:6.2em;font-weight:600;color:var(--ink)}
@@ -318,7 +352,6 @@ input[type=range]::-moz-range-thumb{width:11px;height:21px;background:var(--gold
 
 /* ------------------------------------------------------------------ last call */
 .last{padding-block:clamp(110px,16vw,230px);text-align:center;overflow:hidden}
-.lastbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.62;-webkit-mask-image:radial-gradient(70% 75% at 50% 50%,#000 10%,transparent 78%);mask-image:radial-gradient(70% 75% at 50% 50%,#000 10%,transparent 78%)}
 .last .wrap{position:relative}
 .last h2{margin:0;font-size:clamp(44px,7.6vw,118px);letter-spacing:-.05em;line-height:.95;text-shadow:0 0 60px var(--paper)}
 .last p{margin-top:22px;font-size:clamp(17px,1.5vw,21px);color:var(--ink-2);text-shadow:0 0 20px var(--paper),0 0 40px var(--paper)}
@@ -362,7 +395,13 @@ input[type=range]::-moz-range-thumb{width:11px;height:21px;background:var(--gold
   .num{border-left:0;border-top:1px solid var(--rule);padding-inline:0 16px}
   .num:nth-child(-n+2){border-top:0}
   .num:nth-child(5){grid-column:1/-1}
-  .feature,.feature.flip,.apigrid,.teamgrid,.filmgrid{grid-template-columns:minmax(0,1fr)}
+  .feature,.feature.flip,.apigrid,.teamgrid,.teamtop,.filmgrid{grid-template-columns:minmax(0,1fr)}
+  .teamtop{grid-template-areas:"head" "people" "contact";grid-template-rows:auto}
+  .contact{max-width:none}
+  /* the words and the picture share the column: the veil is even, the galaxy sits low */
+  .pagesky picture img{object-position:60% 100%}
+  .glow{background:linear-gradient(180deg,color-mix(in oklab,var(--paper) 66%,transparent) 0%,color-mix(in oklab,var(--paper) 52%,transparent) 40%,color-mix(in oklab,var(--paper) 14%,transparent) 76%,color-mix(in oklab,var(--paper) 60%,transparent) 100%)}
+  .skycredit{align-self:flex-start;max-width:34em}
   .feature.flip .shot{order:0}
   .cards{grid-template-columns:minmax(0,1fr)}
   .card{margin-left:0;margin-top:-1px}
@@ -380,6 +419,9 @@ input[type=range]::-moz-range-thumb{width:11px;height:21px;background:var(--gold
   .step img.tall{max-height:70vh;width:auto;max-width:100%}
 }
 @media (max-width:560px){
+  .people li{grid-template-columns:2.4em minmax(0,1fr);grid-template-areas:"n name" ". role" ". org";padding:16px 0 17px}
+  .people i{margin-top:5px;padding-left:0;font-size:14.5px;text-align:left}
+  .people small{margin-top:3px}
   .btn.big{height:50px;padding:0 20px;font-size:15.5px;flex:1}
   .nav .btn{padding:0 12px}
   .award{font-size:13px}

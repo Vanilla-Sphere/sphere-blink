@@ -553,32 +553,60 @@ cannot break the other.
 
 | Part | What it shows |
 | --- | --- |
+| The sky behind the page | A photograph that stays in place while the page moves over it, and changes with the part being read: the Milky Way, then Rho Ophiuchi from the tour on, then Orion from "Open source" on, all cut from the SPHEREx all-sky map (see below). The first and the last screen show it nearly bare; every other part lays a veil of the page colour over it |
 | First screen | The claim, the buttons, the second prize, and six real frames of Barnard's Star blinked one after the other (`landing/barnard-0..5.webp`, the answers of `/api/frame.png?target=barnard&fov=8&group=visit&i=0..5&size=640`) |
 | Video | The team's video on YouTube (`@VanillaSphere`). The picture with the play button is ours; the player (`www.youtube-nocookie.com`, the one frame `guard.CSP` allows) replaces it only when play is pressed, so YouTube hears of a visitor only then. Without the script the picture is a link to the video |
 | Numbers, "What it found" | The results of the README, each with what it was checked against and a link to its live view |
 | Shift-and-stack | A drawing with simulated noise, labelled as such: a source too faint for one exposure, added along its path |
 | Tour | Six screenshots of the live site; on a wide screen they share one frame that stays in place while the text scrolls |
-| How it works, API, open source, credits | Text, with links to `/docs`, the repository and its documentation |
+| How it works, API, open source | Text, with links to `/docs`, the repository and its documentation |
+| The team, credits | The five members of the team, one to a line: name, what each one did, and in small letters where each one works or studies. Beside it "Get in touch": how to write to the team's lead (email, GitHub). The email address is in the page in two halves without its sign, and `landing.js` joins them into the link, so that a harvester reading the markup collects nothing. Then the second prize, and where the data and the pictures come from |
+| Last screen | The call to open the sky map, with the veil drawn back from the sky |
 
 Rules it keeps:
 
 - It asks the server for nothing but its own files: no `/api/` call is made
   when the page opens, so a visitor who only reads it costs the engine
-  nothing. The pictures are files of `web/landing/` (WebP, about 0.9 MB in
-  all, fetched as they are reached).
+  nothing. The pictures are files of `web/landing/` (WebP, about 1.7 MB in
+  all; the sky behind the first screen is fetched at once, 0.30 MB on a
+  wide screen and 0.11 MB on a phone, the rest as it is reached: the two
+  other skies when their part of the page is about two windows away).
 - Nothing comes from another site before the visitor asks for it (the video
   player, on play), and there is no inline script: the page is held to the
   same policy as the viewer (`guard.CSP`).
 - Every number on it is one of `README.md` or `docs/`. Change them together.
-- The typefaces have no sigma, no "ộ" and no arrows: sigma is written out,
-  the city is "Hanoi", arrows are small drawings.
+- The typefaces have no sigma, no arrows and no Vietnamese letters: sigma is
+  written out, arrows are small drawings, and the names of the team are
+  written without their marks, as in the team's English material ("Hanoi",
+  "Kim Duc Minh").
 - It has its own version number on its two assets (`landing.css?v=N`,
-  `landing.js?v=N`, now 2): raise it when either changes.
+  `landing.js?v=N`, now 6): raise it when either changes.
 - `tests/test_landing.py` holds it to these rules and keeps the list of view
   parameters of `main.py`, `landing.js` and the viewer the same.
 
 The picture shown when the address is shared (`landing/og.png`, 1200 x 630)
 is a capture of the first screen; take it again when the first screen changes.
+
+**The photographs of the sky.** `landing/sky-milky-way.webp` (and `-m` for
+phones), `sky-orion.webp` and `sky-rho-oph.webp` are cut from the SPHEREx DR1
+all-sky map that NASA/IPAC IRSA publishes as a HiPS cube
+(`irsa.ipac.caltech.edu/data/hips/SPHEREx/spherex_allsky_cube`, one frame for
+each of the 102 colours; credit NASA/JPL-Caltech/IPAC). Three frames make the
+colours: 3.29 µm red, 2.19 µm green, 1.25 µm blue, with the stretch the map
+comes in. `scripts/landing_sky.py` makes them again; its head has the four
+commands. Two things are changed in the pixels and nothing else: the black
+point is raised a little, and what one colour alone shows far from its
+surroundings (the trail of a planet that moved between the exposures of
+different colours, saturated pixels at the Galactic centre) is filled from
+around it. Nothing is drawn onto the photograph.
+
+The sky is one layer fixed behind the page (`.pagesky`), not a background
+of each part, so it does not move with the text. `landing.js` shows the
+picture whose part of the page (`data-from`) has come two fifths up the
+window, with a slow fade; without the script the Milky Way stays for the
+whole page. What keeps the words readable is the veil each part lays over
+it: `--veil` in `landing.css` (72 % of the page colour), `.glow` on the
+first screen. Raise `--veil` and the sky dims everywhere at once.
 
 ## Conventions for changes
 

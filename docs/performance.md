@@ -304,6 +304,48 @@ worst case stays 7.0 GB whatever the table holds. Raising one lowers the
 frames kept. Measure again before raising the sum itself (the environment
 variables of `render.yaml`).
 
+## Memory after a busy hour
+
+On 2026-11-15 the service stood at 7.7 of 8 GB after an hour with many
+visitors and stayed there when it was idle again. `memory` in `/api/health`
+showed that this was memory really held, not file cache. The frames kept for
+finished views explain 2 GB of it (`SPHEREX_RAM_BUDGET_MB`); most of the rest
+was memory the processes had already freed. The C library keeps freed memory
+inside the heap of the process for its next request and returns it to the
+system only from the top of the heap, so a worker process that had cut a
+7 x 7 field went on holding several hundred megabytes for as long as it lived.
+
+Each process of the service (the web process, the four that cut exposures,
+the measuring processes and the mover search) now gives its freed pages back
+with `malloc_trim` (`memory.keep_trimmed`): every 15 s in which it has worked,
+and once more after its work has ended. An idle process is left alone.
+`SPHEREX_TRIM_S` sets the interval; `0` switches it off.
+
+Measured on a 4-core machine on 2026-11-15 (not in production), with the
+limits of production: four 7 x 7 fields loaded one after the other, each with
+its mover search, then two minutes idle; and six measurements, then idle.
+
+| Held when idle again | Before | Now |
+| --- | --- | --- |
+| The service, after four 7 x 7 fields | 3989 MB | 3114 MB |
+| of which the web process (2000 MB of it are kept frames) | 2327 MB | 2120 MB |
+| of which the four processes that cut exposures | 1525 MB | 878 MB |
+| of which the mover search | 131 MB | 109 MB |
+| The two measuring processes, after six measurements | 326 and 310 MB | 117 and 112 MB |
+
+Nothing else changed: the fields and the movers found in them were the same,
+and so was the speed (a seed cell took 20.2 s of processor before and 21.5 s
+now, its reads 7.9 s and 8.0 s; the next level 33.6 s and 31.9 s, 11.3 s and
+9.6 s: the spread between two runs). One hand-back took about 2 ms.
+`handed_back` in `/api/health` says how often the web process did it, how much
+it gave back and the longest it took.
+
+What it does not recover: a process that cuts exposures settles at 180-300 MB
+after several wide fields, not at the 79 MB it starts with. Pages that still
+hold one small live object cannot be given back. Starting those processes
+afresh now and then would recover that too, at the price of an interruption
+of the views being cut; it was not done.
+
 ## Bottlenecks that remain
 
 | Bottleneck | Share | Possible improvement |
