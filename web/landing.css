@@ -7,6 +7,8 @@
    from another site (guard.CSP). */
 
 @font-face{font-family:"Hanken Grotesk";src:url(/static/fonts/HankenGrotesk.woff2) format("woff2");font-weight:400 600;font-style:normal;font-display:swap}
+/* the Vietnamese letters of the same face, fetched only by a page that writes them (the names of the team) */
+@font-face{font-family:"Hanken Grotesk";src:url(/static/fonts/HankenGrotesk-vietnamese.woff2) format("woff2");font-weight:400 600;font-style:normal;font-display:swap;unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}
 @font-face{font-family:"Geist Mono";src:url(/static/fonts/GeistMono.woff2) format("woff2");font-weight:400 500;font-style:normal;font-display:swap}
 
 :root{
@@ -65,12 +67,17 @@ a:hover>.arr,.card.link:hover .arr{transform:translateX(4px)}
 
 /* ------------------------------------------------------------------ hero */
 .hero{position:relative;min-height:100vh;min-height:100svh;display:flex;flex-direction:column;overflow:hidden;border-bottom:1px solid var(--rule)}
-.sky{position:absolute;inset:0;width:100%;height:100%}
+/* The sky behind the first screen is a photograph: the Milky Way cut from the SPHEREx all-sky map
+   (scripts/landing_sky.py). The veil over it keeps the left half, where the words are, at the contrast
+   of the rest of the page and lets the galaxy show on the right and along the bottom. */
+.heroimg{position:absolute;inset:0;overflow:hidden}
+.heroimg img{width:100%;height:100%;object-fit:cover;object-position:70% 62%;transform:translate3d(calc(var(--px,0) * -16px),calc(var(--py,0) * -10px),0) scale(1.06);transition:transform 1.2s var(--out);animation:skyin 1.6s var(--out) both}
+@keyframes skyin{from{opacity:0}to{opacity:1}}
 .glow{position:absolute;inset:0;pointer-events:none;background:
-  radial-gradient(52% 58% at 78% 42%,color-mix(in oklab,var(--violet) 26%,transparent),transparent 70%),
-  radial-gradient(34% 40% at 96% 86%,color-mix(in oklab,var(--pink) 16%,transparent),transparent 70%),
-  radial-gradient(40% 46% at 4% 96%,color-mix(in oklab,var(--gold) 9%,transparent),transparent 70%),
-  linear-gradient(180deg,transparent 60%,var(--paper))}
+  linear-gradient(90deg,color-mix(in oklab,var(--paper) 70%,transparent) 0%,color-mix(in oklab,var(--paper) 52%,transparent) 34%,color-mix(in oklab,var(--paper) 12%,transparent) 64%,transparent 100%),
+  linear-gradient(180deg,color-mix(in oklab,var(--paper) 62%,transparent) 0%,transparent 20%,transparent 80%,color-mix(in oklab,var(--paper) 70%,transparent) 100%)}
+.skycredit{position:relative;align-self:flex-end;margin:0 var(--gutter) 10px;font-size:10.5px;letter-spacing:.02em;color:color-mix(in oklab,var(--ink) 62%,transparent);text-shadow:0 0 8px var(--paper),0 0 2px var(--paper)}
+.skycredit b{font-weight:400;opacity:.6;margin-inline:.3em}
 .herogrid{position:relative;flex:1;display:grid;grid-template-columns:minmax(0,1.18fr) minmax(0,.82fr);gap:clamp(32px,5vw,80px);align-items:center;padding-block:calc(var(--nav-h) + clamp(28px,6vh,72px)) clamp(36px,6vh,72px)}
 .eyebrow{display:flex;flex-wrap:wrap;align-items:center;gap:0 10px;font:500 12.5px/1.6 var(--measure);color:var(--muted)}
 .eyebrow b{color:var(--muted-2);font-weight:400}
@@ -106,7 +113,7 @@ h1{margin-top:22px;font-size:clamp(46px,min(7.3vw,12.5vh),132px);line-height:.93
 .finder .lens img.on{opacity:1}
 .finder:hover .corner.tl{transform:translate(-5px,-5px)}.finder:hover .corner.tr{transform:translate(5px,-5px)}
 .finder:hover .corner.bl{transform:translate(-5px,5px)}.finder:hover .corner.br{transform:translate(5px,5px)}
-.finderbar{display:flex;align-items:center;gap:12px;margin-top:12px}
+.finderbar{padding:6px 12px 6px 0;background:color-mix(in oklab,var(--paper) 72%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);display:flex;align-items:center;gap:12px;margin-top:12px}
 .play{width:36px;height:36px;flex:none;display:grid;place-items:center;border:1px solid var(--rule);background:var(--paper-2);transition:border-color .2s,background .2s}
 .play:hover{border-color:var(--violet);background:var(--lift)}
 .play svg{width:14px;height:14px;fill:var(--ink)}
@@ -118,7 +125,7 @@ h1{margin-top:22px;font-size:clamp(46px,min(7.3vw,12.5vh),132px);line-height:.93
 .visits button:hover::after{background:var(--muted-2)}
 .visits button.on::after{background:var(--violet);height:7px;margin-top:-3.5px;box-shadow:0 0 14px var(--violet)}
 .finderbar output{font-size:12px;color:var(--muted);white-space:nowrap}
-.finder figcaption{margin-top:12px;font-size:13.5px;line-height:1.5;color:var(--muted);text-wrap:pretty}
+.finder figcaption{margin-top:10px;padding:12px 14px;border:1px solid var(--rule);background:color-mix(in oklab,var(--paper) 72%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);font-size:13.5px;line-height:1.5;color:var(--ink-2);text-wrap:pretty}
 .finder figcaption b{color:var(--ink);font-weight:600}
 .finder figcaption .mono{color:var(--ink-2);font-size:12.5px}
 .finder figcaption a{display:inline-flex;align-items:center;gap:6px;margin-left:4px;color:var(--violet);font-weight:600;white-space:nowrap}
@@ -173,7 +180,7 @@ a.more:hover,.card.link:hover .more{color:var(--violet-hi)}
 .player{position:relative;aspect-ratio:16/9;background:var(--paper-3);border:1px solid var(--rule);box-shadow:0 50px 160px -50px color-mix(in oklab,var(--violet) 65%,transparent),0 0 0 1px color-mix(in oklab,var(--violet) 16%,transparent)}
 .player iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .poster{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden}
-.poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.8;transition:transform 1.6s var(--out),opacity .4s}
+.poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:1;filter:brightness(1.3) saturate(1.1);transition:transform 1.6s var(--out),opacity .4s}
 .poster::after{content:"";position:absolute;inset:0;background:radial-gradient(60% 70% at 50% 50%,transparent,color-mix(in oklab,var(--paper) 78%,transparent)),linear-gradient(180deg,transparent 55%,var(--paper-3))}
 .poster:hover img{transform:scale(1.05);opacity:1}
 .playbtn{position:relative;z-index:1;width:clamp(64px,7vw,96px);aspect-ratio:1;display:grid;place-items:center;background:var(--violet);box-shadow:0 0 0 10px color-mix(in oklab,var(--violet) 22%,transparent),0 20px 80px -10px var(--violet);transition:transform .3s var(--out),background .2s,box-shadow .3s}
@@ -303,6 +310,12 @@ input[type=range]::-moz-range-thumb{width:11px;height:21px;background:var(--gold
 .term li>span{font-size:11.5px;color:var(--muted-2)}
 
 /* ------------------------------------------------------------------ team and credits */
+.people{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin-top:clamp(36px,5vw,64px);border-top:1px solid var(--rule)}
+.people li{padding:22px 18px 26px 0;border-bottom:1px solid var(--rule)}
+.people li+li{padding-left:18px;border-left:1px solid var(--rule)}
+.people span{display:block;font-size:12px;color:var(--violet)}
+.people b{display:block;margin-top:14px;font-size:clamp(19px,1.7vw,25px);line-height:1.2;letter-spacing:-.02em;font-weight:600;color:var(--ink);text-wrap:balance}
+.team .teamgrid{margin-top:clamp(48px,7vw,104px)}
 .teamgrid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(28px,5vw,80px);align-items:start}
 .plate{padding:clamp(24px,3.4vw,48px);border:1px solid color-mix(in oklab,var(--gold) 40%,transparent);background:radial-gradient(120% 90% at 0% 0%,color-mix(in oklab,var(--gold) 12%,transparent),transparent 60%);color:var(--gold)}
 .plate svg{width:64px;height:80px}
@@ -318,7 +331,7 @@ input[type=range]::-moz-range-thumb{width:11px;height:21px;background:var(--gold
 
 /* ------------------------------------------------------------------ last call */
 .last{padding-block:clamp(110px,16vw,230px);text-align:center;overflow:hidden}
-.lastbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.62;-webkit-mask-image:radial-gradient(70% 75% at 50% 50%,#000 10%,transparent 78%);mask-image:radial-gradient(70% 75% at 50% 50%,#000 10%,transparent 78%)}
+.lastbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:30% 55%;opacity:.9;-webkit-mask-image:linear-gradient(180deg,transparent,#000 22%,#000 74%,transparent);mask-image:linear-gradient(180deg,transparent,#000 22%,#000 74%,transparent)}
 .last .wrap{position:relative}
 .last h2{margin:0;font-size:clamp(44px,7.6vw,118px);letter-spacing:-.05em;line-height:.95;text-shadow:0 0 60px var(--paper)}
 .last p{margin-top:22px;font-size:clamp(17px,1.5vw,21px);color:var(--ink-2);text-shadow:0 0 20px var(--paper),0 0 40px var(--paper)}
@@ -363,6 +376,14 @@ input[type=range]::-moz-range-thumb{width:11px;height:21px;background:var(--gold
   .num:nth-child(-n+2){border-top:0}
   .num:nth-child(5){grid-column:1/-1}
   .feature,.feature.flip,.apigrid,.teamgrid,.filmgrid{grid-template-columns:minmax(0,1fr)}
+  .people{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .people li,.people li+li{padding:18px 14px 20px 0;border-left:0}
+  .people li:nth-child(even){padding-left:14px;border-left:1px solid var(--rule)}
+  .people li:last-child{grid-column:1/-1}
+  /* the words and the picture share the column: the veil is even, the galaxy sits low */
+  .heroimg img{object-position:60% 100%}
+  .glow{background:linear-gradient(180deg,color-mix(in oklab,var(--paper) 66%,transparent) 0%,color-mix(in oklab,var(--paper) 52%,transparent) 40%,color-mix(in oklab,var(--paper) 14%,transparent) 76%,color-mix(in oklab,var(--paper) 60%,transparent) 100%)}
+  .skycredit{align-self:flex-start;max-width:34em}
   .feature.flip .shot{order:0}
   .cards{grid-template-columns:minmax(0,1fr)}
   .card{margin-left:0;margin-top:-1px}

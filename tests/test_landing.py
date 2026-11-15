@@ -110,12 +110,34 @@ def test_the_links_of_the_first_page_lead_somewhere():
 
 
 def test_the_typefaces_can_write_the_first_page():
-    """Hanken Grotesk and Geist Mono have no sigma, no arrows and not every
-    Vietnamese letter; a letter from another typeface in the middle of a line
-    shows. The page writes "sigma" and "Hanoi" and draws its arrows."""
+    """Hanken Grotesk and Geist Mono have no sigma and no arrows; a letter from
+    another typeface in the middle of a line shows. The page writes "sigma"
+    and draws its arrows. Vietnamese letters are written only where the
+    Vietnamese part of Hanken Grotesk is in use: the names of the team."""
     text = re.sub(r"<[^>]+>", " ", PAGE)
-    for letter in "σ→←↗↓★ộ":
+    for letter in "σ→←↗↓★":
         assert letter not in text, letter
+    people = re.search(r'<ol class="people[^>]*lang="vi">(.*?)</ol>', PAGE, re.S).group(1)
+    names = re.findall(r"<b>([^<]+)</b>", people)
+    assert len(names) == 5 and len(set(names)) == 5
+    outside = re.sub(r"<[^>]+>", " ", PAGE.replace(people, ""))
+    covered = lambda ch: 0x0102 <= ord(ch) <= 0x0103 or 0x0110 <= ord(ch) <= 0x0111 or 0x1EA0 <= ord(ch) <= 0x1EF9
+    assert any(covered(ch) for ch in "".join(names))          # the names keep their marks
+    assert not [ch for ch in outside if covered(ch)]          # and nothing in Geist Mono needs them
+    css = (WEB / "landing.css").read_text()
+    face = re.search(r'@font-face\{font-family:"Hanken Grotesk";src:url\(/static/fonts/(HankenGrotesk-vietnamese\.woff2)\)[^}]*unicode-range:([^}]+)\}', css)
+    assert face and "U+1EA0-1EF9" in face.group(2) and (WEB / "fonts" / face.group(1)).stat().st_size > 5000
+
+
+def test_the_sky_of_the_first_page_is_a_photograph():
+    """Behind the first screen, the video and the last screen is the sky as
+    SPHEREx sees it, not a drawing: files of ours, credited on the page."""
+    for name, size in (("sky-milky-way", 400_000), ("sky-milky-way-m", 150_000), ("sky-orion", 250_000), ("sky-rho-oph", 200_000)):
+        assert f"/static/landing/{name}.webp" in PAGE, name
+        assert 20_000 < (WEB / "landing" / f"{name}.webp").stat().st_size < size, name
+    assert "<canvas class=\"sky\"" not in PAGE and "NASA/JPL-Caltech/IPAC" in PAGE
+    assert "1.25, 2.19 and 3.29" in PAGE  # the three colours, as scripts/landing_sky.py takes them
+    assert "FRAMES = (62, 46, 22)" in (WEB.parent / "scripts" / "landing_sky.py").read_text()
 
 
 def test_the_viewer_knows_its_new_address():
