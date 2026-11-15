@@ -68,6 +68,7 @@ const STR = {
     "tip.files.csv": "Every exposure as a table: time, band, archive addresses",
     "tip.about": "What the files are and how they become these pictures", "tip.close": "Close (Esc)",
     "tip.files.irsa": "The SPHEREx pages of the NASA/IPAC archive",
+    "tip.source": "The code of this site, at the version that is running",
     "do.blink.t": "The same place at different dates, played as a movie: whatever moved or changed jumps out",
     "do.movers.t": "A blind search links sources seen in single exposures into paths: the log of every moving object found so far",
     "do.spectrum.t": "The light of one object spread over 102 infrared colours, with an automatic first reading of its bands",

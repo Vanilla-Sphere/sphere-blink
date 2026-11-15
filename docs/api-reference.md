@@ -125,12 +125,18 @@ Errors are JSON of the form `{"detail": "message"}`.
 ### GET /api/health
 
 ```json
-{"ok": true, "collections": ["spherex_dr1", "spherex_qr3"], "instance": "60-1794633151"}
+{"ok": true, "collections": ["spherex_dr1", "spherex_qr3"], "instance": "60-1794633151",
+ "commit": "be4ffb476d50091e7f5ec2022ce636e0e81ec8cd", "memory": {...}}
 ```
 
 `instance` identifies the web process (process id and start time). It must be
 identical on successive calls; differing values mean more than one web process
 is running, which the service does not support.
+
+`commit` is the commit of the repository the service was built from (the host's
+`RENDER_GIT_COMMIT`, or `SPHEREX_COMMIT`), `null` where neither is set. The
+viewer's "Source code" links (credits note, About the data) go to that commit,
+so a visitor gets the source of the version that is running.
 
 `memory` is the memory the container really holds, in MB, read from its own
 accounting (`sphereblink/memory.py`); it is `null` where the container has no
