@@ -105,7 +105,8 @@ def test_the_links_of_the_first_page_lead_somewhere():
             assert set(keys) <= set(main.VIEW_KEYS), href
         else:
             assert href == "/" or href.startswith(("/docs", "/api/", "https://github.com/Vanilla-Sphere/sphere-blink",
-                                                   "https://www.youtube.com/watch?v=Nhfgcw2geB4", "https://www.youtube.com/@VanillaSphere")), href
+                                                   "https://www.youtube.com/watch?v=Nhfgcw2geB4", "https://www.youtube.com/@VanillaSphere",
+                                                   "https://github.com/solomonerous")), href   # the last: "Get in touch"
     assert views >= 12 and PAGE.count('href="/sky"') >= 3  # the way into the viewer, top, first screen and end
 
 
@@ -131,6 +132,18 @@ def test_the_team_is_named_with_what_each_one_did():
     assert len(set(names)) == 5 and all(name.isascii() for name in names)
     assert all(re.search(r"<i>[^<]+</i>", row) for row in rows)
     assert all(len(re.findall(r"<small>[^<]+</small>", row)) <= 1 for row in rows)
+
+
+def test_the_page_says_how_to_reach_the_team():
+    """A reader can write to the team's lead. The email address is not in the
+    page as an address (a harvester reading the markup collects nothing):
+    it comes in two halves, which landing.js joins into the link."""
+    block = re.search(r'<aside class="contact[^>]*id="contact"[^>]*>(.*?)</aside>', PAGE, re.S).group(1)
+    mail = re.search(r'<a id="mail" href="#contact" data-name="([\w.+-]+)" data-host="([\w.-]+)"', block)
+    assert mail and "mailto:" not in PAGE and f"{mail.group(1)}@" not in PAGE
+    js = (WEB / "landing.js").read_text()
+    assert '$("mail")' in js and '"mailto:"' in js
+    assert 'href="https://github.com/' in block and 'href="#contact"' in PAGE.split("<footer")[1]
 
 
 def test_the_sky_of_the_first_page_is_a_photograph():
