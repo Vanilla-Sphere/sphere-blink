@@ -1,5 +1,6 @@
-"""Draws the pictures of the README that are not screenshots: the animated banner, the strip of key numbers
-and the buttons (docs/readme/banner.svg, numbers.svg, btn-*.svg, go-*.svg).
+"""Draws the pictures of the README that are not screenshots: the animated banner, the strip of key numbers,
+the buttons and the pictures of the organisation page (docs/readme/banner.svg, numbers.svg, award.svg, pillars.svg,
+card-*.svg, btn-*.svg, go-*.svg).
 
     pip install fonttools brotli
     python scripts/build_readme_art.py
@@ -210,6 +211,8 @@ ICONS = {  # on a 20 x 20 square; {c} is the colour
            'stroke-linecap="round" stroke-linejoin="round"/>',
     "docs": '<path d="M10 5.2C7.8 3.8 5.2 3.6 2.8 4.4v10.8c2.4-.8 5-.6 7.2.8 2.2-1.4 4.8-1.6 7.2-.8V4.4'
             'c-2.4-.8-5-.6-7.2.8zM10 5.2v10.8" fill="none" stroke="{c}" stroke-width="1.6" stroke-linejoin="round"/>',
+    "source": '<g fill="none" stroke="{c}" stroke-width="1.6" stroke-linecap="round"><circle cx="5.5" cy="4.5" r="2.2"/>'
+              '<circle cx="5.5" cy="15.5" r="2.2"/><circle cx="14.5" cy="7" r="2.2"/><path d="M5.5 6.7v6.6M14.5 9.2c0 3-9 1.8-9 4.1"/></g>',
     "science": '<circle cx="10" cy="10" r="2.3" fill="{c}"/><g fill="none" stroke="{c}" stroke-width="1.4">'
                '<ellipse cx="10" cy="10" rx="8.6" ry="3.6" transform="rotate(-35 10 10)"/>'
                '<ellipse cx="10" cy="10" rx="8.6" ry="3.6" transform="rotate(35 10 10)"/></g>',
@@ -262,6 +265,93 @@ def chip(name: str, kind: str, colour: str) -> str:
             f'</svg>\n')
 
 
+# ------------------------------------------------------------------------------------------------------ the award
+def award() -> str:
+    """The second prize of the Hanoi local event, as a plate with a medal."""
+    W, H = 640, 84
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" aria-label="Second prize, 2026 NASA Space Apps Challenge, Hanoi local event, challenge Planet X and SPHEREx">
+<title>Second prize, 2026 NASA Space Apps Challenge, Hanoi</title>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#17121f"/><stop offset="1" stop-color="#1f1710"/></linearGradient>
+<linearGradient id="au" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7d98f"/><stop offset="1" stop-color="#d99a2b"/></linearGradient>
+<clipPath id="k"><rect width="{W}" height="{H}" rx="16"/></clipPath>
+</defs>
+<style>
+.h{{animation:sh 6s ease-in-out infinite}}
+@keyframes sh{{0%,50%{{transform:skewX(-20deg) translateX(0)}}85%,100%{{transform:skewX(-20deg) translateX({W + 200}px)}}}}
+.m{{transform-origin:46px 36px;animation:sw 4s ease-in-out infinite}}
+@keyframes sw{{0%,100%{{transform:rotate(-4deg)}}50%{{transform:rotate(4deg)}}}}
+@media (prefers-reduced-motion:reduce){{.h,.m{{animation:none}}}}
+</style>
+<rect width="{W}" height="{H}" rx="16" fill="url(#bg)"/>
+<rect x=".75" y=".75" width="{W - 1.5}" height="{H - 1.5}" rx="15.25" fill="none" stroke="{GOLD}" stroke-opacity=".6" stroke-width="1.5"/>
+<g class="m">
+<path d="M34 8h9l7 20h-9zM58 8h-9l-7 20h9z" fill="{VIOLET}"/>
+<circle cx="46" cy="50" r="21" fill="url(#au)"/>
+<circle cx="46" cy="50" r="16.5" fill="none" stroke="#7a5310" stroke-opacity=".55" stroke-width="1.2"/>
+{text(BOLD, "2", 25, 46, 59, "#3a2704", "middle")}
+</g>
+{text(BOLD, "Second prize", 23, 86, 37, GOLD)}
+{text(SANS, "2026 NASA Space Apps Challenge · Hanoi · challenge “Planet X and SPHEREx”", 14, 86, 61, PAPER)}
+<g clip-path="url(#k)"><rect class="h" x="-90" y="-10" width="50" height="{H + 20}" fill="#fff" fill-opacity=".16" transform="skewX(-20)"/></g>
+</svg>
+'''
+
+
+# ------------------------------------------------------------------------------- the three verbs of the team motto
+def pillars() -> str:
+    cells = [
+        ("found", "Explore the sky", ["Any position, every SPHEREx image,", "played as a movie in seconds"], VIOLET),
+        ("source", "Connect the observations", ["Positions, tracks, spectra and", "brightness over time, for any object"], GOLD),
+        ("science", "Discover what moves", ["A blind search, each find checked", "against NASA/JPL predictions"], VIOLET),
+    ]
+    W, H = 1000, 168
+    cw = W / len(cells)
+    parts = []
+    for i, (icon, title, lines, col) in enumerate(cells):
+        cx = cw * i + cw / 2
+        if i:
+            parts.append(f'<line x1="{cw * i:.0f}" y1="34" x2="{cw * i:.0f}" y2="{H - 34}" stroke="{PAPER}" stroke-opacity=".12"/>')
+        parts.append(f'<g class="c" style="animation-delay:{i * 0.2:.2f}s">'
+                     f'<g transform="translate({cx - 15:.1f} 26) scale(1.5)">{ICONS[icon].format(c=col)}</g>'
+                     + text(SEMI, title, 20, cx, 88, PAPER, "middle")
+                     + "".join(text(SANS, ln, 14, cx, 114 + 20 * k, MUTED, "middle") for k, ln in enumerate(lines)) + "</g>")
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" aria-label="Explore the sky. Connect the observations. Discover what moves.">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0d0b14"/><stop offset="1" stop-color="#15111f"/></linearGradient></defs>
+<style>
+.c{{animation:in 1s ease-out both}}
+@keyframes in{{from{{opacity:0;transform:translateY(8px)}}to{{opacity:1;transform:none}}}}
+@media (prefers-reduced-motion:reduce){{.c{{animation:none}}}}
+</style>
+<rect width="{W}" height="{H}" rx="18" fill="url(#bg)"/>
+<rect x=".5" y=".5" width="{W - 1}" height="{H - 1}" rx="18" fill="none" stroke="{VIOLET}" stroke-opacity=".28"/>
+{chr(10).join(parts)}
+</svg>
+'''
+
+
+# ------------------------------------------------------------------------------------------- a repository as a card
+def card(name: str, kind: str, lines: list, langs: list, note: str = "") -> str:
+    W, H = 490, 176
+    out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" aria-label="{name}: {" ".join(lines)}">',
+           f'<title>{name}</title>',
+           f'<rect x=".75" y=".75" width="{W - 1.5}" height="{H - 1.5}" rx="15.25" fill="{INK}" stroke="{VIOLET}" stroke-opacity=".4" stroke-width="1.5"/>',
+           f'<g transform="translate(22 22)" fill="none" stroke="{VIOLET}" stroke-width="1.7" stroke-linejoin="round"><path d="M3 2.5h13v15H5a2 2 0 0 1-2-2zM3 15.5a2 2 0 0 1 2-2h11"/></g>',
+           text(BOLD, name, 19, 52, 39, VIOLET),
+           text(SANS, kind, 13, W - 22, 38, GOLD, "end")]
+    for k, ln in enumerate(lines):
+        out.append(text(SANS, ln, 14.5, 22, 74 + 22 * k, PAPER))
+    x = 22.0
+    for lang, col in langs:
+        out.append(f'<circle cx="{x + 5:.1f}" cy="{H - 27}" r="5" fill="{col}"/>')
+        out.append(text(SANS, lang, 13, x + 16, H - 22.5, MUTED))
+        x += 16 + SANS.width(lang, 13) + 18
+    if note:
+        out.append(text(SANS, note, 13, W - 22, H - 22.5, MUTED, "end"))
+    out.append("</svg>\n")
+    return "".join(out)
+
+
 FILES = {
     "banner.svg": banner,
     "numbers.svg": numbers,
@@ -270,6 +360,16 @@ FILES = {
     "btn-api.svg": lambda: button("API explorer", "api", "line"),
     "btn-docs.svg": lambda: button("Documentation", "docs", "line"),
     "btn-science.svg": lambda: button("Science", "science", "line"),
+    "btn-source.svg": lambda: button("Source code", "source", "line"),
+    "award.svg": award,
+    "pillars.svg": pillars,
+    "card-sphere-blink.svg": lambda: card("sphere-blink", "the product", [
+        "The engine and the viewer: every SPHEREx image of any",
+        "position as a movie, with a spectrum, measured motion",
+        "and a blind search for things that move."], [("Python", "#3572a5"), ("JavaScript", "#f1e05a")], "AGPL-3.0"),
+    "card-ui-tests.svg": lambda: card("sphere-blink-ui-tests", "its UI tests", [
+        "Playwright tests of the viewer on a desktop and a phone,",
+        "each one traced to a case of the manual test sheet."], [("TypeScript", "#3178c6")]),
     "go-3i-atlas.svg": lambda: chip("3I/ATLAS", "interstellar comet", GOLD),
     "go-pluto.svg": lambda: chip("Pluto", "found by stacking", VIOLET),
     "go-makemake.svg": lambda: chip("Makemake", "dwarf planet", GOLD),
