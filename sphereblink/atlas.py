@@ -25,10 +25,19 @@ Orders 0 to 5 together are 1.65 GB, orders 0 to 6 about 7.2 GB.
 The tiles are stored as the archive sends them, byte for byte, in the layout
 of HiPS (``Norder3/Dir0/Npix300.jpg``). There is no database: the files are
 the cache, and the time a file was last asked for is its modification time.
+
+The viewer does not download those JPEGs. It asks for the same tile as WebP
+(``Npix300.webp``), which ``Atlas.webp`` makes from the JPEG the first time
+somebody asks and keeps beside it: about a third of the bytes (70 tiles from
+ten parts of the sky, November 2026: 34 %), with no difference a visitor can
+see once the page has cleaned the tile. The copy belongs to its tile: it is
+counted in the same budget and deleted with it. The JPEG stays the original;
+a WebP can always be made again.
 """
 
 from __future__ import annotations
 
+import io
 import logging
 import os
 import shutil
@@ -38,6 +47,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import httpx
+from PIL import Image
 
 from . import config
 
@@ -51,6 +61,10 @@ REST_S = 30.0  # ... for this long: a tile that is not on disk is refused at onc
 MIN_FREE_BYTES = 1e9  # with less than this free on the disk no new tile is stored (the disk is shared)
 SEED_MIN_FREE_BYTES = 4e9  # ... and the kept orders are not filled any further with less than this free
 TOUCH_EVERY_S = 6 * 3600.0  # how often a tile's "last asked for" is written to disk
+WEBP_QUALITY = 80  # of the copy the viewer downloads: 34 % of the JPEG's bytes on 70 test tiles, 30 ms to make
+WEBP_METHOD = 4  # the encoder's effort, 0-6: 6 takes twice as long for 2 % fewer bytes
+WEBP_AT_ONCE = 2  # copies being made at the same time: the processors belong to the pipeline first
+WEBP_WAIT_S = 2.0  # how long a caller waits for a turn before the JPEG is answered instead
 CREDIT = ("2MASS colour atlas (J, H, K): University of Massachusetts and IPAC/Caltech, funded by NASA and NSF; "
           "HiPS by CDS (CNRS/Unistra, ODbL-1.0), from the NASA/IPAC Infrared Science Archive")
 
@@ -76,6 +90,18 @@ def is_jpeg(data: bytes) -> bool:
     return 1000 < len(data) <= TILE_MAX_BYTES and data[:3] == b"\xff\xd8\xff"
 
 
+def is_webp(data: bytes) -> bool:
+    return len(data) > 30 and data[:4] == b"RIFF" and data[8:12] == b"WEBP"
+
+
+def to_webp(jpeg: bytes) -> bytes:
+    """A tile as WebP, the same pixels in fewer bytes. Raises if the JPEG cannot be read."""
+    out = io.BytesIO()
+    with Image.open(io.BytesIO(jpeg)) as im:
+        im.convert("RGB").save(out, "WEBP", quality=WEBP_QUALITY, method=WEBP_METHOD)
+    return out.getvalue()
+
+
 class _Flight:
     """One fetch of a tile, which everybody who asks for that tile meanwhile waits for."""
 
@@ -96,6 +122,9 @@ class Atlas:
         self._gate = threading.BoundedSemaphore(fetches or config.ATLAS_FETCHES)  # fetches from the archive at once
         self._lock = threading.Lock()
         self._index: dict[tuple[int, int], list[float]] = {}  # (order, pix) -> [bytes, last asked for, as written to disk]
+        self._webp: dict[tuple[int, int], int] = {}  # (order, pix) -> bytes of the WebP copy kept beside the tile
+        self._easel = threading.BoundedSemaphore(WEBP_AT_ONCE)  # WebP copies being made at once
+        self.webp_hits = self.webp_made = self.webp_busy = 0
         self._bytes = 0.0
         self._scanned = threading.Event()
         self._flights: dict[tuple[int, int], _Flight] = {}
@@ -109,6 +138,9 @@ class Atlas:
     # ------------------------------------------------------------------ the tiles on disk
     def path(self, order: int, pix: int) -> Path:
         return self.root / address(order, pix)
+
+    def webp_path(self, order: int, pix: int) -> Path:
+        return self.path(order, pix).with_suffix(".webp")
 
     def scan(self) -> None:
         """Read what is on disk (once, after a start): sizes and when each tile
@@ -130,6 +162,17 @@ class Atlas:
                             except OSError:
                                 pass
                             continue
+                        if name.startswith("Npix") and name.endswith(".webp") and name[4:-5].isdigit():
+                            key = (order, int(name[4:-5]))
+                            try:
+                                size = f.stat().st_size
+                            except OSError:
+                                continue
+                            with self._lock:
+                                if key not in self._webp:
+                                    self._webp[key] = size
+                                    self._bytes += size
+                            continue
                         if not (name.startswith("Npix") and name.endswith(".jpg") and name[4:-4].isdigit()):
                             continue
                         try:
@@ -142,10 +185,19 @@ class Atlas:
                                 self._index[key] = [st.st_size, st.st_mtime, st.st_mtime]
                                 self._bytes += st.st_size
                                 found += 1
+        with self._lock:  # a copy whose tile is gone (the server stopped between two deletions) goes too
+            orphans = [key for key in self._webp if key not in self._index]
+            for key in orphans:
+                self._bytes -= self._webp.pop(key)
+        for key in orphans:
+            try:
+                os.unlink(self.webp_path(*key))
+            except OSError:
+                pass
         self._scanned.set()
         self._trim()
         self.free_bytes()
-        log.info("atlas: %d tiles on disk, %.2f GB of %.2f GB", found, self._bytes / 1e9, self.budget / 1e9)
+        log.info("atlas: %d tiles on disk (%d also as WebP), %.2f GB of %.2f GB", found, len(self._webp), self._bytes / 1e9, self.budget / 1e9)
 
     def _used(self, key: tuple[int, int], path: Path) -> None:
         now = time.time()
@@ -205,14 +257,15 @@ class Atlas:
             for _, key in deep:
                 if self._bytes <= 0.9 * self.budget:
                     break
-                self._bytes -= self._index.pop(key)[0]
+                self._bytes -= self._index.pop(key)[0] + self._webp.pop(key, 0)
                 victims.append(key)
             self.dropped += len(victims)
         for key in victims:
-            try:
-                os.unlink(self.path(*key))
-            except OSError:
-                pass
+            for path in (self.webp_path(*key), self.path(*key)):  # the copy first: no copy is left without its tile
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
         if victims:
             log.info("atlas: dropped %d tiles not asked for the longest, %.2f GB kept", len(victims), self._bytes / 1e9)
 
@@ -235,6 +288,60 @@ class Atlas:
         if charge is not None:
             charge()
         return self._fetch(key, path), False
+
+    def webp(self, order: int, pix: int, charge=None) -> tuple[bytes, bool, bool]:
+        """A tile for the viewer: its bytes, whether they are WebP, and whether
+        the tile came from disk. The WebP copy is made from the JPEG the first
+        time and kept beside it. When it cannot be made (the JPEG cannot be
+        read, or too many are being made right now) the JPEG itself is the
+        answer: a browser shows either. Raises NotThere or Away like ``get``."""
+        if not (0 <= order <= MAX_ORDER and 0 <= pix < tiles_in(order)):
+            raise NotThere("no such tile")
+        key, copy = (order, pix), self.webp_path(order, pix)
+        try:
+            data = copy.read_bytes()
+        except OSError:
+            data = None
+        if data is not None and is_webp(data):
+            self.webp_hits += 1
+            self._used(key, self.path(order, pix))
+            return data, True, True
+        jpeg, kept = self.get(order, pix, charge)
+        if not self._easel.acquire(timeout=WEBP_WAIT_S):
+            self.webp_busy += 1
+            return jpeg, False, kept
+        try:
+            data = to_webp(jpeg)
+        except Exception as exc:  # not a picture Pillow can read: the browser may still show it
+            log.warning("atlas: no WebP of %s: %r", address(order, pix), exc)
+            return jpeg, False, kept
+        finally:
+            self._easel.release()
+        self.webp_made += 1
+        try:
+            self._store_webp(key, copy, data)
+        except OSError as exc:
+            log.warning("atlas: could not store %s: %r", copy.name, exc)
+        return data, True, kept
+
+    def _store_webp(self, key: tuple[int, int], path: Path, data: bytes) -> None:
+        if self.free_bytes() < MIN_FREE_BYTES:
+            return
+        part = path.with_name(f"{path.name}.{os.getpid()}.{threading.get_ident()}.part")
+        part.write_bytes(data)
+        os.replace(part, path)
+        with self._lock:
+            kept = key in self._index
+            if kept:
+                self._bytes += len(data) - self._webp.get(key, 0)
+                self._webp[key] = len(data)
+        if kept:
+            self._trim()
+            return
+        try:  # the tile itself is not kept (dropped meanwhile): neither is its copy
+            os.unlink(path)
+        except OSError:
+            pass
 
     def _fetch(self, key: tuple[int, int], path: Path) -> bytes:
         with self._lock:
@@ -372,8 +479,13 @@ class Atlas:
                 "kept_tiles_wanted": sum(tiles_in(o) for o in range(self.keep_order + 1)),
                 "counted": self._scanned.is_set(),
                 "seeding": self.seeding,
+                "webp_tiles": len(self._webp),
+                "webp_bytes": int(sum(self._webp.values())),
                 "from_disk": self.hits,
                 "fetched": self.fetched,
                 "dropped": self.dropped,
+                "webp_from_disk": self.webp_hits,
+                "webp_made": self.webp_made,
+                "webp_busy": self.webp_busy,
                 "archive_resting": time.time() < self._rest_until,
             }

@@ -697,6 +697,16 @@ def api_tracks(target: str | None = None, ra: float | None = None, dec: float | 
 
 
 TILE_KEPT = "public, max-age=2592000, immutable"  # a tile of the atlas never changes under its address
+TILE_FOR_NOW = "public, max-age=3600"  # the JPEG answered where the WebP could not be made: asked again in an hour
+
+
+def _tile_address(order: int, folder: int, pix: int) -> None:
+    if not (0 <= order <= atlas.MAX_ORDER and 0 <= pix < atlas.tiles_in(order) and folder == pix // 10000 * 10000):
+        raise HTTPException(404, "no such tile")
+
+
+def _new_tile() -> None:  # only a tile that has to be fetched counts against the caller
+    guard.charge(guard.atlas, "new sky tiles")
 
 
 @app.get("/api/atlas/2mass/Norder{order}/Dir{folder}/Npix{pix}.jpg")
@@ -711,16 +721,36 @@ def api_atlas_tile(order: int, folder: int, pix: int):
     A backdrop for the map, not SPHEREx data. Credit: University of
     Massachusetts and IPAC/Caltech (NASA, NSF); HiPS by CDS.
     """
-    if not (0 <= order <= atlas.MAX_ORDER and 0 <= pix < atlas.tiles_in(order) and folder == pix // 10000 * 10000):
-        raise HTTPException(404, "no such tile")
+    _tile_address(order, folder, pix)
     try:
-        # only a tile that has to be fetched counts against the caller
-        data, kept = sky.get(order, pix, charge=lambda: guard.charge(guard.atlas, "new sky tiles"))
+        data, kept = sky.get(order, pix, charge=_new_tile)
     except atlas.NotThere as exc:
         raise HTTPException(404, str(exc)) from exc
     except atlas.Away as exc:
         raise HTTPException(503, f"sky atlas: {exc}", headers={"Retry-After": "30", "Cache-Control": "no-store"}) from exc
     return Response(data, media_type="image/jpeg", headers={"Cache-Control": TILE_KEPT, "X-Atlas": "kept" if kept else "fetched"})
+
+
+@app.get("/api/atlas/2mass/Norder{order}/Dir{folder}/Npix{pix}.webp")
+def api_atlas_tile_webp(order: int, folder: int, pix: int):
+    """The same tile as WebP, which is what the viewer downloads: the same
+    512 pixels in about a third of the bytes of the JPEG.
+
+    The server makes the WebP from the JPEG the first time a tile is asked
+    for and keeps it beside the JPEG. Where it cannot be made at that moment
+    the JPEG itself is the answer (``Content-Type: image/jpeg``, kept by a
+    browser for an hour only). ``X-Atlas`` and the errors are those of the
+    JPEG address.
+    """
+    _tile_address(order, folder, pix)
+    try:
+        data, webp, kept = sky.webp(order, pix, charge=_new_tile)
+    except atlas.NotThere as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except atlas.Away as exc:
+        raise HTTPException(503, f"sky atlas: {exc}", headers={"Retry-After": "30", "Cache-Control": "no-store"}) from exc
+    return Response(data, media_type="image/webp" if webp else "image/jpeg",
+                    headers={"Cache-Control": TILE_KEPT if webp else TILE_FOR_NOW, "X-Atlas": "kept" if kept else "fetched"})
 
 
 @app.get("/api/atlas")

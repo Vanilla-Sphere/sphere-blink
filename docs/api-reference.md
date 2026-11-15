@@ -111,7 +111,7 @@ Errors are JSON of the form `{"detail": "message"}`.
 | [`/api/tracks`](#get-apitracks) | JSON | Measured objects in the field |
 | [`/api/measure`](#get-apimeasure) | JSON | Measure an object; job status and result |
 | [`/api/measured`](#get-apimeasured) | JSON | Everything measured so far |
-| [`/api/atlas/2mass/...`](#get-apiatlas2mass) | JPEG | One tile of the sky photograph behind the map |
+| [`/api/atlas/2mass/...`](#get-apiatlas2mass) | WebP or JPEG | One tile of the sky photograph behind the map |
 | [`/api/atlas`](#get-apiatlas) | JSON | What the server keeps of the sky photograph |
 | [`/api/movers`](#get-apimovers) | JSON | The log of moving objects found by the blind search |
 | [`/api/movers/field`](#get-apimoversfield) | JSON | Moving objects of one progressive field; state of its search |
@@ -797,6 +797,15 @@ may be cached for 30 days. `404`: no such tile. `503` with `Retry-After`: the
 tile is not on disk and the archive does not answer. `429`: the caller's
 allowance for tiles is used up ([security](security.md#request-limits)).
 
+The same address ending in `.webp` gives the same tile as WebP, and that is
+what the viewer downloads: the same 512 pixels in about a third of the bytes
+(quality 80; [performance](performance.md#capacity-and-limits)). The server
+makes the WebP from the JPEG the first time a tile is asked for and keeps it
+beside the JPEG. Where it cannot be made at that moment (two are being made
+already, or the JPEG cannot be read) the JPEG itself is answered, with
+`Content-Type: image/jpeg` and a cache time of one hour. Headers and errors
+are those of the `.jpg` address.
+
 It is a backdrop, not SPHEREx data. Credit: 2MASS, University of
 Massachusetts and IPAC/Caltech, funded by NASA and NSF; HiPS by CDS
 (CNRS/Unistra, ODbL-1.0).
@@ -812,13 +821,18 @@ What the server keeps of the photograph.
   "tiles": 16402, "bytes": 1652000000, "budget_bytes": 4000000000, "disk_free_bytes": 9100000000,
   "kept_orders": [0, 5], "kept_tiles": 16380, "kept_tiles_wanted": 16380,
   "counted": true, "seeding": null,
-  "from_disk": 5120, "fetched": 22, "dropped": 0, "archive_resting": false
+  "webp_tiles": 3100, "webp_bytes": 105000000,
+  "from_disk": 5120, "fetched": 22, "dropped": 0,
+  "webp_from_disk": 48000, "webp_made": 3100, "webp_busy": 0, "archive_resting": false
 }
 ```
 
 `kept_orders` are never deleted; `seeding` says which order is being filled
-after a start and how many tiles are left. `from_disk`, `fetched` and
-`dropped` count since the server started. The numbers above are illustrative.
+after a start and how many tiles are left. `webp_tiles` and `webp_bytes` are
+the WebP copies kept beside their tiles; `bytes` counts them too.
+`from_disk`, `fetched`, `dropped` and the three `webp_` counters count since
+the server started: tiles answered as WebP from disk, WebP copies made, and
+times the JPEG was answered because two copies were already being made. The numbers above are illustrative.
 
 ## Moving objects
 

@@ -7,8 +7,9 @@
    map's own projection, so the photograph lies exactly under the drawn stars.
 
    The tiles come from our own server, which keeps a copy of every tile it has fetched from the
-   archive and of the whole sky at the coarse orders (sphereblink/atlas.py). A tile our server
-   cannot give is asked of the archive itself, and when our server keeps failing the archive is
+   archive and of the whole sky at the coarse orders (sphereblink/atlas.py). It sends them as WebP:
+   the same picture in about a third of the bytes of the archive's JPEG. A tile our server cannot
+   give is asked of the archive itself (a JPEG), and when our server keeps failing the archive is
    asked directly for a minute.
 
    It is a backdrop from an atlas, not SPHEREx data, and the page says so while it shows. If neither
@@ -113,7 +114,7 @@ const Atlas = (() => {
   function drop(key) { const t = tiles.get(key); if (t && t.ok && t.img.close) t.img.close(); tiles.delete(key); }
   function fetchTile(t) {
     const pix = number(t.order, t.face, t.ix, t.iy);
-    const path = `/Norder${t.order}/Dir${Math.floor(pix / 10000) * 10000}/Npix${pix}.jpg`;
+    const path = `/Norder${t.order}/Dir${Math.floor(pix / 10000) * 10000}/Npix${pix}`;
     loading++;
     const failed = () => {
       loading--; t.img = null; t.bad = performance.now();
@@ -121,7 +122,7 @@ const Atlas = (() => {
       if (wake) wake();
     };
     /* ask one source; `next` is what to do when it does not give the tile */
-    const from = (base, own, next) => {
+    const from = (base, own, next) => {   // our server sends WebP, the archive only has JPEG
       const img = new Image();
       img.crossOrigin = "anonymous"; img.referrerPolicy = "no-referrer"; img.decoding = "async";
       t.img = img;
@@ -133,7 +134,7 @@ const Atlas = (() => {
         if (own && ++ownStrikes >= 3) { ownRestUntil = performance.now() + 60000; ownStrikes = 0; }
         (next || failed)();
       };
-      img.src = base + path;
+      img.src = base + path + (own ? ".webp" : ".jpg");
     };
     if (performance.now() < ownRestUntil) from(ARCHIVE, false, null);
     else from(BASE, true, () => from(ARCHIVE, false, null));
@@ -257,6 +258,6 @@ const Atlas = (() => {
     mute(v, lift) { MUTE = v; if (lift) LIFT = lift; for (const k of [...tiles.keys()]) drop(k); if (wake) wake(); },   // try another strength of colour; the tiles are fetched again (from the browser's cache)
     get on() { return on; },
     /* the address, on our server, of the tile of an order that holds a sky position */
-    tileAt(order, ra, dec) { const pix = number(order, ...diamond(order, ra, dec)); return `${BASE}/Norder${order}/Dir${Math.floor(pix / 10000) * 10000}/Npix${pix}.jpg`; },
+    tileAt(order, ra, dec) { const pix = number(order, ...diamond(order, ra, dec)); return `${BASE}/Norder${order}/Dir${Math.floor(pix / 10000) * 10000}/Npix${pix}.webp`; },
   };
 })();
