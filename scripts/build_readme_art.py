@@ -205,6 +205,8 @@ def numbers() -> str:
 # ---------------------------------------------------------------------------------------------------- the buttons
 ICONS = {  # on a 20 x 20 square; {c} is the colour
     "play": '<path d="M6 3.6v12.8L16.6 10z" fill="{c}"/>',
+    "film": '<rect x="1.6" y="3.9" width="16.8" height="12.2" rx="3.4" fill="none" stroke="{c}" stroke-width="1.6"/>'
+            '<path d="M8.1 7.1v5.8l5-2.9z" fill="{c}"/>',
     "found": '<g fill="none" stroke="{c}" stroke-width="1.7" stroke-linecap="round"><circle cx="10" cy="10" r="4.6"/>'
              '<path d="M10 1.6v3M10 15.4v3M1.6 10h3M15.4 10h3"/></g><circle cx="10" cy="10" r="1.5" fill="{c}"/>',
     "api": '<path d="M7 5.2 2.4 10 7 14.8M13 5.2l4.6 4.8L13 14.8" fill="none" stroke="{c}" stroke-width="1.8" '
@@ -361,6 +363,7 @@ FILES = {
     "btn-docs.svg": lambda: button("Documentation", "docs", "line"),
     "btn-science.svg": lambda: button("Science", "science", "line"),
     "btn-source.svg": lambda: button("Source code", "source", "line"),
+    "btn-film.svg": lambda: button("Watch the film", "film", "line"),
     "award.svg": award,
     "pillars.svg": pillars,
     "card-sphere-blink.svg": lambda: card("sphere-blink", "the product", [
