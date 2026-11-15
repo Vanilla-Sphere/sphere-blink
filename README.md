@@ -1,11 +1,41 @@
-# Vanilla Sphere
+<div align="center">
 
-**Watch any patch of the infrared sky change over time.**
+<a href="https://vanillasphere.com">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="web/logo.svg">
+    <img src="web/logo-light.svg" alt="Vanilla Sphere" width="420">
+  </picture>
+</a>
 
-Enter a position (RA/Dec or an object name) and Vanilla Sphere plays every
-NASA SPHEREx image of that patch as a short movie, so moving and variable
-objects stand out. Built by the team of the same name for the 2026 NASA Space
-Apps Challenge, "Planet X and SPHEREx". Live at <https://vanillasphere.com>.
+### Watch any patch of the infrared sky change over time
+
+Every NASA SPHEREx image of any position, played as a movie in seconds,<br>
+with a spectrum, measured motion and a blind search for things that move.
+
+[![Live site](https://img.shields.io/badge/live-vanillasphere.com-b58afb?style=flat-square)](https://vanillasphere.com)
+[![checks](https://img.shields.io/github/actions/workflow/status/Vanilla-Sphere/sphere-blink/checks.yml?branch=main&label=tests&style=flat-square)](https://github.com/Vanilla-Sphere/sphere-blink/actions/workflows/checks.yml)
+[![UI tests](https://img.shields.io/github/actions/workflow/status/Vanilla-Sphere/sphere-blink/ui-tests.yml?branch=main&label=ui%20tests&style=flat-square)](https://github.com/Vanilla-Sphere/sphere-blink/actions/workflows/ui-tests.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-e9b452?style=flat-square)](LICENSE)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab?style=flat-square)](requirements.txt)
+[![NASA Space Apps 2026](https://img.shields.io/badge/NASA%20Space%20Apps%202026-Planet%20X%20and%20SPHEREx-0b3d91?style=flat-square)](https://www.spaceappschallenge.org/)
+
+**[Open the live site](https://vanillasphere.com)** ·
+[Documentation](docs/README.md) ·
+[Science and algorithms](docs/science/README.md) ·
+[API explorer](https://vanillasphere.com/docs)
+
+<a href="https://vanillasphere.com">
+  <img src="docs/readme/sky-map.webp" alt="The start screen: a map of the whole sky; click anywhere to open that patch in SPHEREx data" width="100%">
+</a>
+
+</div>
+
+NASA's SPHEREx mission images the whole sky again and again in 102 infrared
+colours between 0.75 and 5.0 um. Vanilla Sphere turns that archive into
+something anyone can explore: click a point of the sky map, or type
+coordinates or a name, and the browser plays every SPHEREx image of that
+patch in time order. Nothing is downloaded in advance. Built by team Vanilla
+Sphere for the 2026 NASA Space Apps Challenge, "Planet X and SPHEREx".
 
 The whole product is open source under the [AGPL-3.0](#license): the engine,
 the viewer, the tests and the design documentation are in this repository,
@@ -13,104 +43,175 @@ with their full history since the first commit of the hackathon
 (2026-11-14). The UI test suite is in
 [sphere-blink-ui-tests](https://github.com/Vanilla-Sphere/sphere-blink-ui-tests).
 
-## Documentation
+## Contents
 
-The product design documentation is in [`docs/`](docs/README.md): overview,
-features, architecture, imaging engine, measurement pipeline, API reference,
-viewer, code structure, data sources, performance and deployment.
+- [What it found](#what-it-found)
+- [A tour](#a-tour)
+- [What it does](#what-it-does)
+- [One URL, one picture](#one-url-one-picture)
+- [How it works](#how-it-works)
+- [Run it](#run-it)
+- [Measurements](#measurements)
+- [Documentation](#documentation)
+- [Data and credits](#data-and-credits)
+- [Contributing](#contributing)
+- [Use of AI tools](#use-of-ai-tools)
+- [License](#license)
+
+## What it found
+
+Nobody told the software where to look. Every result below comes out of the
+public SPHEREx images by documented, deterministic arithmetic, and each one
+was checked against an independent source.
+
+| | Result | Checked against |
+| --- | --- | --- |
+| **An interstellar comet** | The blind search picks up 3I/ATLAS crossing a field at 99 arcsec per hour, in 15 exposures of 7-8 August 2025. | The positions NASA/JPL predicts: the track stays 3.3-3.6 arcsec away, half of one SPHEREx pixel. [Moving objects](docs/moving-objects.md) |
+| **Pluto, Makemake, Orcus** | Too slow for the first search, and all but Pluto too faint for a single exposure. Adding the exposures along thousands of trial paths (shift-and-stack) brings out six distant bodies: Pluto at 279 sigma, Makemake at 17, Haumea, Chiron, Orcus and Eris. | NASA's ephemerides: every one is placed to better than a pixel, Pluto to 0.2 arcsec. [Shift-and-stack](docs/shift-and-stack.md) |
+| **A wrong catalogue redshift** | SIMBAD lists quasar SDSS J1528+3637 at z = 4.344. The lines of its SPHEREx spectrum stand where z = 2.41 puts them, and the viewer says so. | The SDSS quasar catalogue DR16Q and NED: 2.413. [Distance and redshift](docs/distance-redshift.md) |
+| **No false alarms** | Three fields along the path of 3I/ATLAS gave 14 tracks. Every one is a known comet or asteroid. | The same searches on shuffled exposure times: 0 tracks by chance. [Moving objects](docs/moving-objects.md#what-it-was-checked-against) · [How much the search finds](docs/mover-completeness.md) |
+| **1.3-1.9 MB instead of 65 MB** | A SPHEREx file is about 65 MB. The server reads only the bytes of the cutout with HTTP range requests, so a new 8 arcmin view of about 350 exposures is on screen in about 10 s, and in under 1 s the next time. | A cut from the full download: the pixels are identical. [Performance](docs/performance.md) |
+
+<div align="center">
+  <img src="docs/readme/3i-atlas-poster.webp" alt="It caught 3I/ATLAS: one real SPHEREx exposure with the comet in the crosshair" width="100%">
+</div>
+
+## A tour
+
+<table>
+<tr>
+<td width="50%" valign="top">
+<a href="docs/readme/3i-atlas-field.webp"><img src="docs/readme/3i-atlas-field.webp" alt="A 7 x 7 cell field with the track of 3I/ATLAS"></a>
+<b>A field of 49 cells, and what moves in it.</b> The view grows ring by ring to 0.84 degrees. A blind search links what moved between exposures; the line is the track of comet 3I/ATLAS.
+</td>
+<td width="50%" valign="top">
+<a href="docs/readme/3i-atlas-exposures.webp"><img src="docs/readme/3i-atlas-exposures.webp" alt="3I/ATLAS in fifteen single exposures"></a>
+<b>The evidence, exposure by exposure.</b> Each pair is centred where JPL predicts the comet: the exposure as taken, and the same with the static sky subtracted.
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<a href="docs/readme/pluto-stack.webp"><img src="docs/readme/pluto-stack.webp" alt="Pluto found by shift-and-stack"></a>
+<b>Pluto, found by adding exposures.</b> At 0.2 arcsec per hour it does not move enough for the first search. The stack of 43 exposures along its path shows it at 279 sigma.
+</td>
+<td width="50%" valign="top">
+<a href="docs/readme/spectrum-reading.webp"><img src="docs/readme/spectrum-reading.webp" alt="The spectrum of Epsilon Indi B with its preliminary reading"></a>
+<b>A spectrum, and a first reading of it.</b> Every exposure sees the target at another wavelength. For the brown dwarf Epsilon Indi B the viewer names the water and methane bands by fixed, cited rules.
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<a href="docs/readme/over-time.webp"><img src="docs/readme/over-time.webp" alt="R Draconis over time"></a>
+<b>Brightness over time.</b> The Mira variable R Draconis faded by a factor of two between June 2025 and June 2026, band by band.
+</td>
+<td width="50%" valign="top">
+<a href="docs/readme/redshift.webp"><img src="docs/readme/redshift.webp" alt="The redshift of a quasar measured from its lines"></a>
+<b>Redshift from the lines.</b> For a quasar the viewer measures the redshift from its emission lines, gives the distance and look-back time, and says when a catalogue disagrees.
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="38%" valign="top">
+<a href="docs/readme/discoveries.webp"><img src="docs/readme/discoveries.webp" alt="The Discoveries log"></a>
+</td>
+<td valign="top">
+
+**The Discoveries log.** Every moving object found as people open wide
+fields is kept, named from the catalogues of known bodies (IMCCE SkyBoT,
+NASA/JPL), and can be voted real or false.
+
+The search is told nothing in advance. So far everything it has reported
+is a known comet, asteroid or trans-Neptunian object, which is the result
+one should expect from a search that works: an unknown one would have to
+pass the same tests.
+
+</td>
+</tr>
+</table>
 
 ## What it does
 
-- **Any coordinates, on demand.** Nothing is pre-downloaded. The server finds
-  every SPHEREx Level 2 exposure covering the position (IRSA SIA) and reads
-  only the bytes it needs from the public AWS Open Data mirror with HTTP range
-  requests: 1.3-1.9 MB per exposure for an 8 arcmin view instead of the 65 MB
-  file, pixel for pixel identical to a cut from the full download.
+- **Any coordinates, on demand.** The server finds every SPHEREx Level 2
+  exposure covering the position (IRSA SIA) and reads only the bytes it needs
+  from the public AWS Open Data mirror.
 - **Progressive fields, 7 x 7 cells.** The sky is addressed by the fixed
   0.12 degree cells of the team's measurement grid (`icrs012-v1-XXXX-YYYY`).
   A field starts at the cell of the requested position and grows ring by
   ring: the cell is on screen after seconds, its 3 x 3 neighbourhood next,
   then the whole 7 x 7 block (0.84 degrees, about 700 exposures) as one
-  false-colour mosaic. Each exposure is read once for the whole block.
+  false-colour mosaic.
 - **Blink movie** with a shared contrast stretch, time slider, keyboard
-  control, and a timeline of the real observation dates.
-- **Six detector bands** (0.75-5.0 um). Frames can be stacked per UTC day or
-  per six-month sky pass to raise signal-to-noise, or shown exposure by exposure.
+  control, and a timeline of the real observation dates. Frames can be
+  stacked per UTC day or per six-month sky pass, or shown exposure by
+  exposure, in any of the six detector bands.
 - **Image math**: subtract the median of all frames (static stars vanish),
   subtract a chosen reference epoch, or add everything together.
-- **Spectrum on the fly.** Each exposure sees the target through a different
-  slice of the linear variable filter, so the exposures together give a
-  0.75-5.0 um spectrum, plus the flux over time with a line saying whether
-  the object changed between visits.
-- **A first reading of the spectrum.** Under the plot the viewer says what the
-  curve shows: where it peaks, how it slopes, which bands and lines stand at
-  their reference wavelengths (water vapour, methane, water and carbon dioxide
-  ice, hydrogen and other atomic lines, PAH), and which kinds of object give
-  such a curve. It is written by fixed rules in the browser
-  (`web/insight.js`), labelled preliminary, and states its confidence and
-  limits. The wavelengths come from a cited catalogue (`web/linelist.js`:
-  NIST Atomic Spectra Database, published band origins of water and methane,
-  the literature on ices and dust; every number read in its source),
-  and for a galaxy or quasar with a published redshift the lines are looked
-  for where the redshift puts them.
+- **Moving objects, found blind.** A linker for what moves between exposures
+  and a shift-and-stack search for what is too faint and slow for it; names
+  from the catalogues of known bodies; a public log.
+- **Spectrum on the fly**, 0.75-5.0 um, with a preliminary reading written by
+  fixed rules in the browser (`web/insight.js`) from a cited line catalogue
+  (`web/linelist.js`): where the curve peaks, which bands and lines stand at
+  their reference wavelengths, which kinds of object give such a curve, and
+  how sure it is.
+- **Over time**: the flux at every visit, band by band, with a line saying
+  whether the object changed.
+- **Distance and redshift**: published distances of stars, redshifts of
+  galaxies, and a redshift measured from the lines of the SPHEREx spectrum
+  itself (`web/redshift.js`).
 - **Bright stars too.** A star brighter than about K = 9 saturates the
-  detector core and an aperture on it reads 2-5 times low. Those points are
-  measured from the star's halo instead, with a calibration fitted to 81
-  2MASS stars (`sphereblink/wings.py`, `scripts/calibrate_wings.py`): within
-  20-25 % of 2MASS from 0.15 to 20 Jy, marked `method: "wings"`, and flagged
-  `EXTRAPOLATED` beyond that range.
+  detector core. Those are measured from the star's halo instead, with a
+  calibration fitted to 81 2MASS stars: within 20-25 % of 2MASS from 0.15 to
+  20 Jy.
+- **Measures by itself.** Position on the native detector pixels of every
+  exposure, proper motion with parallax, and a light curve, for any object;
+  see [Measurements](#measurements).
 - **Overlays**: Gaia DR3 and CatWISE2020 sources, moved by their proper
-  motion to the date of each frame; fast movers get a track and a label.
-- **Quality flags** of the pixels under the target are shown for every frame.
-- **Measures by itself.** For any object the server finds its position on the
-  native detector pixels of every exposure (PSF fit), compares it with where
-  Gaia says it should be on that date, and fits proper motion with parallax.
-  Objects too faint for one exposure are added up along their predicted path,
-  one stack per sky pass. Variable objects get a light curve that is
-  independent of wavelength. The five featured targets are measured
-  automatically; see [Measurements](#measurements).
-- **Coordinates in the URL** and an image API, so any view can be linked or embedded:
+  motion to the date of each frame. Quality flags of the pixels under the
+  target are shown for every frame.
+- **Simple and Advanced modes**, on a phone or a desktop.
+- **No AI inside.** No machine-learning model runs in the product. Every
+  image is NASA SPHEREx data processed by documented arithmetic.
 
-  ```
-  /?target=Barnard's Star&fov=8
-  /?ra=133.76010&dec=-7.24227&fov=8&det=5,6&group=visit
-  /api/movie.gif?target=barnard&fov=8&group=day
-  /api/frame.png?ra=269.44629&dec=4.76792&fov=8&i=-1
-  /api/spectrum?target=R Dra&wait=60
-  /?ra=206.005&dec=-10.763&levels=3                 progressive field, 7 x 7 cells
-  /api/tiles?ra=206.005&dec=-10.763&levels=3        its cells, stages and progress
-  /api/measure?target=WISE 0855                     positions, fitted motion, light curve
-  /api/measured                                     everything measured so far
-  ```
+## One URL, one picture
 
-  Interactive API documentation is served at `/docs`.
+Every view is an address, and every picture and measurement has an endpoint,
+so anything can be linked, embedded or fetched by code. This movie is one
+request, `GET /api/movie.gif?target=barnard&fov=8&group=visit`: Barnard's
+Star in six visits over thirteen months. The field stars stay where they are;
+Barnard's Star, the fastest-moving star in the sky, creeps north by about
+10 arcsec per year.
 
-## Run it
+<div align="center">
+  <img src="docs/readme/barnard-blink.gif" alt="Barnard's Star in six SPHEREx visits, as returned by /api/movie.gif" width="420">
+</div>
 
-```bash
-python -m venv .venv && . .venv/bin/activate
-pip install -r requirements.txt
-uvicorn sphereblink.main:app --port 8000
-# open http://localhost:8000/?target=barnard
+```
+/?target=Barnard's Star&fov=8
+/?ra=133.76010&dec=-7.24227&fov=8&det=5,6&group=visit
+/api/movie.gif?target=barnard&fov=8&group=day
+/api/frame.png?ra=269.44629&dec=4.76792&fov=8&i=-1
+/api/spectrum?target=R Dra&wait=60
+/?ra=206.005&dec=-10.763&levels=3                 progressive field, 7 x 7 cells
+/api/tiles?ra=206.005&dec=-10.763&levels=3        its cells, stages and progress
+/api/measure?target=WISE 0855                     positions, fitted motion, light curve
+/api/measured                                     everything measured so far
 ```
 
-Run it as one web process (`--workers 1`, the default unless `WEB_CONCURRENCY`
-is set): views in progress are kept in that process, which starts its own
-worker processes for the cutting.
-
-Settings are environment variables (see `sphereblink/config.py`):
-
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `SPHEREX_COLLECTIONS` | `spherex_dr1,spherex_qr3` | IRSA collections to search, newest first. A new data release only needs its name added here. |
-| `SPHEREX_CACHE_DIR` | `.cache/sphereblink` | Where the SQLite cutout cache lives (put it on a persistent disk). |
-| `SPHEREX_FETCH_WORKERS` | `64` | Concurrent exposures being read. |
-| `SPHEREX_MAX_FOV_ARCMIN` | `51` | Largest field of view. |
-| `SPHEREX_AUTO_MEASURE` | `1` | Measure the five featured targets by itself after start (`0` = only on request). |
-| `SPHEREX_WARM_CATALOGS` | `1` | Store the Gaia and CatWISE overlays of the five featured targets after start, so they show at once (`0` = only on request). |
-| `DATABASE_URL` | empty | Postgres for measured positions and tracks (`sql/`). Without it they are kept on disk only. |
+The [API reference](docs/api-reference.md) lists every endpoint; the
+interactive explorer is served at [`/docs`](https://vanillasphere.com/docs).
+CORS is open for `GET`, so a page anywhere can use the pictures and the data.
 
 ## How it works
+
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/diagrams/imaging-pipeline-dark.png">
+    <img src="docs/img/diagrams/imaging-pipeline.png" alt="The imaging pipeline: request, grid, exposure search, range reads, clean and resample, frame cache, epochs, colour and encode" width="100%">
+  </picture>
+</div>
 
 ```
 browser ──> FastAPI ──> IRSA SIA v2            which exposures cover (RA, Dec)?
@@ -121,6 +222,14 @@ browser ──> FastAPI ──> IRSA SIA v2            which exposures cover (RA
             mask bad pixels -> subtract sky -> resample to a north-up grid
             -> SQLite cache -> epochs (day / sky pass / exposure) -> browser
 ```
+
+The viewer is plain HTML, CSS and JavaScript with no build step and no
+framework. The server is one FastAPI process with its own worker processes.
+The architecture, with fifteen diagrams, is in
+[docs/architecture.md](docs/architecture.md).
+
+<details>
+<summary><b>Modules</b></summary>
 
 | Module | Role |
 | --- | --- |
@@ -139,10 +248,60 @@ browser ──> FastAPI ──> IRSA SIA v2            which exposures cover (RA
 | `web/` | the viewer (plain HTML/JS, no build step): `app.js` the views, `starmap.js` the sky map, `i18n.js` the interface text, `hints.js` the notes on the controls, `lore.js` the constellation and star notes on the map |
 | `sql/` | optional shared Postgres schema for measured positions and tracks |
 
+</details>
+
+## Run it
+
+```bash
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt
+uvicorn sphereblink.main:app --port 8000
+# open http://localhost:8000/?target=barnard
+```
+
+No key and no account are needed: the SPHEREx images and the catalogues are
+public. Run it as one web process (`--workers 1`, the default unless
+`WEB_CONCURRENCY` is set): views in progress are kept in that process, which
+starts its own worker processes for the cutting.
+
+<details>
+<summary><b>Settings</b> (environment variables, see <code>sphereblink/config.py</code>)</summary>
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `SPHEREX_COLLECTIONS` | `spherex_dr1,spherex_qr3` | IRSA collections to search, newest first. A new data release only needs its name added here. |
+| `SPHEREX_CACHE_DIR` | `.cache/sphereblink` | Where the SQLite cutout cache lives (put it on a persistent disk). |
+| `SPHEREX_FETCH_WORKERS` | `64` | Concurrent exposures being read. |
+| `SPHEREX_MAX_FOV_ARCMIN` | `51` | Largest field of view. |
+| `SPHEREX_AUTO_MEASURE` | `1` | Measure the five featured targets by itself after start (`0` = only on request). |
+| `SPHEREX_WARM_CATALOGS` | `1` | Store the Gaia and CatWISE overlays of the five featured targets after start, so they show at once (`0` = only on request). |
+| `DATABASE_URL` | empty | Postgres for measured positions and tracks (`sql/`). Without it they are kept on disk only. |
+
+</details>
+
+The tests (237 of them):
+
+```bash
+pip install pytest pyyaml
+SPHEREX_AUTO_MEASURE=0 python -m pytest -q
+```
+
 ## Measurements
 
 `GET /api/measure?target=...` (or `ra=&dec=`) starts a job and is polled until
-`status` is `ready`. What the job does, in `sphereblink/measure.py`:
+`status` is `ready`. What it gives on the featured targets (DR1 + QR3,
+measured 2026-11-14):
+
+| Target | Positions | Fitted proper motion (mas/yr) | Catalogue | Note |
+| --- | --- | --- | --- | --- |
+| Barnard's Star | 86 on detectors 5-6 (254 more from saturated wings, not used) | -992 ± 472, +10327 ± 249 | -801.6, +10362.4 (Gaia DR3) | position 0.1 arcsec from the Gaia prediction |
+| Epsilon Indi B | 431 | +3945 ± 48, -2513 ± 49 | +3982.0, -2466.8 (Gaia DR3) | 0.6 arcsec from the Gaia prediction (unresolved pair Ba+Bb); brightness constant to 2 % |
+| WISE 0855-0714 | 6, of which 5 are stacks of 14-25 exposures | -8766 ± 992, +1536 ± 992 | -8123.7, +673.2 (Kirkpatrick et al. 2021) | invisible in single exposures, found at 4-5 um in the stacks |
+| RW Aurigae | 271 | +316 ± 288, +49 ± 84 | +4.9, -24.6 (Gaia DR3) | no change beyond the 12 % ring accuracy (0.99, 1.14, 1.00 in three passes); most exposures are saturated |
+| R Draconis | 515, all from saturated wings | +154 ± 334, +241 ± 426 | -20.6, +6.1 (Gaia DR3) | faded by a factor 2.0 from Jun 2025 to Jun 2026 (Mira variable) |
+
+<details>
+<summary><b>What the job does</b> (<code>sphereblink/measure.py</code>)</summary>
 
 1. **Stamps.** For each exposure, a 49 x 81 pixel piece of the detector around
    the predicted position is read with range requests (about 0.4 MB), with
@@ -164,15 +323,7 @@ browser ──> FastAPI ──> IRSA SIA v2            which exposures cover (RA
 6. **Light curve.** Every flux is divided by the object's mean spectrum at
    that wavelength, which makes exposures at different wavelengths comparable.
 
-What it gives on the featured targets (DR1 + QR3, measured 2026-11-14):
-
-| Target | Positions | Fitted proper motion (mas/yr) | Catalogue | Note |
-| --- | --- | --- | --- | --- |
-| Barnard's Star | 86 on detectors 5-6 (254 more from saturated wings, not used) | -992 ± 472, +10327 ± 249 | -801.6, +10362.4 (Gaia DR3) | position 0.1 arcsec from the Gaia prediction |
-| Epsilon Indi B | 431 | +3945 ± 48, -2513 ± 49 | +3982.0, -2466.8 (Gaia DR3) | 0.6 arcsec from the Gaia prediction (unresolved pair Ba+Bb); brightness constant to 2 % |
-| WISE 0855-0714 | 6, of which 5 are stacks of 14-25 exposures | -8766 ± 992, +1536 ± 992 | -8123.7, +673.2 (Kirkpatrick et al. 2021) | invisible in single exposures, found at 4-5 um in the stacks |
-| RW Aurigae | 271 | +316 ± 288, +49 ± 84 | +4.9, -24.6 (Gaia DR3) | no change beyond the 12 % ring accuracy (0.99, 1.14, 1.00 in three passes); most exposures are saturated |
-| R Draconis | 515, all from saturated wings | +154 ± 334, +241 ± 426 | -20.6, +6.1 (Gaia DR3) | faded by a factor 2.0 from Jun 2025 to Jun 2026 (Mira variable) |
+</details>
 
 Honest limits: SPHEREx pixels are 6.15 arcsec and the PSF is undersampled, so
 one exposure gives 0.2-0.5 arcsec at best; with three or four sky passes
@@ -190,6 +341,25 @@ place asked for: that is a neighbour, reported as `stats.nearby_source` with
 its positions marked unused. Such a result is not written to the database.
 The pipeline only writes rows with `method` `psf`, `wings` or `stack`;
 measurements loaded by hand under another method name are left alone.
+
+## Documentation
+
+The product design documentation is in [`docs/`](docs/README.md); every
+statement about behaviour was checked against the source code, and every
+performance figure states where and when it was measured.
+
+| | |
+| --- | --- |
+| [Product overview](docs/overview.md) | The problem, the users, the product in one page |
+| [Features](docs/features.md) | Every user-facing feature |
+| [Science and algorithms](docs/science/README.md) | The physical reason and the algorithm behind every processing step |
+| [Architecture](docs/architecture.md) · [Imaging engine](docs/imaging-engine.md) | Components, request flows, range reads, resampling, epochs, progressive fields |
+| [Measurement pipeline](docs/measurement-pipeline.md) | Astrometry, track fitting, light curves, bright-star photometry |
+| [Moving objects](docs/moving-objects.md) · [How much the search finds](docs/mover-completeness.md) · [Shift-and-stack](docs/shift-and-stack.md) | The blind searches, their validation and their limits |
+| [Distance and redshift](docs/distance-redshift.md) | Published distances and redshifts, and the redshift read from the spectrum |
+| [API reference](docs/api-reference.md) · [Viewer](docs/viewer.md) · [Code structure](docs/code-structure.md) | Endpoints, the web client, the repository |
+| [Data and sources](docs/data-sources.md) · [Performance](docs/performance.md) | Datasets and credits; measured timings |
+| [Security and resilience](docs/security.md) · [Deployment](docs/deployment.md) · [Environments](docs/environments.md) | Limits, headers, what happens when a service fails; hosting and release |
 
 ## Data and credits
 
@@ -214,12 +384,8 @@ Problems and ideas are welcome as
 [issues](https://github.com/Vanilla-Sphere/sphere-blink/issues). For a change,
 branch from `develop` as `feat/...`, `fix/...` or `chore/...` and open a pull
 request into `develop`; `main` is production and only takes `develop`
-([docs/environments.md](docs/environments.md)). Run the tests first:
-
-```bash
-pip install -r requirements.txt pytest pyyaml
-SPHEREX_AUTO_MEASURE=0 python -m pytest -q
-```
+([docs/environments.md](docs/environments.md)). Run the tests first (see
+[Run it](#run-it)).
 
 ## Use of AI tools
 
