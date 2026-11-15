@@ -229,13 +229,30 @@ function setAbout(on) {
   else if (aboutFrom && aboutFrom.isConnected) { aboutFrom.focus({preventScroll: true}); aboutFrom = null; }
 }
 
+/* "Source code" links (class srclink): the repository, and once the service has said which commit it runs
+   (/api/health), that commit. Asked once, the first time a note or page that holds such a link is used. */
+let sourceAsked = false;
+async function sourceLinks() {
+  if (sourceAsked) return;
+  sourceAsked = true;
+  try {
+    const d = await (await fetch("/api/health")).json();
+    if (!/^[0-9a-f]{7,40}$/.test(d.commit || "")) return;
+    for (const a of document.querySelectorAll("a.srclink")) a.href = "https://github.com/Vanilla-Sphere/sphere-blink/tree/" + d.commit;
+  } catch (_) { sourceAsked = false; }   // the link stays on the repository; asked again next time
+}
+
 function initExports() {
   $("dl-csv").addEventListener("click", savePlotCsv);
   $("dl-png").addEventListener("click", savePlotPng);
   $("files-csv").addEventListener("click", saveFilesCsv);
   $("files-sh").addEventListener("click", saveFilesScript);
   $("files-urls").addEventListener("click", saveFilesUrls);
-  for (const b of document.querySelectorAll("[data-about]")) b.addEventListener("click", () => setAbout(true));
+  for (const b of document.querySelectorAll("[data-about]")) b.addEventListener("click", () => { setAbout(true); sourceLinks(); });
+  for (const a of document.querySelectorAll("a.srclink")) {
+    const tip = a.closest(".tip");
+    if (tip) for (const type of ["pointerenter", "focusin", "click"]) tip.addEventListener(type, sourceLinks);
+  }
   $("about-close").addEventListener("click", () => setAbout(false));
   $("aboutdata").addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) setAbout(false); });   // a press on the dimmed app
   seg("filesmode", "filesmode", () => { S.filesKey = ""; showFiles(); });

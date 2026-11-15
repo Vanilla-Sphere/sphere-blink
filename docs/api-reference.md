@@ -125,12 +125,40 @@ Errors are JSON of the form `{"detail": "message"}`.
 ### GET /api/health
 
 ```json
-{"ok": true, "collections": ["spherex_dr1", "spherex_qr3"], "instance": "60-1794633151"}
+{"ok": true, "collections": ["spherex_dr1", "spherex_qr3"], "instance": "60-1794633151",
+ "commit": "be4ffb476d50091e7f5ec2022ce636e0e81ec8cd", "memory": {...}}
 ```
 
 `instance` identifies the web process (process id and start time). It must be
 identical on successive calls; differing values mean more than one web process
 is running, which the service does not support.
+
+`commit` is the commit of the repository the service was built from (the host's
+`RENDER_GIT_COMMIT`, or `SPHEREX_COMMIT`), `null` where neither is set. The
+viewer's "Source code" links (credits note, About the data) go to that commit,
+so a visitor gets the source of the version that is running.
+
+`memory` is the memory the container really holds, in MB, read from its own
+accounting (`sphereblink/memory.py`); it is `null` where the container has no
+memory limit:
+
+```json
+{"limit_mb": 8589.9, "used_mb": 4210.5, "file_cache_mb": 3105.2, "free_mb": 4379.4,
+ "working_set_mb": 6950.1, "anon_mb": 3800.4, "shmem_mb": 310.0, "peak_mb": 7900.3, "oom_kills": 0,
+ "processes": [{"role": "web", "own_mb": 2100.3, "shared_mb": 290.1}, {"role": "worker", "own_mb": 410.0, "shared_mb": 120.5}]}
+```
+
+(Example values.) `used_mb` is what cannot be given back and is what can end
+in the service being killed at `limit_mb`; `file_cache_mb` is the cache of
+files read and written (the frame cache on disk above all), which the kernel
+drops when the room is needed. A platform's memory graph plots about
+`working_set_mb`, which counts the part of that cache in recent use, so it can
+stand near the limit while `free_mb` is large. `oom_kills` counts the processes
+killed for lack of memory since the container started. `processes` lists the
+web process and the processes it started, largest first: `own_mb` is the
+memory a process holds for itself, `shared_mb` the shared memory it has mapped
+(frames travel between processes in shared memory, so several may count the
+same megabytes).
 
 ### GET /api/settings
 

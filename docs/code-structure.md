@@ -71,7 +71,8 @@ of HTML, CSS and JavaScript in the viewer.
 | `measurements.py` | 280 | Local result store; Postgres reader and writer; merged cone search | `save_local`, `save_db`, `sync_db`, `near` |
 | `movers.py` | 702 | The blind search; no HTTP, no storage | `Detection`, `Track`, `detect`, `link`, `confirm`, `candidates`, `chance_tracks`, `search`, `same_object` |
 | `mover_store.py` | 298 | Stored detections by sky cell, objects, votes; identity of an object found again | `save_field`, `detections_around`, `listing`, `get`, `vote`, `coverage` |
-| `movers_api.py` | 330 | Search jobs in a process of their own, started when a field completes; the four mover endpoints | `router`, `attach`, `start`, `run`, `free_mb` |
+| `memory.py` | 138 | What the container really holds: memory that cannot be given back against file cache, per process; read by `/api/health` and by the mover search before it starts | `container`, `free_mb`, `processes`, `usage` |
+| `movers_api.py` | 330 | Search jobs in a process of their own, started when a field completes; the four mover endpoints | `router`, `attach`, `start`, `run` |
 | `distance.py` | 490 | What lies at a position and how far it is: SIMBAD, NED and Gaia lookups with fallbacks, the choice of the object, the Planck 2018 cosmology; no HTTP endpoint of its own | `lookup`, `simbad_cone`, `pick`, `ned_redshift`, `gaia_star`, `parallax_distance`, `cosmology` |
 | `known_objects.py` | 215 | Asks SkyBoT, then JPL, for the known objects of a field and matches tracks to them | `identify`, `match`, `parse_skybot`, `parse_jpl` |
 | `mover_completeness.py` | 400 | The injection test of the blind search: fake objects (path, brightness per wavelength as reflected sunlight with or without an asteroid's own heat, shape through detector pixels and resampling), their recovery, and the statistics; no HTTP, no storage; not used by the server | `Fake`, `flux_mjy`, `heat_share`, `stamp`, `inject`, `draw`, `recover`, `trial`, `noise_maps`, `wilson`, `half_point` |
@@ -130,7 +131,8 @@ of HTML, CSS and JavaScript in the viewer.
 | `scripts/validate_redshift.py` | Check the redshift estimate (`web/redshift.js`) against published redshifts on bright quasars, and on stars and nearby galaxies, with a local engine | `python scripts/validate_redshift.py --keep DIR` |
 | `scripts/mover_completeness.py` (with `mover_completeness_report.py`, `mover_completeness_plot.py`) | Measure the completeness of the blind search with fake objects in real fields and write `web/data/mover-completeness.json` (hours of computing; see [how much the search finds](mover-completeness.md)) | `fetch`, `prepare`, `run`, `shuffle`, `report` |
 | `scripts/build_dev_site.sh` | Lay `web/` out as the static dev site (see [environments](environments.md)) | `sh scripts/build_dev_site.sh [output dir]` |
-| `scripts/wait_for_deploy.sh` | Wait until a site serves the viewer of the checkout, and on production until the engine has restarted; used by the UI tests after a merge (see [environments](environments.md#ui-tests-after-every-merge)) | `sh scripts/wait_for_deploy.sh https://site [engine]` |
+| `scripts/wait_for_deploy.sh` | Wait until a site serves the viewer of the checkout, and on production until the engine has restarted; the check of the deploy after a merge to `main` (see [environments](environments.md#ui-tests-after-every-merge)) | `sh scripts/wait_for_deploy.sh https://site [engine]` |
+| `scripts/start_local_site.sh` | Start the service of the checkout on this machine and wait until it answers and holds the featured targets; the UI tests after a merge run against it (see [environments](environments.md#ui-tests-after-every-merge)) | `sh scripts/start_local_site.sh [stop]` |
 
 ## Database files
 

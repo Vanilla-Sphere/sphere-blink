@@ -26,12 +26,11 @@ import sys
 import threading
 import time
 from concurrent.futures import ProcessPoolExecutor
-from pathlib import Path
 
 import numpy as np
 from fastapi import APIRouter, Body, HTTPException, Query
 
-from . import config, guard, mover_store, movers, tiles
+from . import config, guard, memory, mover_store, movers, tiles
 from .cutout import Grid, cache_key
 
 log = logging.getLogger(__name__)
@@ -195,20 +194,7 @@ def stacked(cube, frames: list[dict], grid: Grid, sky, tracks: list) -> tuple[li
 
 
 # ----------------------------------------------------------------------------- jobs (in the web process)
-def free_mb(root: Path = Path("/sys/fs/cgroup")) -> float | None:
-    """Memory this container may still take, counting the file cache it can
-    give back as free. None where the container has no limit to read."""
-    try:
-        limit = (root / "memory.max").read_text().strip()
-        if limit == "max":
-            return None
-        used = int((root / "memory.current").read_text())
-        for line in (root / "memory.stat").read_text().splitlines():
-            if line.startswith(("inactive_file ", "active_file ")):
-                used -= int(line.split()[1])
-        return (int(limit) - used) / 1e6
-    except (OSError, ValueError, IndexError):
-        return None
+free_mb = memory.free_mb  # what this container may still take, the file cache counted as free
 
 
 def suitable(grid: Grid) -> bool:

@@ -155,7 +155,10 @@ endpoint is `GET`; nothing else is accepted.
   `/api/settings` shows the values, never the address of the database.
 - The password exists only in the host's `DATABASE_URL`. A scan of the whole
   git history (68 commits) on 2026-11-14 found no secret, and the client
-  contains no key.
+  contains no key. The scan was repeated on 2026-11-15, before the repository
+  was made public, over all 343 commits of every branch and pull request and
+  over the text of the 134 pull requests and their comments: no key, token,
+  connection string, host identifier or `.env` file was ever committed.
 
 ## When an external service fails
 

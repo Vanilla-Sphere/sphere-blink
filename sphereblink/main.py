@@ -11,6 +11,7 @@ from __future__ import annotations
 import gzip
 import json
 import os
+import re
 import signal
 import struct
 import sys
@@ -27,7 +28,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import atlas, catalogs, config, distance, guard, measure_api, measurements, movers_api, render, settings, tiles, wings
+from . import atlas, catalogs, config, distance, guard, measure_api, measurements, memory, movers_api, render, settings, tiles, wings
 from . import resolve as resolver
 from .cutout import Grid
 from .resolve import FEATURED, NameNotFound, ResolverUnavailable, Target, resolve
@@ -360,11 +361,19 @@ BAND = Query(None, description="same as det, spelled RGB or D1..D6")
 # web process. The id lets a deploy check that: it has to be the same on
 # every answer.
 INSTANCE = f"{os.getpid()}-{int(time.time())}"
+# The commit this service was built from, as the host names it (Render sets
+# RENDER_GIT_COMMIT). The viewer links its "Source code" line to it, so a
+# visitor gets the source of the version that is running (AGPL-3.0, section 13).
+_commit = os.environ.get("SPHEREX_COMMIT") or os.environ.get("RENDER_GIT_COMMIT") or ""
+COMMIT = _commit.lower() if re.fullmatch(r"[0-9a-fA-F]{7,40}", _commit) else None
 
 
 @app.get("/api/health")
 async def health():
-    return {"ok": True, "collections": config.COLLECTIONS, "instance": INSTANCE}
+    """Whether the service answers, which process it is, the commit it was
+    built from, and the memory it really holds (``memory.usage``: the host's
+    graph counts the file cache in)."""
+    return {"ok": True, "collections": config.COLLECTIONS, "instance": INSTANCE, "commit": COMMIT, "memory": memory.usage()}
 
 
 @app.get("/api/settings")

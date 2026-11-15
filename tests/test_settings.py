@@ -359,3 +359,43 @@ def test_reading_the_table_asks_for_two_columns_and_gives_up_instead_of_hanging(
     assert seen["sql"] == ["set local statement_timeout = 5000", "select key, value from settings"]
     # the pooler of the database takes no prepared statements; a silent connection is given up
     assert seen["options"] == {"connect_timeout": 5, "prepare_threshold": None, "tcp_user_timeout": 10000}
+
+
+def test_health_tells_held_memory_from_file_cache(tmp_path):
+    """The host's graph counts the file cache as memory in use; /api/health
+    separates what can be given back from what cannot."""
+    from sphereblink import memory
+
+    assert memory.container(tmp_path) is None and memory.free_mb(tmp_path) is None  # no limit to read
+    (tmp_path / "memory.max").write_text("8000000000\n")
+    (tmp_path / "memory.current").write_text("7500000000\n")
+    (tmp_path / "memory.stat").write_text("anon 4000000000\nfile 3300000000\nshmem 300000000\ninactive_file 1000000000\nactive_file 2000000000\n")
+    (tmp_path / "memory.events").write_text("low 0\nhigh 0\nmax 12\noom 1\noom_kill 1\n")
+    c = memory.container(tmp_path)
+    assert c["limit_mb"] == 8000.0 and c["file_cache_mb"] == 3000.0
+    assert c["used_mb"] == 4500.0 and c["free_mb"] == 3500.0  # the cache can be given back
+    assert c["working_set_mb"] == 6500.0  # what a platform's graph shows
+    assert c["anon_mb"] == 4000.0 and c["shmem_mb"] == 300.0 and c["oom_kills"] == 1 and "peak_mb" not in c
+    (tmp_path / "memory.max").write_text("max\n")
+    assert memory.container(tmp_path) is None
+
+    proc = tmp_path / "proc"
+    for pid, ppid, anon, shm in ((10, 1, 900000, 100000), (11, 10, 300000, 500000), (12, 11, 50000, 0), (99, 1, 7000000, 0)):
+        (proc / str(pid)).mkdir(parents=True)
+        (proc / str(pid) / "status").write_text(f"Name:\tpython\nPPid:\t{ppid}\nRssAnon:\t{anon} kB\nRssShmem:\t{shm} kB\n")
+    (proc / "self").mkdir()
+    (proc / "13").mkdir()  # a process that ended while the list was read
+    got = memory.processes(10, proc)
+    assert [(p["role"], p["own_mb"], p["shared_mb"]) for p in got] == [("web", 921.6, 102.4), ("worker", 307.2, 512.0), ("worker", 51.2, 0.0)]
+
+
+def test_health_answers_with_or_without_a_memory_limit():
+    from fastapi.testclient import TestClient
+
+    from sphereblink import main, memory
+
+    data = TestClient(main.app).get("/api/health").json()
+    assert data["ok"] is True and "memory" in data
+    assert data["commit"] is None or re.fullmatch(r"[0-9a-f]{7,40}", data["commit"])  # the source of what runs
+    m = memory.usage()
+    assert m is None or (m["free_mb"] <= m["limit_mb"] and m["processes"][0]["own_mb"] > 0)

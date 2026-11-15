@@ -32,7 +32,7 @@ as static files.
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
 Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `completeness.js`, `linelist.js`, `insight.js`, `redshift.js`, `depth.js`, `showcase.js`, `app.js`.
-Asset URLs carry a version query (`?v=69`) that is raised when a file changes,
+Asset URLs carry a version query (`?v=70`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -67,7 +67,7 @@ Three columns under a fixed top bar:
 
 | Region | Content |
 | --- | --- |
-| Top bar | Brand, "Sky map" button, search box, Field menu, "Show sky", Simple/Advanced switch, API link, credits note |
+| Top bar | Brand, "Sky map" button, search box, Field menu, "Show sky", Simple/Advanced switch, API link, credits note (data sources, team, and "Source code": a link to the repository at the commit the service runs, which `/api/health` names; the same line ends "About the data") |
 | Left rail | Featured targets; Display panel: Bands, One frame per, Image math, Contrast, Overlays |
 | Stage | Target name and coordinates; the image; progress bar; a status strip with date, channels, wavelength range, exposure count and pointer coordinates; transport; timeline |
 | Right column | Spectrum or flux over time; "Distance and redshift"; "This frame"; "Measured in this field"; "Position of the crosshair" with cross-links; "Link or embed this view" with "All API endpoints" |
