@@ -396,5 +396,6 @@ def test_health_answers_with_or_without_a_memory_limit():
 
     data = TestClient(main.app).get("/api/health").json()
     assert data["ok"] is True and "memory" in data
+    assert data["commit"] is None or re.fullmatch(r"[0-9a-f]{7,40}", data["commit"])  # the source of what runs
     m = memory.usage()
     assert m is None or (m["free_mb"] <= m["limit_mb"] and m["processes"][0]["own_mb"] > 0)
