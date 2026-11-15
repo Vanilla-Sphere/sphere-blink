@@ -27,7 +27,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import atlas, catalogs, config, distance, guard, measure_api, measurements, movers_api, render, settings, tiles, wings
+from . import atlas, catalogs, config, distance, guard, measure_api, measurements, memory, movers_api, render, settings, tiles, wings
 from . import resolve as resolver
 from .cutout import Grid
 from .resolve import FEATURED, NameNotFound, ResolverUnavailable, Target, resolve
@@ -364,7 +364,9 @@ INSTANCE = f"{os.getpid()}-{int(time.time())}"
 
 @app.get("/api/health")
 async def health():
-    return {"ok": True, "collections": config.COLLECTIONS, "instance": INSTANCE}
+    """Whether the service answers, which process it is, and the memory it
+    really holds (``memory.usage``: the host's graph counts the file cache in)."""
+    return {"ok": True, "collections": config.COLLECTIONS, "instance": INSTANCE, "memory": memory.usage()}
 
 
 @app.get("/api/settings")

@@ -332,7 +332,8 @@ SPHEREX_AUTO_MEASURE=0 pytest -q
 | Job statistics | `job.stats` in `/api/view`, `/api/cube`, `/api/tiles` | Seconds by phase, megabytes read, request count, failed exposures |
 | Measurement state | `/api/measured` | Pipeline version, database connection, running jobs, stored results |
 | Application log | Platform log stream | Warnings for failed name lookups, database write failures, failed measurements |
-| Resource use | Platform metrics | CPU, memory, disk |
+| Memory really held | `memory` in `/api/health` | `used_mb` against `limit_mb`: what cannot be given back. The platform's graph also counts file cache (`file_cache_mb`), so read this before concluding that memory is short; `oom_kills` above 0 means it was |
+| Resource use | Platform metrics | CPU, memory (file cache included), disk |
 
 ## Runbook
 
