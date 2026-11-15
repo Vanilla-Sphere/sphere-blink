@@ -134,14 +134,27 @@ def test_the_team_is_named_with_what_each_one_did():
 
 
 def test_the_sky_of_the_first_page_is_a_photograph():
-    """Behind the first screen, the video and the last screen is the sky as
-    SPHEREx sees it, not a drawing: files of ours, credited on the page."""
-    for name, size in (("sky-milky-way", 400_000), ("sky-milky-way-m", 150_000), ("sky-orion", 250_000), ("sky-rho-oph", 200_000)):
+    """Behind the page is the sky as SPHEREx sees it, not a drawing: files of
+    ours, credited on the page. It is one layer fixed behind everything, so
+    it is there for the whole page and not only for the first screen."""
+    for name, size in (("sky-milky-way", 400_000), ("sky-milky-way-m", 150_000), ("sky-orion", 250_000), ("sky-rho-oph", 300_000)):
         assert f"/static/landing/{name}.webp" in PAGE, name
         assert 20_000 < (WEB / "landing" / f"{name}.webp").stat().st_size < size, name
     assert "<canvas class=\"sky\"" not in PAGE and "NASA/JPL-Caltech/IPAC" in PAGE
     assert "1.25, 2.19 and 3.29" in PAGE  # the three colours, as scripts/landing_sky.py takes them
     assert "FRAMES = (62, 46, 22)" in (WEB.parent / "scripts" / "landing_sky.py").read_text()
+    sky = re.search(r'<div class="pagesky" id="pagesky"[^>]*>(.*?)</div>', PAGE, re.S)
+    assert sky and sky.start() < PAGE.index("<main>")
+    css = (WEB / "landing.css").read_text()
+    assert re.search(r"\.pagesky\{position:fixed;[^}]*z-index:-1", css)
+    # one sky is in the page as it comes; the others wait for their part of the page, which must exist
+    assert len(re.findall(r"<img[^>]* src=", sky.group(1))) == 1
+    later = re.findall(r'<img[^>]* data-src="/static/landing/([\w.-]+)" data-from="(\w+)"', sky.group(1))
+    assert len(later) == 2
+    for name, part in later:
+        assert (WEB / "landing" / name).is_file() and f'id="{part}"' in PAGE, (name, part)
+    # every part of the page between the first and the last screen lays the same veil over the sky
+    assert re.search(r"--veil:\d+%", css) and css.count("var(--veil)") >= 4
 
 
 def test_the_viewer_knows_its_new_address():

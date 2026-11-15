@@ -1,4 +1,4 @@
-"""The photographs of the sky on the first page (web/landing/sky-*.webp).
+"""The photographs of the sky behind the first page (web/landing/sky-*.webp).
 
 They are cut from the SPHEREx DR1 all-sky map, which NASA/IPAC IRSA publishes
 as a HiPS cube: the sky in HEALPix tiles of 512 x 512 pixels, one PNG for each
@@ -11,8 +11,8 @@ Credit: NASA/JPL-Caltech/IPAC. The four pictures of the page:
 
     python scripts/landing_sky.py web/landing/sky-milky-way.webp   --l 0 --b 0 --fov 70 --size 2000x1125 --order 3 --rot 16 --at 0.70,0.72 --quality 54 --black 8
     python scripts/landing_sky.py web/landing/sky-milky-way-m.webp --l 0 --b 0 --fov 44 --size 800x1440  --order 3 --rot 32 --at 0.60,0.80 --quality 56 --black 8
-    python scripts/landing_sky.py web/landing/sky-orion.webp       --l 209.0 --b -19.4 --fov 27 --size 1600x750 --order 4 --at 0.24,0.62 --quality 58 --black 4
-    python scripts/landing_sky.py web/landing/sky-rho-oph.webp     --l 353.2 --b 16.6  --fov 20 --size 1120x630 --order 4 --at 0.60,0.42 --quality 62 --black 6
+    python scripts/landing_sky.py web/landing/sky-orion.webp       --l 209.0 --b -19.4 --fov 27 --size 1600x900 --order 4 --at 0.26,0.60 --quality 54 --black 4
+    python scripts/landing_sky.py web/landing/sky-rho-oph.webp     --l 353.2 --b 16.6  --fov 20 --size 1600x900 --order 4 --at 0.60,0.42 --quality 54 --black 6
 
 ``--l --b`` is a point of the sky in Galactic degrees, ``--at`` where it lands
 in the picture (fractions of width and height), ``--fov`` the width of the
