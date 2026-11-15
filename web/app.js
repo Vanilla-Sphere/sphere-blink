@@ -88,7 +88,7 @@ function writeUrl(push) {
   S.url = "?" + p.toString();
   if (S.screen === "view" || push) history[push ? "pushState" : "replaceState"](null, "", S.url);
   const base = location.origin;
-  $("s-page").value = base + "/?" + p.toString();
+  $("s-page").value = base + "/sky?" + p.toString();   // the viewer lives at /sky; "/" is the page that presents it
   const g = viewParams({det: S.det, group: S.group});
   if (S.mode === "diffmed") g.set("diff", "true");
   $("s-gif").value = base + "/api/movie.gif?" + g.toString();

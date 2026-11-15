@@ -60,7 +60,7 @@ with their full history since the first commit of the hackathon
 [sphere-blink-ui-tests](https://github.com/Vanilla-Sphere/sphere-blink-ui-tests).
 
 > [!TIP]
-> Nothing to install and no account: open [vanillasphere.com](https://vanillasphere.com) and click anywhere on the sky.
+> Nothing to install and no account: open [vanillasphere.com/sky](https://vanillasphere.com/sky) and click anywhere on the sky.
 > Space plays and pauses the movie, the arrow keys step through its frames.
 
 <div align="center">
@@ -110,45 +110,45 @@ Every picture here is a real view, and each button opens one on the live site.
 
 <div align="center">
 
-<a href="https://vanillasphere.com/?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-3i-atlas.svg" alt="3I/ATLAS, interstellar comet" height="38"></a>
-<a href="https://vanillasphere.com/?ra=304.14&amp;dec=-23.58&amp;levels=3&amp;mover=VS-60951-4LN9&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-pluto.svg" alt="Pluto, found by stacking" height="38"></a>
-<a href="https://vanillasphere.com/?ra=200.70&amp;dec=21.06&amp;levels=3&amp;mover=VS-61191-X387&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-makemake.svg" alt="Makemake, dwarf planet" height="38"></a>
-<a href="https://vanillasphere.com/?target=barnard"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-barnard.svg" alt="Barnard's Star, fastest star in the sky" height="38"></a>
-<a href="https://vanillasphere.com/?target=eps-indi-b&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-eps-indi-b.svg" alt="Epsilon Indi B, brown dwarf spectrum" height="38"></a>
-<a href="https://vanillasphere.com/?target=r-dra&amp;plot=lc&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-r-dra.svg" alt="R Draconis, a star that faded" height="38"></a>
-<a href="https://vanillasphere.com/?ra=232.1947&amp;dec=36.631&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-quasar.svg" alt="SDSS J1528+3637, quasar redshift" height="38"></a>
-<a href="https://vanillasphere.com/?target=wise-0855&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-wise-0855.svg" alt="WISE 0855, coldest brown dwarf" height="38"></a>
+<a href="https://vanillasphere.com/sky?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-3i-atlas.svg" alt="3I/ATLAS, interstellar comet" height="38"></a>
+<a href="https://vanillasphere.com/sky?ra=304.14&amp;dec=-23.58&amp;levels=3&amp;mover=VS-60951-4LN9&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-pluto.svg" alt="Pluto, found by stacking" height="38"></a>
+<a href="https://vanillasphere.com/sky?ra=200.70&amp;dec=21.06&amp;levels=3&amp;mover=VS-61191-X387&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-makemake.svg" alt="Makemake, dwarf planet" height="38"></a>
+<a href="https://vanillasphere.com/sky?target=barnard"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-barnard.svg" alt="Barnard's Star, fastest star in the sky" height="38"></a>
+<a href="https://vanillasphere.com/sky?target=eps-indi-b&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-eps-indi-b.svg" alt="Epsilon Indi B, brown dwarf spectrum" height="38"></a>
+<a href="https://vanillasphere.com/sky?target=r-dra&amp;plot=lc&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-r-dra.svg" alt="R Draconis, a star that faded" height="38"></a>
+<a href="https://vanillasphere.com/sky?ra=232.1947&amp;dec=36.631&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-quasar.svg" alt="SDSS J1528+3637, quasar redshift" height="38"></a>
+<a href="https://vanillasphere.com/sky?target=wise-0855&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/go-wise-0855.svg" alt="WISE 0855, coldest brown dwarf" height="38"></a>
 
 </div>
 
 <table>
 <tr>
 <td width="50%" valign="top">
-<a href="https://vanillasphere.com/?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/3i-atlas-field.webp" alt="A 7 x 7 cell field with the track of 3I/ATLAS"></a>
+<a href="https://vanillasphere.com/sky?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/3i-atlas-field.webp" alt="A 7 x 7 cell field with the track of 3I/ATLAS"></a>
 <b>A field of 49 cells, and what moves in it.</b> The view grows ring by ring to 0.84 degrees. A blind search links what moved between exposures; the line is the track of comet 3I/ATLAS.
 </td>
 <td width="50%" valign="top">
-<a href="https://vanillasphere.com/?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/3i-atlas-exposures.webp" alt="3I/ATLAS in fifteen single exposures"></a>
+<a href="https://vanillasphere.com/sky?ra=248.34&amp;dec=-16.98&amp;levels=3&amp;mover=VS-60894-B5F6&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/3i-atlas-exposures.webp" alt="3I/ATLAS in fifteen single exposures"></a>
 <b>The evidence, exposure by exposure.</b> Each pair is centred where JPL predicts the comet: the exposure as taken, and the same with the static sky subtracted.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<a href="https://vanillasphere.com/?ra=304.14&amp;dec=-23.58&amp;levels=3&amp;mover=VS-60951-4LN9&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/pluto-stack.webp" alt="Pluto found by shift-and-stack"></a>
+<a href="https://vanillasphere.com/sky?ra=304.14&amp;dec=-23.58&amp;levels=3&amp;mover=VS-60951-4LN9&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/pluto-stack.webp" alt="Pluto found by shift-and-stack"></a>
 <b>Pluto, found by adding exposures.</b> At 0.2 arcsec per hour it does not move enough for the first search. The stack of 43 exposures along its path shows it at 279 sigma.
 </td>
 <td width="50%" valign="top">
-<a href="https://vanillasphere.com/?target=eps-indi-b&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/spectrum-reading.webp" alt="The spectrum of Epsilon Indi B with its preliminary reading"></a>
+<a href="https://vanillasphere.com/sky?target=eps-indi-b&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/spectrum-reading.webp" alt="The spectrum of Epsilon Indi B with its preliminary reading"></a>
 <b>A spectrum, and a first reading of it.</b> Every exposure sees the target at another wavelength. For the brown dwarf Epsilon Indi B the viewer names the water and methane bands by fixed, cited rules.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<a href="https://vanillasphere.com/?target=r-dra&amp;plot=lc&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/over-time.webp" alt="R Draconis over time"></a>
+<a href="https://vanillasphere.com/sky?target=r-dra&amp;plot=lc&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/over-time.webp" alt="R Draconis over time"></a>
 <b>Brightness over time.</b> The Mira variable R Draconis faded by a factor of two between June 2025 and June 2026, band by band.
 </td>
 <td width="50%" valign="top">
-<a href="https://vanillasphere.com/?ra=232.1947&amp;dec=36.631&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/redshift.webp" alt="The redshift of a quasar measured from its lines"></a>
+<a href="https://vanillasphere.com/sky?ra=232.1947&amp;dec=36.631&amp;ui=adv"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@d4e0bfac1f985763e038d6e54f945aed8bc70d58/docs/readme/redshift.webp" alt="The redshift of a quasar measured from its lines"></a>
 <b>Redshift from the lines.</b> For a quasar the viewer measures the redshift from its emission lines, gives the distance and look-back time, and says when a catalogue disagrees.
 </td>
 </tr>
@@ -232,12 +232,12 @@ Barnard's Star, the fastest-moving star in the sky, creeps north by about
 </div>
 
 ```
-/?target=Barnard's Star&fov=8
-/?ra=133.76010&dec=-7.24227&fov=8&det=5,6&group=visit
+/sky?target=Barnard's Star&fov=8
+/sky?ra=133.76010&dec=-7.24227&fov=8&det=5,6&group=visit
 /api/movie.gif?target=barnard&fov=8&group=day
 /api/frame.png?ra=269.44629&dec=4.76792&fov=8&i=-1
 /api/spectrum?target=R Dra&wait=60
-/?ra=206.005&dec=-10.763&levels=3                 progressive field, 7 x 7 cells
+/sky?ra=206.005&dec=-10.763&levels=3              progressive field, 7 x 7 cells
 /api/tiles?ra=206.005&dec=-10.763&levels=3        its cells, stages and progress
 /api/measure?target=WISE 0855                     positions, fitted motion, light curve
 /api/measured                                     everything measured so far
@@ -314,7 +314,7 @@ The architecture, with fifteen diagrams, is in
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
 uvicorn sphereblink.main:app --port 8000
-# open http://localhost:8000/?target=barnard
+# open http://localhost:8000/sky?target=barnard
 ```
 
 No key and no account are needed: the SPHEREx images and the catalogues are

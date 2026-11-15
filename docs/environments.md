@@ -33,8 +33,10 @@ Two consequences follow:
   measurement and stores a real result. There is no test data to spoil
   because there is no second data set.
 
-`scripts/build_dev_site.sh` builds the site: `web/index.html` at `/` (with
-`[dev]` in front of the title, the only difference in the page), the rest of
+`scripts/build_dev_site.sh` builds the site: the first page
+(`web/landing.html`) at `/` and the viewer (`web/index.html`) as `sky.html`,
+which a rewrite answers `/sky` with, as production does (both with `[dev]` in
+front of the title, the only difference in the pages), the rest of
 `web/` under `/static/` as the server mounts it, and a `robots.txt` that
 disallows everything. `render.dev.yaml` adds four things:
 
@@ -42,7 +44,8 @@ disallows everything. `render.dev.yaml` adds four things:
   site, so the viewer keeps calling its own origin;
 - `X-Robots-Tag: noindex, nofollow` on every answer;
 - the content security policy the server gives the page (`guard.CSP`), on
-  `/` and on `/index.html`, which a static site also answers with the page.
+  `/` and on `/index.html`, which a static site also answers with the page,
+  and on `/sky` and `/sky.html` for the viewer.
   A test keeps the two equal, so a script or request the policy would block
   in production is blocked on dev as well;
 - `X-Frame-Options: SAMEORIGIN` on every path, so that no other site can
