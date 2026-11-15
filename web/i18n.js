@@ -23,7 +23,7 @@ const STR = {
     "ep.sat": "Saturated at the target: the core pixels are not reliable.",
     "simple.share.fail": "Copy the link from the address bar",
     "field.cell": "{n} cell", "field.cells": "{n} cells",
-    "field.done": "{cells} · {n} exposures in {s}s", "field.shown": "{cells} shown · ",
+    "field.done": "{cells} · {n} exposures in {s}s", "field.shown": "{cells} shown · ", "field.stopped": "{cells} shown. The wider field did not load: {msg}", "tip.again": "Ask the archive for this view once more",
     "field.read": "reading exposure {done} of {total} for {cells}…", "field.search": "searching the archive for {cells}…",
     "cat.loading": "Loading {cat}…", "cat.failed": "The {cat} service did not answer. Untick and tick to try again.",
     "err.net": "The site could not be reached. Check the connection and try again.",

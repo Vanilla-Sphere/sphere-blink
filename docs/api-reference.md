@@ -275,10 +275,17 @@ the measurement database. `s3_key` is the object key in the public bucket
 
 ### GET /api/view
 
-Parameters: view address.
+Parameters: view address, and `poll` (boolean, default `false`).
 
 Starts gathering the frames of a view, or reports on a view already started.
 Returns immediately. Poll until `job.status` is `ready`.
+
+A view that failed is started again by this call, which is what opening it
+anew should do. To watch a view you have opened, poll with `poll=true`: the
+view is then reported as it is, and one that failed comes back with
+`job.status` `error` and the reason in `job.error`. Without it every poll
+after a failure would be answered with a new attempt, and the failure would
+never be seen. A view the server no longer holds is started either way.
 
 ```json
 {
@@ -294,7 +301,9 @@ scale and the resulting exact field of view.
 ### GET /api/tiles
 
 Starts a progressive field on the cell grid `icrs012-v1`, or reports on one
-already started. Poll until `status` is `ready`.
+already started. Poll until `status` is `ready`. As with `/api/view`, poll
+with `poll=true`: a field that failed is then reported with `status` `error`
+instead of being started again.
 
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
