@@ -188,6 +188,17 @@ class Fields:
         threading.Thread(target=self._run, args=(f,), daemon=True).start()
         return f
 
+    def peek(self, ra: float, dec: float, levels: int) -> Field | None:
+        """The field of a place if the server holds one, as it is (never starts
+        one): a field that failed is given as failed, where ``start`` would
+        replace it by a new attempt."""
+        seed = block(ra, dec, levels)[0]
+        with self.lock:
+            f = self.fields.get(f"{seed['tile_id']}/{levels}")
+            if f is not None:
+                f.last_used = time.time()
+            return f
+
     def _run(self, f: Field) -> None:
         for s in f.stages[1:]:  # look the later stages up while the first one loads
             threading.Thread(target=self._search, args=(s["grid"],), daemon=True).start()

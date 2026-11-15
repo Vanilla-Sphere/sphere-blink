@@ -408,10 +408,19 @@ def api_exposures(target: str | None = None, ra: float | None = None, dec: float
 
 
 @app.get("/api/view")
-def api_view(target: str | None = None, ra: float | None = None, dec: float | None = None, fov: float = FOV):
-    """Start gathering all frames for a view; poll until job.status == ready."""
+def api_view(
+    target: str | None = None, ra: float | None = None, dec: float | None = None, fov: float = FOV,
+    poll: bool = Query(False, description="report on the view as it is: a view that failed is not started again"),
+):
+    """Start gathering all frames for a view; poll until job.status == ready.
+
+    Without ``poll`` a view that failed is started again, which is what
+    opening it anew should do. A page that watches a view it has opened asks
+    with ``poll=true``: it then sees ``status: "error"`` and the reason, where
+    it would otherwise be handed a new attempt each time and never learn that
+    the last one failed. A view the server no longer holds is started either way."""
     t, grid = _view(target, ra, dec, fov)
-    job = svc.start(grid)
+    job = (svc.peek(grid) if poll else None) or svc.start(grid)
     return {"target": t.to_dict(), "grid": grid.to_dict(), "job": job.public()}
 
 
@@ -421,6 +430,7 @@ def api_tiles(
     levels: int = Query(3, ge=0, le=tiles.MAX_LEVELS, description="rings of cells around the seed cell (3 = 7 x 7 cells)"),
     neighbors: int | None = Query(None, ge=0, le=tiles.MAX_LEVELS, description="same as levels"),
     tile_id: str | None = Query(None, description="seed cell by id instead of a position, e.g. icrs012-v1-2245-0789"),
+    poll: bool = Query(False, description="report on the field as it is: a field that failed is not started again"),
 ):
     """A progressive field on the fixed 0.12 degree cell grid (icrs012-v1).
 
@@ -429,13 +439,18 @@ def api_tiles(
     ordinary view (``ra``, ``dec``, ``fov`` in ``stages``), so every other
     endpoint - cube, frame.png, movie.gif, epochs - works on it. Poll until
     ``status`` is ``ready``.
+
+    A page that watches a field it has opened asks with ``poll=true`` (see
+    ``/api/view``): a field that failed then comes back with ``status:
+    "error"`` instead of being started again without a word.
     """
     try:
         if tile_id:
             ra, dec = tiles.center(*tiles.parse_tile_id(tile_id))
             target = None
         t = _target(target, ra, dec)
-        field = fields.start(t.ra, t.dec, neighbors if neighbors is not None else levels)
+        n = neighbors if neighbors is not None else levels
+        field = (fields.peek(t.ra, t.dec, n) if poll else None) or fields.start(t.ra, t.dec, n)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     return {"target": t.to_dict(), **field.public()}

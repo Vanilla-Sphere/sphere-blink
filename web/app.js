@@ -167,13 +167,18 @@ async function load(next, nopush) {
   $("sharecard").hidden = false;
   if (S.levels) return loadField(id, view);
 
-  // poll: the cube grows while exposures are being fetched
-  let last = -1;
+  // Poll the job, not the picture: its state is a few hundred bytes, the cube is megabytes, and asking
+  // for the growing cube with every poll sent a new view several times over. The cube is fetched twice
+  // at most: when its first frames are there, so there is sky to look at while the rest arrives, and
+  // when the view is complete.
+  let last = -1, job = view.job, early = false;
   for (;;) {
-    let job;
-    try { job = await fetchCube(id, false); } catch (e) { return fail(e, id); }
-    if (id !== S.loadId) return;
-    if (!job) return;
+    if (job.status === "ready" || (!early && job.status !== "error" && job.frames > 0)) {
+      try { job = await fetchCube(id, false); } catch (e) { return fail(e, id); }
+      if (id !== S.loadId) return;
+      if (!job) return;
+      early = true;
+    }
     if (job.status === "error") return fail(new Error(job.error), id);
     setProgress(job.total ? job.done / job.total : 0,
       job.status === "ready" ? tr("load.done", {n: job.frames, s: job.elapsed_s}) :
@@ -184,6 +189,13 @@ async function load(next, nopush) {
     if (job.status === "ready") break;
     await sleep(job.done === last ? 900 : 1300);
     last = job.done;
+    try {
+      // poll=true: a view that failed is reported as failed, not quietly started again
+      const r = await api("/api/view?" + paramsOf(S, {poll: true}), () => id === S.loadId), d = await r.json();
+      if (!r.ok) throw new Error(d.detail || r.statusText);
+      job = d.job;
+    } catch (e) { return fail(e, id); }
+    if (id !== S.loadId) return;
   }
   setTimeout(() => { if (id === S.loadId && !S.busy) $("progress").hidden = true; }, S.ui === "simple" ? 0 : 2500);
   loadSpectrum(id);
@@ -214,7 +226,7 @@ function offSky(q) {
 /* A progressive field: the seed cell first, then its ring, then the whole block.
    The picture on screen is always the widest stage that has finished. */
 async function loadField(id, f) {
-  let shown = -1;
+  let shown = -1, early = false;   // early: the first cell has been shown once with the frames it had (see load)
   for (;;) {
     S.field = f;
     const done = f.stages.filter((s) => s.status === "ready").pop(), next = f.stages.find((s) => s.status !== "ready");
@@ -222,7 +234,11 @@ async function loadField(id, f) {
     if (bad) return fail(new Error(bad.job ? bad.job.error : "the archive could not be read"), id);
     try {
       if (done && done.level !== shown) { S.stage = done; if (!(await fetchCube(id, shown >= 0))) return; shown = done.level; S.catalogs = {}; loadCatalogs(); writeUrl(); }
-      else if (!done) { S.stage = f.stages[0]; if (!(await fetchCube(id, false))) return; writeUrl(); }  // the first cell grows as its exposures arrive
+      else if (!done) {  // the first cell is shown once while its exposures arrive, and again when it is complete
+        S.stage = f.stages[0];
+        const j0 = f.stages[0].job;
+        if (!early && j0 && j0.frames > 0) { if (!(await fetchCube(id, false))) return; early = true; writeUrl(); }
+      }
       else draw();
     } catch (e) { return fail(e, id); }
     if (id !== S.loadId) return;
@@ -232,7 +248,8 @@ async function loadField(id, f) {
       (done ? tr("field.shown", {cells: cells(done)}) : "") + (j && j.queue ? queueText(j) : j && j.total ? tr("field.read", {done: j.done, total: j.total, cells: cells(next)}) : tr("field.search", {cells: cells(next)})));
     await sleep(done ? 1000 : 1300);
     try {
-      const r = await api("/api/tiles?" + paramsOf(S), () => id === S.loadId); f = await r.json();
+      // poll=true: a field that failed is reported as failed, not quietly started again
+      const r = await api("/api/tiles?" + paramsOf(S, {poll: true}), () => id === S.loadId); f = await r.json();
       if (!r.ok) throw new Error(f.detail || r.statusText);
     } catch (e) { return fail(e, id); }
     if (id !== S.loadId) return;

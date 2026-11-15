@@ -688,3 +688,70 @@ def test_the_exposure_search_shares_one_deadline_and_names_the_archive(monkeypat
     with pytest.raises(retry.Unavailable) as err:
         sia.find_exposures_at([(1.0, 2.0)], ["spherex_dr1"], client=down, timeout=30.0, budget=0.0)
     assert str(err.value).startswith("NASA's SPHEREx archive (IRSA) is not answering right now (HTTP 502")
+
+
+def test_polling_a_view_reports_a_failure_instead_of_starting_again(client, monkeypatch):
+    """A page that watches a view asks with poll=true. A view that failed must
+    then come back as failed: without poll the server starts it again, and a
+    page that polled that way was handed a new attempt each time and never
+    learned that the last one had failed."""
+    from sphereblink import main
+    from sphereblink.service import Job, Service
+
+    started = []
+    monkeypatch.setattr(Service, "_run", lambda self, job, grid: started.append(job.id))
+    q = "ra=123.4&dec=-5.6&fov=8"
+    _, grid = main._view(None, 123.4, -5.6, 8.0)
+    failed = Job(id="failedjob001", status="error", error="NASA's archive is not answering right now")
+    with main.svc.lock:
+        main.svc.jobs[failed.id] = failed
+        main.svc.by_view[grid.key()] = failed.id
+    try:
+        seen = client.get(f"/api/view?{q}&poll=true").json()["job"]
+        assert (seen["id"], seen["status"], seen["error"]) == ("failedjob001", "error", failed.error)
+        assert started == [] and main.svc.by_view[grid.key()] == "failedjob001"   # nothing was started by looking
+        # the control: opening the view anew does start again, so the two can be told apart
+        anew = client.get(f"/api/view?{q}").json()["job"]
+        assert anew["id"] != "failedjob001" and anew["status"] != "error" and started == [anew["id"]]
+        # and a poll now reports that new attempt, not a third one
+        assert client.get(f"/api/view?{q}&poll=true").json()["job"]["id"] == anew["id"] and len(started) == 1
+        # a view the server does not hold is started by a poll as well: the page is never left with nothing
+        other = client.get("/api/view?ra=200.1&dec=10.2&fov=8&poll=true").json()["job"]
+        assert other["id"] in main.svc.jobs and started == [anew["id"], other["id"]]
+    finally:
+        with main.svc.lock:
+            for vk in (grid.key(), main._view(None, 200.1, 10.2, 8.0)[1].key()):
+                main.svc.jobs.pop(main.svc.by_view.pop(vk, ""), None)
+            main.svc.jobs.pop("failedjob001", None)
+
+
+def test_polling_a_field_reports_a_failure_instead_of_starting_again(client, monkeypatch):
+    """The same for a progressive field (/api/tiles): the page that watches
+    it has to see that it failed. Without poll the failed field is replaced
+    by a new attempt before the answer is written."""
+    from sphereblink import main, tiles
+
+    runs = []
+    monkeypatch.setattr(tiles.Fields, "_run", lambda self, f: runs.append(id(f)))
+    q = "ra=123.4&dec=-5.6&levels=1"
+    first = client.get(f"/api/tiles?{q}").json()
+    assert first["status"] == "loading" and len(runs) == 1
+    key = f"{first['seed']['tile_id']}/1"
+    field = main.fields.fields[key]
+    try:
+        # its first stage fails, as when the archive does not answer
+        field.stages[0]["status"] = "error"
+        field.stages[0]["job"] = {"status": "error", "error": "NASA's archive is not answering right now"}
+        field.finished = 1.0
+        seen = client.get(f"/api/tiles?{q}&poll=true").json()
+        assert seen["status"] == "error" and seen["stages"][0]["job"]["error"].startswith("NASA's archive")
+        assert len(runs) == 1 and main.fields.fields[key] is field   # nothing was started by looking
+        # the control: opening the field anew does start again, so the two can be told apart
+        anew = client.get(f"/api/tiles?{q}").json()
+        assert anew["status"] == "loading" and len(runs) == 2 and main.fields.fields[key] is not field
+        # a field the server does not hold is started by a poll as well
+        assert client.get("/api/tiles?ra=200.1&dec=10.2&levels=1&poll=true").json()["status"] == "loading" and len(runs) == 3
+    finally:
+        with main.fields.lock:
+            for k in [k for k, f in main.fields.fields.items() if id(f) in runs]:
+                main.fields.fields.pop(k)

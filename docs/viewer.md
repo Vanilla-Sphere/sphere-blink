@@ -32,7 +32,7 @@ as static files.
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
 Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `completeness.js`, `linelist.js`, `insight.js`, `redshift.js`, `depth.js`, `showcase.js`, `app.js`.
-Asset URLs carry a version query (`?v=71`) that is raised when a file changes,
+Asset URLs carry a version query (`?v=72`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -131,9 +131,13 @@ reloading, and any other address loads that view.
    not resolve, show the error under the search box and leave the current view
    untouched.
 2. Reset the data state, show the target, switch to the view screen, write the URL.
-3. Poll `/api/cube` every 0.9-1.3 s until the job is ready. Each answer replaces
-   the cube, rebuilds the timeline and redraws, so the movie grows as exposures
-   arrive. The epoch on screen is preserved across refreshes by its label.
+3. Poll `/api/view` with `poll=true` every 0.9-1.3 s until the job is ready.
+   The state of the job is a few hundred bytes; the cube is megabytes, so it is
+   not fetched with every poll. It is fetched twice at most: once when the
+   first frames are there, so that there is sky to look at while the rest
+   arrives, and once when the view is complete. Each fetch replaces the cube,
+   rebuilds the timeline and redraws. A job that failed is shown with its
+   reason and a "Try again" button, and the polling stops.
 4. When ready, request the spectrum, the selected catalogues and the measured tracks.
 
 For a progressive field, `loadField` polls `/api/tiles` and fetches the cube of
