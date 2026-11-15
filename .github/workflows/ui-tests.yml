@@ -1,17 +1,24 @@
 # After a merge, the UI tests of Vanilla-Sphere/sphere-blink-ui-tests run
-# against the site that merge deploys (docs/environments.md):
+# against the merged commit (docs/environments.md):
 #
-#   develop -> https://dev.vanillasphere.com   (the viewer of develop in front
-#                                               of the engine of production)
-#   main    -> https://vanillasphere.com       (production)
+#   develop, main -> the service of that commit, started inside this job
+#                    (scripts/start_local_site.sh, http://127.0.0.1:8000)
 #
-# The tests and the way they are run live in that repository (its action.yml);
-# this workflow only waits until the site serves the merged commit and then
-# calls it. The result is a check on the merge commit here. The suite reads
-# only: the cases that start heavy jobs or write measurements are off in CI.
+# The tests do not go through the deployed sites: a run opens hundreds of
+# pages and downloads about a third of a gigabyte of pictures, and every
+# byte a deployed site sends is paid for (twice through the dev site, which
+# passes /api/ on to production). The server in the job reads the same
+# archive and has no measurement database. After a merge to main a second,
+# small job checks that production serves the merged commit.
 #
-# By hand (Actions > ui-tests > Run workflow) it runs against the chosen site
-# as it is, without waiting for a deploy.
+# The tests and the way they are run live in that repository (its
+# action.yml); this workflow only starts the site and calls it. The result is
+# a check on the merge commit here. The suite reads only: the cases that
+# start heavy jobs or write measurements are off in CI.
+#
+# By hand (Actions > ui-tests > Run workflow) it runs against the chosen
+# site: "local" as after a merge, or a deployed site as it is ("dev",
+# "production"; this is traffic the deployed site is billed for).
 #
 # The other repository is private: it must allow this one to use its action
 # (its Settings > Actions > General > Access: "Accessible from repositories in
@@ -26,8 +33,8 @@ on:
       site:
         description: Site under test
         type: choice
-        default: dev
-        options: [dev, production]
+        default: local
+        options: [local, dev, production]
       project:
         description: Project (empty runs both)
         type: choice
@@ -41,31 +48,54 @@ on:
 permissions:
   contents: read
 
-# One run per site at a time. A newer merge replaces the run of the one
-# before it: the site no longer serves that commit.
+# One run per branch (or per site chosen by hand) at a time. A newer merge
+# replaces the run of the one before it.
 concurrency:
-  group: ui-tests-${{ github.event_name == 'push' && github.ref_name || inputs.site }}
+  group: ui-tests-${{ github.event_name == 'push' && github.ref_name || format('{0}-{1}', inputs.site, github.ref_name) }}
   cancel-in-progress: true
 
 jobs:
   ui-tests:
-    name: ${{ (github.event_name == 'push' && github.ref_name == 'main' || inputs.site == 'production') && 'production' || 'dev' }}
+    name: ${{ github.event_name == 'push' && github.ref_name || inputs.site }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      SITE: ${{ (github.event_name == 'push' && github.ref_name == 'main' || inputs.site == 'production') && 'https://vanillasphere.com' || 'https://dev.vanillasphere.com' }}
+      WHERE: ${{ github.event_name == 'push' && 'local' || inputs.site }}
+      SITE: ${{ github.event_name != 'push' && inputs.site == 'production' && 'https://vanillasphere.com' || github.event_name != 'push' && inputs.site == 'dev' && 'https://dev.vanillasphere.com' || 'http://127.0.0.1:8000' }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # the commit before the push, to see whether the engine is redeployed
 
-      - name: Wait until the site serves this commit
-        if: github.event_name == 'push'
+      - name: Python of the service
+        if: env.WHERE == 'local'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Packages of the service
+        if: env.WHERE == 'local'
+        run: pip install -r requirements.txt
+
+      # What the server fetched from the archive in earlier runs (frames of
+      # the views the tests open, tiles of the sky photograph, names), so a
+      # run does not read it all again. A cache is never changed once saved,
+      # hence a new key each run and the newest one restored.
+      - name: Frames and tiles of earlier runs
+        if: env.WHERE == 'local'
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/sphereblink-cache
+          key: ui-tests-site-cache-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ui-tests-site-cache-v1-
+
+      - name: Start the site in this job
+        if: env.WHERE == 'local'
         env:
-          BEFORE: ${{ github.event.before }}
-          PUSHED_AT: ${{ github.event.repository.pushed_at }}
-          MESSAGE: ${{ github.event.head_commit.message }}
-        run: sh scripts/wait_for_deploy.sh "$SITE" "${{ github.ref_name == 'main' && 'engine' || 'static' }}"
+          SPHEREX_CACHE_DIR: ${{ runner.temp }}/sphereblink-cache
+          SPHEREX_DISK_BUDGET_GB: "2"
+          SITE_LOG: ${{ runner.temp }}/local-site.log
+          SITE_PID: ${{ runner.temp }}/local-site.pid
+        run: sh scripts/start_local_site.sh
 
       - name: UI tests
         uses: Vanilla-Sphere/sphere-blink-ui-tests@main
@@ -73,4 +103,42 @@ jobs:
           base-url: ${{ env.SITE }}/
           project: ${{ inputs.project }}
           grep: ${{ inputs.grep }}
-          report-name: ui-tests-report-${{ (github.event_name == 'push' && github.ref_name == 'main' || inputs.site == 'production') && 'production' || 'dev' }}
+          report-name: ui-tests-report-${{ github.event_name == 'push' && github.ref_name || inputs.site }}
+
+      - name: Stop the site and show the end of its log
+        if: always() && env.WHERE == 'local'
+        env:
+          SITE_LOG: ${{ runner.temp }}/local-site.log
+          SITE_PID: ${{ runner.temp }}/local-site.pid
+        run: |
+          sh scripts/start_local_site.sh stop
+          echo "Warnings and errors of the server (requests left out):"
+          grep -v '^INFO: .* HTTP/1.1" [23]' "$SITE_LOG" | tail -150 || true
+          du -sh "${{ runner.temp }}/sphereblink-cache" || true
+
+      - name: Keep the frames and tiles for the next run
+        if: always() && env.WHERE == 'local'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/sphereblink-cache
+          key: ui-tests-site-cache-v1-${{ github.run_id }}-${{ github.run_attempt }}
+
+  # The tests above say whether the merged commit works; this says whether
+  # production runs it. A few requests for scripts and style sheets, no
+  # pictures.
+  deployed:
+    name: production serves the commit
+    if: github.event_name == 'push' && github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the commit before the push, to see whether the engine is redeployed
+
+      - name: Wait until production serves this commit
+        env:
+          BEFORE: ${{ github.event.before }}
+          PUSHED_AT: ${{ github.event.repository.pushed_at }}
+          MESSAGE: ${{ github.event.head_commit.message }}
+        run: sh scripts/wait_for_deploy.sh https://vanillasphere.com engine

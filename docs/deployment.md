@@ -275,10 +275,11 @@ Do not use the phrase on a change to code, `web/`, `requirements.txt` or
 
 ### Post-deploy checks
 
-The UI tests run by themselves after every merge to `main`, once the site
-serves the merged commit ([environments](environments.md#ui-tests-after-every-merge));
-their result is the check `ui-tests / production` on the merge commit. The
-checks below look at the engine.
+After every merge to `main` two checks appear on the merge commit
+([environments](environments.md#ui-tests-after-every-merge)): `ui-tests /
+main`, the UI tests against the merged commit started inside the job, and
+`ui-tests / production serves the commit`, which waits until production
+serves that commit. The checks below look at the engine.
 
 | Check | Expected |
 | --- | --- |
