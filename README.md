@@ -18,23 +18,22 @@
 Every NASA SPHEREx image of any position, played as a movie in seconds,<br>
 with a spectrum, measured motion and a blind search for things that move.
 
-<a href="https://vanillasphere.com"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-live.svg" alt="Open the live site" height="44"></a>
-<a href="#what-it-found"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-found.svg" alt="See what it found" height="44"></a>
-<a href="https://vanillasphere.com/docs"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-api.svg" alt="API explorer" height="44"></a>
-<a href="docs/README.md"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-docs.svg" alt="Documentation" height="44"></a>
-<a href="docs/science/README.md"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-science.svg" alt="Science and algorithms" height="44"></a>
+<a href="https://vanillasphere.com"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-live.svg" alt="Open the live site" height="38"></a>
+<a href="#what-it-found"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-found.svg" alt="See what it found" height="38"></a>
+<a href="https://vanillasphere.com/docs"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-api.svg" alt="API explorer" height="38"></a>
+<a href="docs/README.md"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-docs.svg" alt="Documentation" height="38"></a>
+<a href="docs/science/README.md"><img src="https://cdn.jsdelivr.net/gh/Vanilla-Sphere/sphere-blink@f7ceba2166f47f3cd58ab9510178c5bf547b39ee/docs/readme/btn-science.svg" alt="Science and algorithms" height="38"></a>
 
 [![Live site](https://img.shields.io/badge/live-vanillasphere.com-b58afb?style=flat-square)](https://vanillasphere.com)
 [![checks](https://img.shields.io/github/actions/workflow/status/Vanilla-Sphere/sphere-blink/checks.yml?branch=main&label=tests&style=flat-square)](https://github.com/Vanilla-Sphere/sphere-blink/actions/workflows/checks.yml)
 [![UI tests](https://img.shields.io/github/actions/workflow/status/Vanilla-Sphere/sphere-blink/ui-tests.yml?branch=main&label=ui%20tests&style=flat-square)](https://github.com/Vanilla-Sphere/sphere-blink/actions/workflows/ui-tests.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-e9b452?style=flat-square)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab?style=flat-square&logo=python&logoColor=white)](requirements.txt)
-[![NASA Space Apps 2026](https://img.shields.io/badge/NASA%20Space%20Apps%202026-Planet%20X%20and%20SPHEREx-0b3d91?style=flat-square&logo=nasa&logoColor=white)](https://www.spaceappschallenge.org/)
-<br>
 [![Stars](https://img.shields.io/github/stars/Vanilla-Sphere/sphere-blink?style=flat-square&logo=github&label=stars&color=e9b452)](https://github.com/Vanilla-Sphere/sphere-blink/stargazers)
 [![Forks](https://img.shields.io/github/forks/Vanilla-Sphere/sphere-blink?style=flat-square&logo=github&label=forks&color=b58afb)](https://github.com/Vanilla-Sphere/sphere-blink/forks)
+<br>
+[![NASA Space Apps 2026](https://img.shields.io/badge/NASA%20Space%20Apps%202026-Planet%20X%20and%20SPHEREx-0b3d91?style=flat-square&logo=nasa&logoColor=white)](https://www.spaceappschallenge.org/)
 [![Last commit](https://img.shields.io/github/last-commit/Vanilla-Sphere/sphere-blink/main?style=flat-square&label=last%20commit&color=b58afb)](https://github.com/Vanilla-Sphere/sphere-blink/commits/main)
-[![Open source](https://img.shields.io/badge/open%20source-since%20the%20first%20commit-e9b452?style=flat-square)](#license)
 [![No AI inside](https://img.shields.io/badge/in%20the%20product-no%20AI%2C%20only%20arithmetic-b58afb?style=flat-square)](#use-of-ai-tools)
 
 <a href="https://vanillasphere.com">
