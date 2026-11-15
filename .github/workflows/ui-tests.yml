@@ -142,7 +142,9 @@ jobs:
       - name: UI tests
         uses: Vanilla-Sphere/sphere-blink-ui-tests@main
         with:
-          base-url: ${{ env.SITE }}/
+          # The viewer under test is the page at /sky; "/" is the first page
+          # that presents the product (docs/viewer.md).
+          base-url: ${{ env.SITE }}/sky
           project: ${{ inputs.project }}
           grep: ${{ inputs.grep }}
           report-name: ui-tests-report-${{ github.event_name == 'push' && github.ref_name || inputs.site }}
