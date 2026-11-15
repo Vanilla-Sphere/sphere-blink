@@ -1,0 +1,107 @@
+"""The first page of the site (web/landing.html) and the move of the viewer to /sky."""
+
+import re
+from pathlib import Path
+
+import pytest
+
+from sphereblink import main
+
+WEB = Path(__file__).resolve().parent.parent / "web"
+PAGE = (WEB / "landing.html").read_text()
+
+
+@pytest.fixture
+def client():
+    from fastapi.testclient import TestClient
+
+    return TestClient(main.app, follow_redirects=False)
+
+
+def test_the_address_of_the_site_is_the_first_page_and_the_viewer_is_at_sky(client):
+    first, viewer = client.get("/"), client.get("/sky")
+    assert first.status_code == viewer.status_code == 200
+    assert first.text == PAGE and "/static/app.js" not in first.text
+    assert viewer.text == (WEB / "index.html").read_text() == client.get("/sky/").text
+    for r in (first, viewer):
+        assert r.headers["cache-control"] == "no-cache"  # a new release is seen at the next visit
+    assert client.head("/sky").status_code == 200
+
+
+def test_a_link_to_a_view_made_before_the_move_still_opens_that_view(client):
+    """Until 2026-11-15 a view was "/?target=..." or "/?ra=...&dec=...". Such
+    links are in the README, on the organisation page, in chats and in
+    bookmarks: they are sent on to /sky with everything they carry."""
+    for query in ("target=barnard", "target=Barnard%27s%20Star&fov=8", "ra=248.34&dec=-16.98&levels=3&mover=VS-60894-B5F6&ui=adv",
+                  "ra=133.76010&dec=-7.24227&fov=8&det=5,6&group=visit", "target=r-dra&plot=lc&ui=adv", "ui=adv"):
+        r = client.get("/?" + query)
+        assert r.status_code == 307 and r.headers["location"] == "/sky?" + query, query
+    # anything else is the first page: a shared link often arrives with a parameter of the network it was shared on
+    for query in ("", "fbclid=IwAR0", "utm_source=x&utm_medium=social", "ref=producthunt"):
+        r = client.get("/?" + query)
+        assert r.status_code == 200 and r.text == PAGE, query
+
+
+def test_the_three_lists_of_view_parameters_are_the_same():
+    """The server sends old links on (main.py), the first page does the same on
+    the static dev site (landing.js), and both must know every parameter the
+    viewer reads from its address."""
+    script = (WEB / "landing.js").read_text()
+    in_page = re.search(r"const VIEW_KEYS = \[(.*?)\];", script).group(1)
+    assert tuple(re.findall(r'"(\w+)"', in_page)) == main.VIEW_KEYS
+    read = set()
+    for name in ("app.js", "movers.js"):
+        read |= set(re.findall(r'\b[pq]\.get\("(\w+)"\)', (WEB / name).read_text()))
+    assert read and read <= set(main.VIEW_KEYS), read - set(main.VIEW_KEYS)
+
+
+def test_the_first_page_loads_nothing_from_another_site_and_has_no_inline_script():
+    """It is held to the policy of the viewer (guard.CSP): scripts, styles,
+    fonts and pictures from this site only, no script in the page itself."""
+    assert not re.search(r"<script(?![^>]*\bsrc=)", PAGE) and not re.search(r"\son\w+=", PAGE)
+    loaded = re.findall(r'<(?:script|img|link|source|video|audio|iframe)\b[^>]*?\b(?:src|href)="([^"]+)"', PAGE)
+    assert len(loaded) > 20
+    for address in loaded:
+        if address == "https://vanillasphere.com/":  # the canonical address, a statement and not a request
+            continue
+        assert address.startswith("/static/"), address
+        assert (WEB / address[len("/static/"):].split("?")[0]).is_file(), address
+    for name in ("landing.css", "landing.js"):
+        text = (WEB / name).read_text()
+        assert not re.search(r"https?://(?!www\.w3\.org)", text), name
+        for address in re.findall(r"url\(([^)]+)\)", text):
+            assert (WEB / address.strip("\"'")[len("/static/"):]).is_file(), address
+    assert "fetch(" not in (WEB / "landing.js").read_text()  # a visitor who only reads the page costs the engine nothing
+
+
+def test_the_links_of_the_first_page_lead_somewhere():
+    links = re.findall(r'<a\b[^>]*?\bhref="([^"]+)"', PAGE)
+    ids = set(re.findall(r'\bid="([\w-]+)"', PAGE))
+    views = 0
+    for href in links:
+        href = href.replace("&amp;", "&")
+        if href.startswith("#"):
+            assert href[1:] in ids, href
+        elif href.startswith("/sky"):
+            views += 1
+            keys = [pair.split("=")[0] for pair in href.partition("?")[2].split("&") if pair]
+            assert set(keys) <= set(main.VIEW_KEYS), href
+        else:
+            assert href == "/" or href.startswith(("/docs", "/api/", "https://github.com/Vanilla-Sphere/sphere-blink")), href
+    assert views >= 12 and PAGE.count('href="/sky"') >= 3  # the way into the viewer, top, first screen and end
+
+
+def test_the_typefaces_can_write_the_first_page():
+    """Hanken Grotesk and Geist Mono have no sigma, no arrows and not every
+    Vietnamese letter; a letter from another typeface in the middle of a line
+    shows. The page writes "sigma" and "Hanoi" and draws its arrows."""
+    text = re.sub(r"<[^>]+>", " ", PAGE)
+    for letter in "σ→←↗↓★ộ":
+        assert letter not in text, letter
+
+
+def test_the_viewer_knows_its_new_address():
+    page = (WEB / "index.html").read_text()
+    assert 'href="/sky" aria-label="Vanilla Sphere, sky map"' in page  # the logo of the viewer stays in the viewer
+    assert '<a href="/" data-hint="tip.home">' in page and '"tip.home"' in (WEB / "i18n.js").read_text()
+    assert 'base + "/sky?"' in (WEB / "app.js").read_text()  # "Link to this view"

@@ -85,7 +85,7 @@ A page shown inside a frame of another site can be covered with a decoy, so
 that a visitor who clicks the decoy clicks the page (clickjacking). No page
 of this site may be framed by another site:
 
-- every answer that is a page (`/`, `/static/index.html`, `/docs`, `/redoc`)
+- every answer that is a page (`/`, `/sky`, `/static/index.html`, `/docs`, `/redoc`)
   carries `frame-ancestors 'self'` in its policy and `X-Frame-Options:
   SAMEORIGIN`. Current browsers obey the first, older ones the second;
 - pictures and data carry neither. A GIF, PNG or JSON answer of `/api/` is
@@ -98,7 +98,7 @@ of this site may be framed by another site:
   data it would take the page's policy, and `frame-ancestors` with it, away;
 - the dev site is static, so `render.dev.yaml` sets the same: `X-Frame-Options`
   on every path, the page's policy on `/` and `/index.html` (a static site
-  answers both with the page).
+  answers both with the page) and on `/sky` and `/sky.html`, the viewer.
 
 The viewer has no frame of its own, so `'self'` is not used today; it is
 there so that a page of the site may show another one if that is ever wanted.

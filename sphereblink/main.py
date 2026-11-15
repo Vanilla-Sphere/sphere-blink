@@ -781,7 +781,23 @@ if WEB.exists():
 
     app.mount("/static", _Static(directory=WEB), name="static")
 
+    # The address of the site is the page that presents the product
+    # (web/landing.html); the viewer itself, sky map first, is at /sky. Until
+    # 2026-11-15 the viewer was at "/", and every link to a view made before
+    # then reads "/?target=..." or "/?ra=...&dec=...": such an address is sent
+    # on to /sky with all it carries. Any other "/" is the first page (a
+    # shared link often arrives with a tracking parameter of the network it
+    # was shared on, which is no view).
+    VIEW_KEYS = ("target", "ra", "dec", "fov", "levels", "det", "group", "mode", "plot", "gaia", "catwise", "tracks", "mover", "seen", "ui")
+
     @app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
+    async def front(request: Request):
+        if any(k in request.query_params for k in VIEW_KEYS):
+            return Response(status_code=307, headers={"Location": "/sky?" + request.url.query, "Cache-Control": "no-cache"})
+        return FileResponse(WEB / "landing.html", headers={"Cache-Control": "no-cache"})
+
+    @app.api_route("/sky", methods=["GET", "HEAD"], include_in_schema=False)
+    @app.api_route("/sky/", methods=["GET", "HEAD"], include_in_schema=False)
     async def index():
         return FileResponse(WEB / "index.html", headers={"Cache-Control": "no-cache"})
 

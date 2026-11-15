@@ -120,7 +120,8 @@ const STR = {
     "det.one.t": "Detector {n} only, {range} µm",
 
     /* one-line notes on the controls (hints.js) */
-    "tip.brand": "Back to the start",
+    "tip.brand": "Back to the sky map",
+    "tip.home": "What Vanilla Sphere is and what it found",
     "tip.map": "Go back to the sky map and pick another spot",
     "tip.field": "How wide a patch of sky to show. ′ is an arcminute; the full Moon is about 30′ across.",
     "tip.go": "Find what you typed and show its images",

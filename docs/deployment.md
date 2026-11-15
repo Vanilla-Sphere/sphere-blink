@@ -307,7 +307,7 @@ the time taken.
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
 uvicorn sphereblink.main:app --port 8000
-# open http://localhost:8000/?target=barnard
+# open http://localhost:8000/sky?target=barnard
 ```
 
 Requirements: Python 3.12 (the production version; the tests also pass on 3.13)

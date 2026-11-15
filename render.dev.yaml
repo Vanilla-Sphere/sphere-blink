@@ -20,6 +20,10 @@ services:
         - scripts/build_dev_site.sh
         - render.dev.yaml
     routes:
+      # The viewer: production serves it at /sky (sphereblink/main.py).
+      - type: rewrite
+        source: /sky
+        destination: /sky.html
       # The engine, its API pages and their description: production answers.
       - type: rewrite
         source: /api/*
@@ -48,5 +52,11 @@ services:
         name: Content-Security-Policy
         value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://irsa.ipac.caltech.edu; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
       - path: /index.html
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://irsa.ipac.caltech.edu; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+      - path: /sky
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://irsa.ipac.caltech.edu; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+      - path: /sky.html
         name: Content-Security-Policy
         value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://irsa.ipac.caltech.edu; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"

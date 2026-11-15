@@ -4,6 +4,15 @@ The web client in `web/`. It is plain HTML, CSS and JavaScript with no
 framework, no dependencies and no build step; the API service serves the folder
 as static files.
 
+The site has two pages. The address of the site, `/`, is the page that
+presents the product ([the first page](#the-first-page)); the viewer, sky map
+first, is at `/sky`. Until 2026-11-15 the viewer was at `/`, so a link to a
+view made before then reads `/?target=...`: the server sends an address `/`
+that carries a parameter of the table under [URL state](#url-state)
+on to `/sky` with all it carries (`VIEW_KEYS` in `sphereblink/main.py`; the
+dev site is static files, so there `landing.js` does the same in the
+browser). The rest of this document is about the viewer.
+
 | File | Size | Role |
 | --- | --- | --- |
 | `index.html` | 225 lines | Page structure for both screens and both modes; all fixed text |
@@ -32,7 +41,7 @@ as static files.
 | `fonts/` | - | Hanken Grotesk and Geist Mono, self-hosted |
 
 Scripts are loaded in the order `i18n.js`, `lore.js`, `hints.js`, `atlas.js`, `starmap.js`, `ambient.js`, `overtime.js`, `exports.js`, `movers.js`, `completeness.js`, `linelist.js`, `insight.js`, `redshift.js`, `depth.js`, `showcase.js`, `app.js`.
-Asset URLs carry a version query (`?v=71`) that is raised when a file changes,
+Asset URLs carry a version query (`?v=72`) that is raised when a file changes,
 and `index.html` is served with `Cache-Control: no-cache`. A file asked for
 with a version query is served as `public, max-age=604800, immutable`, so a
 changed file must get a new version number; fonts and images are kept for a
@@ -94,7 +103,7 @@ A single object `S` in `app.js` holds the state of the page:
 
 ## URL state
 
-Everything needed to reproduce a view is in the address. `readUrl` applies it
+Everything needed to reproduce a view is in the address, `/sky?...`. `readUrl` applies it
 at start; `writeUrl` keeps it current (`replaceState` for display changes,
 `pushState` when a new view is opened from the map).
 
@@ -527,6 +536,40 @@ Rules applied throughout:
   search errors, `role="status"` for progress text, `role="tooltip"` for notes,
   and descriptive labels on canvases and icon buttons.
 - **Document title** follows the target ("Barnard's Star - Vanilla Sphere").
+
+## The first page
+
+`/` is `landing.html` with `landing.css` and `landing.js`: one page that
+presents the product and sends the visitor to the viewer. It shares nothing
+with the viewer but the fonts, the colours and the logo, so a change to one
+cannot break the other.
+
+| Part | What it shows |
+| --- | --- |
+| First screen | The claim, the two buttons, the second prize, and six real frames of Barnard's Star blinked one after the other (`landing/barnard-0..5.webp`, the answers of `/api/frame.png?target=barnard&fov=8&group=visit&i=0..5&size=640`) |
+| Numbers, "What it found" | The results of the README, each with what it was checked against and a link to its live view |
+| Shift-and-stack | A drawing with simulated noise, labelled as such: a source too faint for one exposure, added along its path |
+| Tour | Six screenshots of the live site; on a wide screen they share one frame that stays in place while the text scrolls |
+| How it works, API, open source, credits | Text, with links to `/docs`, the repository and its documentation |
+
+Rules it keeps:
+
+- It asks the server for nothing but its own files: no `/api/` call is made
+  when the page opens, so a visitor who only reads it costs the engine
+  nothing. The pictures are files of `web/landing/` (WebP, about 0.9 MB in
+  all, fetched as they are reached).
+- Nothing comes from another site, and there is no inline script: the page is
+  held to the same policy as the viewer (`guard.CSP`).
+- Every number on it is one of `README.md` or `docs/`. Change them together.
+- The typefaces have no sigma, no "ộ" and no arrows: sigma is written out,
+  the city is "Hanoi", arrows are small drawings.
+- It has its own version number on its two assets (`landing.css?v=N`,
+  `landing.js?v=N`): raise it when either changes.
+- `tests/test_landing.py` holds it to these rules and keeps the list of view
+  parameters of `main.py`, `landing.js` and the viewer the same.
+
+The picture shown when the address is shared (`landing/og.png`, 1200 x 630)
+is a capture of the first screen; take it again when the first screen changes.
 
 ## Conventions for changes
 

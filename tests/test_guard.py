@@ -82,7 +82,7 @@ def test_no_other_site_can_frame_a_page_and_pictures_stay_free(client):
     """Clickjacking: every answer that is a page says "only this site may
     frame me", twice (CSP frame-ancestors, X-Frame-Options). Pictures and data
     say nothing of the kind: they are meant to be shown elsewhere."""
-    for path in ("/", "/static/index.html", "/docs", "/redoc"):
+    for path in ("/", "/sky", "/static/index.html", "/docs", "/redoc"):
         page = client.get(path)
         assert page.status_code == 200 and page.headers["content-type"].startswith("text/html"), path
         policy = [d.strip() for d in page.headers["content-security-policy"].split(";")]
@@ -128,6 +128,8 @@ def test_the_dev_site_is_the_viewer_in_front_of_the_live_engine(tmp_path):
     assert headers["/*", "x-robots-tag"] == "noindex, nofollow"
     assert headers["/", "content-security-policy"] == guard.CSP  # the page is held to production's policy
     assert headers["/index.html", "content-security-policy"] == guard.CSP  # ... under its other address too
+    assert headers["/sky", "content-security-policy"] == guard.CSP == headers["/sky.html", "content-security-policy"]  # and the viewer
+    assert routes["/sky"] == {"type": "rewrite", "source": "/sky", "destination": "/sky.html"}
     assert headers["/*", "x-frame-options"].encode() == guard.FRAMING[1]  # no path of the copy can be framed elsewhere
     assert len(headers) == len(dev["headers"])  # no two rules for one header on one path: which would win is not ours to say
     assert "render.dev.yaml" in prod["buildFilter"]["ignoredPaths"]  # a change to dev does not restart production
@@ -136,8 +138,10 @@ def test_the_dev_site_is_the_viewer_in_front_of_the_live_engine(tmp_path):
     out = tmp_path / "site"
     subprocess.run(["sh", str(root / "scripts" / "build_dev_site.sh"), str(out)], check=True, capture_output=True)
     assert dev["buildCommand"].split()[:2] == ["sh", "scripts/build_dev_site.sh"]
-    page = (out / "index.html").read_text()
-    assert "<title>[dev] " in page and page.replace("<title>[dev] ", "<title>") == (root / "web" / "index.html").read_text()
+    for made, source in (("index.html", "landing.html"), ("sky.html", "index.html")):  # the first page, the viewer
+        page = (out / made).read_text()
+        assert "<title>[dev] " in page and page.replace("<title>[dev] ", "<title>") == (root / "web" / source).read_text()
+        assert not (out / "static" / source).exists()
     for name in ("app.js", "style.css", "data/sky.json", "fonts/HankenGrotesk.woff2"):
         assert (out / "static" / name).read_bytes() == (root / "web" / name).read_bytes()
     assert (out / "robots.txt").read_text() == "User-agent: *\nDisallow: /\n"
