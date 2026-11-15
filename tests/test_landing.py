@@ -110,23 +110,27 @@ def test_the_links_of_the_first_page_lead_somewhere():
 
 
 def test_the_typefaces_can_write_the_first_page():
-    """Hanken Grotesk and Geist Mono have no sigma and no arrows; a letter from
-    another typeface in the middle of a line shows. The page writes "sigma"
-    and draws its arrows. Vietnamese letters are written only where the
-    Vietnamese part of Hanken Grotesk is in use: the names of the team."""
+    """Hanken Grotesk and Geist Mono have no sigma, no arrows and no Vietnamese
+    letters; a letter from another typeface in the middle of a line shows. The
+    page writes "sigma", draws its arrows, and writes the names of the team
+    without their marks, as the team's English material does."""
     text = re.sub(r"<[^>]+>", " ", PAGE)
     for letter in "σ→←↗↓★":
         assert letter not in text, letter
-    people = re.search(r'<ol class="people[^>]*lang="vi">(.*?)</ol>', PAGE, re.S).group(1)
-    names = re.findall(r"<b>([^<]+)</b>", people)
-    assert len(names) == 5 and len(set(names)) == 5
-    outside = re.sub(r"<[^>]+>", " ", PAGE.replace(people, ""))
-    covered = lambda ch: 0x0102 <= ord(ch) <= 0x0103 or 0x0110 <= ord(ch) <= 0x0111 or 0x1EA0 <= ord(ch) <= 0x1EF9
-    assert any(covered(ch) for ch in "".join(names))          # the names keep their marks
-    assert not [ch for ch in outside if covered(ch)]          # and nothing in Geist Mono needs them
-    css = (WEB / "landing.css").read_text()
-    face = re.search(r'@font-face\{font-family:"Hanken Grotesk";src:url\(/static/fonts/(HankenGrotesk-vietnamese\.woff2)\)[^}]*unicode-range:([^}]+)\}', css)
-    assert face and "U+1EA0-1EF9" in face.group(2) and (WEB / "fonts" / face.group(1)).stat().st_size > 5000
+    vietnamese = lambda ch: 0x0102 <= ord(ch) <= 0x0103 or 0x0110 <= ord(ch) <= 0x0111 or 0x01A0 <= ord(ch) <= 0x01B0 or 0x1EA0 <= ord(ch) <= 0x1EF9
+    assert not [ch for ch in text if vietnamese(ch)]
+
+
+def test_the_team_is_named_with_what_each_one_did():
+    """Five members, each with a name and a role; where one works or studies is
+    a third, smaller line that a member may not have."""
+    people = re.search(r'<ol class="people[^>]*>(.*?)</ol>', PAGE, re.S).group(1)
+    rows = re.findall(r"<li>(.*?)</li>", people, re.S)
+    assert len(rows) == 5
+    names = [re.search(r"<b>([^<]+)</b>", row).group(1) for row in rows]
+    assert len(set(names)) == 5 and all(name.isascii() for name in names)
+    assert all(re.search(r"<i>[^<]+</i>", row) for row in rows)
+    assert all(len(re.findall(r"<small>[^<]+</small>", row)) <= 1 for row in rows)
 
 
 def test_the_sky_of_the_first_page_is_a_photograph():

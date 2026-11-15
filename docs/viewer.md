@@ -559,7 +559,7 @@ cannot break the other.
 | Shift-and-stack | A drawing with simulated noise, labelled as such: a source too faint for one exposure, added along its path |
 | Tour | Six screenshots of the live site; on a wide screen they share one frame that stays in place while the text scrolls |
 | How it works, API, open source | Text, with links to `/docs`, the repository and its documentation |
-| The team, credits | The names of the five members of the team, the second prize, and where the data and the pictures come from |
+| The team, credits | The five members of the team, one to a line: name, what each one did, and in small letters where each one works or studies. Then the second prize, and where the data and the pictures come from |
 | Last screen | The call to open the sky map, over the Orion region of the same all-sky map |
 
 Rules it keeps:
@@ -573,14 +573,12 @@ Rules it keeps:
   player, on play), and there is no inline script: the page is held to the
   same policy as the viewer (`guard.CSP`).
 - Every number on it is one of `README.md` or `docs/`. Change them together.
-- The typefaces have no sigma and no arrows: sigma is written out, arrows
-  are small drawings. The names of the team need Vietnamese letters: for
-  them the page has the Vietnamese part of Hanken Grotesk as a second file
-  (`fonts/HankenGrotesk-vietnamese.woff2`, 9 kB, same licence), which a
-  browser fetches only for a page that writes such a letter. Geist Mono has
-  none, so the labels in that face keep "Hanoi".
+- The typefaces have no sigma, no arrows and no Vietnamese letters: sigma is
+  written out, arrows are small drawings, and the names of the team are
+  written without their marks, as in the team's English material ("Hanoi",
+  "Kim Duc Minh").
 - It has its own version number on its two assets (`landing.css?v=N`,
-  `landing.js?v=N`, now 3): raise it when either changes.
+  `landing.js?v=N`, now 4): raise it when either changes.
 - `tests/test_landing.py` holds it to these rules and keeps the list of view
   parameters of `main.py`, `landing.js` and the viewer the same.
 
