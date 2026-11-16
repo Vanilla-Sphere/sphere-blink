@@ -1,6 +1,6 @@
 #!/bin/sh
 # Starts the service of this checkout on this machine, in the background, and
-# returns when it is ready to be tested: the UI tests after a merge run
+# returns when it is ready to be tested: the UI tests before a merge run
 # against it instead of a deployed site, so that a test run costs the live
 # service no traffic (.github/workflows/ui-tests.yml, docs/environments.md).
 #
