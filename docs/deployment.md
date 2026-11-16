@@ -276,11 +276,10 @@ Do not use the phrase on a change to code, `web/`, `requirements.txt` or
 
 ### Post-deploy checks
 
-After every merge to `main` two checks appear on the merge commit
-([environments](environments.md#ui-tests-after-every-merge)): `ui-tests /
-main`, the UI tests against the merged commit started inside the job, and
-`ui-tests / production serves the commit`, which waits until production
-serves that commit. The checks below look at the engine.
+No automated test runs after a deploy, and none runs against production:
+the UI tests run before the merge, on GitHub, against a server started in
+their job ([environments](environments.md#ui-tests-before-every-merge)).
+After a deploy, look at production by hand with the few requests below.
 
 | Check | Expected |
 | --- | --- |

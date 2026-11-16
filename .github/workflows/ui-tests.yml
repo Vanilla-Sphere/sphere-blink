@@ -1,31 +1,34 @@
-# After a merge, the UI tests of Vanilla-Sphere/sphere-blink-ui-tests run
-# against the merged commit (docs/environments.md):
+# Before a merge, the UI tests of Vanilla-Sphere/sphere-blink-ui-tests run
+# against the commit of the pull request (docs/environments.md):
 #
-#   develop, main -> the service of that commit, started inside this job
-#                    (scripts/start_local_site.sh) and reached, inside this
-#                    job only, under the name of the live site
+#   pull request to develop or main -> the service of that commit, started
+#                                      inside this job
+#                                      (scripts/start_local_site.sh) and
+#                                      reached, inside this job only, under
+#                                      the name of the live site
 #
-# The tests do not go through the deployed sites: a run opens hundreds of
-# pages and downloads about a third of a gigabyte of pictures, and every
-# byte a deployed site sends is paid for (twice through the dev site, which
-# passes /api/ on to production). The server in the job reads the same
-# archive and has no measurement database. After a merge to main a second,
-# small job checks that production serves the merged commit.
+# The rule (owner, 2026-11-16): tests run before a deploy, never after it,
+# and never against production or any site hosted on Render. Every byte a
+# deployed site sends is paid for, and a run opens hundreds of pages and
+# downloads about a third of a gigabyte of pictures. So nothing runs on a
+# push (a push to main is the deploy), and no input of this workflow can
+# point the tests at a deployed site.
 #
 # The tests are written for the address of the live site: they compare the
 # links of the page with https://vanillasphere.com and leave out the cases
-# that start heavy jobs there. So the runner's /etc/hosts sends that name to
-# 127.0.0.1, where the server of this job listens on port 443 with a
-# certificate made for the run. Nothing of such a run reaches Render.
+# that start heavy jobs there. So the runner's /etc/hosts sends that name,
+# and every other name of our deployed sites, to 127.0.0.1, where the server
+# of this job listens on port 443 with a certificate made for the run. A
+# request for a deployed site can then only reach this machine: nothing of
+# a run reaches Render.
 #
 # The tests and the way they are run live in that repository (its
 # action.yml); this workflow only starts the site and calls it. The result is
-# a check on the merge commit here. The suite reads only: the cases that
-# start heavy jobs or write measurements are off in CI.
+# a check on the pull request. The suite reads only: the cases that start
+# heavy jobs or write measurements are off in CI.
 #
-# By hand (Actions > ui-tests > Run workflow) it runs against the chosen
-# site: "local" as after a merge, or a deployed site as it is ("dev",
-# "production"; this is traffic the deployed site is billed for).
+# By hand (Actions > ui-tests > Run workflow) it runs the same way, against
+# the server of the chosen branch inside the job.
 #
 # The other repository is private: it must allow this one to use its action
 # (its Settings > Actions > General > Access: "Accessible from repositories in
@@ -33,15 +36,10 @@
 name: ui-tests
 
 on:
-  push:
+  pull_request:
     branches: [develop, main]
   workflow_dispatch:
     inputs:
-      site:
-        description: Site under test
-        type: choice
-        default: local
-        options: [local, dev, production]
       project:
         description: Project (empty runs both)
         type: choice
@@ -55,33 +53,31 @@ on:
 permissions:
   contents: read
 
-# One run per branch (or per site chosen by hand) at a time. A newer merge
-# replaces the run of the one before it.
+# One run per pull request (or branch, by hand) at a time. A newer push to
+# the pull request replaces the run of the one before it.
 concurrency:
-  group: ui-tests-${{ github.event_name == 'push' && github.ref_name || format('{0}-{1}', inputs.site, github.ref_name) }}
+  group: ui-tests-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   ui-tests:
-    name: ${{ github.event_name == 'push' && github.ref_name || inputs.site }}
+    name: before merge
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      WHERE: ${{ github.event_name == 'push' && 'local' || inputs.site }}
-      # "local" has the address of production too: see the hosts step below
-      SITE: ${{ github.event_name != 'push' && inputs.site == 'dev' && 'https://dev.vanillasphere.com' || 'https://vanillasphere.com' }}
+      # The address of production, which in this job is this machine: see
+      # the hosts step below
+      SITE: https://vanillasphere.com
     steps:
       - uses: actions/checkout@v4
 
       - name: Python of the service
-        if: env.WHERE == 'local'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
 
       - name: Packages of the service
-        if: env.WHERE == 'local'
         run: |
           pip install -r requirements.txt
           # certutil: the browser of the tests has to trust the certificate
@@ -93,24 +89,26 @@ jobs:
       # run does not read it all again. A cache is never changed once saved,
       # hence a new key each run and the newest one restored.
       - name: Frames and tiles of earlier runs
-        if: env.WHERE == 'local'
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/sphereblink-cache
           key: ui-tests-site-cache-v1-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: ui-tests-site-cache-v1-
 
-      # From here on vanillasphere.com is this machine, for every program of
-      # the job. Ports from 443 up may be opened without being root.
-      - name: The name of the live site points at this job
-        if: env.WHERE == 'local'
+      # From here on every name of our deployed sites is this machine, for
+      # every program of the job: a test that names one of them reaches the
+      # server below (or fails), never Render. Ports from 443 up may be
+      # opened without being root.
+      - name: The names of the deployed sites point at this job
         run: |
-          echo "127.0.0.1 vanillasphere.com" | sudo tee -a /etc/hosts >/dev/null
+          names="vanillasphere.com www.vanillasphere.com dev.vanillasphere.com sphere-blink-bsfz.onrender.com sphere-blink-dev-atkl.onrender.com"
+          echo "127.0.0.1 $names" | sudo tee -a /etc/hosts >/dev/null
           sudo sysctl -q -w net.ipv4.ip_unprivileged_port_start=443
-          test "$(getent hosts vanillasphere.com | awk '{print $1}')" = 127.0.0.1
+          for n in $names; do
+            test "$(getent hosts "$n" | awk '{print $1}')" = 127.0.0.1 || { echo "::error::$n does not lead to this machine"; exit 1; }
+          done
 
       - name: Start the site in this job
-        if: env.WHERE == 'local'
         env:
           SPHEREX_CACHE_DIR: ${{ runner.temp }}/sphereblink-cache
           SPHEREX_DISK_BUDGET_GB: "2"
@@ -145,10 +143,10 @@ jobs:
           base-url: ${{ env.SITE }}/
           project: ${{ inputs.project }}
           grep: ${{ inputs.grep }}
-          report-name: ui-tests-report-${{ github.event_name == 'push' && github.ref_name || inputs.site }}
+          report-name: ui-tests-report
 
       - name: Stop the site and show the end of its log
-        if: always() && env.WHERE == 'local'
+        if: always()
         env:
           SITE_LOG: ${{ runner.temp }}/local-site.log
           SITE_PID: ${{ runner.temp }}/local-site.pid
@@ -159,28 +157,8 @@ jobs:
           grep -v '^INFO: .* HTTP/1.1" [23]' "$SITE_LOG" | sed -E 's/^(INFO: +)[0-9.]+:[0-9]+ - /\1/' | cut -c1-240 | sort | uniq -c | sort -rn | head -30 || true
 
       - name: Keep the frames and tiles for the next run
-        if: always() && env.WHERE == 'local'
+        if: always()
         uses: actions/cache/save@v4
         with:
           path: ${{ runner.temp }}/sphereblink-cache
           key: ui-tests-site-cache-v1-${{ github.run_id }}-${{ github.run_attempt }}
-
-  # The tests above say whether the merged commit works; this says whether
-  # production runs it. A few requests for scripts and style sheets, no
-  # pictures.
-  deployed:
-    name: production serves the commit
-    if: github.event_name == 'push' && github.ref_name == 'main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # the commit before the push, to see whether the engine is redeployed
-
-      - name: Wait until production serves this commit
-        env:
-          BEFORE: ${{ github.event.before }}
-          PUSHED_AT: ${{ github.event.repository.pushed_at }}
-          MESSAGE: ${{ github.event.head_commit.message }}
-        run: sh scripts/wait_for_deploy.sh https://vanillasphere.com engine

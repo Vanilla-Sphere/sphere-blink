@@ -132,8 +132,7 @@ of HTML, CSS and JavaScript in the viewer.
 | `scripts/mover_completeness.py` (with `mover_completeness_report.py`, `mover_completeness_plot.py`) | Measure the completeness of the blind search with fake objects in real fields and write `web/data/mover-completeness.json` (hours of computing; see [how much the search finds](mover-completeness.md)) | `fetch`, `prepare`, `run`, `shuffle`, `report` |
 | `scripts/build_readme_art.py` | Draw the pictures of the README and of the organisation page that are not screenshots: the banner, the strip of numbers, the award, the buttons and the repository cards (`docs/readme/*.svg`); needs `fonttools` and `brotli` | `python scripts/build_readme_art.py` |
 | `scripts/build_dev_site.sh` | Lay `web/` out as the static dev site (see [environments](environments.md)) | `sh scripts/build_dev_site.sh [output dir]` |
-| `scripts/wait_for_deploy.sh` | Wait until a site serves the viewer of the checkout, and on production until the engine has restarted; the check of the deploy after a merge to `main` (see [environments](environments.md#ui-tests-after-every-merge)) | `sh scripts/wait_for_deploy.sh https://site [engine]` |
-| `scripts/start_local_site.sh` | Start the service of the checkout on this machine and wait until it answers and holds the featured targets; the UI tests after a merge run against it (see [environments](environments.md#ui-tests-after-every-merge)) | `sh scripts/start_local_site.sh [stop]` |
+| `scripts/start_local_site.sh` | Start the service of the checkout on this machine and wait until it answers and holds the featured targets; the UI tests before a merge run against it (see [environments](environments.md#ui-tests-before-every-merge)) | `sh scripts/start_local_site.sh [stop]` |
 
 ## Database files
 
