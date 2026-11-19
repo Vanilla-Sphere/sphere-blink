@@ -294,7 +294,7 @@ def test_the_table_of_the_repository_is_the_list_of_the_code_with_the_values_of_
             production = float(re.search(rf'os\.environ\.get\("{name}", "([\d.]+)"\)', code).group(1))
         assert value == production and lo <= value <= hi, key
     # with these values nothing is corrected: the table as created changes nothing on the server
-    assert sum(rows[k][0] * (250 if k == "measure_procs" else 1) for k in settings.MEMORY) == 2500  # the 4 GB plan
+    assert sum(rows[k][0] * (250 if k == "measure_procs" else 1) for k in settings.MEMORY) == 850  # the 2 GB plan
     sql = (ROOT / "sql" / "settings.sql").read_text() + (ROOT / "sql" / "roles.sql").read_text()
     assert "enable row level security" in sql and "grant select on settings to blink_service" in sql
     assert not re.search(r"grant[^;]*(insert|update|delete|all)[^;]*on settings", sql)  # the service only reads it
