@@ -46,7 +46,11 @@ STACK_BUDGET_S = float(os.environ.get("SPHEREX_MOVER_STACK_BUDGET_S", "180"))  #
 REACH_DEG = 0.6  # how far outside a field stored detections are taken from
 MAX_WAITING = 8  # searches waiting; more are left for the next time the field is asked for
 RUNNING = ("queued", "searching")
-MIN_FREE_MB = float(os.environ.get("SPHEREX_MOVER_MIN_FREE_MB", "1800"))  # a search holds about 1 GB (measured: 984 MB for 713 frames)
+# Memory (the file cache counted as free) the server must have before a search starts. A search held about
+# 1 GB (984 MB for 713 frames) when its frames were in its own memory; in a file on disk (SPILL) the kernel
+# keeps only what it reads, and the search itself holds 0.2-0.4 GB.
+MIN_FREE_MB = float(os.environ.get("SPHEREX_MOVER_MIN_FREE_MB", "1800"))
+SPILL = config.SPILL_NPIX > 0
 WAIT_FOR_ROOM_S = 600
 RECHECK_EVERY_S = 600  # how often the catalogues are asked again about objects they did not answer for
 REFRESH_AFTER_S = 90  # after a start: fields an earlier version of the search went through are searched again
@@ -84,10 +88,14 @@ def _executor() -> ProcessPoolExecutor:
 # ----------------------------------------------------------------------------- the search (runs in a child process)
 def _cube(grid: Grid, exposures: list, min_cached: float = 0.0) -> tuple[np.ndarray, list[dict]]:
     """The frames of a field from the disk cache, and what the searches need to know of each."""
-    from .service import Store
+    from .service import Store, disk_array
 
     store = Store()
-    cube = np.empty((len(exposures), grid.npix, grid.npix), dtype=np.float32)
+    shape = (len(exposures), grid.npix, grid.npix)
+    # in a file on disk (the kernel's file cache, given back when the memory is
+    # needed): a field's cube is 0.5-1.2 GB, half of a small server
+    cube = disk_array(shape) if SPILL else None
+    cube = np.empty(shape, dtype=np.float32) if cube is None else cube
     frames = []
     for e in exposures:
         f = store.get_frame(cache_key(e, grid), e)
@@ -97,7 +105,7 @@ def _cube(grid: Grid, exposures: list, min_cached: float = 0.0) -> tuple[np.ndar
         frames.append({"exposure": f"{e.obs_id}:D{e.detector}", "mjd": e.mjd, "detector": e.detector, "wave_um": f.wave_um})
     if len(frames) < max(MIN_FRAMES, min_cached * len(exposures)):
         raise ValueError(f"only {len(frames)} of {len(exposures)} frames of this field are in the cache")
-    return cube[: len(frames)], frames
+    return np.asarray(cube[: len(frames)]), frames
 
 
 def _polite() -> None:

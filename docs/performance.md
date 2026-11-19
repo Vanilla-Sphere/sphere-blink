@@ -346,6 +346,55 @@ hold one small live object cannot be given back. Starting those processes
 afresh now and then would recover that too, at the price of an interruption
 of the views being cut; it was not done.
 
+## A server with 2 GB
+
+To cut the cost of production (2026-11-19) the service was made to fit a
+plan with 1 CPU and 2 GB. Before, one 7 x 7 field was enough to have the web
+process killed for memory at 2 GB: it held 1.98 GB of its own. Two things
+filled it, measured in a local test under a 1 CPU / 2 GiB limit:
+
+- **The frames of the field.** A view keeps its frames in memory while it is
+  gathered and after; for a 7 x 7 field that is 0.5-1.2 GB (493 x 493
+  pixels, float32, one per exposure). Frames wider than 200 pixels
+  (`SPHEREX_SPILL_NPIX`) now live in a file on disk that has no name
+  (`service.Spill`): every frame's image is a window on it. What is read sits
+  in the kernel's file cache, which the kernel takes back when the memory is
+  needed, where memory a process holds for itself cannot be given back
+  without a swap the host does not have. The file goes away by itself once
+  nothing refers to its frames, so a restart leaves nothing behind. These
+  files have their own budget (`SPHEREX_SPILL_BUDGET_GB`); the frames kept
+  in memory (`ram_budget_mb`) count only what is really in memory. The
+  mover search reads its cube of the field the same way.
+- **The exposures being cut.** Each waits for the network holding the band
+  of detector rows it reads and the detector position of every pixel of the
+  grid: about 2.5 MB for an 8 arcmin view, 16 MB for a 7 x 7 field. 64 of
+  them at once were a gigabyte. How many are cut at once now follows their
+  size (`SPHEREX_CUT_MB`, the memory they may take together): an 8 arcmin
+  view still cuts 64, a 7 x 7 field 24 (with 400 MB). With one CPU there
+  are no worker processes and the Scheduler does not run, so `active_views`
+  views are cut at a time and each gets its share (with 250 MB and two
+  views: 7 exposures of a 7 x 7 field at once, still 64 of an 8 arcmin view).
+
+`/api/cube` also built the cube of a whole field at once: at full
+resolution (`bin=1`) 400 MB passed through the web process for a 67 MB
+answer. It now encodes one epoch at a time and compresses in pieces; the
+bytes sent are the same.
+
+Measured with the values meant for that plan (`SPHEREX_FETCH_PROCS=1`,
+`ACTIVE_VIEWS=2`, `ACTIVE_MB=300`, `RAM_BUDGET_MB=250`, `MEASURE_PROCS=1`,
+`CUT_MB=250`, `EPOCH_CACHE_MB=120`, `MOVER_MIN_FREE_MB=700`), cold:
+
+| Step | Time | Memory held (not file cache), peak |
+| --- | --- | --- |
+| 7 x 7 field (363, 427, 521 exposures) | 102 s | 0.43 GB, the web process |
+| Its mover search, then the search for faint and slow objects | 245 s | 0.65 GB, web process and search |
+| All 38 API checks (while another field was searched for movers), the click-through of the viewer (21 checks) | all pass | 1.08 GB |
+| Six cold 8 arcmin views, a cold 7 x 7 field (378, 507, 605 exposures) and a measurement, all at once | 5.5 min until the last; each 8 arcmin view 1.5-3.5 min | 1.07 GB |
+
+No process was killed. The kernel used the rest of the 2 GB as file cache,
+which is what the host's graph of memory shows (`memory` in `/api/health`
+tells the two apart).
+
 ## Bottlenecks that remain
 
 | Bottleneck | Share | Possible improvement |

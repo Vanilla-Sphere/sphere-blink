@@ -63,7 +63,7 @@ def container(root: Path = CGROUP) -> dict | None:
         limit, current = int(limit), int((root / "memory.current").read_text())
         stat = _stat((root / "memory.stat").read_text())
     except (OSError, ValueError):
-        return None
+        return _container_v1() if root == CGROUP else None
     cache = stat.get("inactive_file", 0) + stat.get("active_file", 0)
     used = current - cache
     out = {
@@ -86,6 +86,27 @@ def container(root: Path = CGROUP) -> dict | None:
     except OSError:
         pass
     return out
+
+
+def _container_v1() -> dict | None:
+    """The same from the older accounting (cgroup v1), which the host does not
+    use but a test machine may: a test of the service under a memory limit then
+    sees the limit, and the mover search waits for room as it would there."""
+    try:
+        rel = next(line.split(":", 2)[2].strip() for line in (PROC / "self" / "cgroup").read_text().splitlines()
+                   if line.split(":", 2)[1] == "memory")
+        root = CGROUP / "memory" / rel.lstrip("/")
+        limit = int((root / "memory.limit_in_bytes").read_text())
+        current = int((root / "memory.usage_in_bytes").read_text())
+        stat = _stat((root / "memory.stat").read_text())
+    except (OSError, ValueError, StopIteration, IndexError):
+        return None
+    if limit >= 1 << 60:  # no limit set
+        return None
+    cache = stat.get("total_inactive_file", 0) + stat.get("total_active_file", 0)
+    used = current - cache
+    return {"limit_mb": _mb(limit), "used_mb": _mb(used), "file_cache_mb": _mb(cache), "free_mb": _mb(limit - used),
+            "working_set_mb": _mb(current - stat.get("total_inactive_file", 0)), "anon_mb": _mb(stat.get("total_rss", 0))}
 
 
 def free_mb(root: Path = CGROUP) -> float | None:
