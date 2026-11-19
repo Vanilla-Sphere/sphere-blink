@@ -11,7 +11,7 @@ and the path a change takes from a branch to production, are in
 | Public address | <https://vanillasphere.com> (primary), <https://www.vanillasphere.com> (redirects to the primary) |
 | Hosting | Render web service, defined by the blueprint `render.yaml` |
 | Region | Virginia (US East), the same AWS region as the SPHEREx bucket |
-| Plan | Pro Plus: 4 CPU, 8 GB memory |
+| Plan | Pro: 2 CPU, 4 GB memory (Pro Plus, 4 CPU and 8 GB, until 2026-11-19) |
 | Runtime | Python 3.12.7 |
 | Persistent disk | 40 GB mounted at `/var/data` |
 | Measurement database | Supabase Postgres in `us-east-1`, reached through the transaction pooler |
@@ -167,8 +167,9 @@ What the table cannot do is take the server down:
   ignored. No row can remove a limit (0 is outside every range).
 - **The memory is held together.** `ram_budget_mb` + `active_mb` + 250 MB for
   each of `measure_procs` never come to more than the same sum of the
-  environment variables, which is what the machine was sized for (4900 MB in
-  production, the worst case of 7.0 of 8 GB in
+  environment variables, which is what the machine was sized for (2500 MB in
+  production on the 4 GB plan since 2026-11-19; 4900 MB on the 8 GB plan
+  before, the worst case of 7.0 of 8 GB in
   [performance](performance.md#how-many-jobs-at-once)). The table can move
   memory between the three, not add any: when the sum is above it,
   `ram_budget_mb` is lowered first (a view forgotten is only read from disk
@@ -276,11 +277,10 @@ Do not use the phrase on a change to code, `web/`, `requirements.txt` or
 
 ### Post-deploy checks
 
-After every merge to `main` two checks appear on the merge commit
-([environments](environments.md#ui-tests-after-every-merge)): `ui-tests /
-main`, the UI tests against the merged commit started inside the job, and
-`ui-tests / production serves the commit`, which waits until production
-serves that commit. The checks below look at the engine.
+No automated test runs after a deploy, and none runs against production:
+the UI tests run before the merge, on GitHub, against a server started in
+their job ([environments](environments.md#ui-tests-before-every-merge)).
+After a deploy, look at production by hand with the few requests below.
 
 | Check | Expected |
 | --- | --- |

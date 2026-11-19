@@ -28,7 +28,7 @@ with a spectrum, measured motion and a blind search for things that move.
 
 [![Live site](https://img.shields.io/badge/live-vanillasphere.com-b58afb?style=flat-square)](https://vanillasphere.com)
 [![checks](https://img.shields.io/github/actions/workflow/status/Vanilla-Sphere/sphere-blink/checks.yml?branch=main&label=tests&style=flat-square)](https://github.com/Vanilla-Sphere/sphere-blink/actions/workflows/checks.yml)
-[![UI tests](https://img.shields.io/github/actions/workflow/status/Vanilla-Sphere/sphere-blink/ui-tests.yml?branch=main&label=ui%20tests&style=flat-square)](https://github.com/Vanilla-Sphere/sphere-blink/actions/workflows/ui-tests.yml)
+[![UI tests](https://img.shields.io/github/actions/workflow/status/Vanilla-Sphere/sphere-blink/ui-tests.yml?event=pull_request&label=ui%20tests&style=flat-square)](https://github.com/Vanilla-Sphere/sphere-blink/actions/workflows/ui-tests.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-e9b452?style=flat-square)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab?style=flat-square&logo=python&logoColor=white)](requirements.txt)
 [![Stars](https://img.shields.io/github/stars/Vanilla-Sphere/sphere-blink?style=flat-square&logo=github&label=stars&color=e9b452)](https://github.com/Vanilla-Sphere/sphere-blink/stargazers)

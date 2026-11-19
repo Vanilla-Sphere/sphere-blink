@@ -45,11 +45,11 @@ create or replace trigger settings_touch before update on settings
 
 insert into settings (key, value, min_value, max_value, description) values
     -- the pipeline queue
-    ('active_views',                4,    1,      8, 'Views whose exposures are cut at the same time; the next ones wait in the queue'),
-    ('active_mb',                2400,  300,   4000, 'Memory (MB) the views being cut may fill with frames together; a wide field that does not fit waits'),
+    ('active_views',                2,    1,      8, 'Views whose exposures are cut at the same time; the next ones wait in the queue'),
+    ('active_mb',                1200,  300,   4000, 'Memory (MB) the views being cut may fill with frames together; a wide field that does not fit waits'),
     ('measure_procs',               2,    1,      4, 'Measurements running at the same time; the next ones wait in the queue'),
     ('queue_preview',               1,    0,      1, '1: a view in the queue gets its first four exposures at once; 0: nothing before its turn'),
-    ('ram_budget_mb',            2000,  300,   4000, 'Memory (MB) for the frames of views already gathered; above it the views opened longest ago are reloaded from disk'),
+    ('ram_budget_mb',             800,  300,   4000, 'Memory (MB) for the frames of views already gathered; above it the views opened longest ago are reloaded from disk'),
     -- how much may wait
     ('max_jobs',                   96,    8,    400, 'Views gathered or waiting at once, all callers together; more are refused (503)'),
     ('max_jobs_per_client',        24,    4,     96, 'Views gathered or waiting at once for one caller; more are refused (429)'),
