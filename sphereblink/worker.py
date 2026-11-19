@@ -14,8 +14,8 @@ import time
 import httpx
 import numpy as np
 
-from . import memory
-from .cutout import NET, Frame, Grid, cut_async
+from . import config, memory
+from .cutout import DET_SIZE, NET, Frame, Grid, cut_async
 from .sia import Exposure
 
 _loop: asyncio.AbstractEventLoop | None = None
@@ -31,6 +31,23 @@ def init(connections: int) -> None:
     limits = httpx.Limits(max_connections=connections * 2, max_keepalive_connections=connections * 2)
     _client = httpx.AsyncClient(timeout=httpx.Timeout(60, connect=8), limits=limits)
     memory.keep_trimmed()  # what a wide field took is given back when it is cut, not kept for the next one
+
+
+def cut_mb(grid: Grid) -> float:
+    """What one exposure being cut onto ``grid`` holds at most, in MB: the band
+    of detector rows it reads (and its flags), and the detector position of
+    every pixel of the grid with the resampled result."""
+    rows = grid.npix * grid.scale_arcsec / config.NATIVE_PIXEL_ARCSEC + 24
+    return (rows * DET_SIZE * 4 * 2 + grid.npix**2 * 8 * 4) / 1e6
+
+
+def slots(grid: Grid, procs: int = 1) -> int:
+    """Exposures one of ``procs`` processes cuts at once onto ``grid``: up to
+    its share of FETCH_WORKERS, as many as fit its share of CUT_MB (at least 4)."""
+    share = max(4, config.FETCH_WORKERS // max(1, procs))
+    if config.CUT_MB <= 0:
+        return share
+    return max(4, min(share, int(config.CUT_MB / max(1, procs) / cut_mb(grid))))
 
 
 def ready(pause: float = 0.0) -> bool:

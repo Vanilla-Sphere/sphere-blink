@@ -54,6 +54,20 @@ FETCH_PROCS = int(os.environ.get("SPHEREX_FETCH_PROCS", str(min(4, os.cpu_count(
 RAM_BUDGET_MB = float(os.environ.get("SPHEREX_RAM_BUDGET_MB", "600"))
 # The disk cache drops its least recently fetched views above this size.
 DISK_BUDGET_GB = float(os.environ.get("SPHEREX_DISK_BUDGET_GB", "4"))
+# Wide views hold their frames in a file on disk instead of the memory of
+# the process: a 7 x 7 field is 0.5-1.2 GB of frames. The kernel keeps what is
+# being read in its file cache and gives it back when the memory is needed,
+# which memory the process holds itself it cannot: a server with 2 GB can
+# show such a field. Frames wider than SPILL_NPIX pixels (0: none) go there,
+# and SPILL_BUDGET_GB of such files are kept for views opened recently.
+SPILL_NPIX = int(os.environ.get("SPHEREX_SPILL_NPIX", "200"))
+SPILL_BUDGET_GB = float(os.environ.get("SPHEREX_SPILL_BUDGET_GB", "3"))
+# Memory the exposures being cut may take together (each holds a band of
+# detector rows while it waits for the network). A wide view cuts fewer of
+# them at once, so they fit; an 8 arcmin view still cuts FETCH_WORKERS.
+CUT_MB = float(os.environ.get("SPHEREX_CUT_MB", "400"))
+# Images built from the frames (epochs) kept for the next request of the same view.
+EPOCH_CACHE_MB = float(os.environ.get("SPHEREX_EPOCH_CACHE_MB", "300"))
 
 # The photograph behind the zoomed-in sky map: tiles of the 2MASS colour atlas
 # in the HiPS format, from the NASA/IPAC Infrared Science Archive. The server

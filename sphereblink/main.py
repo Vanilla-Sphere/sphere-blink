@@ -8,7 +8,6 @@ embedded elsewhere, e.g.
 
 from __future__ import annotations
 
-import gzip
 import json
 import os
 import re
@@ -17,6 +16,7 @@ import struct
 import sys
 import threading
 import time
+import zlib
 from collections import OrderedDict
 from pathlib import Path
 
@@ -321,7 +321,7 @@ def _frames(grid: Grid, wait: float, partial: bool = False):
 
 _epoch_cache: "OrderedDict[tuple, list]" = OrderedDict()
 _epoch_lock = threading.Lock()
-EPOCH_CACHE_BYTES = 300e6
+EPOCH_CACHE_BYTES = config.EPOCH_CACHE_MB * 1e6
 
 
 def _epochs(frames, det, group, diff=False, grid: Grid | None = None):
@@ -482,7 +482,7 @@ def api_cube(
     eps = render.binned(_epochs(frames, _band(det, band), group, grid=grid), bin)
     if eps and len(eps) * eps[0].planes * eps[0].image.shape[-1] ** 2 > CUBE_BUDGET:
         raise HTTPException(413, "too many pixels: reduce the field of view, group by day/visit, or pick one detector")
-    blob, enc = render.encode_cube(eps)
+    q, enc = render.encode_cube_array(eps)
     g = grid.to_dict()
     if eps and bin > 1:
         g.update(npix=int(eps[0].image.shape[-1]), scale_arcsec=grid.scale_arcsec * bin, native_npix=grid.npix)
@@ -495,18 +495,24 @@ def api_cube(
     }
     js = json.dumps(meta).encode()
     js += b" " * ((4 + len(js)) % 2)
-    body = struct.pack("<I", len(js)) + js + blob
+    head, blob = struct.pack("<I", len(js)) + js, memoryview(q).cast("B")
     # A finished view does not change (until the archive adds exposures): the
     # browser may keep its cube for a while, so going back to a view, or
     # switching bands back and forth, does not download megabytes again.
     headers = {"X-Job": job.status, "Vary": "Accept-Encoding",
                "Cache-Control": "private, max-age=600" if job.status == "ready" and not job.failed else "no-store"}
-    if "gzip" in request.headers.get("accept-encoding", "").lower() and len(body) > 2000:
+    size = len(head) + blob.nbytes
+    if "gzip" in request.headers.get("accept-encoding", "").lower() and size > 2000:
         # Compressed here, in this request's thread (zlib works outside the
         # interpreter lock), not by the middleware on the server's one event
-        # loop, where tens of megabytes would hold up every other answer.
-        body = gzip.compress(body, compresslevel=3 if len(body) > 20e6 else 4)
+        # loop, where tens of megabytes would hold up every other answer. In
+        # pieces: the pixels are never copied into one block with the header.
+        z = zlib.compressobj(3 if size > 20e6 else 4, zlib.DEFLATED, 31)  # 31: with a gzip header
+        body = b"".join([z.compress(head)] + [z.compress(blob[i : i + (8 << 20)]) for i in range(0, blob.nbytes, 8 << 20)]
+                        + [z.flush()])
         headers["Content-Encoding"] = "gzip"
+    else:
+        body = b"".join([head, blob])
     return Response(body, media_type="application/octet-stream", headers=headers)
 
 

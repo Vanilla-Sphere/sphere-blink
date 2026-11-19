@@ -97,9 +97,13 @@ noted.
 | `SPHEREX_MOVER_SEARCH` | `1` | default | `0` turns the blind search for moving objects off; the log stays readable |
 | `SPHEREX_MOVER_STACK` | `1` | default | `0` turns the second search of a field (faint and slow objects, one to three minutes more) off |
 | `SPHEREX_MOVER_STACK_BUDGET_S` | `180` | default | Seconds after which that search skips its four-day windows |
-| `SPHEREX_MOVER_MIN_FREE_MB` | `1800` | default | Memory that must be free in the container before a field is searched |
+| `SPHEREX_MOVER_MIN_FREE_MB` | `1800` | default | Memory that must be free in the container (the file cache counted as free) before a field is searched |
 | `SPHEREX_FETCH_PROCS` | `min(4, CPU count)` | `4` | Imaging worker processes |
 | `SPHEREX_RAM_BUDGET_MB` | `600` | `2000` | Frames kept in memory |
+| `SPHEREX_SPILL_NPIX` | `200` | default | Frames wider than this (pixels) are held in a nameless file on disk instead of the memory of the process: the kernel keeps what is read in its file cache and gives it back when memory is needed. `0` keeps every frame in memory. See [performance](performance.md#a-server-with-2-gb) |
+| `SPHEREX_SPILL_BUDGET_GB` | `3` | default | Such files kept on disk for views opened recently, in all |
+| `SPHEREX_CUT_MB` | `400` | default | Memory the exposures being cut may take together (a wide view cuts fewer at a time); `0` removes the limit |
+| `SPHEREX_EPOCH_CACHE_MB` | `300` | default | Epoch images built from the frames, kept for the next request of the same view |
 | `SPHEREX_TRIM_S` | `15` | default | Every process gives the memory it has freed back to the system at this interval while it works (seconds); `0` switches it off. See [performance](performance.md#memory-after-a-busy-hour) |
 | `SPHEREX_DISK_BUDGET_GB` | `4` | `16` | Size of the frame cache on disk |
 | `SPHEREX_ATLAS_BUDGET_GB` | `1` | `12` | Tiles of the sky photograph kept on disk, in all; above it the deep tiles least recently asked for are deleted |
