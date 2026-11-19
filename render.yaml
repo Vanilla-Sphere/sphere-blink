@@ -3,7 +3,7 @@ services:
     name: sphere-blink
     runtime: python
     region: virginia   # next to the SPHEREx bucket in AWS us-east-1
-    plan: pro plus   # 4 CPU, 8 GB
+    plan: pro   # 2 CPU, 4 GB (Pro Plus until 2026-11-19, lowered to cut cost)
     buildCommand: pip install -r requirements.txt
     # One web process, always: views and progressive fields are tracked in
     # its memory, and it starts SPHEREX_FETCH_PROCS processes of its own for
@@ -46,18 +46,18 @@ services:
       # Keep these in step with the plan and the disk below: processes = CPUs
       # of the plan, the two disk budgets together = at most 85% of the disk.
       - key: SPHEREX_FETCH_PROCS
-        value: "4"
-      # Frames kept in the server's memory. With the four fetch processes,
-      # a measurement run and the pictures being rendered, 2500 took the
-      # service to 6.6 of its 8 GB under load; 2000 leaves more room and
-      # still holds two 7 x 7 fields at once.
+        value: "2"
+      # Frames kept in the server's memory. On the 8 GB plan 2000 held two
+      # 7 x 7 fields at once; on 4 GB 800 keeps the recent views, and an older
+      # one is read again from the disk.
       - key: SPHEREX_RAM_BUDGET_MB
-        value: "2000"
+        value: "800"
       # What the pipeline works on at a time; the rest waits in a queue and
-      # is told its position. Sized to this plan (4 CPU, 8 GB) by
-      # measurement: docs/performance.md, "How many jobs at once". Views: one
-      # per fetch process, and together no more frames in memory than
-      # ACTIVE_MB (two 7 x 7 fields of the largest size). Measurements: two
+      # is told its position. Measured on 4 CPU, 8 GB (docs/performance.md,
+      # "How many jobs at once") and halved for this plan (2 CPU, 4 GB) on
+      # 2026-11-19. Views: one per fetch process, and together no more frames
+      # in memory than ACTIVE_MB (one 7 x 7 field of the largest size; one view
+      # is always worked on, whatever its size). Measurements: two
       # (three or four measure no more per minute). Measure again before
       # raising them or changing the plan.
       # These three and RAM_BUDGET_MB are also rows of the table "settings" of
@@ -67,9 +67,9 @@ services:
       # database, and RAM_BUDGET_MB + ACTIVE_MB + 250 MB per measuring process
       # is the memory the table may hand out in all.
       - key: SPHEREX_ACTIVE_VIEWS
-        value: "4"
+        value: "2"
       - key: SPHEREX_ACTIVE_MB
-        value: "2400"
+        value: "1200"
       - key: SPHEREX_MEASURE_PROCS
         value: "2"
       # glibc otherwise keeps one heap per thread and hands little back
