@@ -3,7 +3,7 @@ services:
     name: sphere-blink
     runtime: python
     region: virginia   # next to the SPHEREx bucket in AWS us-east-1
-    plan: pro   # 2 CPU, 4 GB (Pro Plus until 2026-11-19, lowered to cut cost)
+    plan: standard   # 1 CPU, 2 GB (Pro Plus until 2026-11-19, then Pro; lowered to cut cost)
     buildCommand: pip install -r requirements.txt
     # One web process, always: views and progressive fields are tracked in
     # its memory, and it starts SPHEREX_FETCH_PROCS processes of its own for
@@ -46,20 +46,22 @@ services:
       # Keep these in step with the plan and the disk below: processes = CPUs
       # of the plan, the two disk budgets together = at most 85% of the disk.
       - key: SPHEREX_FETCH_PROCS
-        value: "2"
+        value: "1"
       # Frames kept in the server's memory. On the 8 GB plan 2000 held two
-      # 7 x 7 fields at once; on 4 GB 800 keeps the recent views, and an older
-      # one is read again from the disk.
+      # 7 x 7 fields at once; on 2 GB 300 keeps the recent small views (wide
+      # ones live in files on disk, SPHEREX_SPILL_*), and an older one is
+      # read again from the disk.
       - key: SPHEREX_RAM_BUDGET_MB
-        value: "800"
+        value: "300"
       # What the pipeline works on at a time; the rest waits in a queue and
       # is told its position. Measured on 4 CPU, 8 GB (docs/performance.md,
-      # "How many jobs at once") and halved for this plan (2 CPU, 4 GB) on
-      # 2026-11-19. Views: one per fetch process, and together no more frames
-      # in memory than ACTIVE_MB (one 7 x 7 field of the largest size; one view
-      # is always worked on, whatever its size). Measurements: two
-      # (three or four measure no more per minute). Measure again before
-      # raising them or changing the plan.
+      # "How many jobs at once") and lowered for this plan (1 CPU, 2 GB) on
+      # 2026-11-19, measured under that limit (docs/performance.md, "A server
+      # with 2 GB"). Views: two cut at a time, each in its share of
+      # SPHEREX_CUT_MB, and together no more frames in memory than ACTIVE_MB
+      # (frames of wide views are on disk and only pass through; one view is
+      # always worked on, whatever its size). Measurements: one. Measure
+      # again before raising them or changing the plan.
       # These three and RAM_BUDGET_MB are also rows of the table "settings" of
       # the database, which the service reads twice a minute: change them
       # there, without a deploy (docs/deployment.md, "Settings in the
@@ -69,9 +71,19 @@ services:
       - key: SPHEREX_ACTIVE_VIEWS
         value: "2"
       - key: SPHEREX_ACTIVE_MB
-        value: "1200"
+        value: "300"
       - key: SPHEREX_MEASURE_PROCS
-        value: "2"
+        value: "1"
+      # Memory the exposures being cut may take together (a 7 x 7 field then
+      # cuts 7 at a time, an 8 arcmin view 64), the epoch images kept for the
+      # next request, and the room the mover search waits for (the file cache
+      # counted as free).
+      - key: SPHEREX_CUT_MB
+        value: "250"
+      - key: SPHEREX_EPOCH_CACHE_MB
+        value: "120"
+      - key: SPHEREX_MOVER_MIN_FREE_MB
+        value: "700"
       # glibc otherwise keeps one heap per thread and hands little back
       - key: MALLOC_ARENA_MAX
         value: "2"
