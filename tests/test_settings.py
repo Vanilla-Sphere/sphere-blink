@@ -13,7 +13,7 @@ import pytest
 from sphereblink import config, guard, measure_api, settings
 
 ROOT = Path(__file__).resolve().parent.parent
-PRODUCTION = {"ACTIVE_VIEWS": 4, "ACTIVE_MB": 2400.0, "MEASURE_PROCS": 2, "RAM_BUDGET_MB": 2000.0}  # render.yaml
+PRODUCTION = {"ACTIVE_VIEWS": 4, "ACTIVE_MB": 2400.0, "MEASURE_PROCS": 2, "RAM_BUDGET_MB": 2000.0}  # render.yaml on the 8 GB plan (until 2026-11-19)
 
 
 @pytest.fixture(autouse=True)
@@ -294,7 +294,7 @@ def test_the_table_of_the_repository_is_the_list_of_the_code_with_the_values_of_
             production = float(re.search(rf'os\.environ\.get\("{name}", "([\d.]+)"\)', code).group(1))
         assert value == production and lo <= value <= hi, key
     # with these values nothing is corrected: the table as created changes nothing on the server
-    assert sum(rows[k][0] * (250 if k == "measure_procs" else 1) for k in settings.MEMORY) == 4900
+    assert sum(rows[k][0] * (250 if k == "measure_procs" else 1) for k in settings.MEMORY) == 2500  # the 4 GB plan
     sql = (ROOT / "sql" / "settings.sql").read_text() + (ROOT / "sql" / "roles.sql").read_text()
     assert "enable row level security" in sql and "grant select on settings to blink_service" in sql
     assert not re.search(r"grant[^;]*(insert|update|delete|all)[^;]*on settings", sql)  # the service only reads it
