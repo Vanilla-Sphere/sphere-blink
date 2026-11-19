@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import io
 import json
 import logging
 import multiprocessing
+import os
 import queue
 import sqlite3
+import tempfile
 import threading
 import time
 import uuid
@@ -264,11 +267,14 @@ class Scheduler:
                 time.sleep(0.2)
                 self._wake.set()
 
-    def run(self, job_id: str, client: str, grid: Grid, chunks: list[list[worker.Item]]):
-        """Cut the chunks of one view; yields (results, stats) as each comes back."""
+    def run(self, job_id: str, client: str, grid: Grid, chunks: list[list[worker.Item]], spilled: bool = False):
+        """Cut the chunks of one view; yields (results, stats) as each comes back.
+        ``spilled``: its frames go to a file on disk (``Spill``), not into memory."""
         out: "queue.Queue" = queue.Queue()
-        # what its frames will take in memory while they are gathered (float32, every exposure a frame)
-        mb = sum(len(c) for c in chunks) * getattr(grid, "npix", 0) ** 2 * 4 / 1e6
+        # what its frames will take in memory while they are gathered (float32, every exposure a frame);
+        # frames that go to disk only pass through, a chunk or two at a time
+        frames = max(map(len, chunks), default=0) * 2 if spilled else sum(len(c) for c in chunks)
+        mb = frames * getattr(grid, "npix", 0) ** 2 * 4 / 1e6
         with self._lock:
             self._views[job_id] = {"client": client, "started": time.time(), "grid": grid, "pending": list(reversed(chunks)),
                                    "sent": 0, "out": out, "active": False, "mb": mb}
@@ -374,6 +380,70 @@ class Scheduler:
         self._wake.set()
 
 
+def disk_array(shape: tuple[int, ...]) -> np.memmap | None:
+    """A float32 array in a file on disk without a name (see ``Spill``), or
+    None when the disk has no room for it."""
+    try:
+        folder = config.CACHE_DIR / "spill"
+        folder.mkdir(parents=True, exist_ok=True)
+        fd, path = tempfile.mkstemp(dir=folder, suffix=".f32")
+        try:
+            # taken on disk now: a full disk is an error here, not a crash of
+            # the process (SIGBUS) when the array is written to later
+            os.posix_fallocate(fd, 0, max(1, int(np.prod(shape))) * 4)
+            return np.memmap(path, dtype=np.float32, mode="r+", shape=shape)
+        finally:
+            os.close(fd)
+            os.unlink(path)  # the mapping keeps the file for as long as it is open
+    except (OSError, ValueError) as exc:
+        log.warning("no room on disk for %s frames, they stay in memory: %s", shape, exc)
+        return None
+
+
+class Spill:
+    """The frames of one wide view, in a file on disk instead of the memory
+    of the process (``config.SPILL_NPIX``).
+
+    Each frame's image becomes a window on the file. What is being read sits
+    in the kernel's file cache, which the kernel takes back when the memory is
+    needed; the same frames held by the process could not be given back, and a
+    7 x 7 field (0.5-1.2 GB of them) was enough to fill a 2 GB server. The file
+    has no name: it goes away by itself once nothing refers to its frames any
+    more, so a restart or a crash leaves nothing behind.
+    """
+
+    def __init__(self, mm: np.memmap):
+        self.mm, self.used = mm, 0
+        self._lock = threading.Lock()
+
+    @classmethod
+    def open(cls, frames: int, npix: int) -> "Spill | None":
+        """Room for ``frames`` frames, or None (the frames then stay in memory)
+        when the disk has no room for them."""
+        mm = disk_array((frames, npix, npix)) if frames > 0 else None
+        return cls(mm) if mm is not None else None
+
+    @property
+    def nbytes(self) -> int:
+        return self.mm.nbytes
+
+    def frame_bytes(self) -> int:
+        return self.mm[0].nbytes if len(self.mm) else 0
+
+    def keep(self, frame: Frame) -> Frame:
+        """The frame, its image moved into the file (where there is room)."""
+        if frame.image.shape != self.mm.shape[1:]:
+            return frame
+        with self._lock:
+            i = self.used
+            if i >= len(self.mm):
+                return frame  # more frames than announced: the others stay in memory
+            self.used += 1
+        self.mm[i] = frame.image
+        frame.image = np.asarray(self.mm[i])  # a plain array on the file's memory
+        return frame
+
+
 @dataclass
 class Job:
     id: str
@@ -390,6 +460,16 @@ class Job:
     client: str = ""  # who asked first (for sharing the fetch processes fairly)
     frames: list[Frame] = field(default_factory=list)  # grows while fetching
     place: "Callable[[], tuple[int, int]] | None" = None  # while its exposures are cut: where it is in the queue
+    spill: Spill | None = None  # a wide view: its frames are in a file on disk
+
+    def keep(self, frame: Frame) -> None:
+        self.frames.append(self.spill.keep(frame) if self.spill is not None else frame)
+
+    def held(self) -> tuple[int, int]:
+        """Bytes of frames (in the memory of the process, in a file on disk)."""
+        total = sum(f.image.nbytes for f in self.frames)
+        disk = self.spill.used * self.spill.frame_bytes() if self.spill is not None else 0
+        return total - disk, (self.spill.nbytes if self.spill is not None else 0)
 
     def public(self) -> dict:
         end = self.finished or time.time()
@@ -427,6 +507,7 @@ class Service:
         self._procs: ProcessPoolExecutor | None = None
         # a couple more chunks than processes are handed over, so no process waits for the next one
         self._sched = Scheduler(self._pool, config.FETCH_PROCS + 2)
+        self._in_loop, self._in_loop_turn = 0, threading.Condition()  # one core: views cut at once (see _one_core)
         self.settings_changed = self._sched.recheck  # for settings.on_change
         self.pinned: set[str] = set()  # views the disk cache never drops (the featured targets)
 
@@ -551,14 +632,15 @@ class Service:
         nobody opened for the longest time (their frames stay on disk)."""
         with self.lock:
             done = sorted((j for j in self.jobs.values() if j.status in ("ready", "error")), key=lambda j: j.last_used)
-            size = lambda j: sum(f.image.nbytes for f in j.frames)  # noqa: E731
-            total = sum(size(j) for j in self.jobs.values())
+            held = {j.id: j.held() for j in self.jobs.values()}
+            ram, disk = sum(h[0] for h in held.values()), sum(h[1] for h in held.values())
             for old in done:
-                if total <= settings.get("ram_budget_mb") * 1e6 and len(self.jobs) <= 500:
+                if (ram <= settings.get("ram_budget_mb") * 1e6 and disk <= config.SPILL_BUDGET_GB * 1e9
+                        and len(self.jobs) <= 500):
                     break
                 if old is keep:
                     continue
-                total -= size(old)
+                ram, disk = ram - held[old.id][0], disk - held[old.id][1]
                 self.jobs.pop(old.id, None)
                 self.by_view = {k: v for k, v in self.by_view.items() if v != old.id}
 
@@ -573,6 +655,8 @@ class Service:
                 step = (len(exps) - 1) / (config.MAX_FRAMES - 1)
                 exps = [exps[round(k * step)] for k in range(config.MAX_FRAMES)]
             job.total = len(exps)
+            if config.SPILL_NPIX and grid.npix > config.SPILL_NPIX:
+                job.spill = Spill.open(len(exps), grid.npix)
             job.status = "fetching"
             todo = []
             for e in exps:
@@ -583,7 +667,7 @@ class Service:
                 else:
                     job.done += 1
                     if got is not False:
-                        job.frames.append(got)
+                        job.keep(got)
             job.resuming = False
             if todo:
                 # wavelength maps: one per release+detector, fetched once ever
@@ -600,7 +684,7 @@ class Service:
                 if config.FETCH_PROCS > 1:
                     self._fetch_in_processes(job, grid, items)
                 else:
-                    with worker.Meter() as m:
+                    with self._one_core(), worker.Meter() as m:
                         asyncio.run(self._fetch_in_loop(job, grid, items))
                     job.stats.update(m.stats)
                 job.stats["fetch_s"] = time.time() - t0
@@ -622,7 +706,7 @@ class Service:
             if err:
                 job.failed += 1
             elif f is not None:
-                job.frames.append(f)
+                job.keep(f)
             job.done += 1
 
     def _pool(self) -> ProcessPoolExecutor:
@@ -665,14 +749,14 @@ class Service:
     def _fetch_in_processes(self, job: Job, grid: Grid, items: list[worker.Item]) -> None:
         """Several cores: chunks of exposures are cut in worker processes,
         which this view shares with the others being gathered (see Scheduler)."""
-        chunk = max(4, config.FETCH_WORKERS // config.FETCH_PROCS)
+        chunk = worker.slots(grid, config.FETCH_PROCS)  # cut at once in a worker process: fewer for a wide view
         chunks = [items[i : i + chunk] for i in range(0, len(items), chunk)]
         if len(chunks) > 1:  # a small first chunk: first frames on screen sooner
             head = max(1, min(4, len(chunks[0]) // 2))
             chunks = [chunks[0][:head], chunks[0][head:]] + chunks[1:]
         job.place = lambda: self._sched.place(job.id)
         try:
-            for results, stats in self._sched.run(job.id, job.client, grid, chunks):
+            for results, stats in self._sched.run(job.id, job.client, grid, chunks, spilled=job.spill is not None):
                 for k, v in stats.items():
                     job.stats[k] = job.stats.get(k, 0) + v
                 t0 = time.time()
@@ -681,9 +765,31 @@ class Service:
         finally:
             job.place = None
 
+    @contextlib.contextmanager
+    def _one_core(self):
+        """One core: no more than ``active_views`` views are cut at a time (the
+        Scheduler does that with several), each in its share of CUT_MB; the
+        others wait for their turn."""
+        with self._in_loop_turn:
+            while self._in_loop >= self._loop_views():
+                self._in_loop_turn.wait(1.0)  # a change of the setting is seen within a second
+            self._in_loop += 1
+        try:
+            yield
+        finally:
+            with self._in_loop_turn:
+                self._in_loop -= 1
+                self._in_loop_turn.notify_all()
+
+    @staticmethod
+    def _loop_views() -> int:
+        views = settings.get("active_views")
+        return views if views > 0 else 1 << 30
+
     async def _fetch_in_loop(self, job: Job, grid: Grid, items: list[worker.Item]) -> None:
         """One core: everything in this process, frames arrive one by one."""
-        sem = asyncio.Semaphore(config.FETCH_WORKERS)
+        views = self._loop_views()
+        sem = asyncio.Semaphore(worker.slots(grid, views if views < 1 << 30 else 1))
         limits = httpx.Limits(max_connections=config.FETCH_WORKERS * 2, max_keepalive_connections=config.FETCH_WORKERS * 2)
         async with httpx.AsyncClient(timeout=httpx.Timeout(60, connect=20), limits=limits) as client:
 

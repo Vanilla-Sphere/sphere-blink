@@ -377,17 +377,33 @@ def encode_cube(epochs: list[Epoch]) -> tuple[bytes, dict]:
     value = sinh(a_lo + (q - 1) / 65534 * (a_hi - a_lo)), in units of the
     per-exposure sky noise (sigma).
     """
+    q, enc = encode_cube_array(epochs)
+    return q.tobytes(), enc
+
+
+def encode_cube_array(epochs: list[Epoch]) -> tuple[np.ndarray, dict]:
+    """``encode_cube`` as an array, worked out one epoch at a time: a wide
+    field's cube is tens of millions of pixels, and doing it all at once held
+    ten times its size in memory."""
     if not epochs:
-        return b"", {"a_lo": 0.0, "a_hi": 1.0, "n": 0, "planes": 1}
-    cube = np.stack([e.image for e in epochs]).astype(np.float32)
-    finite = np.isfinite(cube)
-    a = np.arcsinh(np.where(finite, cube, 0.0))
-    a_lo = float(a[finite].min()) if finite.any() else 0.0
-    a_hi = float(a[finite].max()) if finite.any() else 1.0
+        return np.zeros(0, dtype="<u2"), {"a_lo": 0.0, "a_hi": 1.0, "n": 0, "planes": 1}
+    lo, hi = np.inf, -np.inf
+    for e in epochs:  # asinh only grows: its least and greatest value are those of the least and greatest pixel
+        img = np.asarray(e.image, dtype=np.float32)
+        finite = np.isfinite(img)
+        if finite.any():
+            lo, hi = min(lo, float(img[finite].min())), max(hi, float(img[finite].max()))
+    a_lo = float(np.arcsinh(np.float32(lo))) if np.isfinite(lo) else 0.0
+    a_hi = float(np.arcsinh(np.float32(hi))) if np.isfinite(hi) else 1.0
     if a_hi <= a_lo:
         a_hi = a_lo + 1.0
-    q = np.where(finite, 1 + np.round((a - a_lo) / (a_hi - a_lo) * 65534), 0).astype("<u2")
-    return q.tobytes(), {"a_lo": a_lo, "a_hi": a_hi, "n": len(epochs), "planes": epochs[0].planes}
+    q = np.empty((len(epochs), *epochs[0].image.shape), dtype="<u2")
+    for k, e in enumerate(epochs):
+        img = np.asarray(e.image, dtype=np.float32)
+        finite = np.isfinite(img)
+        a = np.arcsinh(np.where(finite, img, 0.0))
+        q[k] = np.where(finite, 1 + np.round((a - a_lo) / (a_hi - a_lo) * 65534), 0)
+    return q, {"a_lo": a_lo, "a_hi": a_hi, "n": len(epochs), "planes": epochs[0].planes}
 
 
 def png_bytes(im: Image.Image) -> bytes:

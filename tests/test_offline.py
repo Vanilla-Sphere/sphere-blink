@@ -328,6 +328,49 @@ def test_memory_budget_forgets_least_recently_used_views(tmp_path, monkeypatch):
     assert set(svc.jobs) == {"j1", "j2"} and set(svc.by_view) == {"view1", "view2"}
 
 
+def test_wide_views_hold_their_frames_in_a_file_on_disk(tmp_path, monkeypatch):
+    from sphereblink import config
+    from sphereblink.service import Job, Service, Spill, Store
+
+    monkeypatch.setattr(config, "CACHE_DIR", tmp_path)
+    spill = Spill.open(3, 101)
+    job = Job(id="w", status="ready", spill=spill)
+    fr = [frame(60900 + i, n=101) for i in range(4)]
+    want = [f.image.copy() for f in fr]
+    for f in fr:
+        job.keep(f)
+    # three go to the file (it was opened for three), the fourth stays in memory; all read back the same
+    assert spill.used == 3 and all(np.array_equal(f.image, w) for f, w in zip(job.frames, want))
+    assert all(type(f.image) is np.ndarray and f.image.dtype == np.float32 for f in job.frames)
+    assert job.held() == (101 * 101 * 4, 3 * 101 * 101 * 4)
+    assert list((tmp_path / "spill").iterdir()) == []  # the file has no name: nothing is left behind
+    # the memory budget counts only what is in memory; files on disk have a budget of their own
+    svc = Service(Store(tmp_path / "c.sqlite"))
+    svc.jobs = {"w": job, "x": Job(id="x", status="ready", last_used=0.0, spill=Spill.open(2, 101))}
+    svc.by_view = {"vw": "w", "vx": "x"}
+    monkeypatch.setattr(config, "RAM_BUDGET_MB", 0.05)
+    monkeypatch.setattr(config, "SPILL_BUDGET_GB", 1.0)
+    svc._forget(keep=job)
+    assert set(svc.jobs) == {"w", "x"}
+    monkeypatch.setattr(config, "SPILL_BUDGET_GB", 0.0002)  # 200 kB: less than both files
+    svc._forget(keep=job)
+    assert set(svc.jobs) == {"w"} and svc.by_view == {"vw": "w"}
+
+
+def test_wide_views_cut_fewer_exposures_at_once(monkeypatch):
+    from sphereblink import config, worker
+
+    monkeypatch.setattr(config, "FETCH_WORKERS", 64)
+    monkeypatch.setattr(config, "CUT_MB", 250)
+    small, wide = Grid.from_fov(10.0, 20.0, 8.0), Grid.from_fov(10.0, 20.0, 50.4)
+    assert worker.cut_mb(wide) > 5 * worker.cut_mb(small)
+    assert worker.slots(small) == 64 and worker.slots(small, 2) == 32  # an 8 arcmin view as before
+    assert 4 <= worker.slots(wide) < 20 and worker.slots(wide) * worker.cut_mb(wide) <= 250
+    assert worker.slots(wide, 8) == 4  # never fewer than four
+    monkeypatch.setattr(config, "CUT_MB", 0)
+    assert worker.slots(wide) == 64  # 0: no limit
+
+
 # ----------------------------------------------------------------------------- progressive fields
 def test_cells_follow_the_fixed_grid_and_grow_ring_by_ring():
     # ids and centres of the team's icrs012-v1 grid (Barnard's Star, Fairall 9)
